@@ -13,7 +13,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "validate": "./scripts/validate-prerequisites.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
