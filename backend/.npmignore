@@ -1,0 +1,20 @@
+# Source files
+src/
+__tests__/
+
+# Config files
+tsconfig.json
+jest.config.js
+
+# Development
+*.md
+.git
+.gitignore
+
+# Build artifacts
+node_modules/
+coverage/
+
+# SAM artifacts
+.aws-sam/
+samconfig.toml

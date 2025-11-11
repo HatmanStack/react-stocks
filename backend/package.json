@@ -1,0 +1,36 @@
+{
+  "name": "react-stocks-backend",
+  "version": "1.0.0",
+  "description": "AWS Lambda backend for React Stocks application - proxies Tiingo and Polygon APIs",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:aws-sdk",
+    "build:watch": "npm run build -- --watch",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "npm run test -- --watch",
+    "test:coverage": "npm run test -- --coverage",
+    "clean": "rm -rf dist coverage"
+  },
+  "keywords": [
+    "aws-lambda",
+    "api-gateway",
+    "serverless",
+    "stocks",
+    "backend"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "@types/jest": "^29.5.13",
+    "@types/node": "^20.17.0",
+    "esbuild": "^0.24.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.6.0"
+  }
+}
