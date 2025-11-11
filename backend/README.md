@@ -35,13 +35,13 @@ backend/
 
 Run prerequisite validation:
 ```bash
+cd ..
 npm run validate
 ```
 
 ### Installation
 
 ```bash
-cd backend
 npm install
 ```
 
@@ -64,7 +64,18 @@ Coverage target: >80% for all metrics (branches, functions, lines, statements)
 
 ### Local Development
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions (to be added in Task 1.8).
+```bash
+# Build and start local API
+sam build
+sam local start-api
+
+# Test locally
+curl "http://localhost:3000/stocks?ticker=AAPL&startDate=2024-01-01&type=metadata"
+```
+
+### Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
 
 ## API Endpoints
 
