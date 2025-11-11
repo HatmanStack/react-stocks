@@ -3,7 +3,7 @@
  * Data access layer for PortfolioDetails entity (user watchlist)
  */
 
-import { getDatabase } from '../database';
+import { getDatabase } from '../index';
 import { PortfolioDetails } from '@/types/database.types';
 import { TABLE_NAMES } from '@/constants/database.constants';
 

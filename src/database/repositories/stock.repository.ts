@@ -3,7 +3,7 @@
  * Data access layer for StockDetails entity
  */
 
-import { getDatabase } from '../database';
+import { getDatabase } from '../index';
 import { StockDetails } from '@/types/database.types';
 import { TABLE_NAMES } from '@/constants/database.constants';
 

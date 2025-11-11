@@ -3,7 +3,7 @@
  * Data access layer for NewsDetails entity
  */
 
-import { getDatabase } from '../database';
+import { getDatabase } from '../index';
 import { NewsDetails } from '@/types/database.types';
 import { TABLE_NAMES } from '@/constants/database.constants';
 

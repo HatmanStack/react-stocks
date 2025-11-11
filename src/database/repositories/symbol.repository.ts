@@ -3,7 +3,7 @@
  * Data access layer for SymbolDetails entity
  */
 
-import { getDatabase } from '../database';
+import { getDatabase } from '../index';
 import { SymbolDetails } from '@/types/database.types';
 import { TABLE_NAMES } from '@/constants/database.constants';
 

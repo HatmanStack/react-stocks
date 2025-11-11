@@ -3,7 +3,7 @@
  * Data access layer for WordCountDetails entity (per-article sentiment)
  */
 
-import { getDatabase } from '../database';
+import { getDatabase } from '../index';
 import { WordCountDetails } from '@/types/database.types';
 import { TABLE_NAMES } from '@/constants/database.constants';
 

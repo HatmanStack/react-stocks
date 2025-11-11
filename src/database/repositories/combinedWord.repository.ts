@@ -3,7 +3,7 @@
  * Data access layer for CombinedWordDetails entity (daily aggregated sentiment)
  */
 
-import { getDatabase } from '../database';
+import { getDatabase } from '../index';
 import { CombinedWordDetails } from '@/types/database.types';
 import { TABLE_NAMES } from '@/constants/database.constants';
 

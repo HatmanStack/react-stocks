@@ -1,12 +1,14 @@
 /**
  * Date Range Picker Component
  * Allows selecting start and end dates for stock data queries
+ * Uses React Native Paper DatePickerModal for modern UI
  */
 
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Calendar, DateData } from 'react-native-calendars';
-import { formatDateForDB } from '@/utils/date/dateUtils';
+import { Button, Text } from 'react-native-paper';
+import { DatePickerModal } from 'react-native-paper-dates';
+import { format } from 'date-fns';
 
 interface DateRangePickerProps {
   startDate?: string;
@@ -19,90 +21,75 @@ export function DateRangePicker({
   endDate,
   onDateRangeChange,
 }: DateRangePickerProps) {
-  const [selectedStartDate, setSelectedStartDate] = useState<string | undefined>(startDate);
-  const [selectedEndDate, setSelectedEndDate] = useState<string | undefined>(endDate);
-  const [isSelectingEnd, setIsSelectingEnd] = useState(false);
+  const [visible, setVisible] = useState(false);
 
-  const handleDayPress = (day: DateData) => {
-    if (!selectedStartDate || isSelectingEnd) {
-      // Select end date or reset if end is before start
-      if (selectedStartDate && day.dateString >= selectedStartDate) {
-        setSelectedEndDate(day.dateString);
-        setIsSelectingEnd(false);
-        onDateRangeChange(selectedStartDate, day.dateString);
-      } else {
-        // Reset and start over
-        setSelectedStartDate(day.dateString);
-        setSelectedEndDate(undefined);
-        setIsSelectingEnd(true);
-      }
-    } else {
-      // Select start date
-      setSelectedStartDate(day.dateString);
-      setSelectedEndDate(undefined);
-      setIsSelectingEnd(true);
+  const onDismiss = () => {
+    setVisible(false);
+  };
+
+  const onConfirm = ({ startDate: start, endDate: end }: { startDate?: Date; endDate?: Date }) => {
+    setVisible(false);
+    if (start && end) {
+      // Format dates as YYYY-MM-DD for database
+      const startStr = format(start, 'yyyy-MM-dd');
+      const endStr = format(end, 'yyyy-MM-dd');
+      onDateRangeChange(startStr, endStr);
     }
   };
 
-  const getMarkedDates = () => {
-    const marked: { [key: string]: any } = {};
-
-    if (selectedStartDate) {
-      marked[selectedStartDate] = {
-        startingDay: true,
-        color: '#1976D2',
-        textColor: 'white',
-      };
+  const formatDisplayDate = (dateStr?: string) => {
+    if (!dateStr) return 'Not selected';
+    try {
+      const date = new Date(dateStr);
+      return format(date, 'MMM dd, yyyy');
+    } catch {
+      return 'Invalid date';
     }
-
-    if (selectedEndDate) {
-      marked[selectedEndDate] = {
-        endingDay: true,
-        color: '#1976D2',
-        textColor: 'white',
-      };
-
-      // Mark dates in between
-      if (selectedStartDate) {
-        const start = new Date(selectedStartDate);
-        const end = new Date(selectedEndDate);
-        const current = new Date(start);
-        current.setDate(current.getDate() + 1);
-
-        while (current < end) {
-          const dateString = formatDateForDB(current);
-          marked[dateString] = {
-            color: '#E3F2FD',
-            textColor: '#1976D2',
-          };
-          current.setDate(current.getDate() + 1);
-        }
-      }
-    }
-
-    return marked;
   };
 
   return (
     <View style={styles.container}>
-      <Calendar
-        onDayPress={handleDayPress}
-        markedDates={getMarkedDates()}
-        markingType="period"
-        theme={{
-          backgroundColor: '#ffffff',
-          calendarBackground: '#ffffff',
-          textSectionTitleColor: '#757575',
-          selectedDayBackgroundColor: '#1976D2',
-          selectedDayTextColor: '#ffffff',
-          todayTextColor: '#1976D2',
-          dayTextColor: '#212121',
-          textDisabledColor: '#BDBDBD',
-          arrowColor: '#1976D2',
-          monthTextColor: '#212121',
-          textMonthFontWeight: '600',
-          textDayHeaderFontWeight: '500',
-        }}
+      <View style={styles.row}>
+        <View style={styles.dateSection}>
+          <Text variant="labelMedium" style={styles.label}>
+            Start Date
+          </Text>
+          <Text variant="bodyMedium" style={styles.dateText}>
+            {formatDisplayDate(startDate)}
+          </Text>
+        </View>
+
+        <Text variant="bodyLarge" style={styles.separator}>
+          →
+        </Text>
+
+        <View style={styles.dateSection}>
+          <Text variant="labelMedium" style={styles.label}>
+            End Date
+          </Text>
+          <Text variant="bodyMedium" style={styles.dateText}>
+            {formatDisplayDate(endDate)}
+          </Text>
+        </View>
+      </View>
+
+      <Button
+        mode="contained"
+        onPress={() => setVisible(true)}
+        style={styles.button}
+        icon="calendar-range"
+      >
+        Select Date Range
+      </Button>
+
+      <DatePickerModal
+        locale="en"
+        mode="range"
+        visible={visible}
+        onDismiss={onDismiss}
+        startDate={startDate ? new Date(startDate) : undefined}
+        endDate={endDate ? new Date(endDate) : undefined}
+        onConfirm={onConfirm}
       />
     </View>
   );
@@ -111,7 +98,31 @@ export function DateRangePicker({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    overflow: 'hidden',
+    padding: 16,
+    gap: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  dateSection: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  label: {
+    color: '#757575',
+    marginBottom: 4,
+  },
+  dateText: {
+    color: '#212121',
+    fontWeight: '600',
+  },
+  separator: {
+    marginHorizontal: 8,
+    color: '#1976D2',
+  },
+  button: {
+    marginTop: 4,
   },
 });
