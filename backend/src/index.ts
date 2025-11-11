@@ -35,12 +35,12 @@ export async function handler(
     // Route to appropriate handler based on path
     switch (path) {
       case '/stocks':
-        // Placeholder for stocks handler (Task 1.5)
-        return errorResponse('Stocks handler not yet implemented', 501);
+        const { handleStocksRequest } = await import('./handlers/stocks.handler');
+        return handleStocksRequest(event);
 
       case '/news':
-        // Placeholder for news handler (Task 1.6)
-        return errorResponse('News handler not yet implemented', 501);
+        const { handleNewsRequest } = await import('./handlers/news.handler');
+        return handleNewsRequest(event);
 
       default:
         console.warn('[Lambda] Unknown route:', path);
