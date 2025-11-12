@@ -43,6 +43,10 @@ export default function RootLayout() {
   useEffect(() => {
     async function initialize() {
       try {
+        // Log feature flags for debugging
+        const { logFeatureFlags } = await import('../src/config/features');
+        logFeatureFlags();
+
         // Initialize database - platform-specific implementation
         const { initializeDatabase } = await import('../src/database');
         await initializeDatabase();
