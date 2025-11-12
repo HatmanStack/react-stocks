@@ -1,6 +1,6 @@
 {
   "name": "expo-project",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -13,7 +13,8 @@
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "validate": "./scripts/validate-prerequisites.sh"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -46,6 +47,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-tab-view": "^4.2.0",
     "react-native-web": "^0.21.0",
+    "sentiment": "^5.0.2",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
@@ -55,6 +57,7 @@
     "@types/node": "^24.10.0",
     "@types/react": "~19.1.0",
     "@types/react-native": "^0.72.8",
+    "@types/sentiment": "^5.0.4",
     "babel-preset-expo": "^54.0.7",
     "eslint": "^8.57.0",
     "eslint-config-expo": "^10.0.0",

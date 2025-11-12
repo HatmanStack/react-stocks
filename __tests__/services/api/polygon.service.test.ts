@@ -1,11 +1,10 @@
 /**
- * Polygon.io API Service Tests
- * Tests for news article fetching, pagination, and hash generation
+ * Polygon.io API Service Tests (Lambda Backend)
+ * Tests for news article fetching and hash generation
  */
 
 import axios from 'axios';
 import {
-  setPolygonApiKey,
   fetchNews,
   generateArticleHash,
   transformPolygonToNewsDetails,
@@ -15,6 +14,15 @@ import type { PolygonNewsArticle } from '@/services/api/polygon.types';
 // Mock axios
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Mock environment configuration
+jest.mock('@/config/environment', () => ({
+  Environment: {
+    BACKEND_URL: 'https://test-api.execute-api.us-east-1.amazonaws.com',
+    USE_BROWSER_SENTIMENT: false,
+    USE_BROWSER_PREDICTION: false,
+  },
+}));
 
 describe('Polygon Service', () => {
   let mockAxiosInstance: any;
@@ -34,53 +42,44 @@ describe('Polygon Service', () => {
     (mockedAxios.isAxiosError as unknown as jest.Mock) = jest.fn((error: any) => {
       return error && error.isAxiosError === true;
     });
-
-    // Set API key for tests
-    setPolygonApiKey('test-polygon-api-key');
   });
 
   describe('fetchNews', () => {
-    it('should fetch news articles for valid ticker', async () => {
-      const mockResponse = {
-        data: {
-          status: 'OK',
-          results: [
-            {
-              id: 'article-1',
-              title: 'Apple announces new iPhone',
-              author: 'John Doe',
-              published_utc: '2025-01-15T10:30:00Z',
-              article_url: 'https://example.com/article-1',
-              tickers: ['AAPL', 'NASDAQ:AAPL'],
-              description: 'Apple Inc. announced a new iPhone model today.',
-              image_url: 'https://example.com/image.jpg',
-              publisher: {
-                name: 'TechNews',
-                homepage_url: 'https://technews.com',
-                logo_url: 'https://technews.com/logo.png',
-                favicon_url: 'https://technews.com/favicon.ico',
-              },
-              amp_url: 'https://example.com/article-1/amp',
-            },
-            {
-              id: 'article-2',
-              title: 'Apple stock surges',
-              author: 'Jane Smith',
-              published_utc: '2025-01-15T14:00:00Z',
-              article_url: 'https://example.com/article-2',
-              tickers: ['AAPL'],
-              description: 'Apple stock price increased by 5% today.',
-              publisher: {
-                name: 'FinanceDaily',
-                homepage_url: 'https://financedaily.com',
-              },
-            },
-          ],
-          count: 2,
+    it('should fetch news articles for valid ticker from Lambda backend', async () => {
+      const mockArticles: PolygonNewsArticle[] = [
+        {
+          id: 'article-1',
+          title: 'Apple announces new iPhone',
+          author: 'John Doe',
+          published_utc: '2025-01-15T10:30:00Z',
+          article_url: 'https://example.com/article-1',
+          tickers: ['AAPL', 'NASDAQ:AAPL'],
+          description: 'Apple Inc. announced a new iPhone model today.',
+          image_url: 'https://example.com/image.jpg',
+          publisher: {
+            name: 'TechNews',
+            homepage_url: 'https://technews.com',
+            logo_url: 'https://technews.com/logo.png',
+            favicon_url: 'https://technews.com/favicon.ico',
+          },
+          amp_url: 'https://example.com/article-1/amp',
         },
-      };
+        {
+          id: 'article-2',
+          title: 'Apple stock surges',
+          author: 'Jane Smith',
+          published_utc: '2025-01-15T14:00:00Z',
+          article_url: 'https://example.com/article-2',
+          tickers: ['AAPL'],
+          description: 'Apple stock price increased by 5% today.',
+          publisher: {
+            name: 'FinanceDaily',
+            homepage_url: 'https://financedaily.com',
+          },
+        },
+      ];
 
-      mockAxiosInstance.get.mockResolvedValueOnce(mockResponse);
+      mockAxiosInstance.get.mockResolvedValueOnce({ data: mockArticles });
 
       const articles = await fetchNews('AAPL', '2025-01-01', '2025-01-15');
 
@@ -89,75 +88,15 @@ describe('Polygon Service', () => {
       expect(articles[0].tickers).toContain('AAPL');
       expect(articles[1].title).toBe('Apple stock surges');
 
-      // Verify API was called correctly (URL includes query params as string)
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
-        expect.stringContaining('/v2/reference/news?')
-      );
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
-        expect.stringContaining('ticker=AAPL')
-      );
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
-        expect.stringContaining('published_utc.gte=2025-01-01')
-      );
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
-        expect.stringContaining('published_utc.lte=2025-01-15')
-      );
-    });
-
-    it('should handle pagination and fetch multiple pages', async () => {
-      // First page response
-      const firstPageResponse = {
-        data: {
-          status: 'OK',
-          results: [
-            {
-              id: 'article-1',
-              title: 'Article 1',
-              author: 'Author 1',
-              published_utc: '2025-01-15T10:00:00Z',
-              article_url: 'https://example.com/article-1',
-              tickers: ['AAPL'],
-              description: 'First article',
-              publisher: { name: 'Publisher 1' },
-            },
-          ],
-          count: 1,
-          next_url: 'https://api.polygon.io/v2/reference/news?cursor=page2&apiKey=test-key',
+      // Verify API was called with correct params
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/news', {
+        params: {
+          ticker: 'AAPL',
+          startDate: '2025-01-01',
+          endDate: '2025-01-15',
+          limit: 100,
         },
-      };
-
-      // Second page response
-      const secondPageResponse = {
-        data: {
-          status: 'OK',
-          results: [
-            {
-              id: 'article-2',
-              title: 'Article 2',
-              author: 'Author 2',
-              published_utc: '2025-01-15T11:00:00Z',
-              article_url: 'https://example.com/article-2',
-              tickers: ['AAPL'],
-              description: 'Second article',
-              publisher: { name: 'Publisher 2' },
-            },
-          ],
-          count: 1,
-        },
-      };
-
-      mockAxiosInstance.get
-        .mockResolvedValueOnce(firstPageResponse)
-        .mockResolvedValueOnce(secondPageResponse);
-
-      const articles = await fetchNews('AAPL', '2025-01-01', '2025-01-15');
-
-      expect(articles).toHaveLength(2);
-      expect(articles[0].title).toBe('Article 1');
-      expect(articles[1].title).toBe('Article 2');
-
-      // Verify two API calls were made
-      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(2);
+      });
     });
 
     it('should handle rate limit errors (429)', async () => {
@@ -177,20 +116,37 @@ describe('Polygon Service', () => {
       );
     });
 
-    it('should handle invalid API key (401)', async () => {
+    it('should handle invalid request (400)', async () => {
       const error = {
         isAxiosError: true,
         response: {
-          status: 401,
-          data: { error: 'Invalid API key' },
+          status: 400,
+          data: { error: 'Invalid ticker format' },
         },
-        message: 'Request failed with status code 401',
+        message: 'Request failed with status code 400',
       };
 
       mockAxiosInstance.get.mockRejectedValueOnce(error);
 
       await expect(fetchNews('AAPL', '2025-01-01')).rejects.toThrow(
-        'Invalid API key'
+        'Invalid ticker format'
+      );
+    });
+
+    it('should handle backend errors (500)', async () => {
+      const error = {
+        isAxiosError: true,
+        response: {
+          status: 500,
+          data: { error: 'Polygon API unavailable' },
+        },
+        message: 'Request failed with status code 500',
+      };
+
+      mockAxiosInstance.get.mockRejectedValueOnce(error);
+
+      await expect(fetchNews('AAPL', '2025-01-01')).rejects.toThrow(
+        'Polygon API unavailable'
       );
     });
 
@@ -211,54 +167,31 @@ describe('Polygon Service', () => {
       expect(articles).toEqual([]);
     });
 
-    it('should respect page limit to prevent infinite loops', async () => {
-      // Mock response that always has next_url (would cause infinite loop)
-      const infiniteResponse = {
-        data: {
-          status: 'OK',
-          results: [
-            {
-              id: 'article-1',
-              title: 'Article',
-              author: 'Author',
-              published_utc: '2025-01-15T10:00:00Z',
-              article_url: 'https://example.com/article',
-              tickers: ['AAPL'],
-              description: 'Description',
-              publisher: { name: 'Publisher' },
-            },
-          ],
-          count: 1,
-          next_url: 'https://api.polygon.io/v2/reference/news?cursor=next',
+    it('should not include date params when not provided', async () => {
+      mockAxiosInstance.get.mockResolvedValueOnce({ data: [] });
+
+      await fetchNews('AAPL');
+
+      // Verify only ticker and limit are included
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/news', {
+        params: {
+          ticker: 'AAPL',
+          limit: 100,
         },
-      };
+      });
+    });
 
-      mockAxiosInstance.get.mockResolvedValue(infiniteResponse);
+    it('should pass custom limit parameter', async () => {
+      mockAxiosInstance.get.mockResolvedValueOnce({ data: [] });
 
-      const articles = await fetchNews('AAPL', '2025-01-01');
+      await fetchNews('AAPL', undefined, undefined, 50);
 
-      // Should stop at max pages (10)
-      expect(mockAxiosInstance.get).toHaveBeenCalledTimes(10);
-      expect(articles.length).toBeGreaterThan(0);
-    }, 15000); // 15 second timeout due to 1-second delays between pages
-
-    it('should not include endDate param when not provided', async () => {
-      const mockResponse = {
-        data: {
-          status: 'OK',
-          results: [],
-          count: 0,
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/news', {
+        params: {
+          ticker: 'AAPL',
+          limit: 50,
         },
-      };
-
-      mockAxiosInstance.get.mockResolvedValueOnce(mockResponse);
-
-      await fetchNews('AAPL', '2025-01-01');
-
-      // Verify endDate param is not in the URL
-      const callArg = mockAxiosInstance.get.mock.calls[0][0];
-      expect(callArg).not.toContain('published_utc.lte');
-      expect(callArg).toContain('published_utc.gte=2025-01-01');
+      });
     });
   });
 

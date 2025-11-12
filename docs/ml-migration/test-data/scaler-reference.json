@@ -1,0 +1,314 @@
+{
+  "description": "StandardScaler reference data showing exact calculations for verification",
+  "note": "Uses population standard deviation (divide by n, NOT n-1)",
+  "formula": {
+    "mean": "sum(x) / n",
+    "variance": "sum((x - mean)^2) / n",
+    "std": "sqrt(variance)",
+    "scaled": "(x - mean) / std"
+  },
+  "examples": [
+    {
+      "name": "Simple 3-element array",
+      "input": [1.0, 2.0, 3.0],
+      "n": 3,
+      "calculations": {
+        "mean": {
+          "formula": "(1.0 + 2.0 + 3.0) / 3",
+          "value": 2.0
+        },
+        "variance": {
+          "formula": "((1.0-2.0)^2 + (2.0-2.0)^2 + (3.0-2.0)^2) / 3",
+          "steps": "(1.0 + 0.0 + 1.0) / 3",
+          "value": 0.666666666667
+        },
+        "std": {
+          "formula": "sqrt(0.666666666667)",
+          "value": 0.816496580928
+        }
+      },
+      "scaled": [
+        {
+          "original": 1.0,
+          "calculation": "(1.0 - 2.0) / 0.816496580928",
+          "value": -1.224744871392
+        },
+        {
+          "original": 2.0,
+          "calculation": "(2.0 - 2.0) / 0.816496580928",
+          "value": 0.0
+        },
+        {
+          "original": 3.0,
+          "calculation": "(3.0 - 2.0) / 0.816496580928",
+          "value": 1.224744871392
+        }
+      ],
+      "verification": {
+        "scaledMean": 0.0,
+        "scaledStd": 1.0,
+        "note": "After scaling, mean should be ~0 and std should be ~1"
+      }
+    },
+    {
+      "name": "Stock prices (5 points)",
+      "input": [150.0, 152.0, 151.5, 153.0, 152.5],
+      "n": 5,
+      "calculations": {
+        "mean": {
+          "formula": "(150.0 + 152.0 + 151.5 + 153.0 + 152.5) / 5",
+          "value": 151.8
+        },
+        "variance": {
+          "formula": "((150.0-151.8)^2 + (152.0-151.8)^2 + (151.5-151.8)^2 + (153.0-151.8)^2 + (152.5-151.8)^2) / 5",
+          "steps": "(3.24 + 0.04 + 0.09 + 1.44 + 0.49) / 5",
+          "value": 1.06
+        },
+        "std": {
+          "formula": "sqrt(1.06)",
+          "value": 1.029563014099
+        }
+      },
+      "scaled": [
+        {
+          "original": 150.0,
+          "calculation": "(150.0 - 151.8) / 1.0295630140987",
+          "value": -1.7483145522430867
+        },
+        {
+          "original": 152.0,
+          "calculation": "(152.0 - 151.8) / 1.0295630140987",
+          "value": 0.1942571724714418
+        },
+        {
+          "original": 151.5,
+          "calculation": "(151.5 - 151.8) / 1.0295630140987",
+          "value": -0.2913857587071903
+        },
+        {
+          "original": 153.0,
+          "calculation": "(153.0 - 151.8) / 1.0295630140987",
+          "value": 1.165543034828706
+        },
+        {
+          "original": 152.5,
+          "calculation": "(152.5 - 151.8) / 1.0295630140987",
+          "value": 0.6799001036500739
+        }
+      ],
+      "verification": {
+        "scaledMean": 0.0,
+        "scaledStd": 1.0
+      }
+    },
+    {
+      "name": "Edge case: Constant feature (std=0)",
+      "input": [50000000.0, 50000000.0, 50000000.0, 50000000.0],
+      "n": 4,
+      "calculations": {
+        "mean": {
+          "formula": "(50000000.0 * 4) / 4",
+          "value": 50000000.0
+        },
+        "variance": {
+          "formula": "((50000000.0-50000000.0)^2 * 4) / 4",
+          "value": 0.0
+        },
+        "std": {
+          "formula": "sqrt(0.0)",
+          "value": 0.0
+        }
+      },
+      "scaled": [
+        {
+          "original": 50000000.0,
+          "calculation": "std=0, scale to 0.0",
+          "value": 0.0,
+          "note": "When std=0, scaled values should be 0.0 (or handle as special case)"
+        },
+        {
+          "original": 50000000.0,
+          "calculation": "std=0, scale to 0.0",
+          "value": 0.0
+        },
+        {
+          "original": 50000000.0,
+          "calculation": "std=0, scale to 0.0",
+          "value": 0.0
+        },
+        {
+          "original": 50000000.0,
+          "calculation": "std=0, scale to 0.0",
+          "value": 0.0
+        }
+      ],
+      "verification": {
+        "note": "Constant features have std=0. scikit-learn scales these to 0.0"
+      }
+    },
+    {
+      "name": "Feature matrix (2x4) - full example",
+      "description": "Scaling a 2-row, 4-column feature matrix (column-wise scaling)",
+      "input": [
+        [150.0, 100000000.0, 5.0, 2.0],
+        [152.0, 95000000.0, 3.0, 4.0]
+      ],
+      "columnWiseCalculations": [
+        {
+          "featureIndex": 0,
+          "featureName": "close",
+          "values": [150.0, 152.0],
+          "mean": 151.0,
+          "std": 1.0,
+          "scaled": [-1.0, 1.0]
+        },
+        {
+          "featureIndex": 1,
+          "featureName": "volume",
+          "values": [100000000.0, 95000000.0],
+          "mean": 97500000.0,
+          "std": 2500000.0,
+          "scaled": [1.0, -1.0]
+        },
+        {
+          "featureIndex": 2,
+          "featureName": "positive",
+          "values": [5.0, 3.0],
+          "mean": 4.0,
+          "std": 1.0,
+          "scaled": [1.0, -1.0]
+        },
+        {
+          "featureIndex": 3,
+          "featureName": "negative",
+          "values": [2.0, 4.0],
+          "mean": 3.0,
+          "std": 1.0,
+          "scaled": [-1.0, 1.0]
+        }
+      ],
+      "scaledOutput": [
+        [-1.0, 1.0, 1.0, -1.0],
+        [1.0, -1.0, -1.0, 1.0]
+      ],
+      "note": "Each column is scaled independently. Rows represent observations, columns represent features."
+    },
+    {
+      "name": "AAPL sample data (first 5 points from prediction-samples.json)",
+      "input": [
+        [150.0, 100000000.0, 5.0, 2.0, 1.0, 0.0, 0.0, 0.0],
+        [152.0, 95000000.0, 3.0, 4.0, 0.0, 1.0, 0.0, 0.0],
+        [151.5, 98000000.0, 7.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+        [153.0, 102000000.0, 4.0, 3.0, 0.0, 0.0, 1.0, 0.0],
+        [152.5, 97000000.0, 6.0, 2.0, 1.0, 0.0, 0.0, 0.0]
+      ],
+      "columnWiseCalculations": [
+        {
+          "featureIndex": 0,
+          "featureName": "close",
+          "values": [150.0, 152.0, 151.5, 153.0, 152.5],
+          "mean": 151.8,
+          "std": 1.0295630140987,
+          "scaled": [-1.7483145522430867, 0.1942571724714418, -0.2913857587071903, 1.165543034828706, 0.6799001036500739]
+        },
+        {
+          "featureIndex": 1,
+          "featureName": "volume",
+          "values": [100000000.0, 95000000.0, 98000000.0, 102000000.0, 97000000.0],
+          "mean": 98400000.0,
+          "std": 2416609.1947189146,
+          "scaled": [0.6620847108818944, -1.4069300106240255, -0.1655211777204736, 1.4896905994842622, -0.5793241220216575]
+        },
+        {
+          "featureIndex": 2,
+          "featureName": "positive",
+          "values": [5.0, 3.0, 7.0, 4.0, 6.0],
+          "mean": 5.0,
+          "std": 1.4142135623730951,
+          "scaled": [0.0, -1.414213562373095, 1.414213562373095, -0.7071067811865475, 0.7071067811865475]
+        },
+        {
+          "featureIndex": 3,
+          "featureName": "negative",
+          "values": [2.0, 4.0, 1.0, 3.0, 2.0],
+          "mean": 2.4,
+          "std": 1.019803902718557,
+          "scaled": [-0.392232270276368, 1.5689290811054721, -1.372812945967288, 0.5883484054145521, -0.392232270276368]
+        },
+        {
+          "featureIndex": 4,
+          "featureName": "is_pos",
+          "values": [1.0, 0.0, 1.0, 0.0, 1.0],
+          "mean": 0.6,
+          "std": 0.48989794855663565,
+          "scaled": [0.816496580927726, -1.224744871391589, 0.816496580927726, -1.224744871391589, 0.816496580927726]
+        },
+        {
+          "featureIndex": 5,
+          "featureName": "is_neg",
+          "values": [0.0, 1.0, 0.0, 0.0, 0.0],
+          "mean": 0.2,
+          "std": 0.4000000000000001,
+          "scaled": [-0.49999999999999994, 1.9999999999999998, -0.49999999999999994, -0.49999999999999994, -0.49999999999999994]
+        },
+        {
+          "featureIndex": 6,
+          "featureName": "is_neut",
+          "values": [0.0, 0.0, 0.0, 1.0, 0.0],
+          "mean": 0.2,
+          "std": 0.4,
+          "scaled": [-0.5, -0.5, -0.5, 2.0, -0.5]
+        },
+        {
+          "featureIndex": 7,
+          "featureName": "is_unknown",
+          "values": [0.0, 0.0, 0.0, 0.0, 0.0],
+          "mean": 0.0,
+          "std": 0.0,
+          "scaled": [0.0, 0.0, 0.0, 0.0, 0.0],
+          "note": "Constant feature (all zeros) has std=0, scaled to 0.0"
+        }
+      ],
+      "scaledOutput": [
+        [-1.7483145522430867, 0.6620847108818944, 0.0, -0.392232270276368, 0.816496580927726, -0.49999999999999994, -0.5, 0.0],
+        [0.1942571724714418, -1.4069300106240255, -1.414213562373095, 1.5689290811054721, -1.224744871391589, 1.9999999999999998, -0.5, 0.0],
+        [-0.2913857587071903, -0.1655211777204736, 1.414213562373095, -1.372812945967288, 0.816496580927726, -0.49999999999999994, -0.5, 0.0],
+        [1.165543034828706, 1.4896905994842622, -0.7071067811865475, 0.5883484054145521, -1.224744871391589, -0.49999999999999994, 2.0, 0.0],
+        [0.6799001036500739, -0.5793241220216575, 0.7071067811865475, -0.392232270276368, 0.816496580927726, -0.49999999999999994, -0.5, 0.0]
+      ],
+      "verification": {
+        "note": "Each column should have mean≈0 and std≈1 after scaling (except constant features)"
+      }
+    }
+  ],
+  "implementationNotes": {
+    "populationVsSample": "CRITICAL: Use population std (divide by n), NOT sample std (divide by n-1). Using sample std will cause all scaled values to be wrong.",
+    "zeroStd": "When std=0 (constant feature), scale to 0.0. Do not divide by zero.",
+    "precision": "Use at least 6 decimal places for intermediate calculations. Final scaled values should match Python to 6 decimals.",
+    "columnWise": "Scaling is done column-wise (per feature), not row-wise (per observation).",
+    "inverseTransform": "To recover original: x_original = x_scaled * std + mean",
+    "verification": "After transform, verify: mean(scaled) ≈ 0 and std(scaled) ≈ 1 for each feature (except constant features)"
+  },
+  "commonMistakes": [
+    {
+      "mistake": "Using sample std (n-1 denominator)",
+      "impact": "All scaled values will be slightly different, predictions won't match",
+      "fix": "Use population std (n denominator): std = sqrt(sum((x - mean)^2) / n)"
+    },
+    {
+      "mistake": "Dividing by zero when std=0",
+      "impact": "NaN or Infinity values in scaled output",
+      "fix": "Check if std=0, if so, scale to 0.0"
+    },
+    {
+      "mistake": "Scaling row-wise instead of column-wise",
+      "impact": "Completely wrong scaled values",
+      "fix": "Each column (feature) is scaled independently, not each row"
+    },
+    {
+      "mistake": "Using different precision for mean and std",
+      "impact": "Cumulative rounding errors",
+      "fix": "Use consistent precision (6+ decimals) for all calculations"
+    }
+  ]
+}

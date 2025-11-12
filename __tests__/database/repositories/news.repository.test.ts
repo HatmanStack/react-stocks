@@ -1,8 +1,8 @@
 import * as NewsRepository from '@/database/repositories/news.repository';
-import { getDatabase } from '@/database/database';
+import { getDatabase } from '@/database';
 import { NewsDetails } from '@/types/database.types';
 
-jest.mock('@/database/database');
+jest.mock('@/database');
 
 describe('NewsRepository', () => {
   let mockDb: any;

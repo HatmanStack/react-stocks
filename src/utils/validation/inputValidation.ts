@@ -20,6 +20,20 @@ export function isValidTicker(ticker: string): boolean {
 }
 
 /**
+ * Validate ticker format (accepts lowercase, converts internally)
+ * @param ticker - Ticker string to validate
+ * @returns true if valid ticker format
+ */
+export function validateTicker(ticker: string): boolean {
+  if (!ticker || typeof ticker !== 'string') {
+    return false;
+  }
+
+  const sanitized = sanitizeTicker(ticker);
+  return isValidTicker(sanitized);
+}
+
+/**
  * Sanitize ticker input
  * Converts to uppercase and trims whitespace
  * @param ticker - Raw ticker input
@@ -50,6 +64,46 @@ export function isValidDateRange(startDate: string, endDate: string): boolean {
     }
 
     return start <= end;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate date range with format and future date checks
+ * @param startDate - Start date string
+ * @param endDate - End date string
+ * @returns true if valid format, logical order, and not too far in future
+ */
+export function validateDateRange(startDate: string, endDate: string): boolean {
+  // Check format (YYYY-MM-DD)
+  const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateFormatRegex.test(startDate) || !dateFormatRegex.test(endDate)) {
+    return false;
+  }
+
+  try {
+    const start = parseISO(startDate);
+    const end = parseISO(endDate);
+
+    if (!isValid(start) || !isValid(end)) {
+      return false;
+    }
+
+    // Start date must be before or equal to end date
+    if (start > end) {
+      return false;
+    }
+
+    // End date should not be too far in the future (e.g., > 1 year from now)
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+    if (end > oneYearFromNow) {
+      return false;
+    }
+
+    return true;
   } catch {
     return false;
   }

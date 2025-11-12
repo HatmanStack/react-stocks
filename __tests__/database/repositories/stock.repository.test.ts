@@ -1,9 +1,9 @@
 import * as StockRepository from '@/database/repositories/stock.repository';
-import { getDatabase } from '@/database/database';
+import { getDatabase } from '@/database';
 import { StockDetails } from '@/types/database.types';
 
 // Mock the database module
-jest.mock('@/database/database');
+jest.mock('@/database');
 
 describe('StockRepository', () => {
   let mockDb: any;

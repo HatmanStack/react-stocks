@@ -1,27 +1,114 @@
 /**
  * Stock Prediction Service
- * Calls logistic regression microservice on Google Cloud Run for stock predictions
+ * Unified interface for stock predictions using either Python API or browser-based ML
  */
 
 import axios from 'axios';
 import { API_ENDPOINTS, API_TIMEOUTS } from '@/constants/api.constants';
+import { FeatureFlags } from '@/config/features';
 import type {
   StockPredictionRequest,
   StockPredictionResponse,
 } from '@/types/api.types';
 
+// Lazy import ML service (only loaded when feature flag enabled)
+let mlPredictionService: typeof import('@/ml/prediction/prediction.service') | null = null;
+
 /**
  * Get stock price predictions using logistic regression model
+ *
+ * Routes to either browser-based ML or Python API based on feature flag.
+ *
  * @param ticker - Stock ticker symbol
  * @param closePrices - Array of closing prices
  * @param volumes - Array of trading volumes
  * @param positiveCounts - Array of positive word counts from sentiment analysis
  * @param negativeCounts - Array of negative word counts from sentiment analysis
- * @param sentimentScores - Array of sentiment scores
+ * @param sentimentScores - Array of sentiment scores or categories
  * @returns Prediction results for next day, 2 weeks, and 1 month
  * @throws Error if service is unavailable or request fails
  */
 export async function getStockPredictions(
+  ticker: string,
+  closePrices: number[],
+  volumes: number[],
+  positiveCounts: number[],
+  negativeCounts: number[],
+  sentimentScores: number[] | string[]
+): Promise<StockPredictionResponse> {
+  // Check feature flag
+  if (FeatureFlags.USE_BROWSER_PREDICTION) {
+    console.log(`[PredictionService] Using browser-based ML for ${ticker}`);
+    return await getBrowserPredictions(
+      ticker,
+      closePrices,
+      volumes,
+      positiveCounts,
+      negativeCounts,
+      sentimentScores
+    );
+  } else {
+    console.log(`[PredictionService] Using Python API for ${ticker}`);
+    return await getPythonAPIPredictions(
+      ticker,
+      closePrices,
+      volumes,
+      positiveCounts,
+      negativeCounts,
+      sentimentScores as number[]
+    );
+  }
+}
+
+/**
+ * Get predictions using browser-based ML
+ * @private
+ */
+async function getBrowserPredictions(
+  ticker: string,
+  closePrices: number[],
+  volumes: number[],
+  positiveCounts: number[],
+  negativeCounts: number[],
+  sentimentScores: number[] | string[]
+): Promise<StockPredictionResponse> {
+  // Lazy load ML service
+  if (!mlPredictionService) {
+    mlPredictionService = await import('@/ml/prediction/prediction.service');
+  }
+
+  // Convert sentiment scores to categories if needed
+  const sentimentCategories: string[] = Array.isArray(sentimentScores) && typeof sentimentScores[0] === 'number'
+    ? convertScoresToCategories(sentimentScores as number[])
+    : (sentimentScores as string[]);
+
+  return await mlPredictionService.getStockPredictions(
+    ticker,
+    closePrices,
+    volumes,
+    positiveCounts,
+    negativeCounts,
+    sentimentCategories
+  );
+}
+
+/**
+ * Convert sentiment scores to categories
+ * @private
+ */
+function convertScoresToCategories(scores: number[]): string[] {
+  return scores.map((score) => {
+    if (score > 0.6) return 'POS';
+    if (score < -0.6) return 'NEG';
+    return 'NEUT';
+  });
+}
+
+/**
+ * Get predictions using Python API
+ * @private
+ */
+async function getPythonAPIPredictions(
   ticker: string,
   closePrices: number[],
   volumes: number[],

@@ -1,8 +1,8 @@
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
-import { getDatabase } from '@/database/database';
+import { getDatabase } from '@/database';
 import { CombinedWordDetails } from '@/types/database.types';
 
-jest.mock('@/database/database');
+jest.mock('@/database');
 
 describe('CombinedWordRepository', () => {
   let mockDb: any;

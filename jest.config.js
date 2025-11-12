@@ -17,5 +17,7 @@ module.exports = {
     '^expo$': '<rootDir>/__mocks__/expo.ts',
     'expo-sqlite': '<rootDir>/__mocks__/expo-sqlite.ts',
     'expo-asset': '<rootDir>/__mocks__/expo-asset.ts',
+    '^@/database$': '<rootDir>/__mocks__/src/database/index.ts',
+    '^@/database/index$': '<rootDir>/__mocks__/src/database/index.ts',
   },
 };

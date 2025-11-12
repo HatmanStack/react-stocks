@@ -1,8 +1,8 @@
 import * as SymbolRepository from '@/database/repositories/symbol.repository';
-import { getDatabase } from '@/database/database';
+import { getDatabase } from '@/database';
 import { SymbolDetails } from '@/types/database.types';
 
-jest.mock('@/database/database');
+jest.mock('@/database');
 
 describe('SymbolRepository', () => {
   let mockDb: any;

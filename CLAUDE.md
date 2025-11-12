@@ -25,7 +25,32 @@ npm run type-check     # TypeScript compilation check
 npm run lint           # ESLint
 npm run lint:fix       # Auto-fix ESLint issues
 npm run format         # Prettier formatting
+
+# Backend deployment (one-time setup)
+cd backend
+sam build && sam deploy --guided  # Deploy Lambda backend to AWS
 ```
+
+## Environment Setup
+
+**Required Environment Variables** (create `.env` from `.env.example`):
+
+```bash
+# Backend API Gateway URL (from Lambda deployment)
+EXPO_PUBLIC_BACKEND_URL=https://your-api-id.execute-api.us-east-1.amazonaws.com
+
+# Feature Flags for ML Migration
+EXPO_PUBLIC_BROWSER_SENTIMENT=true   # Use browser-based sentiment (recommended)
+EXPO_PUBLIC_BROWSER_PREDICTION=false # Use browser-based prediction (test first)
+```
+
+**Setup Steps**:
+1. Deploy backend: `cd backend && sam deploy --guided` (see `backend/DEPLOYMENT.md`)
+2. Copy `.env.example` to `.env`
+3. Update `EXPO_PUBLIC_BACKEND_URL` with your Lambda API Gateway URL
+4. Optionally enable browser-based ML via feature flags
+
+**⚠️ Security**: API keys for Tiingo and Polygon are **never** stored in frontend code. They are configured as Lambda environment variables during backend deployment.
 
 ## Architecture Overview
 
@@ -140,48 +165,67 @@ Re-fetch from DB → Update React Query cache → UI updates
 
 Orchestrates full data sync in sequence:
 
-1. **Stock Prices**: Tiingo/Polygon API → `stock_details` table
-2. **News Articles**: Polygon API → `news_details` table
-3. **Sentiment Analysis**: FinBERT API → `word_count_details` + `combined_word_count_details`
+1. **Stock Prices**: Lambda Backend → `stock_details` table
+2. **News Articles**: Lambda Backend → `news_details` table
+3. **Sentiment Analysis**: Browser-based ML → `word_count_details` + `combined_word_count_details`
+4. **Predictions**: Browser-based ML → `portfolio_details`
 
 Each step:
-- Fetches from API
+- Fetches from backend or runs ML locally
 - Stores in database via repository
 - Reports progress via callback
 - Logs errors but continues pipeline
 
 **Critical**: Sync is triggered from search/portfolio screens when selecting a ticker. Data is pulled into database, then hooks re-fetch from DB.
 
-## External APIs
+## External APIs & Services
 
-### Stock Price Data (choose one)
+### Backend Lambda API (AWS)
 
-**Tiingo API** (primary):
-- Endpoint: `https://api.tiingo.com/tiingo/daily/{ticker}/prices`
-- Rate limit: 500 requests/hour (free tier)
-- Implementation: `src/services/api/tiingo.service.ts`
+**Primary data source** for stock prices and news:
 
-**Polygon.io** (fallback):
-- Endpoint: `https://api.polygon.io/v2/aggs/ticker/{ticker}/range/1/day/{from}/{to}`
-- Rate limit: 5 requests/minute (free tier)
-- Implementation: `src/services/api/polygon.service.ts`
+- **Base URL**: Set via `EXPO_PUBLIC_BACKEND_URL` environment variable
+- **Endpoints**:
+  - `/stocks?ticker={TICKER}&startDate={DATE}&type=prices` - Stock price data (proxies Tiingo)
+  - `/stocks?ticker={TICKER}&type=metadata` - Company metadata (proxies Tiingo)
+  - `/news?ticker={TICKER}&limit={N}` - News articles (proxies Polygon, handles pagination)
+- **Security**: API keys for Tiingo/Polygon stored in Lambda environment variables (not in frontend)
+- **Rate limiting**: Handled by Lambda backend
+- **Timeout**: 30s (backend handles retries)
+- **Implementation**: `src/services/api/tiingo.service.ts`, `src/services/api/polygon.service.ts`
+- **Backend source**: `backend/` directory (AWS SAM template)
 
-Both have retry logic: 3 attempts with 2s, 4s, 8s delays.
+### Browser-Based Machine Learning
 
-### Sentiment Analysis (Python microservice)
+**Sentiment Analysis**:
+- **Type**: JavaScript rule-based sentiment analyzer
+- **Implementation**: `src/ml/sentiment/analyzer.ts`
+- **Feature Flag**: `EXPO_PUBLIC_BROWSER_SENTIMENT` (default: true)
+- **Fallback**: Python microservice (deprecated, for rollback only)
+- **Performance**: <100ms per article (runs in browser)
+- **Accuracy**: Directional agreement with FinBERT (not exact match)
 
+**Stock Predictions**:
+- **Type**: Logistic regression (ported from Python scikit-learn)
+- **Implementation**: `src/ml/prediction/model.ts`, `src/ml/prediction/scaler.ts`
+- **Feature Flag**: `EXPO_PUBLIC_BROWSER_PREDICTION` (default: false, enable after testing)
+- **Fallback**: Python microservice (deprecated, for rollback only)
+- **Performance**: <50ms per prediction (runs in browser)
+- **Accuracy**: Identical to Python implementation (numerical precision to 4 decimals)
+
+### Python Microservices (DEPRECATED - For Rollback Only)
+
+**⚠️ Note**: These services are deprecated and will be decommissioned in Phase 5. Use feature flags to enable browser-based ML instead.
+
+**Sentiment Service**:
 - Endpoint: `https://stocks-backend-sentiment-f3jmjyxrpq-uc.a.run.app/sentiment`
 - Model: FinBERT (financial sentiment analysis)
-- Timeout: 30s (cold start can be slow)
-- Returns: Positive/negative word counts, sentiment scores, predictions
-- Implementation: `src/services/api/sentiment.service.ts`
+- Fallback: Only if `EXPO_PUBLIC_BROWSER_SENTIMENT=false`
 
-### Stock Predictions (Python microservice)
-
+**Prediction Service**:
 - Endpoint: `https://stocks-f3jmjyxrpq-uc.a.run.app/predict`
-- Returns: ML predictions for next day, 2 weeks, 1 month
-- Timeout: 15s
-- Implementation: `src/services/api/prediction.service.ts`
+- Model: Logistic regression (scikit-learn)
+- Fallback: Only if `EXPO_PUBLIC_BROWSER_PREDICTION=false`
 
 ## Testing Conventions
 
