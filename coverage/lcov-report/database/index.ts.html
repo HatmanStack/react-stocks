@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">35.71% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>5/14</span>
+                <span class='fraction'>0/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">50% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>2/4</span>
+                <span class='fraction'>0/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">40% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/5</span>
+                <span class='fraction'>0/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">35.71% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>5/14</span>
+                <span class='fraction'>0/14</span>
             </div>
         
             
@@ -111,26 +111,26 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">7x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">79x</span>
-<span class="cline-any cline-yes">79x</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">79x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">79x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -151,14 +151,14 @@
 import { Platform } from 'react-native';
 import type * as SQLite from 'expo-sqlite';
 &nbsp;
-let databaseModule: any = null;
+let databaseModule: any = <span class="cstat-no" title="statement not covered" >null;</span>
 &nbsp;
-async function loadDatabaseModule() {
-  <span class="missing-if-branch" title="else path not taken" >E</span>if (!databaseModule) {
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (Platform.OS === 'web') {
+async function <span class="fstat-no" title="function not covered" >loadDatabaseModule(</span>) {
+<span class="cstat-no" title="statement not covered" >  if (!databaseModule) {</span>
+<span class="cstat-no" title="statement not covered" >    if (Platform.OS === 'web') {</span>
 <span class="cstat-no" title="statement not covered" >      databaseModule = await import('./database.web');</span>
     } else {
-      databaseModule = await import('./database');
+<span class="cstat-no" title="statement not covered" >      databaseModule = await import('./database');</span>
     }
   }
 <span class="cstat-no" title="statement not covered" >  return databaseModule;</span>
@@ -169,8 +169,8 @@ export async function <span class="fstat-no" title="function not covered" >initi
 <span class="cstat-no" title="statement not covered" >  return module.initializeDatabase();</span>
 }
 &nbsp;
-export async function getDatabase(): Promise&lt;SQLite.SQLiteDatabase | any&gt; {
-  const module = await loadDatabaseModule();
+export async function <span class="fstat-no" title="function not covered" >getDatabase(</span>): Promise&lt;SQLite.SQLiteDatabase | any&gt; {
+  const module = <span class="cstat-no" title="statement not covered" >await loadDatabaseModule();</span>
 <span class="cstat-no" title="statement not covered" >  return module.getDatabase();</span>
 }
 &nbsp;
@@ -190,7 +190,7 @@ export async function <span class="fstat-no" title="function not covered" >reset
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-12T05:34:53.360Z
+                at 2025-11-12T05:42:39.578Z
             </div>
         <script src="../prettify.js"></script>
         <script>
