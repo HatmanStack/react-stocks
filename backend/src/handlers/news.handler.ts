@@ -44,6 +44,11 @@ export async function handleNewsRequest(
       return errorResponse('Invalid endDate format. Must be YYYY-MM-DD.', 400);
     }
 
+    // Validate date ordering
+    if (startDate && endDate && startDate > endDate) {
+      return errorResponse('startDate must be on or before endDate.', 400);
+    }
+
     // Parse and validate limit
     let limit = 100; // Default
     if (limitParam) {

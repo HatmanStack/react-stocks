@@ -60,7 +60,14 @@ export default function RootLayout() {
         setIsReady(true);
       } catch (error) {
         console.error('[App] Initialization error:', error);
-        // For now, continue even if initialization fails
+
+        // Re-throw validation errors - app cannot start with invalid config
+        if (error instanceof Error && error.message.includes('Environment Configuration Error')) {
+          throw error; // Halt initialization for config errors
+        }
+
+        // For non-critical errors (DB init, etc.), log and continue
+        console.warn('[App] Non-critical initialization error - continuing...');
         setIsReady(true);
       }
     }

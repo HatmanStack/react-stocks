@@ -32,19 +32,22 @@ export async function handler(
       return errorResponse(`Method ${method} not allowed`, 405);
     }
 
-    // Route to appropriate handler based on path
+    // Route to appropriate handler based on path (wrap in blocks to prevent scope leakage)
     switch (path) {
-      case '/stocks':
+      case '/stocks': {
         const { handleStocksRequest } = await import('./handlers/stocks.handler');
         return handleStocksRequest(event);
+      }
 
-      case '/news':
+      case '/news': {
         const { handleNewsRequest } = await import('./handlers/news.handler');
         return handleNewsRequest(event);
+      }
 
-      default:
+      default: {
         console.warn('[Lambda] Unknown route:', path);
         return errorResponse(`Route ${path} not found`, 404);
+      }
     }
   } catch (error) {
     logError('Lambda', error, { requestId, path, method });

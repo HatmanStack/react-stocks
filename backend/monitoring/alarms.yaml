@@ -5,17 +5,17 @@
 # Critical Alarms (Page On-Call)
 # ======================
 
-LambdaErrorRateHigh:
+LambdaErrorCountHigh:
   Type: AWS::CloudWatch::Alarm
   Properties:
-    AlarmName: react-stocks-lambda-error-rate-high
-    AlarmDescription: Lambda error rate exceeds 5% for 5 minutes
+    AlarmName: react-stocks-lambda-error-count-high
+    AlarmDescription: Lambda error count exceeds 5 errors in 5 minutes
     MetricName: Errors
     Namespace: AWS/Lambda
     Statistic: Sum
     Period: 300  # 5 minutes
     EvaluationPeriods: 1
-    Threshold: 5  # 5% error rate (calculate based on invocations)
+    Threshold: 5  # 5 errors in 5 minutes
     ComparisonOperator: GreaterThanThreshold
     TreatMissingData: notBreaching
     AlarmActions:

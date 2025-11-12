@@ -51,6 +51,8 @@ describe('Polygon Service', () => {
     console.log = consoleLogSpy;
     console.error = consoleErrorSpy;
     console.warn = consoleWarnSpy;
+    // Always restore real timers (in case test used fake timers and threw)
+    jest.useRealTimers();
   });
 
   describe('fetchNews', () => {

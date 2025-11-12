@@ -30,9 +30,11 @@ export async function handleStocksRequest(
       return errorResponse('Missing required parameter: ticker', 400);
     }
 
-    // Validate ticker format (alphanumeric)
-    if (!/^[A-Z0-9]+$/.test(ticker)) {
-      return errorResponse('Invalid ticker format. Must be alphanumeric.', 400);
+    // Validate ticker format (alphanumeric, dots, and hyphens allowed)
+    // Normalize to uppercase for validation
+    const normalizedTicker = ticker.toUpperCase();
+    if (!/^[A-Z0-9.-]+$/.test(normalizedTicker)) {
+      return errorResponse('Invalid ticker format. Must contain only letters, numbers, dots, and hyphens.', 400);
     }
 
     // Validate type

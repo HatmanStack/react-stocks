@@ -90,7 +90,10 @@ export async function fetchNews(
           '[PolygonService] API returned non-OK status:',
           response.data.status
         );
-        break;
+        throw new APIError(
+          `Polygon API error: ${response.data.status}`,
+          500
+        );
       }
 
       const articles = response.data.results || [];

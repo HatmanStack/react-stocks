@@ -50,6 +50,14 @@ async function retryWithBackoff<T>(
         }
       }
 
+      // Don't retry APIError instances with non-retryable status codes
+      if (error instanceof APIError) {
+        const status = error.statusCode;
+        if (status && status >= 400 && status < 500 && status !== 429) {
+          throw error;
+        }
+      }
+
       // Last attempt failed
       if (i === retries) {
         break;

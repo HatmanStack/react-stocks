@@ -48,9 +48,12 @@ Resources:
   ReactStocksApi:
     Type: AWS::Serverless::HttpApi
     Properties:
+      # TODO: BEFORE PRODUCTION - Wire AllowedOrigins parameter here
+      # Current: Hardcoded '*' for MVP/development
+      # Production: Use !Ref AllowedOrigins or !Split[',', !Ref AllowedOrigins]
       CorsConfiguration:
         AllowOrigins:
-          - '*'
+          - '*'  # TODO: Replace with !Ref AllowedOrigins in production
         AllowMethods:
           - GET
           - OPTIONS

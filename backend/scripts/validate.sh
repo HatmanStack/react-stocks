@@ -25,7 +25,7 @@ echo ""
 # Check SAM CLI
 echo "[2/5] Checking AWS SAM CLI..."
 if command -v sam &> /dev/null; then
-  SAM_VERSION=$(sam --version | grep -oP '(?<=version )\d+\.\d+\.\d+')
+  SAM_VERSION=$(sam --version | sed -n 's/.*version \([0-9.]*\).*/\1/p')
   echo "✓ AWS SAM CLI installed (v$SAM_VERSION)"
 else
   echo "✗ AWS SAM CLI not installed"

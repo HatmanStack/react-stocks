@@ -35,8 +35,8 @@ export class SQLiteDatabase {
 const mockDatabase = new SQLiteDatabase();
 
 export const openDatabaseAsync = jest.fn(async (dbName: string) => {
-  // Return a new database instance
-  return mockDatabase;
+  // Create new database instance per call to ensure test isolation
+  return new SQLiteDatabase();
 });
 
 export const openDatabaseSync = jest.fn();
