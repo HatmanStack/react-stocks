@@ -10,7 +10,12 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "npm run test -- --watch",
     "test:coverage": "npm run test -- --coverage",
-    "clean": "rm -rf dist coverage"
+    "test:integration": "echo 'Integration tests require deployed stack - see DEPLOYMENT.md' && exit 1",
+    "clean": "rm -rf dist coverage",
+    "deploy": "./scripts/deploy.sh",
+    "deploy:guided": "./scripts/deploy.sh --guided",
+    "validate": "./scripts/validate.sh",
+    "logs": "./scripts/logs.sh"
   },
   "keywords": [
     "aws-lambda",
