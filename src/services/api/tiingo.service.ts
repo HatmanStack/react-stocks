@@ -1,47 +1,30 @@
 /**
  * Tiingo API Service
- * Fetches stock prices and company metadata from Tiingo API
+ * Fetches stock prices and company metadata from Lambda backend
+ * Backend proxies requests to Tiingo API (API keys secured in Lambda)
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import type { TiingoStockPrice, TiingoSymbolMetadata } from './tiingo.types';
 import type { StockDetails, SymbolDetails } from '@/types/database.types';
+import { Environment } from '@/config/environment';
 
-// Tiingo API configuration
-const TIINGO_BASE_URL = 'https://api.tiingo.com';
-const TIINGO_TIMEOUT = 10000; // 10 seconds
-
-// API key management - use environment variable or expo-secure-store
-let tiingoApiKey: string | null = null;
+// Backend API configuration
+const BACKEND_TIMEOUT = 30000; // 30 seconds (Lambda handles retries)
 
 /**
- * Set the Tiingo API key
- * @param apiKey - Tiingo API key from https://api.tiingo.com
+ * Create axios instance for backend API
  */
-export function setTiingoApiKey(apiKey: string): void {
-  tiingoApiKey = apiKey;
-}
-
-/**
- * Get the configured API key
- * @throws Error if API key is not set
- */
-function getApiKey(): string {
-  if (!tiingoApiKey) {
+function createBackendClient(): AxiosInstance {
+  if (!Environment.BACKEND_URL) {
     throw new Error(
-      'Tiingo API key not configured. Call setTiingoApiKey() first or set TIINGO_API_KEY environment variable.'
+      'Backend URL not configured. Set EXPO_PUBLIC_BACKEND_URL in .env file.'
     );
   }
-  return tiingoApiKey;
-}
 
-/**
- * Create axios instance for Tiingo API
- */
-function createTiingoClient(): AxiosInstance {
   return axios.create({
-    baseURL: TIINGO_BASE_URL,
-    timeout: TIINGO_TIMEOUT,
+    baseURL: Environment.BACKEND_URL,
+    timeout: BACKEND_TIMEOUT,
     headers: {
       'Content-Type': 'application/json',
     },
@@ -90,7 +73,7 @@ async function retryWithBackoff<T>(
 }
 
 /**
- * Fetch stock prices from Tiingo API
+ * Fetch stock prices from Lambda backend (proxies to Tiingo API)
  * @param ticker - Stock ticker symbol (e.g., "AAPL")
  * @param startDate - Start date in YYYY-MM-DD format
  * @param endDate - End date in YYYY-MM-DD format (optional, defaults to today)
@@ -102,14 +85,14 @@ export async function fetchStockPrices(
   startDate: string,
   endDate?: string
 ): Promise<TiingoStockPrice[]> {
-  const apiKey = getApiKey();
-  const client = createTiingoClient();
+  const client = createBackendClient();
 
   const fetchFn = async () => {
     try {
       const params: Record<string, string> = {
+        ticker,
         startDate,
-        token: apiKey,
+        type: 'prices',
       };
 
       if (endDate) {
@@ -119,7 +102,7 @@ export async function fetchStockPrices(
       console.log(`[TiingoService] Fetching prices for ${ticker} from ${startDate} to ${endDate || 'today'}`);
 
       const response = await client.get<TiingoStockPrice[]>(
-        `/tiingo/daily/${ticker}/prices`,
+        '/stocks',
         { params }
       );
 
@@ -128,6 +111,7 @@ export async function fetchStockPrices(
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
+        const errorData = error.response?.data as { error?: string };
 
         if (status === 404) {
           throw new Error(`Ticker '${ticker}' not found`);
@@ -137,8 +121,12 @@ export async function fetchStockPrices(
           throw new Error('Rate limit exceeded. Please try again in a moment.');
         }
 
-        if (status === 401) {
-          throw new Error('Invalid API key. Please check your Tiingo API key.');
+        if (status === 400) {
+          throw new Error(errorData?.error || 'Invalid request parameters');
+        }
+
+        if (status === 500) {
+          throw new Error(errorData?.error || 'Backend service error');
         }
       }
 
@@ -151,7 +139,7 @@ export async function fetchStockPrices(
 }
 
 /**
- * Fetch company metadata from Tiingo API
+ * Fetch company metadata from Lambda backend (proxies to Tiingo API)
  * @param ticker - Stock ticker symbol (e.g., "AAPL")
  * @returns Company metadata
  * @throws Error if ticker not found or API request fails
@@ -159,17 +147,16 @@ export async function fetchStockPrices(
 export async function fetchSymbolMetadata(
   ticker: string
 ): Promise<TiingoSymbolMetadata> {
-  const apiKey = getApiKey();
-  const client = createTiingoClient();
+  const client = createBackendClient();
 
   const fetchFn = async () => {
     try {
       console.log(`[TiingoService] Fetching metadata for ${ticker}`);
 
       const response = await client.get<TiingoSymbolMetadata>(
-        `/tiingo/daily/${ticker}`,
+        '/stocks',
         {
-          params: { token: apiKey },
+          params: { ticker, type: 'metadata' },
         }
       );
 
@@ -178,6 +165,7 @@ export async function fetchSymbolMetadata(
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
+        const errorData = error.response?.data as { error?: string };
 
         if (status === 404) {
           throw new Error(`Ticker '${ticker}' not found`);
@@ -185,6 +173,14 @@ export async function fetchSymbolMetadata(
 
         if (status === 429) {
           throw new Error('Rate limit exceeded. Please try again in a moment.');
+        }
+
+        if (status === 400) {
+          throw new Error(errorData?.error || 'Invalid request parameters');
+        }
+
+        if (status === 500) {
+          throw new Error(errorData?.error || 'Backend service error');
         }
       }
 

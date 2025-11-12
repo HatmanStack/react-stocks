@@ -1,12 +1,11 @@
 /**
- * Unit tests for Tiingo API Service
+ * Unit tests for Tiingo API Service (Lambda Backend)
  */
 
 import axios from 'axios';
 import {
   fetchStockPrices,
   fetchSymbolMetadata,
-  setTiingoApiKey,
   transformTiingoToStockDetails,
   transformTiingoToSymbolDetails,
 } from '@/services/api/tiingo.service';
@@ -15,6 +14,15 @@ import type { TiingoStockPrice, TiingoSymbolMetadata } from '@/services/api/tiin
 // Mock axios
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Mock environment configuration
+jest.mock('@/config/environment', () => ({
+  Environment: {
+    BACKEND_URL: 'https://test-api.execute-api.us-east-1.amazonaws.com',
+    USE_BROWSER_SENTIMENT: false,
+    USE_BROWSER_PREDICTION: false,
+  },
+}));
 
 describe('Tiingo Service', () => {
   let mockAxiosInstance: any;
@@ -33,13 +41,10 @@ describe('Tiingo Service', () => {
     (mockedAxios.isAxiosError as unknown as jest.Mock) = jest.fn((error: any) => {
       return error && error.isAxiosError === true;
     });
-
-    // Set API key for tests
-    setTiingoApiKey('test-api-key');
   });
 
   describe('fetchStockPrices', () => {
-    it('should fetch stock prices for valid ticker', async () => {
+    it('should fetch stock prices for valid ticker from Lambda backend', async () => {
       const mockResponse: TiingoStockPrice[] = [
         {
           date: '2025-01-15T00:00:00.000Z',
@@ -64,12 +69,13 @@ describe('Tiingo Service', () => {
 
       expect(result).toEqual(mockResponse);
       expect(mockAxiosInstance.get).toHaveBeenCalledWith(
-        '/tiingo/daily/AAPL/prices',
+        '/stocks',
         {
           params: {
+            ticker: 'AAPL',
             startDate: '2025-01-15',
             endDate: '2025-01-15',
-            token: 'test-api-key',
+            type: 'prices',
           },
         }
       );
@@ -103,17 +109,31 @@ describe('Tiingo Service', () => {
       );
     });
 
-    it('should handle invalid API key (401)', async () => {
-      const axiosError = new Error('Invalid API key');
+    it('should handle invalid request (400)', async () => {
+      const axiosError = new Error('Invalid request parameters');
       Object.assign(axiosError, {
         isAxiosError: true,
-        response: { status: 401 },
+        response: { status: 400, data: { error: 'Invalid ticker format' } },
       });
 
       mockAxiosInstance.get.mockRejectedValue(axiosError);
 
       await expect(fetchStockPrices('AAPL', '2025-01-15')).rejects.toThrow(
-        'Invalid API key'
+        'Invalid ticker format'
+      );
+    });
+
+    it('should handle backend errors (500)', async () => {
+      const axiosError = new Error('Backend service error');
+      Object.assign(axiosError, {
+        isAxiosError: true,
+        response: { status: 500, data: { error: 'Tiingo API unavailable' } },
+      });
+
+      mockAxiosInstance.get.mockRejectedValue(axiosError);
+
+      await expect(fetchStockPrices('AAPL', '2025-01-15')).rejects.toThrow(
+        'Tiingo API unavailable'
       );
     });
 
@@ -123,11 +143,12 @@ describe('Tiingo Service', () => {
       await fetchStockPrices('AAPL', '2025-01-15');
 
       expect(mockAxiosInstance.get).toHaveBeenCalledWith(
-        '/tiingo/daily/AAPL/prices',
+        '/stocks',
         {
           params: {
+            ticker: 'AAPL',
             startDate: '2025-01-15',
-            token: 'test-api-key',
+            type: 'prices',
           },
         }
       );
@@ -135,7 +156,7 @@ describe('Tiingo Service', () => {
   });
 
   describe('fetchSymbolMetadata', () => {
-    it('should fetch symbol metadata for valid ticker', async () => {
+    it('should fetch symbol metadata for valid ticker from Lambda backend', async () => {
       const mockMetadata: TiingoSymbolMetadata = {
         ticker: 'AAPL',
         name: 'Apple Inc.',
@@ -150,8 +171,8 @@ describe('Tiingo Service', () => {
       const result = await fetchSymbolMetadata('AAPL');
 
       expect(result).toEqual(mockMetadata);
-      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/tiingo/daily/AAPL', {
-        params: { token: 'test-api-key' },
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/stocks', {
+        params: { ticker: 'AAPL', type: 'metadata' },
       });
     });
 
