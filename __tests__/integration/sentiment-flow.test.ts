@@ -104,9 +104,8 @@ describe('Sentiment Analysis Integration Flow', () => {
       await syncSentimentData(TEST_TICKER, TEST_DATE);
 
       // Fetch all word count records
-      const wordCounts = await WordCountRepository.findByTickerAndDateRange(
+      const wordCounts = await WordCountRepository.findByTickerAndDate(
         TEST_TICKER,
-        TEST_DATE,
         TEST_DATE
       );
 
@@ -114,7 +113,7 @@ describe('Sentiment Analysis Integration Flow', () => {
       expect(wordCounts).toHaveLength(3);
 
       // Each record should have required fields
-      wordCounts.forEach((wc) => {
+      wordCounts.forEach((wc: typeof wordCounts[0]) => {
         expect(wc.ticker).toBe(TEST_TICKER);
         expect(wc.date).toBe(TEST_DATE);
         expect(wc.positive).toBeGreaterThanOrEqual(0);
@@ -128,14 +127,13 @@ describe('Sentiment Analysis Integration Flow', () => {
     it('should correctly classify positive article', async () => {
       await syncSentimentData(TEST_TICKER, TEST_DATE);
 
-      const wordCounts = await WordCountRepository.findByTickerAndDateRange(
+      const wordCounts = await WordCountRepository.findByTickerAndDate(
         TEST_TICKER,
-        TEST_DATE,
         TEST_DATE
       );
 
       // Find the positive article (contains "strong", "beat", "grew")
-      const positiveArticle = wordCounts.find((wc) =>
+      const positiveArticle = wordCounts.find((wc: typeof wordCounts[0]) =>
         wc.body?.includes('strong')
       );
 
@@ -152,14 +150,13 @@ describe('Sentiment Analysis Integration Flow', () => {
     it('should correctly classify negative article', async () => {
       await syncSentimentData(TEST_TICKER, TEST_DATE);
 
-      const wordCounts = await WordCountRepository.findByTickerAndDateRange(
+      const wordCounts = await WordCountRepository.findByTickerAndDate(
         TEST_TICKER,
-        TEST_DATE,
         TEST_DATE
       );
 
       // Find the negative article (contains "plummeted", "disappointing", "losses")
-      const negativeArticle = wordCounts.find((wc) =>
+      const negativeArticle = wordCounts.find((wc: typeof wordCounts[0]) =>
         wc.body?.includes('plummeted')
       );
 
@@ -175,11 +172,14 @@ describe('Sentiment Analysis Integration Flow', () => {
     it('should aggregate sentiment into combined_word_count_details', async () => {
       await syncSentimentData(TEST_TICKER, TEST_DATE);
 
-      // Fetch combined word count
-      const combined = await CombinedWordRepository.findByTickerAndDate(
+      // Fetch combined word count (using date range with same start/end)
+      const combinedArray = await CombinedWordRepository.findByTickerAndDateRange(
         TEST_TICKER,
+        TEST_DATE,
         TEST_DATE
       );
+
+      const combined = combinedArray[0];
 
       expect(combined).toBeDefined();
       expect(combined!.ticker).toBe(TEST_TICKER);
@@ -201,9 +201,8 @@ describe('Sentiment Analysis Integration Flow', () => {
       // First sync
       await syncSentimentData(TEST_TICKER, TEST_DATE);
 
-      const wordCountsBefore = await WordCountRepository.findByTickerAndDateRange(
+      const wordCountsBefore = await WordCountRepository.findByTickerAndDate(
         TEST_TICKER,
-        TEST_DATE,
         TEST_DATE
       );
 
@@ -216,9 +215,8 @@ describe('Sentiment Analysis Integration Flow', () => {
       expect(analyzedCount).toBe(0);
 
       // Should still have 3 records
-      const wordCountsAfter = await WordCountRepository.findByTickerAndDateRange(
+      const wordCountsAfter = await WordCountRepository.findByTickerAndDate(
         TEST_TICKER,
-        TEST_DATE,
         TEST_DATE
       );
 
@@ -245,9 +243,8 @@ describe('Sentiment Analysis Integration Flow', () => {
       ).resolves.toBeDefined();
 
       // Should only analyze articles with descriptions
-      const wordCounts = await WordCountRepository.findByTickerAndDateRange(
+      const wordCounts = await WordCountRepository.findByTickerAndDate(
         TEST_TICKER,
-        TEST_DATE,
         TEST_DATE
       );
 
@@ -299,6 +296,13 @@ describe('Sentiment Analysis Integration Flow', () => {
       await expect(
         syncSentimentData(TEST_TICKER, TEST_DATE)
       ).resolves.toBeDefined();
+
+      // Verify results are valid despite malformed input
+      const wordCounts = await WordCountRepository.findByTickerAndDate(
+        TEST_TICKER,
+        TEST_DATE
+      );
+      expect(wordCounts.length).toBeGreaterThan(0);
     });
   });
 
@@ -309,9 +313,8 @@ describe('Sentiment Analysis Integration Flow', () => {
 
       await syncSentimentData(TEST_TICKER, TEST_DATE);
 
-      const wordCounts = await WordCountRepository.findByTickerAndDateRange(
+      const wordCounts = await WordCountRepository.findByTickerAndDate(
         TEST_TICKER,
-        TEST_DATE,
         TEST_DATE
       );
 
@@ -325,9 +328,8 @@ describe('Sentiment Analysis Integration Flow', () => {
       await syncSentimentData(TEST_TICKER, TEST_DATE);
 
       // All word counts should reference valid news articles
-      const wordCounts = await WordCountRepository.findByTickerAndDateRange(
+      const wordCounts = await WordCountRepository.findByTickerAndDate(
         TEST_TICKER,
-        TEST_DATE,
         TEST_DATE
       );
 
@@ -344,16 +346,17 @@ describe('Sentiment Analysis Integration Flow', () => {
     it('should have consistent aggregated counts', async () => {
       await syncSentimentData(TEST_TICKER, TEST_DATE);
 
-      const wordCounts = await WordCountRepository.findByTickerAndDateRange(
+      const wordCounts = await WordCountRepository.findByTickerAndDate(
+        TEST_TICKER,
+        TEST_DATE
+      );
+
+      const combinedArray = await CombinedWordRepository.findByTickerAndDateRange(
         TEST_TICKER,
         TEST_DATE,
         TEST_DATE
       );
-
-      const combined = await CombinedWordRepository.findByTickerAndDate(
-        TEST_TICKER,
-        TEST_DATE
-      );
+      const combined = combinedArray[0];
 
       // Aggregated positive should be sum of individual positives
       const totalPositive = wordCounts.reduce((sum, wc) => sum + wc.positive, 0);
@@ -389,9 +392,8 @@ describe('Sentiment Analysis Integration Flow', () => {
       expect(duration).toBeLessThan(2000);
 
       // Should have analyzed all 10 articles
-      const wordCounts = await WordCountRepository.findByTickerAndDateRange(
+      const wordCounts = await WordCountRepository.findByTickerAndDate(
         TEST_TICKER,
-        TEST_DATE,
         TEST_DATE
       );
 
