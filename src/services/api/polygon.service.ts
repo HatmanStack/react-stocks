@@ -1,48 +1,31 @@
 /**
  * Polygon.io API Service
- * Fetches news articles from Polygon.io API
+ * Fetches news articles from Lambda backend
+ * Backend proxies requests to Polygon.io API (API keys secured in Lambda)
  */
 
 import axios, { AxiosInstance } from 'axios';
 import { createHash } from 'crypto';
-import type { PolygonNewsArticle, PolygonNewsResponse } from './polygon.types';
+import type { PolygonNewsArticle } from './polygon.types';
 import type { NewsDetails } from '@/types/database.types';
+import { Environment } from '@/config/environment';
 
-// Polygon API configuration
-const POLYGON_BASE_URL = 'https://api.polygon.io';
-const POLYGON_TIMEOUT = 10000; // 10 seconds
-
-// API key management
-let polygonApiKey: string | null = null;
+// Backend API configuration
+const BACKEND_TIMEOUT = 30000; // 30 seconds (Lambda handles pagination and retries)
 
 /**
- * Set the Polygon API key
- * @param apiKey - Polygon API key from https://polygon.io
+ * Create axios instance for backend API
  */
-export function setPolygonApiKey(apiKey: string): void {
-  polygonApiKey = apiKey;
-}
-
-/**
- * Get the configured API key
- * @throws Error if API key is not set
- */
-function getApiKey(): string {
-  if (!polygonApiKey) {
+function createBackendClient(): AxiosInstance {
+  if (!Environment.BACKEND_URL) {
     throw new Error(
-      'Polygon API key not configured. Call setPolygonApiKey() first or set POLYGON_API_KEY environment variable.'
+      'Backend URL not configured. Set EXPO_PUBLIC_BACKEND_URL in .env file.'
     );
   }
-  return polygonApiKey;
-}
 
-/**
- * Create axios instance for Polygon API
- */
-function createPolygonClient(): AxiosInstance {
   return axios.create({
-    baseURL: POLYGON_BASE_URL,
-    timeout: POLYGON_TIMEOUT,
+    baseURL: Environment.BACKEND_URL,
+    timeout: BACKEND_TIMEOUT,
     headers: {
       'Content-Type': 'application/json',
     },
@@ -59,119 +42,63 @@ export function generateArticleHash(url: string): string {
 }
 
 /**
- * Fetch news articles from Polygon API
+ * Fetch news articles from Lambda backend (proxies to Polygon API)
+ * Backend handles pagination and aggregates all results
  * @param ticker - Stock ticker symbol (e.g., "AAPL")
- * @param startDate - Start date in YYYY-MM-DD format
+ * @param startDate - Start date in YYYY-MM-DD format (optional)
  * @param endDate - End date in YYYY-MM-DD format (optional)
- * @param limit - Maximum number of articles to fetch per request (default: 100)
+ * @param limit - Maximum number of articles to fetch (default: 100)
  * @returns Array of news articles
  * @throws Error if API request fails
  */
 export async function fetchNews(
   ticker: string,
-  startDate: string,
+  startDate?: string,
   endDate?: string,
   limit: number = 100
 ): Promise<PolygonNewsArticle[]> {
-  const apiKey = getApiKey();
-  const client = createPolygonClient();
-  const allArticles: PolygonNewsArticle[] = [];
+  const client = createBackendClient();
 
   try {
-    let nextUrl: string | undefined;
-    let currentPage = 0;
-    const maxPages = 10; // Safety limit to prevent infinite loops
+    console.log(`[PolygonService] Fetching news for ${ticker}`);
 
-    do {
-      currentPage++;
+    const params: Record<string, string | number> = {
+      ticker,
+      limit,
+    };
 
-      console.log(
-        `[PolygonService] Fetching news for ${ticker} (page ${currentPage})`
-      );
+    // Add date filters if provided
+    if (startDate) {
+      params.startDate = startDate;
+    }
+    if (endDate) {
+      params.endDate = endDate;
+    }
 
-      // Build request URL
-      let url: string;
-      if (nextUrl) {
-        // Use pagination URL (already includes API key)
-        url = nextUrl.replace(POLYGON_BASE_URL, '');
-      } else {
-        // First request - build params
-        const params: Record<string, string | number> = {
-          ticker,
-          limit,
-          apiKey,
-        };
+    const response = await client.get<PolygonNewsArticle[]>('/news', { params });
 
-        // Add date filters
-        if (startDate) {
-          params['published_utc.gte'] = startDate;
-        }
-        if (endDate) {
-          params['published_utc.lte'] = endDate;
-        }
-
-        const queryString = new URLSearchParams(
-          params as Record<string, string>
-        ).toString();
-        url = `/v2/reference/news?${queryString}`;
-      }
-
-      const response = await client.get<PolygonNewsResponse>(url);
-
-      if (response.data.status !== 'OK') {
-        console.error(
-          '[PolygonService] API returned non-OK status:',
-          response.data.status
-        );
-        break;
-      }
-
-      const articles = response.data.results || [];
-      allArticles.push(...articles);
-
-      console.log(
-        `[PolygonService] Fetched ${articles.length} articles (total: ${allArticles.length})`
-      );
-
-      // Check for pagination
-      nextUrl = response.data.next_url;
-
-      // Safety check to prevent infinite loops
-      if (currentPage >= maxPages) {
-        console.warn(
-          `[PolygonService] Reached maximum page limit (${maxPages})`
-        );
-        break;
-      }
-
-      // Rate limiting: Polygon free tier allows 5 requests/minute
-      // Add a small delay between paginated requests
-      if (nextUrl) {
-        await new Promise((resolve) => setTimeout(resolve, 1000)); // 1 second delay
-      }
-    } while (nextUrl);
-
-    console.log(
-      `[PolygonService] Completed fetching ${allArticles.length} articles for ${ticker}`
-    );
-    return allArticles;
+    console.log(`[PolygonService] Fetched ${response.data.length} articles for ${ticker}`);
+    return response.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
+      const errorData = error.response?.data as { error?: string };
 
       if (status === 429) {
-        throw new Error(
-          'Rate limit exceeded. Polygon free tier allows 5 requests/minute. Please try again later.'
-        );
-      }
-
-      if (status === 401 || status === 403) {
-        throw new Error('Invalid API key. Please check your Polygon API key.');
+        throw new Error('Rate limit exceeded. Please try again later.');
       }
 
       if (status === 404) {
         console.warn(`[PolygonService] No news found for ticker ${ticker}`);
         return []; // Return empty array instead of error
+      }
+
+      if (status === 400) {
+        throw new Error(errorData?.error || 'Invalid request parameters');
+      }
+
+      if (status === 500) {
+        throw new Error(errorData?.error || 'Backend service error');
       }
     }
 
