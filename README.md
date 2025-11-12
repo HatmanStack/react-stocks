@@ -90,9 +90,47 @@ A comprehensive cross-platform stock tracking application built with React Nativ
     npm run web      # Web browser
     ```
 
-4.  **Open the app:**
+4.  **Configure environment variables:**
+    ```bash
+    # Copy the example environment file
+    cp .env.example .env
+    ```
+
+    Then edit `.env` and configure:
+    * **EXPO_PUBLIC_BACKEND_URL**: Your AWS Lambda API Gateway URL (from backend deployment)
+    * **EXPO_PUBLIC_BROWSER_SENTIMENT**: Set to `true` to use browser-based sentiment analysis
+    * **EXPO_PUBLIC_BROWSER_PREDICTION**: Set to `true` to use browser-based prediction model
+
+    **Getting the Backend URL:**
+    ```bash
+    # Deploy the backend first (see backend/DEPLOYMENT.md)
+    cd backend
+    sam deploy --guided
+
+    # Copy the ReactStocksApiUrl from the output
+    # Example: https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com
+    ```
+
+5.  **Open the app:**
     * Scan the QR code from the terminal using **Expo Go**.
     * Or, press `a` for Android / `i` for iOS / `w` for Web in the terminal.
+
+### Environment Setup
+
+This app requires a backend Lambda API for fetching stock and news data. The backend deployment process is documented in `backend/DEPLOYMENT.md`.
+
+**Required Environment Variables:**
+* `EXPO_PUBLIC_BACKEND_URL` - AWS Lambda API Gateway endpoint URL (required)
+* `EXPO_PUBLIC_BROWSER_SENTIMENT` - Enable browser-based sentiment analysis (default: false)
+* `EXPO_PUBLIC_BROWSER_PREDICTION` - Enable browser-based prediction model (default: false)
+
+**Setup Steps:**
+1. Deploy the backend: `cd backend && sam deploy --guided`
+2. Copy `.env.example` to `.env`
+3. Update `EXPO_PUBLIC_BACKEND_URL` with your Lambda URL
+4. Optionally enable feature flags for browser-based ML
+
+**⚠️ Security Note:** API keys for Tiingo and Polygon are stored in the backend Lambda environment variables, NOT in the frontend code. Never commit API keys to version control.
 
 ### Development Commands
 

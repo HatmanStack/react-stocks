@@ -43,6 +43,11 @@ export default function RootLayout() {
   useEffect(() => {
     async function initialize() {
       try {
+        // Validate environment configuration
+        const { validateEnvironment, logEnvironmentStatus } = await import('../src/config/environment');
+        validateEnvironment();
+        logEnvironmentStatus();
+
         // Log feature flags for debugging
         const { logFeatureFlags } = await import('../src/config/features');
         logFeatureFlags();
