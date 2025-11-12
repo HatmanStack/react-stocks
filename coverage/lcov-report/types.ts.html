@@ -115,7 +115,49 @@
 <a name='L50'></a><a href='#L50'>50</a>
 <a name='L51'></a><a href='#L51'>51</a>
 <a name='L52'></a><a href='#L52'>52</a>
-<a name='L53'></a><a href='#L53'>53</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -168,56 +210,77 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
- * Types for Browser-Based Sentiment Analysis
- * These types define the interfaces for the sentiment analyzer that replaces
- * the Python FinBERT microservice.
+ * Type definitions for prediction ML models
  */
 &nbsp;
 /**
- * Result of analyzing a single sentence
+ * Input data for stock price predictions
  */
-export interface SentenceResult {
-  sentence: string;
-  sentiment: 'POS' | 'NEUT' | 'NEG';
-  score: number; // Raw sentiment score
-  confidence: number; // Normalized confidence (0-1)
+export interface PredictionInput {
+  ticker: string;
+  close: number[];
+  volume: number[];
+  positive: number[];
+  negative: number[];
+  sentiment: string[]; // "POS", "NEG", "NEUT", "UNKNOWN"
 }
 &nbsp;
 /**
- * Aggregated sentiment analysis result matching Python service format
+ * Prediction output for three time horizons
  */
-export interface SentimentResult {
-  positive: [string, string]; // [count, confidence]
-  neutral: [string, string]; // [count, confidence]
-  negative: [string, string]; // [count, confidence]
-  hash: string;
+export interface PredictionOutput {
+  next: string; // Next day prediction (0=up, 1=down)
+  week: string; // 2-week prediction (0=up, 1=down)
+  month: string; // 1-month prediction (0=up, 1=down)
+  ticker: string;
 }
 &nbsp;
 /**
- * Financial domain lexicon entry
+ * Feature matrix (2D array)
+ * - Rows: observations
+ * - Columns: features
  */
-export interface LexiconEntry {
-  word: string;
-  score: number; // Sentiment score (-5 to +5)
+export type FeatureMatrix = number[][];
+&nbsp;
+/**
+ * Label array (binary: 0 or 1)
+ */
+export type Labels = number[];
+&nbsp;
+/**
+ * StandardScaler parameters
+ */
+export interface ScalerParams {
+  mean: number[] | null;
+  std: number[] | null;
 }
 &nbsp;
 /**
- * Configuration options for sentiment analyzer
+ * Training options for logistic regression
  */
-export interface SentimentAnalyzerConfig {
-  positiveThreshold: number; // Score above which is considered positive
-  negativeThreshold: number; // Score below which is considered negative
-  financialLexiconEnabled: boolean; // Whether to use financial domain enhancements
+export interface TrainingOptions {
+  maxIterations?: number;
+  learningRate?: number;
+  regularization?: number; // L2 regularization strength (C parameter)
+  tolerance?: number; // Convergence tolerance
+  verbose?: boolean;
 }
 &nbsp;
 /**
- * Statistics for a sentiment category
+ * Cross-validation fold
  */
-export interface SentimentStats {
-  count: number;
-  totalScore: number;
-  scores: number[];
-  averageConfidence: number;
+export interface CVFold {
+  trainIndices: number[];
+  testIndices: number[];
+}
+&nbsp;
+/**
+ * Cross-validation results
+ */
+export interface CVResults {
+  scores: number[]; // Accuracy score for each fold
+  meanScore: number;
+  stdScore: number;
 }
 &nbsp;</pre></td></tr></table></pre>
 
@@ -226,7 +289,7 @@ export interface SentimentStats {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-11-12T03:21:17.542Z
+                at 2025-11-12T04:26:24.875Z
             </div>
         <script src="prettify.js"></script>
         <script>
