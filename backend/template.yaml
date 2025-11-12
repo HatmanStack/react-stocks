@@ -13,6 +13,20 @@ Parameters:
     Description: Polygon API key for news data
     NoEcho: true
 
+  Environment:
+    Type: String
+    Description: Environment name (development, staging, production)
+    Default: development
+    AllowedValues:
+      - development
+      - staging
+      - production
+
+  AllowedOrigins:
+    Type: String
+    Description: Comma-separated list of allowed CORS origins (use * for development)
+    Default: '*'
+
 Globals:
   Function:
     Timeout: 30
@@ -22,7 +36,13 @@ Globals:
       - x86_64
     Environment:
       Variables:
-        NODE_ENV: production
+        NODE_ENV: !Ref Environment
+        LOG_LEVEL: !If [IsProduction, ERROR, INFO]
+    Tracing: Active  # Enable X-Ray tracing for debugging
+
+Conditions:
+  IsProduction: !Equals [!Ref Environment, production]
+  IsDevelopment: !Equals [!Ref Environment, development]
 
 Resources:
   ReactStocksApi:
