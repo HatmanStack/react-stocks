@@ -26,36 +26,45 @@ import type { NewsDetails } from '@/types/database.types';
 const TEST_TICKER = 'TEST';
 const TEST_DATE = '2024-01-15';
 
-const mockNewsArticles: NewsDetails[] = [
+const mockNewsArticles: Omit<NewsDetails, 'id'>[] = [
   {
+    date: TEST_DATE,
     ticker: TEST_TICKER,
+    articleTickers: TEST_TICKER,
+    title: 'Company Reports Strong Earnings',
     articleDate: TEST_DATE,
     articleUrl: 'https://example.com/article-1',
-    articleTitle: 'Company Reports Strong Earnings',
+    publisher: 'Example News',
+    ampUrl: '',
     articleDescription:
       'The company announced record quarterly earnings that beat analyst expectations. ' +
       'Revenue grew significantly year-over-year driven by strong product sales.',
-    publisher: 'Example News',
   },
   {
+    date: TEST_DATE,
     ticker: TEST_TICKER,
+    articleTickers: TEST_TICKER,
+    title: 'Stock Price Plummets',
     articleDate: TEST_DATE,
     articleUrl: 'https://example.com/article-2',
-    articleTitle: 'Stock Price Plummets',
+    publisher: 'Example News',
+    ampUrl: '',
     articleDescription:
       'Shares plummeted after disappointing quarterly results. ' +
       'The company missed revenue targets and reported significant losses.',
-    publisher: 'Example News',
   },
   {
+    date: TEST_DATE,
     ticker: TEST_TICKER,
+    articleTickers: TEST_TICKER,
+    title: 'Company Announces Results',
     articleDate: TEST_DATE,
     articleUrl: 'https://example.com/article-3',
-    articleTitle: 'Company Announces Results',
+    publisher: 'Example News',
+    ampUrl: '',
     articleDescription:
       'The company announced quarterly results today. ' +
       'Performance was in line with market expectations.',
-    publisher: 'Example News',
   },
 ];
 
@@ -219,12 +228,15 @@ describe('Sentiment Analysis Integration Flow', () => {
     it('should handle articles with no description', async () => {
       // Add article with no description
       await NewsRepository.insert({
+        date: TEST_DATE,
         ticker: TEST_TICKER,
+        articleTickers: TEST_TICKER,
+        title: 'No Description Article',
         articleDate: TEST_DATE,
         articleUrl: 'https://example.com/article-no-desc',
-        articleTitle: 'No Description Article',
-        articleDescription: '', // Empty description
         publisher: 'Example News',
+        ampUrl: '',
+        articleDescription: '', // Empty description
       });
 
       // Should not crash
@@ -269,15 +281,18 @@ describe('Sentiment Analysis Integration Flow', () => {
     it('should handle malformed article text', async () => {
       // Add article with special characters and very long text
       await NewsRepository.insert({
+        date: TEST_DATE,
         ticker: TEST_TICKER,
+        articleTickers: TEST_TICKER,
+        title: 'Special Characters',
         articleDate: TEST_DATE,
         articleUrl: 'https://example.com/malformed',
-        articleTitle: 'Special Characters',
+        publisher: 'Example News',
+        ampUrl: '',
         articleDescription:
           'Test with $pecial ch@racters & emojis 😀 and very long repeated text '.repeat(
             100
           ),
-        publisher: 'Example News',
       });
 
       // Should not crash
@@ -354,12 +369,15 @@ describe('Sentiment Analysis Integration Flow', () => {
       // Add more test articles (total 10)
       for (let i = 4; i <= 10; i++) {
         await NewsRepository.insert({
+          date: TEST_DATE,
           ticker: TEST_TICKER,
+          articleTickers: TEST_TICKER,
+          title: `Test Article ${i}`,
           articleDate: TEST_DATE,
           articleUrl: `https://example.com/article-${i}`,
-          articleTitle: `Test Article ${i}`,
-          articleDescription: `This is test article number ${i} with some content about the company.`,
           publisher: 'Example News',
+          ampUrl: '',
+          articleDescription: `This is test article number ${i} with some content about the company.`,
         });
       }
 
