@@ -7,11 +7,10 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { handleNewsRequest } from '../../src/handlers/news.handler';
 
 // Mock the Polygon service
-const mockFetchNews = jest.fn<any>();
+jest.mock('../../src/services/polygon.service');
 
-jest.mock('../../src/services/polygon.service', () => ({
-  fetchNews: mockFetchNews,
-}));
+import * as polygonService from '../../src/services/polygon.service';
+const mockFetchNews = polygonService.fetchNews as jest.MockedFunction<typeof polygonService.fetchNews>;
 
 describe('News Handler', () => {
   let consoleLogSpy: typeof console.log;

@@ -7,13 +7,11 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { handleStocksRequest } from '../../src/handlers/stocks.handler';
 
 // Mock the Tiingo service
-const mockFetchStockPrices = jest.fn<any>();
-const mockFetchSymbolMetadata = jest.fn<any>();
+jest.mock('../../src/services/tiingo.service');
 
-jest.mock('../../src/services/tiingo.service', () => ({
-  fetchStockPrices: mockFetchStockPrices,
-  fetchSymbolMetadata: mockFetchSymbolMetadata,
-}));
+import * as tiingoService from '../../src/services/tiingo.service';
+const mockFetchStockPrices = tiingoService.fetchStockPrices as jest.MockedFunction<typeof tiingoService.fetchStockPrices>;
+const mockFetchSymbolMetadata = tiingoService.fetchSymbolMetadata as jest.MockedFunction<typeof tiingoService.fetchSymbolMetadata>;
 
 describe('Stocks Handler', () => {
   let consoleLogSpy: typeof console.log;

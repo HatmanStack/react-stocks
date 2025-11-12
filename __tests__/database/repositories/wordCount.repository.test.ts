@@ -1,8 +1,8 @@
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
-import { getDatabase } from '@/database/database';
+import { getDatabase } from '@/database';
 import { WordCountDetails } from '@/types/database.types';
 
-jest.mock('@/database/database');
+jest.mock('@/database');
 
 describe('WordCountRepository', () => {
   let mockDb: any;
