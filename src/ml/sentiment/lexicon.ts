@@ -32,7 +32,6 @@ export const FINANCIAL_LEXICON: Record<string, number> = {
   growth: 2,
   gains: 3,
   gain: 2,
-  revenue: 1, // Slightly positive when mentioned
   profit: 2,
   profitable: 3,
   profitability: 2,

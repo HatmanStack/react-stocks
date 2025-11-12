@@ -172,11 +172,11 @@ describe('Sentiment Service', () => {
       const stats = getPerformanceStats();
 
       expect(stats.count).toBe(10);
-      expect(stats.mean).toBeGreaterThan(0);
+      expect(stats.mean).toBeGreaterThanOrEqual(0);
       expect(stats.mean).toBeLessThan(100); // Should be fast
-      expect(stats.median).toBeGreaterThan(0);
-      expect(stats.p95).toBeGreaterThan(0);
-      expect(stats.p99).toBeGreaterThan(0);
+      expect(stats.median).toBeGreaterThanOrEqual(0); // May be 0 if very fast
+      expect(stats.p95).toBeGreaterThanOrEqual(0);
+      expect(stats.p99).toBeGreaterThanOrEqual(0);
 
       // p95 should be >= median
       expect(stats.p95).toBeGreaterThanOrEqual(stats.median);

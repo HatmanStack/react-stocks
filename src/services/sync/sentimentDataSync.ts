@@ -1,12 +1,12 @@
 /**
  * Sentiment Data Synchronization Service
- * Analyzes news articles for sentiment and stores word counts in database
+ * Analyzes news articles for sentiment using browser-based ML and stores word counts in database
  */
 
 import * as NewsRepository from '@/database/repositories/news.repository';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
-import { countSentimentWords } from '@/utils/sentiment/wordCounter';
+import { analyzeSentiment } from '@/ml/sentiment/sentiment.service';
 import { calculateSentiment, calculateSentimentScore } from '@/utils/sentiment/sentimentCalculator';
 import { generateArticleHash } from '@/services/api/polygon.service';
 import type { WordCountDetails, CombinedWordDetails } from '@/types/database.types';
@@ -70,13 +70,30 @@ export async function syncSentimentData(
         continue;
       }
 
-      // Count sentiment words using bag-of-words
-      const counts = countSentimentWords(text);
+      // Analyze sentiment using browser-based ML
+      const startTime = performance.now();
+      const sentimentResult = await analyzeSentiment(text, hashString);
+      const duration = performance.now() - startTime;
+
+      // Extract counts from ML service result
+      const posCount = parseInt(sentimentResult.positive[0]);
+      const negCount = parseInt(sentimentResult.negative[0]);
+      const neutCount = parseInt(sentimentResult.neutral[0]);
+
+      const counts = {
+        positive: posCount,
+        negative: negCount,
+      };
       wordCounts.push(counts);
 
       // Calculate sentiment label and score
       const sentiment = calculateSentiment(counts.positive, counts.negative);
       const sentimentScore = calculateSentimentScore(counts.positive, counts.negative);
+
+      console.log(
+        `[SentimentDataSync] ML analysis completed in ${duration.toFixed(2)}ms: ` +
+          `POS=${posCount}, NEG=${negCount}, NEUT=${neutCount}`
+      );
 
       // Create WordCountDetails record
       const wordCountDetails: WordCountDetails = {
