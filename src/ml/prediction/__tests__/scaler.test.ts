@@ -64,10 +64,14 @@ describe('StandardScaler', () => {
     it('should match simple 3-element example from reference', () => {
       const example = scalerReference.examples[0];
       const scaler = new StandardScaler();
-      const data = example.input.map((val) => [val]);
+      const data = (example.input as number[]).map((val) => [val]);
 
       scaler.fit(data);
       const params = scaler.getParams();
+
+      if (!example.calculations || !example.scaled) {
+        throw new Error('Missing reference data');
+      }
 
       expect(params.mean![0]).toBeCloseTo(example.calculations.mean.value, 6);
       expect(params.std![0]).toBeCloseTo(example.calculations.std.value, 6);
@@ -81,10 +85,14 @@ describe('StandardScaler', () => {
     it('should match stock prices example from reference', () => {
       const example = scalerReference.examples[1];
       const scaler = new StandardScaler();
-      const data = example.input.map((val) => [val]);
+      const data = (example.input as number[]).map((val) => [val]);
 
       scaler.fit(data);
       const params = scaler.getParams();
+
+      if (!example.calculations || !example.scaled) {
+        throw new Error('Missing reference data');
+      }
 
       expect(params.mean![0]).toBeCloseTo(example.calculations.mean.value, 6);
       expect(params.std![0]).toBeCloseTo(example.calculations.std.value, 6);
@@ -98,7 +106,11 @@ describe('StandardScaler', () => {
     it('should match feature matrix example from reference', () => {
       const example = scalerReference.examples[4]; // AAPL sample
       const scaler = new StandardScaler();
-      const data = example.input;
+      const data = example.input as number[][];
+
+      if (!example.scaledOutput || !example.columnWiseCalculations) {
+        throw new Error('Missing reference data');
+      }
 
       const scaled = scaler.fitTransform(data);
 
@@ -123,10 +135,14 @@ describe('StandardScaler', () => {
     it('should handle constant features (std=0)', () => {
       const example = scalerReference.examples[2]; // Constant feature
       const scaler = new StandardScaler();
-      const data = example.input.map((val) => [val]);
+      const data = (example.input as number[]).map((val) => [val]);
 
       scaler.fit(data);
       const params = scaler.getParams();
+
+      if (!example.calculations) {
+        throw new Error('Missing reference data');
+      }
 
       expect(params.mean![0]).toBeCloseTo(example.calculations.mean.value, 6);
       expect(params.std![0]).toBe(0.0);
