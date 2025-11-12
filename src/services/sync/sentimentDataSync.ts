@@ -1,14 +1,16 @@
 /**
  * Sentiment Data Synchronization Service
- * Analyzes news articles for sentiment and stores word counts in database
+ * Analyzes news articles for sentiment using browser-based ML and stores word counts in database
  */
 
 import * as NewsRepository from '@/database/repositories/news.repository';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
+import { analyzeSentiment } from '@/ml/sentiment/sentiment.service';
 import { countSentimentWords } from '@/utils/sentiment/wordCounter';
 import { calculateSentiment, calculateSentimentScore } from '@/utils/sentiment/sentimentCalculator';
 import { generateArticleHash } from '@/services/api/polygon.service';
+import { FeatureFlags } from '@/config/features';
 import type { WordCountDetails, CombinedWordDetails } from '@/types/database.types';
 
 /**
@@ -70,8 +72,39 @@ export async function syncSentimentData(
         continue;
       }
 
-      // Count sentiment words using bag-of-words
-      const counts = countSentimentWords(text);
+      let counts: { positive: number; negative: number };
+
+      // Use ML sentiment or fallback based on feature flag
+      if (FeatureFlags.USE_BROWSER_SENTIMENT) {
+        // New: Browser-based ML sentiment analysis
+        const startTime = performance.now();
+        const sentimentResult = await analyzeSentiment(text, hashString);
+        const duration = performance.now() - startTime;
+
+        // Extract counts from ML service result
+        const posCount = parseInt(sentimentResult.positive[0]);
+        const negCount = parseInt(sentimentResult.negative[0]);
+        const neutCount = parseInt(sentimentResult.neutral[0]);
+
+        counts = {
+          positive: posCount,
+          negative: negCount,
+        };
+
+        console.log(
+          `[SentimentDataSync] ML analysis completed in ${duration.toFixed(2)}ms: ` +
+            `POS=${posCount}, NEG=${negCount}, NEUT=${neutCount}`
+        );
+      } else {
+        // Old: Simple word counting approach
+        counts = countSentimentWords(text);
+
+        console.log(
+          `[SentimentDataSync] Word counting completed: ` +
+            `POS=${counts.positive}, NEG=${counts.negative}`
+        );
+      }
+
       wordCounts.push(counts);
 
       // Calculate sentiment label and score

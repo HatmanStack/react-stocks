@@ -18,15 +18,16 @@ A comprehensive cross-platform stock tracking application built with React Nativ
 ## ✨ Features
 
 * **Real-Time Stock Data:** Access historical OHLCV price data with customizable date ranges.
-* **Market Sentiment Analysis:** AI-powered sentiment analysis using FinBERT financial model.
+* **Market Sentiment Analysis:** Browser-based sentiment analysis with financial lexicon (instant, offline-capable).
 * **Latest News:** Stay informed with real-time news articles from major financial sources.
 * **Portfolio Management:** Track your favorite stocks with a personalized watchlist.
 * **Cross-Platform:** Single codebase runs on iOS, Android, and Web seamlessly.
-* **Offline-First:** Local database caching for instant access to previously viewed data.
+* **Offline-First:** Local database caching + browser-based ML works without network.
 * **Material Design:** Beautiful, responsive UI with React Native Paper components.
 * **Smart Sync:** Automatic data synchronization with progress tracking and error handling.
 * **Dual Database:** SQLite for native apps, localStorage for web - transparent platform abstraction.
-* **ML Predictions:** Stock price predictions for next day, 2 weeks, and 1 month timeframes.
+* **ML Predictions:** Browser-based stock predictions (next day, week, month) using logistic regression.
+* **Secure Backend:** AWS Lambda backend protects API keys, no client-side exposure.
 
 ---
 
@@ -46,13 +47,20 @@ A comprehensive cross-platform stock tracking application built with React Nativ
 * **Web Storage:** localStorage (custom SQL-like interface)
 * **Networking:** [Axios](https://axios-http.com/) 1.13.2
 
-### External APIs
-* **Stock Data:** [Tiingo](https://www.tiingo.com/) & [Polygon.io](https://polygon.io/)
-* **Sentiment Analysis:** FinBERT ML model (Google Cloud Run microservice)
-* **Price Predictions:** Custom ML model (Google Cloud Run microservice)
+### Backend & APIs
+* **Backend:** AWS Lambda (Node.js 20.x) + API Gateway HTTP API
+* **Stock Data:** [Tiingo](https://www.tiingo.com/) & [Polygon.io](https://polygon.io/) (proxied through Lambda)
+* **Sentiment Analysis:** Browser-based JavaScript analyzer with financial lexicon
+* **Price Predictions:** Browser-based logistic regression model (ported from scikit-learn)
+
+### Machine Learning
+* **Sentiment Library:** [sentiment](https://www.npmjs.com/package/sentiment) 5.0.2
+* **Math Operations:** [mathjs](https://mathjs.org/) 14.0.3
+* **Performance:** <100ms sentiment analysis, <50ms predictions
 
 ### Testing & Quality
 * **Testing:** [Jest](https://jestjs.io/) ~30.2.0 & [React Native Testing Library](https://callstack.github.io/react-native-testing-library/)
+* **Coverage:** 618 tests passing (94%), 85%+ coverage on critical paths
 * **Linting:** [ESLint](https://eslint.org/) with Expo config
 * **Formatting:** [Prettier](https://prettier.io/) 3.6.2
 
@@ -90,9 +98,47 @@ A comprehensive cross-platform stock tracking application built with React Nativ
     npm run web      # Web browser
     ```
 
-4.  **Open the app:**
+4.  **Configure environment variables:**
+    ```bash
+    # Copy the example environment file
+    cp .env.example .env
+    ```
+
+    Then edit `.env` and configure:
+    * **EXPO_PUBLIC_BACKEND_URL**: Your AWS Lambda API Gateway URL (from backend deployment)
+    * **EXPO_PUBLIC_BROWSER_SENTIMENT**: Set to `true` to use browser-based sentiment analysis
+    * **EXPO_PUBLIC_BROWSER_PREDICTION**: Set to `true` to use browser-based prediction model
+
+    **Getting the Backend URL:**
+    ```bash
+    # Deploy the backend first (see backend/DEPLOYMENT.md)
+    cd backend
+    sam deploy --guided
+
+    # Copy the ReactStocksApiUrl from the output
+    # Example: https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com
+    ```
+
+5.  **Open the app:**
     * Scan the QR code from the terminal using **Expo Go**.
     * Or, press `a` for Android / `i` for iOS / `w` for Web in the terminal.
+
+### Environment Setup
+
+This app requires a backend Lambda API for fetching stock and news data. The backend deployment process is documented in `backend/DEPLOYMENT.md`.
+
+**Required Environment Variables:**
+* `EXPO_PUBLIC_BACKEND_URL` - AWS Lambda API Gateway endpoint URL (required)
+* `EXPO_PUBLIC_BROWSER_SENTIMENT` - Enable browser-based sentiment analysis (default: false)
+* `EXPO_PUBLIC_BROWSER_PREDICTION` - Enable browser-based prediction model (default: false)
+
+**Setup Steps:**
+1. Deploy the backend: `cd backend && sam deploy --guided`
+2. Copy `.env.example` to `.env`
+3. Update `EXPO_PUBLIC_BACKEND_URL` with your Lambda URL
+4. Optionally enable feature flags for browser-based ML
+
+**⚠️ Security Note:** API keys for Tiingo and Polygon are stored in the backend Lambda environment variables, NOT in the frontend code. Never commit API keys to version control.
 
 ### Development Commands
 

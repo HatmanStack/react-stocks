@@ -1,0 +1,68 @@
+version = 0.1
+
+# Development environment (default)
+[default.global.parameters]
+stack_name = "react-stocks-backend-dev"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "us-east-1"
+parameter_overrides = "TiingoApiKey=\"REPLACE_WITH_YOUR_KEY\" PolygonApiKey=\"REPLACE_WITH_YOUR_KEY\" Environment=\"development\" AllowedOrigins=\"*\""
+
+[default.package.parameters]
+resolve_s3 = true
+
+[default.sync.parameters]
+watch = true
+
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+
+[default.local_start_lambda.parameters]
+warm_containers = "EAGER"
+
+# Staging environment
+[staging.global.parameters]
+stack_name = "react-stocks-backend-staging"
+
+[staging.build.parameters]
+cached = true
+parallel = true
+
+[staging.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "us-east-1"
+s3_prefix = "react-stocks-staging"
+parameter_overrides = "Environment=\"staging\" AllowedOrigins=\"https://staging.yourdomain.com\""
+# Note: Set API keys via command line for security:
+# sam deploy --config-env staging --parameter-overrides TiingoApiKey=KEY1 PolygonApiKey=KEY2
+
+# Production environment
+[production.global.parameters]
+stack_name = "react-stocks-backend-prod"
+
+[production.build.parameters]
+cached = true
+parallel = true
+
+[production.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "us-east-1"
+s3_prefix = "react-stocks-production"
+parameter_overrides = "Environment=\"production\" AllowedOrigins=\"https://yourdomain.com,exp://your-expo-app\""
+# Note: NEVER commit API keys to this file
+# Set API keys via command line:
+# sam deploy --config-env production --parameter-overrides TiingoApiKey=KEY1 PolygonApiKey=KEY2 AllowedOrigins=https://yourdomain.com

@@ -1,8 +1,8 @@
 import * as PortfolioRepository from '@/database/repositories/portfolio.repository';
-import { getDatabase } from '@/database/database';
+import { getDatabase } from '@/database';
 import { PortfolioDetails } from '@/types/database.types';
 
-jest.mock('@/database/database');
+jest.mock('@/database');
 
 describe('PortfolioRepository', () => {
   let mockDb: any;
