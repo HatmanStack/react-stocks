@@ -54,21 +54,9 @@ describe('Lambda Handler', () => {
       expect(response.headers).toHaveProperty('Access-Control-Allow-Origin');
     });
 
-    it('should return 501 for /stocks route (not implemented yet)', async () => {
-      const event = createMockEvent('/stocks');
-      const response = await handler(event);
-
-      expect(response.statusCode).toBe(501);
-      expect(response.body).toContain('not yet implemented');
-    });
-
-    it('should return 501 for /news route (not implemented yet)', async () => {
-      const event = createMockEvent('/news');
-      const response = await handler(event);
-
-      expect(response.statusCode).toBe(501);
-      expect(response.body).toContain('not yet implemented');
-    });
+    // Note: Handlers are now implemented
+    // Handler-specific tests are in __tests__/handlers/stocks.handler.test.ts
+    // and __tests__/handlers/news.handler.test.ts
 
     it('should include CORS headers in all responses', async () => {
       const event = createMockEvent('/unknown');
