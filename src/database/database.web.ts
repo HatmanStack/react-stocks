@@ -44,9 +44,24 @@ class WebDatabase {
 
   private saveData(): void {
     try {
-      localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+      const dataString = JSON.stringify(this.data);
+      localStorage.setItem(this.storageKey, dataString);
+
+      // Debug: verify it was saved
+      const saved = localStorage.getItem(this.storageKey);
+      if (!saved) {
+        console.error('[WebDB] CRITICAL: Data did not save to localStorage!');
+      } else {
+        console.log('[WebDB] ✓ Saved', (dataString.length / 1024).toFixed(1), 'KB');
+      }
     } catch (error) {
       console.error('[WebDB] Failed to save data:', error);
+      console.error('[WebDB] Error details:', {
+        name: (error as Error).name,
+        message: (error as Error).message,
+        dataSize: JSON.stringify(this.data).length,
+        storageKey: this.storageKey
+      });
     }
   }
 
@@ -54,20 +69,30 @@ class WebDatabase {
     // Parse SQL and execute appropriate operation
     const sqlLower = sql.toLowerCase().trim();
 
-    if (sqlLower.startsWith('insert into symbols')) {
+    if (sqlLower.startsWith('insert into symbol_details')) {
+      console.log('[WebDB] Inserting symbol:', params?.[4]); // ticker is 5th param
       return this.insertSymbol(params || []);
-    } else if (sqlLower.startsWith('insert into stocks')) {
+    } else if (sqlLower.startsWith('insert into stock_details')) {
+      const ticker = params?.[2];
+      const date = params?.[1];
+      const close = params?.[3];
+      console.log(`[WebDB] Inserting stock: ${ticker} ${date} close=$${close}`);
       return this.insertStock(params || []);
-    } else if (sqlLower.startsWith('insert into news')) {
+    } else if (sqlLower.startsWith('insert into news_details')) {
+      console.log('[WebDB] Inserting news:', params?.[0]); // ticker
       return this.insertNews(params || []);
-    } else if (sqlLower.startsWith('insert into combined_word_details')) {
-      return this.insertSentiment(params || []);
+    } else if (sqlLower.startsWith('insert or replace into combined_word_count_details')) {
+      return this.upsertCombinedSentiment(params || []);
     } else if (sqlLower.startsWith('insert into word_count_details')) {
       return this.insertArticleSentiment(params || []);
-    } else if (sqlLower.startsWith('insert into portfolio')) {
+    } else if (sqlLower.startsWith('insert or replace into portfolio_details')) {
+      return this.insertPortfolio(params || []);
+    } else if (sqlLower.startsWith('insert into portfolio_details')) {
       return this.insertPortfolio(params || []);
     } else if (sqlLower.includes('delete from portfolio')) {
       return this.deleteFromPortfolio(params || []);
+    } else {
+      console.warn('[WebDB] Unhandled SQL:', sqlLower.substring(0, 50));
     }
 
     return { changes: 0 };
@@ -76,18 +101,20 @@ class WebDatabase {
   async getAllAsync(sql: string, params?: any[]): Promise<any[]> {
     const sqlLower = sql.toLowerCase().trim();
 
-    if (sqlLower.includes('from symbols')) {
+    if (sqlLower.includes('from symbol_details')) {
       return this.getSymbols(params || []);
-    } else if (sqlLower.includes('from stocks')) {
+    } else if (sqlLower.includes('from stock_details')) {
       return this.getStocks(params || []);
-    } else if (sqlLower.includes('from news')) {
+    } else if (sqlLower.includes('from news_details')) {
       return this.getNews(params || []);
-    } else if (sqlLower.includes('from combined_word_details')) {
+    } else if (sqlLower.includes('from combined_word_count_details')) {
       return this.getSentiment(params || []);
     } else if (sqlLower.includes('from word_count_details')) {
       return this.getArticleSentiment(params || []);
-    } else if (sqlLower.includes('from portfolio')) {
+    } else if (sqlLower.includes('from portfolio_details')) {
       return this.getPortfolio(params || []);
+    } else {
+      console.warn('[WebDB] Unhandled SELECT SQL:', sqlLower.substring(0, 80));
     }
 
     return [];
@@ -98,51 +125,82 @@ class WebDatabase {
     return results[0] || null;
   }
 
+  /**
+   * Execute a transaction (web implementation just runs the callback)
+   * localStorage operations are atomic, so no real transaction needed
+   */
+  async withTransactionAsync(callback: () => Promise<void>): Promise<void> {
+    await callback();
+  }
+
   // Symbol operations
   private insertSymbol(params: any[]): any {
-    const [ticker, name, type, currency, exchange] = params;
-    this.data.symbols[ticker] = { ticker, name, type, currency, exchange };
+    const [longDescription, exchangeCode, name, startDate, ticker, endDate] = params;
+
+    // Check if symbol already exists
+    if (this.data.symbols[ticker]) {
+      return { changes: 0 };
+    }
+
+    this.data.symbols[ticker] = { ticker, name, exchangeCode, longDescription, startDate, endDate };
     this.saveData();
     return { changes: 1 };
   }
 
   private getSymbols(params: any[]): any[] {
     if (params.length === 1) {
-      // Get specific symbol
+      // Get specific symbol by ticker
       const ticker = params[0];
       const symbol = this.data.symbols[ticker];
       return symbol ? [symbol] : [];
     }
-    // Search symbols
-    const query = params[0]?.toLowerCase() || '';
-    return Object.values(this.data.symbols).filter(
-      (s: any) =>
-        s.ticker.toLowerCase().includes(query) ||
-        s.name?.toLowerCase().includes(query)
-    );
+    // Get all symbols (no params) or search
+    return Object.values(this.data.symbols);
   }
 
   // Stock operations
   private insertStock(params: any[]): any {
-    const [ticker, date, open, high, low, close, volume] = params;
+    const [
+      hash, date, ticker, close, high, low, open, volume,
+      adjClose, adjHigh, adjLow, adjOpen, adjVolume,
+      divCash, splitFactor, marketCap, enterpriseVal,
+      peRatio, pbRatio, trailingPEG1Y
+    ] = params;
+
     if (!this.data.stocks[ticker]) {
       this.data.stocks[ticker] = [];
     }
+
     // Check if already exists
     const exists = this.data.stocks[ticker].some(
       (s) => s.date === date
     );
+
     if (!exists) {
       this.data.stocks[ticker].push({
-        ticker,
+        hash,
         date,
-        open,
+        ticker,
+        close,
         high,
         low,
-        close,
+        open,
         volume,
+        adjClose,
+        adjHigh,
+        adjLow,
+        adjOpen,
+        adjVolume,
+        divCash,
+        splitFactor,
+        marketCap,
+        enterpriseVal,
+        peRatio,
+        pbRatio,
+        trailingPEG1Y,
       });
     }
+
     this.saveData();
     return { changes: exists ? 0 : 1 };
   }
@@ -154,72 +212,144 @@ class WebDatabase {
 
   // News operations
   private insertNews(params: any[]): any {
-    const [ticker, hash, articleUrl, articleDate, articleTitle, snippet] = params;
+    const [date, ticker, articleTickers, title, articleDate, articleUrl, publisher, ampUrl, articleDescription] = params;
+
     if (!this.data.news[ticker]) {
       this.data.news[ticker] = [];
     }
-    const exists = this.data.news[ticker].some((n) => n.hash === hash);
+
+    // Check if article already exists by URL
+    const exists = this.data.news[ticker].some((n) => n.articleUrl === articleUrl);
+
     if (!exists) {
       this.data.news[ticker].push({
+        date,
         ticker,
-        hash,
-        articleUrl,
+        articleTickers,
+        title,
         articleDate,
-        articleTitle,
-        snippet,
+        articleUrl,
+        publisher,
+        ampUrl,
+        articleDescription,
       });
     }
+
     this.saveData();
     return { changes: exists ? 0 : 1 };
   }
 
   private getNews(params: any[]): any[] {
     const ticker = params[0];
-    return this.data.news[ticker] || [];
+
+    console.log(`[WebDB] getNews called with params:`, params);
+    console.log(`[WebDB] Available tickers in news:`, Object.keys(this.data.news));
+
+    let news = this.data.news[ticker] || [];
+
+    // If date range params provided, filter by articleDate
+    if (params.length === 3) {
+      const startDate = params[1];
+      const endDate = params[2];
+      news = news.filter(
+        (article) =>
+          article.articleDate >= startDate && article.articleDate <= endDate
+      );
+      console.log(`[WebDB] Getting news for ${ticker} from ${startDate} to ${endDate}: ${news.length} articles`);
+    } else {
+      console.log(`[WebDB] Getting all news for ${ticker}: ${news.length} articles`);
+    }
+
+    if (news.length > 0) {
+      console.log(`[WebDB] Sample articles:`, news.slice(0, 2).map(a => ({ ticker: a.ticker, date: a.articleDate, title: a.title?.substring(0, 40) })));
+    }
+
+    return news;
   }
 
-  // Sentiment operations
-  private insertSentiment(params: any[]): any {
-    const [ticker, date, positiveScore, negativeScore, neutralScore, compoundScore] = params;
+  // Combined sentiment operations (daily aggregated)
+  private upsertCombinedSentiment(params: any[]): any {
+    const [date, ticker, positive, negative, sentimentNumber, sentiment, nextDay, twoWks, oneMnth, updateDate] = params;
+
     if (!this.data.sentiment[ticker]) {
       this.data.sentiment[ticker] = [];
     }
-    const exists = this.data.sentiment[ticker].some((s) => s.date === date);
-    if (!exists) {
-      this.data.sentiment[ticker].push({
-        ticker,
-        date,
-        positiveScore,
-        negativeScore,
-        neutralScore,
-        compoundScore,
-      });
+
+    // Find existing record and update or insert new
+    const existingIndex = this.data.sentiment[ticker].findIndex((s) => s.date === date);
+
+    const record = {
+      date,
+      ticker,
+      positive,
+      negative,
+      sentimentNumber,
+      sentiment,
+      nextDay,
+      twoWks,
+      oneMnth,
+      updateDate,
+    };
+
+    if (existingIndex >= 0) {
+      this.data.sentiment[ticker][existingIndex] = record;
+    } else {
+      this.data.sentiment[ticker].push(record);
     }
+
     this.saveData();
-    return { changes: exists ? 0 : 1 };
+    return { changes: 1 };
   }
 
   private getSentiment(params: any[]): any[] {
     const ticker = params[0];
-    return this.data.sentiment[ticker] || [];
+
+    let sentiment = this.data.sentiment[ticker] || [];
+
+    // Filter out any records that look like article sentiment (have hash field)
+    // Only return daily aggregated sentiment
+    sentiment = sentiment.filter((record) => !record.hasOwnProperty('hash'));
+
+    // If date range params provided, filter by date
+    if (params.length === 3) {
+      const startDate = params[1];
+      const endDate = params[2];
+      sentiment = sentiment.filter(
+        (record) => record.date >= startDate && record.date <= endDate
+      );
+    }
+
+    console.log(`[WebDB] Getting daily aggregate sentiment for ${ticker}: ${sentiment.length} records`);
+
+    return sentiment;
   }
 
   // Article sentiment operations
   private insertArticleSentiment(params: any[]): any {
-    const [ticker, hash, date, positiveScore, negativeScore, neutralScore, compoundScore] = params;
+    // Parameters: date, hash, ticker, positive, negative, nextDay, twoWks, oneMnth, body, sentiment, sentimentNumber
+    const [date, hash, ticker, positive, negative, nextDay, twoWks, oneMnth, body, sentiment, sentimentNumber] = params;
+
     if (!this.data.articleSentiment[ticker]) {
       this.data.articleSentiment[ticker] = [];
     }
-    const exists = this.data.articleSentiment[ticker].some((s) => s.hash === hash);
+
+    // Ensure hash is a number
+    const hashNum = typeof hash === 'number' ? hash : parseInt(hash);
+
+    const exists = this.data.articleSentiment[ticker].some((s) => s.hash === hashNum);
     if (!exists) {
       this.data.articleSentiment[ticker].push({
         ticker,
-        hash,
+        hash: hashNum,
         date,
-        positiveScore,
-        negativeScore,
-        neutralScore,
-        compoundScore,
+        positive: parseInt(positive),
+        negative: parseInt(negative),
+        nextDay: parseFloat(nextDay),
+        twoWks: parseFloat(twoWks),
+        oneMnth: parseFloat(oneMnth),
+        body,
+        sentiment,
+        sentimentNumber: parseFloat(sentimentNumber),
       });
     }
     this.saveData();
@@ -228,13 +358,30 @@ class WebDatabase {
 
   private getArticleSentiment(params: any[]): any[] {
     const ticker = params[0];
-    return this.data.articleSentiment[ticker] || [];
+    const articles = this.data.articleSentiment[ticker] || [];
+
+    // Filter to only return records with hash field (article-level data)
+    const validArticles = articles.filter((record) => record.hasOwnProperty('hash') && typeof record.hash === 'number');
+
+    console.log(`[WebDB] Getting article sentiment for ${ticker}: ${validArticles.length} records`);
+
+    return validArticles;
   }
 
   // Portfolio operations
   private insertPortfolio(params: any[]): any {
-    const [ticker, name, addedAt] = params;
-    this.data.portfolio[ticker] = { ticker, name, addedAt };
+    // Parameters: ticker, next, name, wks, mnth (from repository upsert)
+    const [ticker, next, name, wks, mnth] = params;
+
+    console.log(`[WebDB] Inserting portfolio: ${ticker}, name: ${name}`);
+
+    this.data.portfolio[ticker] = {
+      ticker,
+      next: next || '0',
+      name: name || ticker,
+      wks: wks || '0',
+      mnth: mnth || '0',
+    };
     this.saveData();
     return { changes: 1 };
   }
@@ -265,9 +412,7 @@ class WebDatabase {
 let webDatabase: WebDatabase | null = null;
 
 export async function initializeDatabase(): Promise<void> {
-  console.log('[WebDB] Initializing localStorage database');
   webDatabase = new WebDatabase();
-  console.log('[WebDB] Initialization complete');
 }
 
 export function getDatabase(): WebDatabase {
@@ -279,12 +424,9 @@ export function getDatabase(): WebDatabase {
 
 export async function closeDatabase(): Promise<void> {
   webDatabase = null;
-  console.log('[WebDB] Database closed');
 }
 
 export async function resetDatabase(): Promise<void> {
-  console.log('[WebDB] Resetting database');
   localStorage.removeItem(`${DB_NAME}_data`);
   webDatabase = new WebDatabase();
-  console.log('[WebDB] Database reset complete');
 }

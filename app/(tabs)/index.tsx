@@ -7,6 +7,7 @@ import React, { useState, useCallback } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { SearchBar } from '@/components/search/SearchBar';
 import { SearchResultItem } from '@/components/search/SearchResultItem';
 import { DateRangePicker } from '@/components/common/DateRangePicker';
@@ -26,6 +27,7 @@ export default function SearchScreen() {
   const [syncMessage, setSyncMessage] = useState('');
 
   const { setSelectedTicker, setDateRange, startDate, endDate } = useStock();
+  const queryClient = useQueryClient();
 
   // Search for symbols
   const {
@@ -68,6 +70,16 @@ export default function SearchScreen() {
       });
 
       console.log(`[SearchScreen] Sync complete for ${symbol.ticker}`);
+
+      // Invalidate all queries for this ticker to force refetch
+      // Use exact: false to match all query variations (with different days params)
+      queryClient.invalidateQueries({ queryKey: ['newsData', symbol.ticker], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['sentimentData', symbol.ticker], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['articleSentiment', symbol.ticker], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['stockData', symbol.ticker], exact: false });
+
+      console.log(`[SearchScreen] Invalidated queries for ${symbol.ticker}`);
+
       setIsSyncing(false);
       setSyncMessage('');
     } catch (error) {
@@ -76,7 +88,7 @@ export default function SearchScreen() {
       setSyncMessage('');
       // Don't show error - sync failures are handled in individual screens
     }
-  }, [setSelectedTicker, startDate, endDate]);
+  }, [setSelectedTicker, startDate, endDate, queryClient]);
 
   const renderSearchResult = useCallback(({ item }: { item: SymbolDetails }) => (
     <SearchResultItem
