@@ -7,9 +7,8 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
-import { useStockData } from '@/hooks/useStockData';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
-import { useStock } from '@/contexts/StockContext';
+import { useStockDetail } from '@/contexts/StockDetailContext';
 import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
@@ -17,33 +16,19 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { StockDetails } from '@/types/database.types';
-import { differenceInDays } from 'date-fns';
 
 export default function PriceScreen() {
   const { ticker } = useLocalSearchParams<{ ticker: string }>();
-  const { startDate, endDate } = useStock();
 
-  // Calculate number of days for the date range
-  const days = useMemo(() => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return Math.abs(differenceInDays(end, start)) + 1;
-  }, [startDate, endDate]);
+  // Get stock data from context (already fetched at layout level)
+  const { stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
 
   // Fetch symbol details for metadata card
   const {
     data: symbol,
     isLoading: isSymbolLoading,
     error: symbolError,
-  } = useSymbolDetails(ticker || 'AAPL');
-
-  // Fetch stock price data
-  const {
-    data: stockData,
-    isLoading: isPriceLoading,
-    error: priceError,
-    refetch,
-  } = useStockData(ticker || 'AAPL', { days });
+  } = useSymbolDetails(ticker as string);
 
   // Sort stock data by date descending (most recent first)
   const sortedStockData = useMemo(() => {
@@ -66,7 +51,6 @@ export default function PriceScreen() {
       <SafeAreaView style={styles.container}>
         <ErrorDisplay
           error={priceError || symbolError || 'Failed to load price data'}
-          onRetry={refetch}
         />
       </SafeAreaView>
     );

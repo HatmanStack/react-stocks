@@ -3,38 +3,19 @@
  * Displays news articles for a stock
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
-import { useNewsData } from '@/hooks/useNewsData';
-import { useStock } from '@/contexts/StockContext';
+import { useStockDetail } from '@/contexts/StockDetailContext';
 import { NewsListItem } from '@/components/news/NewsListItem';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { NewsDetails } from '@/types/database.types';
-import { differenceInDays } from 'date-fns';
 
 export default function NewsScreen() {
-  const { ticker } = useLocalSearchParams<{ ticker: string }>();
-  const { startDate, endDate } = useStock();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Calculate number of days for the date range
-  const days = useMemo(() => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return Math.abs(differenceInDays(end, start)) + 1;
-  }, [startDate, endDate]);
-
-  // Fetch news data
-  const {
-    data: newsData,
-    isLoading,
-    error,
-    refetch,
-  } = useNewsData(ticker || 'AAPL', { days });
+  // Get news data from context (already fetched at layout level)
+  const { newsData, newsLoading: isLoading, newsError: error } = useStockDetail();
 
   // Sort news by date descending (most recent first)
   const sortedNewsData = useMemo(() => {
@@ -42,18 +23,8 @@ export default function NewsScreen() {
     return [...newsData].sort((a, b) => b.articleDate.localeCompare(a.articleDate));
   }, [newsData]);
 
-  // Handle pull-to-refresh
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      await refetch();
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [refetch]);
-
   // Render loading state
-  if (isLoading && !isRefreshing) {
+  if (isLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <LoadingIndicator message="Loading news..." />
@@ -62,12 +33,11 @@ export default function NewsScreen() {
   }
 
   // Render error state
-  if (error && !isRefreshing) {
+  if (error) {
     return (
       <SafeAreaView style={styles.container}>
         <ErrorDisplay
           error={error || 'Failed to load news articles'}
-          onRetry={refetch}
         />
       </SafeAreaView>
     );
@@ -101,12 +71,6 @@ export default function NewsScreen() {
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-          />
-        }
         removeClippedSubviews={true}
         maxToRenderPerBatch={10}
         updateCellsBatchingPeriod={50}
