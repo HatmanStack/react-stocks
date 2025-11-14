@@ -94,7 +94,7 @@ describe('SentimentJobs Repository', () => {
 
     it('should have correct updateJobStatus signature', () => {
       expect(typeof updateJobStatus).toBe('function');
-      expect(updateJobStatus.length).toBe(3); // jobId, status, updates
+      expect(updateJobStatus.length).toBe(2); // jobId, status (updates has default)
     });
 
     it('should have correct markJobCompleted signature', () => {

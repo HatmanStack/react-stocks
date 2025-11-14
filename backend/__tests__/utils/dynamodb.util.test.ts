@@ -62,7 +62,7 @@ describe('DynamoDB Utilities', () => {
 
   describe('batchPutItems', () => {
     it('should handle empty items array', async () => {
-      await expect(batchPutItems('TestTable', [])).resolves.not.toThrow();
+      await expect(batchPutItems('TestTable', [])).resolves.toBeUndefined();
     });
 
     // Note: Full testing requires mocking DynamoDB client responses
