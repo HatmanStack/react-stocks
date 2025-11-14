@@ -21,3 +21,6 @@ export * from './response.util.js';
 
 // Hash utilities
 export * from './hash.util.js';
+
+// Metrics utilities
+export * from './metrics.util.js';

@@ -5,6 +5,7 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
 import { logError } from '../utils/error.util';
+import { logMetrics, MetricUnit } from '../utils/metrics.util';
 import { fetchStockPrices, fetchSymbolMetadata } from '../services/tiingo.service';
 import {
   queryStocksByDateRange,
@@ -110,6 +111,16 @@ async function handlePricesRequest(
     if (cacheHitRate > 0.8 && cachedData.length > 0) {
       console.log(`[StocksHandler] Cache hit for ${ticker}: ${(cacheHitRate * 100).toFixed(1)}%`);
 
+      // Log metrics for cache hit
+      logMetrics(
+        [
+          { name: 'CacheHitRate', value: cacheHitRate * 100, unit: MetricUnit.Percent },
+          { name: 'ApiCallCount', value: 0, unit: MetricUnit.Count },
+          { name: 'CachedRecordCount', value: cachedData.length, unit: MetricUnit.Count },
+        ],
+        { Endpoint: 'stocks', Ticker: ticker, CacheHit: 'true' }
+      );
+
       return {
         data: transformCacheToTiingo(cachedData),
         cached: true,
@@ -120,6 +131,16 @@ async function handlePricesRequest(
     // Tier 2: Cache miss or insufficient coverage - fetch from Tiingo
     console.log(`[StocksHandler] Cache miss for ${ticker}: ${(cacheHitRate * 100).toFixed(1)}% - fetching from API`);
     const apiData = await fetchStockPrices(ticker, startDate, endDate, apiKey);
+
+    // Log metrics for cache miss
+    logMetrics(
+      [
+        { name: 'CacheHitRate', value: cacheHitRate * 100, unit: MetricUnit.Percent },
+        { name: 'ApiCallCount', value: 1, unit: MetricUnit.Count },
+        { name: 'FetchedRecordCount', value: apiData.length, unit: MetricUnit.Count },
+      ],
+      { Endpoint: 'stocks', Ticker: ticker, CacheHit: 'false' }
+    );
 
     // Tier 3: Cache the fetched data
     if (apiData.length > 0) {
@@ -177,6 +198,7 @@ export async function handleStocksRequest(
   event: APIGatewayProxyEventV2
 ): Promise<APIGatewayResponse> {
   const requestId = event.requestContext.requestId;
+  const startTime = Date.now();
 
   try {
     // Parse query parameters
@@ -231,6 +253,19 @@ export async function handleStocksRequest(
       result = await handlePricesRequest(ticker, startDate, endDate, apiKey);
     }
 
+    // Calculate request duration
+    const duration = Date.now() - startTime;
+
+    // Log request duration metric
+    logMetrics(
+      [{ name: 'RequestDuration', value: duration, unit: MetricUnit.Milliseconds }],
+      {
+        Endpoint: 'stocks',
+        Type: type,
+        Cached: String(result.cached),
+      }
+    );
+
     // Return response with cache metadata
     return successResponse({
       data: result.data,
@@ -241,6 +276,17 @@ export async function handleStocksRequest(
       },
     });
   } catch (error) {
+    const duration = Date.now() - startTime;
+
+    // Log error duration metric
+    logMetrics(
+      [{ name: 'RequestDuration', value: duration, unit: MetricUnit.Milliseconds }],
+      {
+        Endpoint: 'stocks',
+        Error: 'true',
+      }
+    );
+
     logError('StocksHandler', error, { requestId });
 
     // Extract error message and status
