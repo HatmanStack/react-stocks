@@ -9,7 +9,7 @@ import * as CombinedWordRepository from '@/database/repositories/combinedWord.re
 import { analyzeSentiment } from '@/ml/sentiment/sentiment.service';
 import { countSentimentWords } from '@/utils/sentiment/wordCounter';
 import { calculateSentiment, calculateSentimentScore } from '@/utils/sentiment/sentimentCalculator';
-import { generateArticleHash } from '@/services/api/polygon.service';
+import { generateArticleHash } from '@/services/api/finnhub.service';
 import { FeatureFlags } from '@/config/features';
 import type { WordCountDetails, CombinedWordDetails } from '@/types/database.types';
 
@@ -35,24 +35,20 @@ export async function syncSentimentData(
   date: string
 ): Promise<number> {
   try {
-    console.log(`[SentimentDataSync] Analyzing sentiment for ${ticker} on ${date}`);
-
     // Get all news articles for this ticker and date
     const articles = await NewsRepository.findByTickerAndDateRange(ticker, date, date);
 
     if (articles.length === 0) {
-      console.warn(`[SentimentDataSync] No articles found for ${ticker} on ${date}`);
-      return 0;
+      return 0; // Silent - no articles is normal for many dates
     }
-
-    console.log(`[SentimentDataSync] Found ${articles.length} articles to analyze`);
 
     let analyzedCount = 0;
     const wordCounts: { positive: number; negative: number }[] = [];
 
-    // Analyze each article
+    // Prepare batch of articles to analyze
+    const articlesToAnalyze = [];
+
     for (const article of articles) {
-      // Generate hash for deduplication
       const hashString = generateArticleHash(article.articleUrl);
       const hash = hashStringToNumber(hashString);
 
@@ -60,52 +56,41 @@ export async function syncSentimentData(
       const exists = await WordCountRepository.existsByHash(hash);
 
       if (exists) {
-        console.log(`[SentimentDataSync] Sentiment already exists for hash ${hash}, skipping`);
         continue;
       }
 
-      // Use article description for sentiment analysis
       const text = article.articleDescription || '';
 
       if (!text || text.length < 10) {
-        console.warn(`[SentimentDataSync] Article has no description, skipping`);
         continue;
       }
 
+      articlesToAnalyze.push({ article, hash, hashString, text });
+    }
+
+    console.log(`[SentimentDataSync] Analyzing ${articlesToAnalyze.length} articles in parallel`);
+
+    // Analyze all articles in parallel
+    const analysisPromises = articlesToAnalyze.map(async ({ article, hash, hashString, text }) => {
       let counts: { positive: number; negative: number };
 
       // Use ML sentiment or fallback based on feature flag
       if (FeatureFlags.USE_BROWSER_SENTIMENT) {
-        // New: Browser-based ML sentiment analysis
-        const startTime = performance.now();
+        // Browser-based ML sentiment analysis
         const sentimentResult = await analyzeSentiment(text, hashString);
-        const duration = performance.now() - startTime;
 
         // Extract counts from ML service result
         const posCount = parseInt(sentimentResult.positive[0]);
         const negCount = parseInt(sentimentResult.negative[0]);
-        const neutCount = parseInt(sentimentResult.neutral[0]);
 
         counts = {
           positive: posCount,
           negative: negCount,
         };
-
-        console.log(
-          `[SentimentDataSync] ML analysis completed in ${duration.toFixed(2)}ms: ` +
-            `POS=${posCount}, NEG=${negCount}, NEUT=${neutCount}`
-        );
       } else {
-        // Old: Simple word counting approach
+        // Fallback: Simple word counting approach
         counts = countSentimentWords(text);
-
-        console.log(
-          `[SentimentDataSync] Word counting completed: ` +
-            `POS=${counts.positive}, NEG=${counts.negative}`
-        );
       }
-
-      wordCounts.push(counts);
 
       // Calculate sentiment label and score
       const sentiment = calculateSentiment(counts.positive, counts.negative);
@@ -126,7 +111,16 @@ export async function syncSentimentData(
         oneMnth: 0,
       };
 
+      return { wordCountDetails, counts };
+    });
+
+    // Wait for all analyses to complete
+    const results = await Promise.all(analysisPromises);
+
+    // Insert all results into database
+    for (const { wordCountDetails, counts } of results) {
       await WordCountRepository.insert(wordCountDetails);
+      wordCounts.push(counts);
       analyzedCount++;
     }
 

@@ -33,3 +33,14 @@ export interface TiingoApiConfig {
   baseURL?: string;
   timeout?: number;
 }
+
+export interface TiingoSearchResult {
+  ticker: string;
+  name: string;
+  assetType: string; // "Stock", "ETF", "Mutual Fund"
+  isActive: boolean;
+  permaTicker?: string;
+  openFIGI?: string;
+  openFIGIComposite?: string;
+  countryCode?: string;
+}

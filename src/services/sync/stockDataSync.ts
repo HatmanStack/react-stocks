@@ -11,6 +11,7 @@ import {
 } from '@/services/api/tiingo.service';
 import * as StockRepository from '@/database/repositories/stock.repository';
 import * as SymbolRepository from '@/database/repositories/symbol.repository';
+import { logger } from '@/utils/logger';
 
 /**
  * Sync stock price data for a ticker and date range
@@ -55,6 +56,8 @@ export async function syncStockData(
     const stockDetails = tiingoData.map((price) =>
       transformTiingoToStockDetails(price, ticker)
     );
+
+    logger.debug(`[StockDataSync] Sample of first 3 price records:`, stockDetails.slice(0, 3));
 
     await StockRepository.insertMany(stockDetails);
 
