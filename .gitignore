@@ -4,6 +4,10 @@ node_modules/
 !.env.example
 dist/
 .expo/
-docs/plans/
 coverage/
 backend/coverage/
+backend/samconfig.toml
+.eslintrc.js
+backend/.aws-sam/
+docs-data/
+backend/samconfig.toml

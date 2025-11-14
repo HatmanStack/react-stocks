@@ -5,13 +5,14 @@
 
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { useLocalSearchParams, Slot } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { Appbar } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
 import { usePortfolioContext } from '@/contexts/PortfolioContext';
 import { useStock } from '@/contexts/StockContext';
+import { StockDetailProvider } from '@/contexts/StockDetailContext';
 import { OfflineIndicator } from '@/components/common/OfflineIndicator';
 
 const { Navigator } = createMaterialTopTabNavigator();
@@ -67,34 +68,36 @@ export default function StockDetailLayout() {
   const companyName = symbolInfo?.name || ticker;
 
   return (
-    <View style={styles.container}>
-      <OfflineIndicator />
-      <Appbar.Header elevated>
-        <Appbar.Content
-          title={ticker}
-          subtitle={isLoading ? 'Loading...' : companyName}
-        />
-        <Appbar.Action
-          icon={inPortfolio ? 'star' : 'star-outline'}
-          onPress={handleTogglePortfolio}
-          color={inPortfolio ? '#FFD700' : '#9E9E9E'}
-        />
-      </Appbar.Header>
+    <StockDetailProvider ticker={ticker || 'AAPL'}>
+      <View style={styles.container}>
+        <OfflineIndicator />
+        <Appbar.Header elevated>
+          <Appbar.Content
+            title={ticker}
+            subtitle={isLoading ? 'Loading...' : companyName}
+          />
+          <Appbar.Action
+            icon={inPortfolio ? 'star' : 'star-outline'}
+            onPress={handleTogglePortfolio}
+            color={inPortfolio ? '#FFD700' : '#9E9E9E'}
+          />
+        </Appbar.Header>
 
-      <MaterialTopTabs
-        screenOptions={{
-          tabBarActiveTintColor: '#1976D2',
-          tabBarInactiveTintColor: '#666',
-          tabBarIndicatorStyle: { backgroundColor: '#1976D2' },
-          tabBarLabelStyle: { fontSize: 14, fontWeight: '600', textTransform: 'none' },
-          tabBarStyle: { backgroundColor: '#fff' },
-        }}
-      >
-        <MaterialTopTabs.Screen name="index" options={{ title: 'Price' }} />
-        <MaterialTopTabs.Screen name="sentiment" options={{ title: 'Sentiment' }} />
-        <MaterialTopTabs.Screen name="news" options={{ title: 'News' }} />
-      </MaterialTopTabs>
-    </View>
+        <MaterialTopTabs
+          screenOptions={{
+            tabBarActiveTintColor: '#1976D2',
+            tabBarInactiveTintColor: '#666',
+            tabBarIndicatorStyle: { backgroundColor: '#1976D2' },
+            tabBarLabelStyle: { fontSize: 14, fontWeight: '600', textTransform: 'none' },
+            tabBarStyle: { backgroundColor: '#fff' },
+          }}
+        >
+          <MaterialTopTabs.Screen name="index" options={{ title: 'Price' }} />
+          <MaterialTopTabs.Screen name="sentiment" options={{ title: 'Sentiment' }} />
+          <MaterialTopTabs.Screen name="news" options={{ title: 'News' }} />
+        </MaterialTopTabs>
+      </View>
+    </StockDetailProvider>
   );
 }
 

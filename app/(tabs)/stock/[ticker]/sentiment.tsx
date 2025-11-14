@@ -6,9 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
-import { useSentimentData, useArticleSentiment } from '@/hooks/useSentimentData';
-import { useStock } from '@/contexts/StockContext';
+import { useStockDetail } from '@/contexts/StockDetailContext';
 import { SentimentToggle } from '@/components/sentiment/SentimentToggle';
 import { CombinedWordItem } from '@/components/sentiment/CombinedWordItem';
 import { SingleWordItem } from '@/components/sentiment/SingleWordItem';
@@ -16,35 +14,19 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { CombinedWordDetails, WordCountDetails } from '@/types/database.types';
-import { differenceInDays } from 'date-fns';
 
 export default function SentimentScreen() {
-  const { ticker } = useLocalSearchParams<{ ticker: string }>();
-  const { startDate, endDate } = useStock();
   const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>('aggregate');
 
-  // Calculate number of days for the date range
-  const days = useMemo(() => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    return Math.abs(differenceInDays(end, start)) + 1;
-  }, [startDate, endDate]);
-
-  // Fetch aggregated sentiment data
+  // Get sentiment data from context (already fetched at layout level)
   const {
-    data: aggregateData,
-    isLoading: isAggregateLoading,
-    error: aggregateError,
-    refetch: refetchAggregate,
-  } = useSentimentData(ticker || 'AAPL', { days });
-
-  // Fetch individual article sentiment
-  const {
-    data: articleData,
-    isLoading: isArticleLoading,
-    error: articleError,
-    refetch: refetchArticle,
-  } = useArticleSentiment(ticker || 'AAPL', { days });
+    sentimentData: aggregateData,
+    sentimentLoading: isAggregateLoading,
+    sentimentError: aggregateError,
+    articleSentimentData: articleData,
+    articleSentimentLoading: isArticleLoading,
+    articleSentimentError: articleError,
+  } = useStockDetail();
 
   // Sort data by date descending (most recent first)
   const sortedAggregateData = useMemo(() => {
@@ -57,54 +39,6 @@ export default function SentimentScreen() {
     return [...articleData].sort((a, b) => b.date.localeCompare(a.date));
   }, [articleData]);
 
-  // Determine loading and error states based on current view
-  const isLoading = viewMode === 'aggregate' ? isAggregateLoading : isArticleLoading;
-  const error = viewMode === 'aggregate' ? aggregateError : articleError;
-  const refetch = viewMode === 'aggregate' ? refetchAggregate : refetchArticle;
-  const data = viewMode === 'aggregate' ? sortedAggregateData : sortedArticleData;
-
-  // Render loading state
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <SentimentToggle value={viewMode} onValueChange={setViewMode} />
-        <LoadingIndicator message="Loading sentiment data..." />
-      </SafeAreaView>
-    );
-  }
-
-  // Render error state
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <SentimentToggle value={viewMode} onValueChange={setViewMode} />
-        <ErrorDisplay
-          error={error || 'Failed to load sentiment data'}
-          onRetry={refetch}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // Render empty state
-  if (!data || data.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <SentimentToggle value={viewMode} onValueChange={setViewMode} />
-        <View style={styles.emptyContainer}>
-          <EmptyState
-            message={
-              viewMode === 'aggregate'
-                ? 'No aggregated sentiment data available'
-                : 'No article sentiment data available'
-            }
-            icon="document-text-outline"
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   const renderAggregateItem = ({ item }: { item: CombinedWordDetails }) => (
     <CombinedWordItem item={item} />
   );
@@ -114,12 +48,30 @@ export default function SentimentScreen() {
   );
 
   const keyExtractorAggregate = (item: CombinedWordDetails) => `${item.ticker}-${item.date}`;
-  const keyExtractorArticle = (item: WordCountDetails) => `${item.ticker}-${item.hash}`;
+  const keyExtractorArticle = (item: WordCountDetails, index: number) =>
+    `${item.ticker}-${item.date}-${item.hash || index}`; // Use date+hash for uniqueness
 
-  return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <SentimentToggle value={viewMode} onValueChange={setViewMode} />
-      {viewMode === 'aggregate' ? (
+  // Render content based on view mode
+  const renderContent = () => {
+    if (viewMode === 'aggregate') {
+      // Handle aggregate view
+      if (isAggregateLoading) {
+        return <LoadingIndicator message="Loading aggregated sentiment data..." />;
+      }
+      if (aggregateError) {
+        return <ErrorDisplay error={aggregateError || 'Failed to load sentiment data'} />;
+      }
+      if (!sortedAggregateData || sortedAggregateData.length === 0) {
+        return (
+          <View style={styles.emptyContainer}>
+            <EmptyState
+              message="No aggregated sentiment data available"
+              icon="document-text-outline"
+            />
+          </View>
+        );
+      }
+      return (
         <FlatList
           data={sortedAggregateData}
           renderItem={renderAggregateItem}
@@ -131,7 +83,26 @@ export default function SentimentScreen() {
           initialNumToRender={10}
           windowSize={21}
         />
-      ) : (
+      );
+    } else {
+      // Handle individual articles view
+      if (isArticleLoading) {
+        return <LoadingIndicator message="Loading article sentiment data..." />;
+      }
+      if (articleError) {
+        return <ErrorDisplay error={articleError || 'Failed to load article sentiment'} />;
+      }
+      if (!sortedArticleData || sortedArticleData.length === 0) {
+        return (
+          <View style={styles.emptyContainer}>
+            <EmptyState
+              message="No article sentiment data available"
+              icon="document-text-outline"
+            />
+          </View>
+        );
+      }
+      return (
         <FlatList
           data={sortedArticleData}
           renderItem={renderArticleItem}
@@ -143,7 +114,14 @@ export default function SentimentScreen() {
           initialNumToRender={10}
           windowSize={21}
         />
-      )}
+      );
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SentimentToggle value={viewMode} onValueChange={setViewMode} />
+      {renderContent()}
     </SafeAreaView>
   );
 }
