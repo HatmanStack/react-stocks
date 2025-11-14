@@ -27,6 +27,99 @@ Globals:
     Tracing: Active  # Enable X-Ray tracing for debugging
 
 Resources:
+  # DynamoDB Tables for Shared Caching
+  StocksCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-StocksCache'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ticker
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ticker
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: ttl
+      Tags:
+        - Key: Project
+          Value: react-stocks
+        - Key: CacheType
+          Value: stocks
+
+  NewsCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-NewsCache'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ticker
+          AttributeType: S
+        - AttributeName: articleHash
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ticker
+          KeyType: HASH
+        - AttributeName: articleHash
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: ttl
+      Tags:
+        - Key: Project
+          Value: react-stocks
+        - Key: CacheType
+          Value: news
+
+  SentimentCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-SentimentCache'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ticker
+          AttributeType: S
+        - AttributeName: articleHash
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ticker
+          KeyType: HASH
+        - AttributeName: articleHash
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: ttl
+      Tags:
+        - Key: Project
+          Value: react-stocks
+        - Key: CacheType
+          Value: sentiment
+
+  SentimentJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-SentimentJobs'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: ttl
+      Tags:
+        - Key: Project
+          Value: react-stocks
+        - Key: CacheType
+          Value: jobs
+
   ReactStocksApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -57,6 +150,26 @@ Resources:
         Variables:
           TIINGO_API_KEY: !Ref TiingoApiKey
           FINNHUB_API_KEY: !Ref FinnhubApiKey
+          STOCKS_CACHE_TABLE: !Ref StocksCacheTable
+          NEWS_CACHE_TABLE: !Ref NewsCacheTable
+          SENTIMENT_CACHE_TABLE: !Ref SentimentCacheTable
+          SENTIMENT_JOBS_TABLE: !Ref SentimentJobsTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Query
+                - dynamodb:BatchGetItem
+                - dynamodb:BatchWriteItem
+              Resource:
+                - !GetAtt StocksCacheTable.Arn
+                - !GetAtt NewsCacheTable.Arn
+                - !GetAtt SentimentCacheTable.Arn
+                - !GetAtt SentimentJobsTable.Arn
       Events:
         StocksApi:
           Type: HttpApi
@@ -105,3 +218,27 @@ Outputs:
     Value: !GetAtt ReactStocksFunctionRole.Arn
     Export:
       Name: !Sub '${AWS::StackName}-FunctionRole'
+
+  StocksCacheTableArn:
+    Description: ARN of StocksCache DynamoDB table
+    Value: !GetAtt StocksCacheTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-StocksCacheTableArn'
+
+  NewsCacheTableArn:
+    Description: ARN of NewsCache DynamoDB table
+    Value: !GetAtt NewsCacheTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-NewsCacheTableArn'
+
+  SentimentCacheTableArn:
+    Description: ARN of SentimentCache DynamoDB table
+    Value: !GetAtt SentimentCacheTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-SentimentCacheTableArn'
+
+  SentimentJobsTableArn:
+    Description: ARN of SentimentJobs DynamoDB table
+    Value: !GetAtt SentimentJobsTable.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-SentimentJobsTableArn'
