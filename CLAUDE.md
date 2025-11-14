@@ -28,7 +28,16 @@ npm run format         # Prettier formatting
 
 # Backend deployment (one-time setup)
 cd backend
+npm install                       # Install backend dependencies
+npm run build                     # Build Lambda function
 sam build && sam deploy --guided  # Deploy Lambda backend to AWS
+
+# Backend development
+cd backend
+npm test                          # Run backend tests
+npm run test:watch                # Watch mode for backend tests
+npm run validate                  # Validate AWS prerequisites
+npm run logs                      # View Lambda logs
 ```
 
 ## Environment Setup
@@ -200,14 +209,18 @@ Each step:
 **Sentiment Analysis**:
 - **Type**: JavaScript rule-based sentiment analyzer
 - **Implementation**: `src/ml/sentiment/analyzer.ts`
+- **Lexicon**: Financial-specific word list in `src/data/sentiment-words.json`
 - **Feature Flag**: `EXPO_PUBLIC_BROWSER_SENTIMENT` (default: true)
 - **Fallback**: Python microservice (deprecated, for rollback only)
 - **Performance**: <100ms per article (runs in browser)
 - **Accuracy**: Directional agreement with FinBERT (not exact match)
+- **Processing**: Tokenizes text, scores words, normalizes to 0-1 range
 
 **Stock Predictions**:
 - **Type**: Logistic regression (ported from Python scikit-learn)
 - **Implementation**: `src/ml/prediction/model.ts`, `src/ml/prediction/scaler.ts`
+- **Features**: Price ratios, sentiment scores, technical indicators (volume, volatility)
+- **Targets**: Next day, next week, next month predictions
 - **Feature Flag**: `EXPO_PUBLIC_BROWSER_PREDICTION` (default: false, enable after testing)
 - **Fallback**: Python microservice (deprecated, for rollback only)
 - **Performance**: <50ms per prediction (runs in browser)
@@ -246,9 +259,17 @@ __tests__/
 ### Running Specific Tests
 
 ```bash
-npm test -- database/repositories/symbol.repository.test.ts
+# Run a specific test file
+npm test -- __tests__/database/repositories/symbol.repository.test.ts
+
+# Run tests matching a pattern
 npm test -- --testNamePattern="should find symbol by ticker"
-npm run test:watch -- services/api
+
+# Watch specific directory
+npm run test:watch -- __tests__/services/api
+
+# Run only unit tests (exclude integration tests)
+npm test -- --testPathIgnorePatterns=integration
 ```
 
 ### Mocking Patterns

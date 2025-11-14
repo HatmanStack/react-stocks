@@ -27,3 +27,26 @@ export interface TiingoSymbolMetadata {
   endDate: string;
   description: string;
 }
+
+export interface TiingoSearchResult {
+  ticker: string;
+  name: string;
+  assetType: string; // "Stock", "ETF", "Mutual Fund"
+  isActive: boolean;
+  permaTicker?: string;
+  openFIGI?: string;
+  openFIGIComposite?: string;
+  countryCode?: string;
+}
+
+export interface TiingoNewsArticle {
+  id: number;
+  title: string;
+  url: string;
+  description: string;
+  publishedDate: string; // ISO 8601 datetime
+  crawlDate: string; // ISO 8601 datetime
+  source: string;
+  tickers: string[];
+  tags: string[];
+}

@@ -47,12 +47,9 @@ export const NewsListItem: React.FC<NewsListItemProps> = React.memo(({ item }) =
     >
       <Card style={styles.card}>
         <Card.Content>
-          {/* Title */}
           <Text variant="titleMedium" style={styles.title} numberOfLines={2}>
             {item.title}
           </Text>
-
-          {/* Publisher and Date */}
           <View style={styles.metadata}>
             <Text variant="bodySmall" style={[styles.publisher, { color: theme.colors.primary }]}>
               {item.publisher}
@@ -68,8 +65,6 @@ export const NewsListItem: React.FC<NewsListItemProps> = React.memo(({ item }) =
               {formatNewsDate(item.articleDate)}
             </Text>
           </View>
-
-          {/* Description */}
           {item.articleDescription && (
             <Text
               variant="bodyMedium"

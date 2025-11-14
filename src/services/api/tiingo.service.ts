@@ -5,7 +5,7 @@
  */
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import type { TiingoStockPrice, TiingoSymbolMetadata } from './tiingo.types';
+import type { TiingoStockPrice, TiingoSymbolMetadata, TiingoSearchResult } from './tiingo.types';
 import type { StockDetails, SymbolDetails } from '@/types/database.types';
 import { Environment } from '@/config/environment';
 
@@ -101,13 +101,13 @@ export async function fetchStockPrices(
 
       console.log(`[TiingoService] Fetching prices for ${ticker} from ${startDate} to ${endDate || 'today'}`);
 
-      const response = await client.get<TiingoStockPrice[]>(
+      const response = await client.get<{ data: TiingoStockPrice[] }>(
         '/stocks',
         { params }
       );
 
-      console.log(`[TiingoService] Fetched ${response.data.length} price records for ${ticker}`);
-      return response.data;
+      console.log(`[TiingoService] Fetched ${response.data.data.length} price records for ${ticker}`);
+      return response.data.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
@@ -153,15 +153,15 @@ export async function fetchSymbolMetadata(
     try {
       console.log(`[TiingoService] Fetching metadata for ${ticker}`);
 
-      const response = await client.get<TiingoSymbolMetadata>(
+      const response = await client.get<{ data: TiingoSymbolMetadata }>(
         '/stocks',
         {
           params: { ticker, type: 'metadata' },
         }
       );
 
-      console.log(`[TiingoService] Fetched metadata for ${ticker}: ${response.data.name}`);
-      return response.data;
+      console.log(`[TiingoService] Fetched metadata for ${ticker}: ${response.data.data.name}`);
+      return response.data.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
@@ -249,4 +249,64 @@ export function transformTiingoToSymbolDetails(
     endDate: metadata.endDate,
     longDescription: metadata.description,
   };
+}
+
+/**
+ * Search for stock tickers by ticker symbol or company name
+ * @param query - Search query (ticker or company name, e.g., "tesla" or "TSLA")
+ * @returns Array of matching ticker symbols
+ * @throws Error if API request fails
+ */
+export async function searchTickers(query: string): Promise<TiingoSearchResult[]> {
+  const client = createBackendClient();
+
+  const fetchFn = async () => {
+    try {
+      const trimmedQuery = query.trim();
+
+      if (!trimmedQuery) {
+        return [];
+      }
+
+      console.log(`[TiingoService] Searching for: ${trimmedQuery}`);
+
+      const response = await client.get<{ data: TiingoSearchResult[] }>(
+        '/search',
+        {
+          params: { query: trimmedQuery },
+        }
+      );
+
+      console.log(`[TiingoService] Found ${response.data.data.length} results for query: ${trimmedQuery}`);
+      return response.data.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const errorData = error.response?.data as { error?: string };
+
+        if (status === 404) {
+          // No results found
+          console.log(`[TiingoService] No results found for query: ${query}`);
+          return [];
+        }
+
+        if (status === 429) {
+          throw new Error('Rate limit exceeded. Please try again in a moment.');
+        }
+
+        if (status === 400) {
+          throw new Error(errorData?.error || 'Invalid search query');
+        }
+
+        if (status === 500) {
+          throw new Error(errorData?.error || 'Backend service error');
+        }
+      }
+
+      console.error('[TiingoService] Error searching tickers:', error);
+      throw new Error(`Failed to search for tickers: ${error}`);
+    }
+  };
+
+  return retryWithBackoff(fetchFn);
 }

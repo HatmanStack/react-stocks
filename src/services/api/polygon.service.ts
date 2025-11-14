@@ -75,10 +75,10 @@ export async function fetchNews(
       params.endDate = endDate;
     }
 
-    const response = await client.get<PolygonNewsArticle[]>('/news', { params });
+    const response = await client.get<{ data: PolygonNewsArticle[] }>('/news', { params });
 
-    console.log(`[PolygonService] Fetched ${response.data.length} articles for ${ticker}`);
-    return response.data;
+    console.log(`[PolygonService] Fetched ${response.data.data.length} articles for ${ticker}`);
+    return response.data.data;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;

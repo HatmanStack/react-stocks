@@ -90,6 +90,9 @@ export function useNewsData(
       }
 
       console.log(`[useNewsData] Retrieved ${data.length} news articles for ${ticker}`);
+      if (data.length > 0) {
+        console.log(`[useNewsData] First 3 articles:`, data.slice(0, 3).map(a => ({ ticker: a.ticker, title: a.title?.substring(0, 50) })));
+      }
       return data;
     },
     enabled: enabled && !!ticker,
