@@ -61,22 +61,40 @@ export function StockDetailProvider({
   const { data: sentimentData = [], isLoading: sentimentLoading, error: sentimentError } = useSentimentData(ticker, { days });
   const { data: articleSentimentData = [], isLoading: articleSentimentLoading, error: articleSentimentError } = useArticleSentiment(ticker, { days });
 
-  const value: StockDetailContextType = {
-    ticker,
-    days,
-    stockData,
-    stockLoading,
-    stockError: stockError as Error | null,
-    newsData,
-    newsLoading,
-    newsError: newsError as Error | null,
-    sentimentData,
-    sentimentLoading,
-    sentimentError: sentimentError as Error | null,
-    articleSentimentData,
-    articleSentimentLoading,
-    articleSentimentError: articleSentimentError as Error | null,
-  };
+  const value: StockDetailContextType = useMemo(
+    () => ({
+      ticker,
+      days,
+      stockData,
+      stockLoading,
+      stockError: stockError as Error | null,
+      newsData,
+      newsLoading,
+      newsError: newsError as Error | null,
+      sentimentData,
+      sentimentLoading,
+      sentimentError: sentimentError as Error | null,
+      articleSentimentData,
+      articleSentimentLoading,
+      articleSentimentError: articleSentimentError as Error | null,
+    }),
+    [
+      ticker,
+      days,
+      stockData,
+      stockLoading,
+      stockError,
+      newsData,
+      newsLoading,
+      newsError,
+      sentimentData,
+      sentimentLoading,
+      sentimentError,
+      articleSentimentData,
+      articleSentimentLoading,
+      articleSentimentError,
+    ]
+  );
 
   return (
     <StockDetailContext.Provider value={value}>

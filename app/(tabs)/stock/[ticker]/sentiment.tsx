@@ -39,19 +39,6 @@ export default function SentimentScreen() {
     return [...articleData].sort((a, b) => b.date.localeCompare(a.date));
   }, [articleData]);
 
-  // Show loading only if BOTH are still loading
-  const isLoading = isAggregateLoading && isArticleLoading;
-
-  // Render loading state (only if both are loading)
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <SentimentToggle value={viewMode} onValueChange={setViewMode} />
-        <LoadingIndicator message="Loading sentiment data..." />
-      </SafeAreaView>
-    );
-  }
-
   const renderAggregateItem = ({ item }: { item: CombinedWordDetails }) => (
     <CombinedWordItem item={item} />
   );
@@ -68,6 +55,9 @@ export default function SentimentScreen() {
   const renderContent = () => {
     if (viewMode === 'aggregate') {
       // Handle aggregate view
+      if (isAggregateLoading) {
+        return <LoadingIndicator message="Loading aggregated sentiment data..." />;
+      }
       if (aggregateError) {
         return <ErrorDisplay error={aggregateError || 'Failed to load sentiment data'} />;
       }
@@ -96,6 +86,9 @@ export default function SentimentScreen() {
       );
     } else {
       // Handle individual articles view
+      if (isArticleLoading) {
+        return <LoadingIndicator message="Loading article sentiment data..." />;
+      }
       if (articleError) {
         return <ErrorDisplay error={articleError || 'Failed to load article sentiment'} />;
       }
