@@ -688,6 +688,51 @@ Task: Phase 2, Task 2.8
 
 ---
 
+## Review Feedback (Iteration 1)
+
+### Critical Issues - Tests Cannot Run
+
+> **Consider:** When you run `npx tsc --noEmit` in the backend directory, what TypeScript errors do you see?
+>
+> **Think about:** In `src/handlers/stocks.handler.ts:13` and `src/handlers/news.handler.ts:14`, there are type imports that are never used in the code. How does TypeScript's unused variable checking affect test compilation?
+>
+> **Reflect:** What happens when you run `npm test -- handlers`? Does the test suite even start, or does it fail during compilation? If tests can't compile, can they pass?
+
+### Task 2.1 & 2.2 - Missing Integration Tests
+
+> **Consider:** The plan at lines 95-121 specifies integration tests for `stocks.handler` that should verify cache miss flow, cache hit flow, partial cache hits, and metadata caching. Looking at `backend/__tests__/handlers/stocks.handler.test.ts`, which of these test scenarios are actually implemented?
+>
+> **Think about:** The existing tests in `stocks.handler.test.ts` use mocks for the Tiingo service. Do any of these tests actually verify that DynamoDB caching is working? Do they test the three-tier lookup pattern?
+>
+> **Reflect:** How can you verify that the `handlePricesRequest` function correctly:
+> - Checks DynamoDB cache first before calling the API?
+> - Calculates cache hit rate correctly?
+> - Returns `cached: true` when data comes from cache?
+> - Returns `cached: false` when data comes from the API?
+> - Caches API responses in DynamoDB for future requests?
+>
+> **Consider:** The plan at lines 204-229 specifies integration tests for `news.handler`. Where is the file `backend/__tests__/handlers/news.handler.test.ts`? Does it exist?
+
+### Task 2.4 - Cache Performance Metrics
+
+> **Consider:** The plan specifies Task 2.4 to add CloudWatch metrics. When you look in `backend/src/utils/`, do you see a `metrics.util.ts` file?
+>
+> **Think about:** In `src/handlers/stocks.handler.ts` and `src/handlers/news.handler.ts`, are there any calls to log CloudWatch metrics for cache hit rate? How would you know if the cache is performing well in production without metrics?
+>
+> **Reflect:** The success criteria at line 10 mentions "Cache hit rate >90% for popular stocks" - how can this be measured and monitored without metrics instrumentation?
+
+### Task 2.5 - Cache Warming Strategy
+
+> **Consider:** The plan describes Task 2.5 for cache warming. The task file says "optional" in the file description (line 391), but is it listed as "Optional" in the task title like Task 2.6?
+>
+> **Think about:** If popular stocks (AAPL, GOOGL, MSFT, etc.) are always cold-started on first request, will you meet the success criteria of ">90% cache hit rate"? Or would pre-warming the cache help achieve this goal?
+
+### Code Quality
+
+> **Consider:** Looking at the test file structure, you have tests in `backend/__tests__/handlers/stocks.handler.test.ts`. The plan at line 95 specifies tests should be in `backend/src/handlers/__tests__/stocks.handler.integration.test.ts`. Does the location matter for test organization?
+>
+> **Think about:** The existing tests mock the Tiingo and Finnhub services. For integration tests that verify DynamoDB caching behavior, would you still mock the external APIs, or would you mock DynamoDB instead?
+
 ## Phase Verification
 
 After completing all tasks, verify the entire phase:
