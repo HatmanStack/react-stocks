@@ -11,7 +11,6 @@ import {
   batchPutArticles,
   existsInCache,
   type NewsCacheItem,
-  type NewsArticle,
 } from '../repositories/newsCache.repository';
 import { generateArticleHash } from '../utils/hash.util';
 import type { FinnhubNewsArticle } from '../types/finnhub.types';

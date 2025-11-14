@@ -10,7 +10,6 @@ import {
   queryStocksByDateRange,
   batchPutStocks,
   type StockCacheItem,
-  type PriceData,
 } from '../repositories/stocksCache.repository';
 import type { TiingoStockPrice, TiingoSymbolMetadata } from '../types/tiingo.types';
 
