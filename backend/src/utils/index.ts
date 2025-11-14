@@ -18,3 +18,6 @@ export * from './error.util.js';
 
 // Response utilities (existing)
 export * from './response.util.js';
+
+// Hash utilities
+export * from './hash.util.js';
