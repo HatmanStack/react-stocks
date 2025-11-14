@@ -18,6 +18,10 @@ export async function findByTicker(ticker: string): Promise<StockDetails[]> {
 
   try {
     const results = await db.getAllAsync<StockDetails>(sql, [ticker]);
+    console.log(`[StockRepository] Found ${results.length} price records for ${ticker}`);
+    if (results.length > 0) {
+      console.log(`[StockRepository] First 3 records:`, results.slice(0, 3));
+    }
     return results;
   } catch (error) {
     console.error('[StockRepository] Error finding by ticker:', error);

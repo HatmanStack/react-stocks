@@ -13,19 +13,10 @@ Parameters:
     Description: Polygon API key for news data
     NoEcho: true
 
-  Environment:
+  FinnhubApiKey:
     Type: String
-    Description: Environment name (development, staging, production)
-    Default: development
-    AllowedValues:
-      - development
-      - staging
-      - production
-
-  AllowedOrigins:
-    Type: String
-    Description: Comma-separated list of allowed CORS origins (use * for development)
-    Default: '*'
+    Description: Finnhub API key for news data
+    NoEcho: true
 
 Globals:
   Function:
@@ -36,24 +27,17 @@ Globals:
       - x86_64
     Environment:
       Variables:
-        NODE_ENV: !Ref Environment
-        LOG_LEVEL: !If [IsProduction, ERROR, INFO]
+        NODE_ENV: production
+        LOG_LEVEL: INFO
     Tracing: Active  # Enable X-Ray tracing for debugging
-
-Conditions:
-  IsProduction: !Equals [!Ref Environment, production]
-  IsDevelopment: !Equals [!Ref Environment, development]
 
 Resources:
   ReactStocksApi:
     Type: AWS::Serverless::HttpApi
     Properties:
-      # TODO: BEFORE PRODUCTION - Wire AllowedOrigins parameter here
-      # Current: Hardcoded '*' for MVP/development
-      # Production: Use !Ref AllowedOrigins or !Split[',', !Ref AllowedOrigins]
       CorsConfiguration:
         AllowOrigins:
-          - '*'  # TODO: Replace with !Ref AllowedOrigins in production
+          - '*'
         AllowMethods:
           - GET
           - OPTIONS
@@ -72,6 +56,7 @@ Resources:
         Variables:
           TIINGO_API_KEY: !Ref TiingoApiKey
           POLYGON_API_KEY: !Ref PolygonApiKey
+          FINNHUB_API_KEY: !Ref FinnhubApiKey
       Events:
         StocksApi:
           Type: HttpApi
@@ -84,6 +69,12 @@ Resources:
           Properties:
             ApiId: !Ref ReactStocksApi
             Path: /news
+            Method: GET
+        SearchApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /search
             Method: GET
     Metadata:
       BuildMethod: esbuild

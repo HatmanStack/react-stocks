@@ -18,6 +18,10 @@ export async function findByTicker(ticker: string): Promise<NewsDetails[]> {
 
   try {
     const results = await db.getAllAsync<NewsDetails>(sql, [ticker]);
+    console.log(`[NewsRepository] Found ${results.length} news articles for ${ticker}`);
+    if (results.length > 0) {
+      console.log(`[NewsRepository] First 3 articles:`, results.slice(0, 3));
+    }
     return results;
   } catch (error) {
     console.error('[NewsRepository] Error finding by ticker:', error);
@@ -40,7 +44,7 @@ export async function findByTickerAndDateRange(
   const db = await getDatabase();
   const sql = `
     SELECT * FROM ${TABLE_NAMES.NEWS_DETAILS}
-    WHERE ticker = ? AND date >= ? AND date <= ?
+    WHERE ticker = ? AND articleDate >= ? AND articleDate <= ?
     ORDER BY articleDate DESC
   `;
 

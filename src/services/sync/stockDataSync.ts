@@ -56,6 +56,8 @@ export async function syncStockData(
       transformTiingoToStockDetails(price, ticker)
     );
 
+    console.log(`[StockDataSync] Sample of first 3 price records:`, stockDetails.slice(0, 3));
+
     await StockRepository.insertMany(stockDetails);
 
     console.log(

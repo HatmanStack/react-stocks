@@ -5,7 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import * as SymbolRepository from '@/database/repositories/symbol.repository';
-import { fetchSymbolMetadata } from '@/services/api/tiingo.service';
+import { fetchSymbolMetadata, searchTickers } from '@/services/api/tiingo.service';
 import type { SymbolDetails } from '@/types/database.types';
 
 export interface UseSymbolSearchOptions {
@@ -76,8 +76,7 @@ export function useSymbolSearch(
     queryFn: async (): Promise<SymbolDetails[]> => {
       console.log(`[useSymbolSearch] Searching for: ${normalizedQuery}`);
 
-      // Search local database first
-      // Get all symbols and filter by ticker or name
+      // Search local database first for exact or partial matches
       const allSymbols = await SymbolRepository.findAll();
       const localResults = allSymbols.filter(
         (symbol) =>
@@ -90,29 +89,44 @@ export function useSymbolSearch(
         return localResults;
       }
 
-      // No local results - assume it's a ticker and try fetching from API
-      // This will also store it in database for future searches
-      console.log(`[useSymbolSearch] No local results, trying API for ${normalizedQuery}`);
+      // No local results - use Tiingo Search API to find matching tickers
+      console.log(`[useSymbolSearch] No local results, using Search API for ${normalizedQuery}`);
 
       try {
-        const metadata = await fetchSymbolMetadata(normalizedQuery);
+        const searchResults = await searchTickers(normalizedQuery);
 
-        // Store in database
-        const symbolDetails: Omit<SymbolDetails, 'id'> = {
-          ticker: metadata.ticker,
-          name: metadata.name,
-          exchangeCode: metadata.exchangeCode,
-          startDate: metadata.startDate,
-          endDate: metadata.endDate,
-          longDescription: metadata.description,
-        };
+        if (searchResults.length === 0) {
+          console.log(`[useSymbolSearch] No results found for ${normalizedQuery}`);
+          return [];
+        }
 
-        await SymbolRepository.insert(symbolDetails);
+        // Fetch full metadata for each result and store in database
+        const symbolDetailsList: SymbolDetails[] = [];
 
-        // Return as array
-        return [symbolDetails as SymbolDetails];
+        for (const result of searchResults.slice(0, 10)) { // Limit to top 10 results
+          try {
+            const metadata = await fetchSymbolMetadata(result.ticker);
+
+            const symbolDetails: Omit<SymbolDetails, 'id'> = {
+              ticker: metadata.ticker,
+              name: metadata.name,
+              exchangeCode: metadata.exchangeCode,
+              startDate: metadata.startDate,
+              endDate: metadata.endDate,
+              longDescription: metadata.description,
+            };
+
+            await SymbolRepository.insert(symbolDetails);
+            symbolDetailsList.push(symbolDetails as SymbolDetails);
+          } catch (error) {
+            console.warn(`[useSymbolSearch] Failed to fetch metadata for ${result.ticker}:`, error);
+            // Continue with next result
+          }
+        }
+
+        return symbolDetailsList;
       } catch (error) {
-        console.warn(`[useSymbolSearch] Ticker ${normalizedQuery} not found:`, error);
+        console.warn(`[useSymbolSearch] Search failed for ${normalizedQuery}:`, error);
         return [];
       }
     },

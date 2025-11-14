@@ -1,13 +1,13 @@
 /**
  * News Data Synchronization Service
- * Fetches news articles from Polygon.io and stores in database
+ * Fetches news articles from Finnhub and stores in database
  */
 
 import {
   fetchNews,
-  transformPolygonToNewsDetails,
+  transformFinnhubToNewsDetails,
   generateArticleHash,
-} from '@/services/api/polygon.service';
+} from '@/services/api/finnhub.service';
 import * as NewsRepository from '@/database/repositories/news.repository';
 
 /**
@@ -27,41 +27,45 @@ export async function syncNewsData(
       `[NewsDataSync] Syncing news for ${ticker} from ${startDate} to ${endDate}`
     );
 
-    // Fetch news from Polygon
-    const polygonArticles = await fetchNews(ticker, startDate, endDate);
+    // Fetch news from Finnhub
+    const finnhubArticles = await fetchNews(ticker, startDate, endDate);
 
-    if (polygonArticles.length === 0) {
+    if (finnhubArticles.length === 0) {
       console.warn(`[NewsDataSync] No news articles found for ${ticker}`);
       return 0;
     }
 
     console.log(
-      `[NewsDataSync] Fetched ${polygonArticles.length} articles from Polygon`
+      `[NewsDataSync] Fetched ${finnhubArticles.length} articles from Finnhub`
     );
 
     // Transform articles and check for duplicates
     let newArticlesCount = 0;
 
-    for (const article of polygonArticles) {
+    for (const article of finnhubArticles) {
       // Generate hash for deduplication
-      const hash = generateArticleHash(article.article_url);
+      const hash = generateArticleHash(article.url);
 
       // Check if article already exists
-      const exists = await NewsRepository.existsByUrl(article.article_url);
+      const exists = await NewsRepository.existsByUrl(article.url);
 
       if (exists) {
         continue; // Skip duplicate
       }
 
       // Transform and insert
-      const newsDetails = transformPolygonToNewsDetails(article, ticker);
+      const newsDetails = transformFinnhubToNewsDetails(article, ticker);
       await NewsRepository.insert(newsDetails);
+
+      if (newArticlesCount < 3) {
+        console.log(`[NewsDataSync] Sample article ${newArticlesCount + 1}:`, newsDetails);
+      }
 
       newArticlesCount++;
     }
 
     console.log(
-      `[NewsDataSync] Inserted ${newArticlesCount} new articles for ${ticker} (${polygonArticles.length - newArticlesCount} duplicates skipped)`
+      `[NewsDataSync] Inserted ${newArticlesCount} new articles for ${ticker} (${finnhubArticles.length - newArticlesCount} duplicates skipped)`
     );
 
     return newArticlesCount;

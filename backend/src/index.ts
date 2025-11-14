@@ -44,6 +44,11 @@ export async function handler(
         return handleNewsRequest(event);
       }
 
+      case '/search': {
+        const { handleSearchRequest } = await import('./handlers/search.handler');
+        return handleSearchRequest(event);
+      }
+
       default: {
         console.warn('[Lambda] Unknown route:', path);
         return errorResponse(`Route ${path} not found`, 404);

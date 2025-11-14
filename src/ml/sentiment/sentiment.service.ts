@@ -32,13 +32,6 @@ export async function analyzeSentiment(
     // Analyze the text (synchronous, but wrapped in async for compatibility)
     const result = analyzer.analyze(articleText, hash);
 
-    const duration = performance.now() - startTime;
-
-    console.log(
-      `[ML SentimentService] Analysis complete for hash ${hash} in ${duration.toFixed(2)}ms: ` +
-        `POS=${result.positive[0]}, NEG=${result.negative[0]}, NEUT=${result.neutral[0]}`
-    );
-
     return result;
   } catch (error) {
     const duration = performance.now() - startTime;
