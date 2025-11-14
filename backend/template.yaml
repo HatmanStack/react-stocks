@@ -150,6 +150,26 @@ Resources:
         Variables:
           TIINGO_API_KEY: !Ref TiingoApiKey
           FINNHUB_API_KEY: !Ref FinnhubApiKey
+          STOCKS_CACHE_TABLE: !Ref StocksCacheTable
+          NEWS_CACHE_TABLE: !Ref NewsCacheTable
+          SENTIMENT_CACHE_TABLE: !Ref SentimentCacheTable
+          SENTIMENT_JOBS_TABLE: !Ref SentimentJobsTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Query
+                - dynamodb:BatchGetItem
+                - dynamodb:BatchWriteItem
+              Resource:
+                - !GetAtt StocksCacheTable.Arn
+                - !GetAtt NewsCacheTable.Arn
+                - !GetAtt SentimentCacheTable.Arn
+                - !GetAtt SentimentJobsTable.Arn
       Events:
         StocksApi:
           Type: HttpApi
