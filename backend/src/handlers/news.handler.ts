@@ -5,6 +5,7 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
 import { logError } from '../utils/error.util';
+import { logMetrics, MetricUnit } from '../utils/metrics.util';
 import { fetchCompanyNews } from '../services/finnhub.service';
 import {
   queryArticlesByTicker,
@@ -112,6 +113,15 @@ async function handleNewsWithCache(
     if (cachedInRange.length >= 10) {
       console.log(`[NewsHandler] Cache hit for ${ticker}: ${cachedInRange.length} articles`);
 
+      // Log metrics for cache hit
+      logMetrics(
+        [
+          { name: 'CachedArticleCount', value: cachedInRange.length, unit: MetricUnit.Count },
+          { name: 'ApiCallCount', value: 0, unit: MetricUnit.Count },
+        ],
+        { Endpoint: 'news', Ticker: ticker, CacheHit: 'true' }
+      );
+
       // Sort by date descending (most recent first)
       const sortedCached = cachedInRange.sort((a, b) =>
         b.article.date.localeCompare(a.article.date)
@@ -133,6 +143,16 @@ async function handleNewsWithCache(
     const { newArticles, duplicateCount } = await filterNewArticles(ticker, apiArticles);
 
     console.log(`[NewsHandler] API returned ${apiArticles.length} articles: ${newArticles.length} new, ${duplicateCount} duplicates`);
+
+    // Log metrics for cache miss
+    logMetrics(
+      [
+        { name: 'NewArticleCount', value: newArticles.length, unit: MetricUnit.Count },
+        { name: 'DuplicateArticleCount', value: duplicateCount, unit: MetricUnit.Count },
+        { name: 'ApiCallCount', value: 1, unit: MetricUnit.Count },
+      ],
+      { Endpoint: 'news', Ticker: ticker, CacheHit: 'false' }
+    );
 
     // Cache only new articles
     if (newArticles.length > 0) {
@@ -178,6 +198,7 @@ export async function handleNewsRequest(
   event: APIGatewayProxyEventV2
 ): Promise<APIGatewayResponse> {
   const requestId = event.requestContext.requestId;
+  const startTime = Date.now();
 
   try {
     // Parse query parameters
@@ -217,6 +238,18 @@ export async function handleNewsRequest(
     // Fetch news with caching
     const result = await handleNewsWithCache(ticker, from, to, apiKey);
 
+    // Calculate request duration
+    const duration = Date.now() - startTime;
+
+    // Log request duration metric
+    logMetrics(
+      [{ name: 'RequestDuration', value: duration, unit: MetricUnit.Milliseconds }],
+      {
+        Endpoint: 'news',
+        Cached: String(result.cached),
+      }
+    );
+
     // Return response with cache metadata
     return successResponse({
       data: result.data,
@@ -228,6 +261,17 @@ export async function handleNewsRequest(
       },
     });
   } catch (error) {
+    const duration = Date.now() - startTime;
+
+    // Log error duration metric
+    logMetrics(
+      [{ name: 'RequestDuration', value: duration, unit: MetricUnit.Milliseconds }],
+      {
+        Endpoint: 'news',
+        Error: 'true',
+      }
+    );
+
     logError('NewsHandler', error, { requestId });
 
     // Extract error message and status
