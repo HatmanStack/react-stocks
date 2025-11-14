@@ -5,13 +5,16 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { handleStocksRequest } from '../../src/handlers/stocks.handler';
+import type { TiingoStockPrice, TiingoSymbolMetadata } from '../../src/types/tiingo.types';
 
 // Mock the Tiingo service
-jest.mock('../../src/services/tiingo.service');
+const mockFetchStockPrices = jest.fn<() => Promise<TiingoStockPrice[]>>();
+const mockFetchSymbolMetadata = jest.fn<() => Promise<TiingoSymbolMetadata>>();
 
-import * as tiingoService from '../../src/services/tiingo.service';
-const mockFetchStockPrices = tiingoService.fetchStockPrices as jest.MockedFunction<typeof tiingoService.fetchStockPrices>;
-const mockFetchSymbolMetadata = tiingoService.fetchSymbolMetadata as jest.MockedFunction<typeof tiingoService.fetchSymbolMetadata>;
+jest.mock('../../src/services/tiingo.service', () => ({
+  fetchStockPrices: mockFetchStockPrices,
+  fetchSymbolMetadata: mockFetchSymbolMetadata,
+}));
 
 describe('Stocks Handler', () => {
   let consoleLogSpy: typeof console.log;
@@ -74,7 +77,21 @@ describe('Stocks Handler', () => {
   describe('Valid Requests', () => {
     it('should fetch stock prices successfully', async () => {
       const mockPrices = [
-        { date: '2024-01-01T00:00:00.000Z', close: 100, open: 99, high: 101, low: 98, volume: 1000 },
+        {
+          date: '2024-01-01T00:00:00.000Z',
+          open: 99,
+          high: 101,
+          low: 98,
+          close: 100,
+          volume: 1000,
+          adjOpen: 99,
+          adjHigh: 101,
+          adjLow: 98,
+          adjClose: 100,
+          adjVolume: 1000,
+          divCash: 0,
+          splitFactor: 1
+        },
       ];
       mockFetchStockPrices.mockResolvedValue(mockPrices);
 
@@ -98,7 +115,21 @@ describe('Stocks Handler', () => {
     });
 
     it('should fetch stock prices without end date', async () => {
-      const mockPrices = [{ date: '2024-01-01T00:00:00.000Z', close: 100 }];
+      const mockPrices = [{
+        date: '2024-01-01T00:00:00.000Z',
+        open: 100,
+        high: 100,
+        low: 100,
+        close: 100,
+        volume: 1000,
+        adjOpen: 100,
+        adjHigh: 100,
+        adjLow: 100,
+        adjClose: 100,
+        adjVolume: 1000,
+        divCash: 0,
+        splitFactor: 1
+      }];
       mockFetchStockPrices.mockResolvedValue(mockPrices);
 
       const event = createMockEvent({
