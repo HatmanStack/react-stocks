@@ -136,12 +136,12 @@ export async function createJob(job: Omit<SentimentJob, 'ttl'>): Promise<void> {
 export async function updateJobStatus(
   jobId: string,
   status: JobStatus,
-  updates?: Partial<SentimentJob>
+  updates: Partial<SentimentJob> = {}
 ): Promise<void> {
   try {
     const updateData = {
-      status,
       ...updates,
+      status, // Status always wins
     };
 
     const { UpdateExpression, ExpressionAttributeNames, ExpressionAttributeValues } =

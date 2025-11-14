@@ -134,6 +134,22 @@ export async function putSentiment(
  * Batch put sentiment analysis results
  * Handles chunking for DynamoDB's 25-item limit
  *
+ * **IMPORTANT: Duplicate Prevention Limitation**
+ * Unlike `putSentiment`, this function does NOT prevent duplicates because DynamoDB's
+ * BatchWriteItem operation does not support ConditionExpression. Existing items with
+ * the same keys will be silently overwritten.
+ *
+ * **Recommendations for Duplicate Prevention:**
+ * 1. Pre-filter items: Use `existsInCache` or BatchGetItem to check for existing keys
+ *    and filter them out before calling this function
+ * 2. Use individual puts: For critical use cases requiring duplicate prevention, use
+ *    `putSentiment` in a loop (with appropriate parallelism/retries)
+ *
+ * **Trade-offs:**
+ * - Pre-filtering adds extra read capacity cost but prevents overwrites
+ * - Individual puts increase latency but provide conditional write guarantees
+ * - Batch writes are fastest but may overwrite existing data
+ *
  * @param items - Array of sentiment cache items to store
  *
  * @example

@@ -163,5 +163,21 @@ describe('Cache Utilities', () => {
       expect(parsed.ticker).toBe(ticker.toUpperCase());
       expect(parsed.date).toBe(date);
     });
+
+    it('should throw error for malformed cache key (no delimiter)', () => {
+      expect(() => parseCacheKey('AAPL')).toThrow('Invalid cacheKey format');
+    });
+
+    it('should throw error for malformed cache key (too many parts)', () => {
+      expect(() => parseCacheKey('AAPL#2025-01-15#EXTRA')).toThrow('Invalid cacheKey format');
+    });
+
+    it('should throw error for empty ticker', () => {
+      expect(() => parseCacheKey('#2025-01-15')).toThrow('Invalid cacheKey format');
+    });
+
+    it('should throw error for empty date', () => {
+      expect(() => parseCacheKey('AAPL#')).toThrow('Invalid cacheKey format');
+    });
   });
 });
