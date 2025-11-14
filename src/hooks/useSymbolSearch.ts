@@ -100,11 +100,11 @@ export function useSymbolSearch(
           return [];
         }
 
-        // Fetch full metadata for each result and store in database
-        const symbolDetailsList: SymbolDetails[] = [];
+        // Fetch full metadata for each result and store in database (in parallel)
+        const topResults = searchResults.slice(0, 10); // Limit to top 10 results
 
-        for (const result of searchResults.slice(0, 10)) { // Limit to top 10 results
-          try {
+        const settled = await Promise.allSettled(
+          topResults.map(async (result) => {
             const metadata = await fetchSymbolMetadata(result.ticker);
 
             const symbolDetails: Omit<SymbolDetails, 'id'> = {
@@ -117,12 +117,22 @@ export function useSymbolSearch(
             };
 
             await SymbolRepository.insert(symbolDetails);
-            symbolDetailsList.push(symbolDetails as SymbolDetails);
-          } catch (error) {
-            console.warn(`[useSymbolSearch] Failed to fetch metadata for ${result.ticker}:`, error);
-            // Continue with next result
-          }
-        }
+            return symbolDetails as SymbolDetails;
+          })
+        );
+
+        const symbolDetailsList = settled
+          .filter((r): r is PromiseFulfilledResult<SymbolDetails> => r.status === 'fulfilled')
+          .map((r) => r.value);
+
+        settled
+          .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+          .forEach((r, index) => {
+            console.warn(
+              `[useSymbolSearch] Failed to fetch metadata for ${topResults[index].ticker}:`,
+              r.reason
+            );
+          });
 
         return symbolDetailsList;
       } catch (error) {

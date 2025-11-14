@@ -10,7 +10,7 @@ import { Environment } from '@/config/environment';
  */
 export const API_ENDPOINTS = {
   // Backend Lambda (Phase 1 - Active)
-  // Proxies stock and news data with API keys secured server-side
+  // Proxies stock data (Tiingo) and news (Finnhub) with API keys secured server-side
   BACKEND_API: Environment.BACKEND_URL || '',
 
   // Python Microservices (Google Cloud Run) - DEPRECATED
@@ -25,7 +25,7 @@ export const API_ENDPOINTS = {
   // Note: Frontend no longer calls these directly (Lambda backend proxies)
   /** @deprecated Direct API calls moved to Lambda backend. Not used in frontend. */
   TIINGO_BASE: 'https://api.tiingo.com',
-  /** @deprecated Direct API calls moved to Lambda backend. Not used in frontend. */
+  /** @deprecated Polygon replaced by Finnhub. Backend uses Finnhub for news. */
   POLYGON_BASE: 'https://api.polygon.io',
 } as const;
 
@@ -34,7 +34,7 @@ export const API_ENDPOINTS = {
  */
 export const API_TIMEOUTS = {
   // Backend Lambda (handles retries internally)
-  BACKEND: 30000, // 30s (Lambda handles Tiingo/Polygon API retries and pagination)
+  BACKEND: 30000, // 30s (Lambda handles Tiingo/Finnhub API retries and pagination)
 
   // Browser-based ML (local computation, no network timeout needed)
   SENTIMENT: 5000, // 5s (runs in browser, should be fast)
@@ -50,11 +50,11 @@ export const API_TIMEOUTS = {
 /**
  * API Rate Limits
  *
- * Note: Rate limits are now handled by Lambda backend for Tiingo/Polygon.
+ * Note: Rate limits are now handled by Lambda backend for Tiingo/Finnhub.
  * Frontend doesn't need to implement rate limiting for these APIs.
  */
 export const API_RATE_LIMITS = {
-  /** @deprecated Backend handles Polygon rate limiting */
+  /** @deprecated Polygon replaced by Finnhub. Backend handles rate limiting. */
   POLYGON_FREE_TIER: 5, // 5 requests per minute
   /** @deprecated Backend handles Tiingo rate limiting */
   TIINGO_FREE_TIER: 500, // 500 requests per hour
@@ -63,7 +63,7 @@ export const API_RATE_LIMITS = {
 /**
  * Migration Status Notes
  *
- * Phase 1 (Complete): Lambda backend deployed with Tiingo/Polygon proxying
+ * Phase 1 (Complete): Lambda backend deployed with Tiingo/Finnhub proxying (Polygon deprecated)
  * Phase 2 (Complete): Browser-based sentiment analysis implemented
  * Phase 3 (Complete): Browser-based prediction model implemented
  * Phase 4 (In Progress): Frontend services migrated to use backend

@@ -70,7 +70,8 @@ async function retryWithBackoff<T>(
     }
   }
 
-  throw lastError;
+  // TypeScript safety: lastError should always be set, but provide fallback
+  throw lastError || new Error('Request failed after retries');
 }
 
 /**

@@ -27,13 +27,9 @@ export async function handleSearchRequest(
       return errorResponse('Missing required parameter: query', 400);
     }
 
-    // Validate query length (minimum 1 character, maximum 100 characters)
-    if (query.length < 1) {
-      return errorResponse('Query must be at least 1 character', 400);
-    }
-
+    // Validate query length (maximum 100 characters)
     if (query.length > 100) {
-      return errorResponse('Query must be less than 100 characters', 400);
+      return errorResponse('Query must be at most 100 characters', 400);
     }
 
     // Get API key from environment

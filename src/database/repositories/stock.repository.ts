@@ -6,6 +6,7 @@
 import { getDatabase } from '../index';
 import { StockDetails } from '@/types/database.types';
 import { TABLE_NAMES } from '@/constants/database.constants';
+import { logger } from '@/utils/logger';
 
 /**
  * Find all stock records for a given ticker
@@ -18,13 +19,13 @@ export async function findByTicker(ticker: string): Promise<StockDetails[]> {
 
   try {
     const results = await db.getAllAsync<StockDetails>(sql, [ticker]);
-    console.log(`[StockRepository] Found ${results.length} price records for ${ticker}`);
+    logger.debug(`[StockRepository] Found ${results.length} price records for ${ticker}`);
     if (results.length > 0) {
-      console.log(`[StockRepository] First 3 records:`, results.slice(0, 3));
+      logger.debug(`[StockRepository] First 3 records:`, results.slice(0, 3));
     }
     return results;
   } catch (error) {
-    console.error('[StockRepository] Error finding by ticker:', error);
+    logger.error('[StockRepository] Error finding by ticker:', error);
     throw new Error(`Failed to find stocks for ticker ${ticker}: ${error}`);
   }
 }
@@ -52,7 +53,7 @@ export async function findByTickerAndDateRange(
     const results = await db.getAllAsync<StockDetails>(sql, [ticker, startDate, endDate]);
     return results;
   } catch (error) {
-    console.error('[StockRepository] Error finding by ticker and date range:', error);
+    logger.error('[StockRepository] Error finding by ticker and date range:', error);
     throw new Error(`Failed to find stocks for ticker ${ticker} in date range: ${error}`);
   }
 }
@@ -99,7 +100,7 @@ export async function insert(stock: Omit<StockDetails, 'id'>): Promise<number> {
 
     return result.lastInsertRowId;
   } catch (error) {
-    console.error('[StockRepository] Error inserting stock:', error);
+    logger.error('[StockRepository] Error inserting stock:', error);
     throw new Error(`Failed to insert stock: ${error}`);
   }
 }
@@ -118,7 +119,7 @@ export async function insertMany(stocks: Omit<StockDetails, 'id'>[]): Promise<vo
       }
     });
   } catch (error) {
-    console.error('[StockRepository] Error inserting multiple stocks:', error);
+    logger.error('[StockRepository] Error inserting multiple stocks:', error);
     throw new Error(`Failed to insert stocks: ${error}`);
   }
 }
@@ -134,7 +135,7 @@ export async function deleteByTicker(ticker: string): Promise<void> {
   try {
     await db.runAsync(sql, [ticker]);
   } catch (error) {
-    console.error('[StockRepository] Error deleting by ticker:', error);
+    logger.error('[StockRepository] Error deleting by ticker:', error);
     throw new Error(`Failed to delete stocks for ticker ${ticker}: ${error}`);
   }
 }
@@ -152,7 +153,7 @@ export async function countByTicker(ticker: string): Promise<number> {
     const result = await db.getFirstAsync<{ count: number }>(sql, [ticker]);
     return result?.count || 0;
   } catch (error) {
-    console.error('[StockRepository] Error counting by ticker:', error);
+    logger.error('[StockRepository] Error counting by ticker:', error);
     return 0;
   }
 }
@@ -175,7 +176,7 @@ export async function findLatestByTicker(ticker: string): Promise<StockDetails |
     const result = await db.getFirstAsync<StockDetails>(sql, [ticker]);
     return result || null;
   } catch (error) {
-    console.error('[StockRepository] Error finding latest by ticker:', error);
+    logger.error('[StockRepository] Error finding latest by ticker:', error);
     return null;
   }
 }

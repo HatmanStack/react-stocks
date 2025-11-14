@@ -306,10 +306,6 @@ class WebDatabase {
 
     let sentiment = this.data.sentiment[ticker] || [];
 
-    // Filter out any records that look like article sentiment (have hash field)
-    // Only return daily aggregated sentiment
-    sentiment = sentiment.filter((record) => !record.hasOwnProperty('hash'));
-
     // If date range params provided, filter by date
     if (params.length === 3) {
       const startDate = params[1];
