@@ -15,8 +15,8 @@ Parameters:
 
 Globals:
   Function:
-    Timeout: 30
-    MemorySize: 512
+    Timeout: 60
+    MemorySize: 1024
     Runtime: nodejs20.x
     Architectures:
       - x86_64
@@ -193,12 +193,15 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
+        TreeShake: true
         Target: node20
         Sourcemap: false
         EntryPoints:
           - src/index.ts
         External:
           - aws-sdk
+          - '@aws-sdk/client-dynamodb'
+          - '@aws-sdk/lib-dynamodb'
 
 Outputs:
   ReactStocksApiUrl:
