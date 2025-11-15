@@ -16,6 +16,14 @@ Optimize the application for web browsers (primary platform), add progressive en
 
 **Estimated Tokens:** ~94,000
 
+**Task Priorities:**
+This phase has 9 tasks covering web optimization, accessibility, and polish. Recommended order of importance:
+1. **High Priority** (Core web experience): Tasks 1-3, 6, 9
+2. **Medium Priority** (Accessibility & SEO): Tasks 4, 5, 7
+3. **Nice to Have** (Final polish): Task 8
+
+If time is constrained, complete high-priority tasks first to ensure a functional, performant web experience.
+
 ---
 
 ## Prerequisites
@@ -1022,7 +1030,7 @@ After Phase 5 complete:
 
 **Phase 5 Complete!**
 
-**<‰ UI Modernization Project COMPLETE!**
+**<ï¿½ UI Modernization Project COMPLETE!**
 
 The app now features:
 -  Professional dark theme
@@ -1034,4 +1042,4 @@ The app now features:
 -  Accessible (WCAG 2.1 AA)
 -  Production-ready performance
 
-Ready for deployment! =€
+Ready for deployment! =ï¿½

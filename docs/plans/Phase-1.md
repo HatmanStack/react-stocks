@@ -11,7 +11,7 @@ Implement a professional dark theme based on Material Design 3 with financial-fo
 - Theme switches cleanly without requiring app restart
 - All existing functionality works with dark theme
 
-**Estimated Tokens:** ~95,000
+**Estimated Tokens:** ~100,000
 
 ---
 
@@ -28,6 +28,80 @@ Implement a professional dark theme based on Material Design 3 with financial-fo
 ---
 
 ## Tasks
+
+### Task 0: Verify Project Structure and Theme Files
+
+**Goal:** Ensure expected file structure exists before modifying theme files
+
+**Files to Check:**
+- `src/theme/colors.ts` - Color definitions
+- `src/theme/typography.ts` - Font configurations
+- `src/theme/theme.ts` - Main theme export
+- `src/theme/index.ts` - Re-exports
+- `app/_layout.tsx` - Root layout with theme provider
+
+**Implementation Steps:**
+1. Check if `src/theme/` directory exists
+2. List files in theme directory: `ls -la src/theme/`
+3. If `colors.ts`, `typography.ts`, or `theme.ts` don't exist, note their absence
+4. Review existing theme implementation to understand current structure
+5. Document any deviations from expected structure
+
+**Fallback Strategy (if files don't exist):**
+
+If theme files are missing or structured differently:
+1. Document the actual structure you find
+2. Create missing files following this pattern:
+   ```typescript
+   // src/theme/colors.ts (if missing)
+   export const colors = {
+     // Add colors as discovered in existing code
+   };
+
+   // src/theme/typography.ts (if missing)
+   export const typography = {
+     fonts: {
+       // Add fonts as discovered
+     }
+   };
+
+   // src/theme/theme.ts (if missing)
+   import { MD3LightTheme } from 'react-native-paper';
+   import { colors } from './colors';
+
+   export const theme = {
+     ...MD3LightTheme,
+     colors,
+   };
+   ```
+3. Proceed with remaining tasks, adapting file paths as needed
+
+**Verification Checklist:**
+- [ ] `src/theme/` directory exists
+- [ ] Theme-related files identified (document actual paths)
+- [ ] Current theme structure documented
+- [ ] Baseline tests pass: `npm test`
+- [ ] No TypeScript errors: `npm run type-check`
+
+**Testing Instructions:**
+Run baseline tests to ensure nothing is broken:
+```bash
+npm test
+npm run type-check
+```
+
+**Commit Message Template:**
+```
+docs(phase-1): verify theme structure before modifications
+
+- Document existing theme file structure
+- Note any deviations from expected layout
+- Establish baseline test results
+```
+
+**Estimated Tokens:** ~5,000
+
+---
 
 ### Task 1: Install Victory Native Dependencies
 
@@ -51,8 +125,16 @@ npm install victory-native react-native-svg
 - [ ] `victory-native` appears in package.json dependencies
 - [ ] `react-native-svg` appears in package.json dependencies
 - [ ] `npm install` completes without errors
+- [ ] No peer dependency warnings in npm output
+- [ ] Victory Native version compatible with Expo SDK 54 (check package.json)
 - [ ] `npm start` launches Expo dev server successfully
 - [ ] No new TypeScript errors (`npm run type-check`)
+
+**Compatibility Note:**
+If you encounter peer dependency warnings, check Victory Native's documentation for Expo SDK 54 compatibility. You may need to install specific versions:
+```bash
+npm install victory-native@[compatible-version] react-native-svg@[compatible-version]
+```
 
 **Testing Instructions:**
 No unit tests required for dependency installation. Verify by running type-check and ensuring app builds.
@@ -326,7 +408,7 @@ interface MonoTextProps extends TextProps {
 
 **Implementation Guidance:**
 - Use `theme.fonts.mono` for fontFamily
-- Determine color: positive ’ green, negative ’ red, default ’ onSurface
+- Determine color: positive ï¿½ green, negative ï¿½ red, default ï¿½ onSurface
 - Variant affects fontSize: price (16), percentage (14), volume (12)
 - Merge custom styles with default styles (allow overrides)
 
@@ -660,11 +742,11 @@ export function formatLargeNumber(num: number | null | undefined): string
 ```
 
 **Examples:**
-- `formatPrice(123.456)` ’ `"$123.46"`
-- `formatPercentage(5.234)` ’ `"+5.23%"`
-- `formatPercentage(-3.1)` ’ `"-3.10%"`
-- `formatVolume(1234567)` ’ `"1.23M"`
-- `formatLargeNumber(1000000)` ’ `"1.00M"`
+- `formatPrice(123.456)` ï¿½ `"$123.46"`
+- `formatPercentage(5.234)` ï¿½ `"+5.23%"`
+- `formatPercentage(-3.1)` ï¿½ `"-3.10%"`
+- `formatVolume(1234567)` ï¿½ `"1.23M"`
+- `formatLargeNumber(1000000)` ï¿½ `"1.00M"`
 
 **Implementation Guidance:**
 - Handle null/undefined by returning '-' or 'N/A'
@@ -882,19 +964,19 @@ npm run web
 ### Manual Testing Flows
 
 1. **Navigate through app:**
-   - Search screen ’ dark background 
-   - Portfolio screen ’ dark cards 
-   - Stock detail ’ dark theme 
-   - News tab ’ dark theme 
+   - Search screen ï¿½ dark background 
+   - Portfolio screen ï¿½ dark cards 
+   - Stock detail ï¿½ dark theme 
+   - News tab ï¿½ dark theme 
 
 2. **Check numbers:**
-   - Portfolio prices ’ monospaced 
-   - Percentage changes ’ monospaced with colors 
-   - Stock detail prices ’ monospaced 
+   - Portfolio prices ï¿½ monospaced 
+   - Percentage changes ï¿½ monospaced with colors 
+   - Stock detail prices ï¿½ monospaced 
 
 3. **Loading states:**
-   - Initial app load ’ dark loading screen 
-   - Data loading ’ verify no white flashes 
+   - Initial app load ï¿½ dark loading screen 
+   - Data loading ï¿½ verify no white flashes 
 
 ### Known Issues / Technical Debt
 
