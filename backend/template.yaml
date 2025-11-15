@@ -13,6 +13,11 @@ Parameters:
     Description: Finnhub API key for news data
     NoEcho: true
 
+  AllowedOrigins:
+    Type: String
+    Description: Comma-separated list of allowed CORS origins (e.g., https://example.com,https://www.example.com). Use '*' for development only.
+    Default: '*'
+
 Globals:
   Function:
     Timeout: 60
@@ -124,14 +129,11 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       CorsConfiguration:
-        # CORS Configuration - Currently allows all origins for demo/development
-        # Security Note: '*' allows any domain to access this API
-        # For production with known frontend domains, replace with specific origins:
-        # AllowOrigins:
-        #   - 'https://your-production-domain.com'
-        #   - 'https://your-staging-domain.com'
-        AllowOrigins:
-          - '*'
+        # CORS Configuration - Configurable via AllowedOrigins parameter
+        # Security Note: Default is '*' for development convenience
+        # For production, deploy with: --parameter-overrides AllowedOrigins=https://your-domain.com
+        # Multiple origins: AllowedOrigins='https://prod.com,https://staging.com'
+        AllowOrigins: !Split [',', !Ref AllowedOrigins]
         AllowMethods:
           - GET
           - POST
@@ -140,6 +142,28 @@ Resources:
           - Content-Type
           - Authorization
         MaxAge: 300
+      # API Gateway Throttling - Prevents DDoS and excessive costs
+      # BurstLimit: Maximum concurrent requests
+      # RateLimit: Steady-state requests per second
+      RouteSettings:
+        'GET /stocks':
+          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit: 50
+        'GET /news':
+          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit: 50
+        'POST /sentiment':
+          ThrottlingBurstLimit: 50
+          ThrottlingRateLimit: 20
+        'GET /sentiment':
+          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit: 50
+        'GET /sentiment/job/{jobId}':
+          ThrottlingBurstLimit: 200
+          ThrottlingRateLimit: 100
+        'GET /search':
+          ThrottlingBurstLimit: 100
+          ThrottlingRateLimit: 50
 
   ReactStocksFunction:
     Type: AWS::Serverless::Function
