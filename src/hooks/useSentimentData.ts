@@ -7,6 +7,8 @@ import { useQuery } from '@tanstack/react-query';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
 import { syncSentimentData } from '@/services/sync/sentimentDataSync';
+import { getSentimentResults, type DailySentiment } from '@/services/api/lambdaSentiment.service';
+import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
 import type { WordCountDetails, CombinedWordDetails } from '@/types/database.types';
@@ -29,6 +31,30 @@ export interface UseSentimentDataOptions {
    * Default: uses React Query default (5 minutes)
    */
   staleTime?: number;
+}
+
+/**
+ * Transform Lambda DailySentiment format to local CombinedWordDetails format
+ * @param dailySentiment - Sentiment data from Lambda
+ * @param ticker - Stock ticker symbol
+ * @returns Array of CombinedWordDetails for database storage
+ */
+function transformLambdaToLocal(
+  dailySentiment: DailySentiment[],
+  ticker: string
+): CombinedWordDetails[] {
+  return dailySentiment.map((day) => ({
+    date: day.date,
+    ticker,
+    positive: day.positive,
+    negative: day.negative,
+    sentimentNumber: day.sentimentScore,
+    sentiment: day.classification,
+    nextDay: 0, // Predictions not provided by Lambda
+    twoWks: 0,
+    oneMnth: 0,
+    updateDate: formatDateForDB(new Date()),
+  }));
 }
 
 /**
@@ -71,36 +97,66 @@ export function useSentimentData(
 
       console.log(`[useSentimentData] Fetching sentiment for ${ticker} from ${startDate} to ${endDate}`);
 
-      let data = await CombinedWordRepository.findByTickerAndDateRange(
+      // Tier 1: Check local DB (fastest, always check first)
+      let localData = await CombinedWordRepository.findByTickerAndDateRange(
         ticker,
         startDate,
         endDate
       );
 
-      // If missing data, trigger sentiment analysis
-      if (data.length === 0) {
-        console.log(`[useSentimentData] No sentiment found, triggering analysis for ${ticker}`);
-
-        // Sync sentiment for each day in range
-        const dates = [];
-        for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
-          dates.push(formatDateForDB(d));
-        }
-
-        for (const date of dates) {
-          await syncSentimentData(ticker, date);
-        }
-
-        // Fetch again after analysis
-        data = await CombinedWordRepository.findByTickerAndDateRange(
-          ticker,
-          startDate,
-          endDate
-        );
+      if (localData.length > 0) {
+        console.log(`[useSentimentData] Returning ${localData.length} local records for ${ticker}`);
+        return localData;
       }
 
-      console.log(`[useSentimentData] Retrieved ${data.length} sentiment records for ${ticker}`);
-      return data;
+      // Tier 2: Check Lambda cache (shared across users)
+      if (Environment.USE_LAMBDA_SENTIMENT) {
+        try {
+          console.log(`[useSentimentData] Checking Lambda cache for ${ticker}`);
+          const lambdaResults = await getSentimentResults(ticker, startDate, endDate);
+
+          if (lambdaResults.dailySentiment.length > 0) {
+            console.log(`[useSentimentData] Lambda cache hit: ${lambdaResults.dailySentiment.length} records`);
+
+            // Transform Lambda format to local DB format
+            const transformed = transformLambdaToLocal(lambdaResults.dailySentiment, ticker);
+
+            // Hydrate local DB for offline access
+            console.log(`[useSentimentData] Hydrating local DB with Lambda results`);
+            for (const record of transformed) {
+              await CombinedWordRepository.upsert(record);
+            }
+
+            return transformed;
+          }
+        } catch (error) {
+          console.warn('[useSentimentData] Lambda unavailable, falling back to local analysis:', error);
+          // Fall through to local analysis
+        }
+      }
+
+      // Tier 3: Fallback to local analysis (offline mode or Lambda unavailable)
+      console.log(`[useSentimentData] No cached data, triggering local sentiment analysis for ${ticker}`);
+
+      // Sync sentiment for each day in range
+      const dates = [];
+      for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
+        dates.push(formatDateForDB(d));
+      }
+
+      for (const date of dates) {
+        await syncSentimentData(ticker, date);
+      }
+
+      // Fetch again after local analysis
+      localData = await CombinedWordRepository.findByTickerAndDateRange(
+        ticker,
+        startDate,
+        endDate
+      );
+
+      console.log(`[useSentimentData] Retrieved ${localData.length} sentiment records after local analysis`);
+      return localData;
     },
     enabled: enabled && !!ticker,
     staleTime,

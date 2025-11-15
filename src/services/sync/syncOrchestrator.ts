@@ -6,6 +6,8 @@
 import { syncStockData } from './stockDataSync';
 import { syncNewsData } from './newsDataSync';
 import { syncSentimentData } from './sentimentDataSync';
+import { triggerSentimentAnalysis } from '@/services/api/lambdaSentiment.service';
+import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { getDatesInRange } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
@@ -27,9 +29,66 @@ export interface SyncResult {
   ticker: string;
   stockRecords: number;
   newsArticles: number;
-  sentimentAnalyses: number;
+  sentimentAnalyses: number; // Deprecated when using Lambda (will be 0)
+  sentimentJobId?: string; // Lambda job ID for tracking async sentiment
   daysProcessed: number;
   errors: string[];
+}
+
+/**
+ * Perform local sentiment analysis (fallback or when Lambda disabled)
+ * @param ticker - Stock ticker symbol
+ * @param startDate - Start date
+ * @param endDate - End date
+ * @param result - Sync result object to update
+ * @param onProgress - Optional progress callback
+ */
+async function performLocalSentimentAnalysis(
+  ticker: string,
+  startDate: string,
+  endDate: string,
+  result: SyncResult,
+  onProgress?: SyncProgressCallback
+): Promise<void> {
+  try {
+    const dates = getDatesInRange(startDate, endDate);
+    let totalAnalyses = 0;
+
+    for (let i = 0; i < dates.length; i++) {
+      const date = dates[i];
+
+      try {
+        const analyzed = await syncSentimentData(ticker, date);
+        totalAnalyses += analyzed;
+
+        // Update progress for each date
+        onProgress?.({
+          step: 'sentiment',
+          progress: 2 + (i / dates.length),
+          total: 3,
+          message: `Analyzing sentiment locally: ${i + 1}/${dates.length} days...`,
+        });
+      } catch (error) {
+        console.error(
+          `[SyncOrchestrator] Local sentiment sync failed for ${ticker} on ${date}:`,
+          error
+        );
+        result.errors.push(`Sentiment analysis failed for ${date}: ${error}`);
+        // Continue with next date
+      }
+    }
+
+    result.sentimentAnalyses = totalAnalyses;
+    result.daysProcessed = dates.length;
+
+    console.log(
+      `[SyncOrchestrator] Local sentiment sync complete: ${result.sentimentAnalyses} analyses across ${result.daysProcessed} days`
+    );
+  } catch (error) {
+    const errorMsg = `Local sentiment sync failed: ${error}`;
+    console.error(`[SyncOrchestrator] ${errorMsg}`);
+    result.errors.push(errorMsg);
+  }
 }
 
 /**
@@ -96,52 +155,61 @@ export async function syncAllData(
       // Continue to sentiment analysis even if news sync fails
     }
 
-    // Step 3: Sync sentiment for each date
+    // Step 3: Trigger sentiment analysis (Lambda or local)
     onProgress?.({
       step: 'sentiment',
       progress: 2,
       total: 3,
-      message: `Analyzing sentiment for ${ticker}...`,
+      message: `Triggering sentiment analysis for ${ticker}...`,
     });
 
-    try {
-      const dates = getDatesInRange(startDate, endDate);
-      let totalAnalyses = 0;
+    // Check if Lambda sentiment is enabled
+    if (Environment.USE_LAMBDA_SENTIMENT) {
+      // Use Lambda for sentiment analysis (async, non-blocking)
+      try {
+        const response = await triggerSentimentAnalysis({
+          ticker,
+          startDate,
+          endDate,
+        });
 
-      for (let i = 0; i < dates.length; i++) {
-        const date = dates[i];
+        result.sentimentJobId = response.jobId;
+        result.daysProcessed = getDatesInRange(startDate, endDate).length;
 
-        try {
-          const analyzed = await syncSentimentData(ticker, date);
-          totalAnalyses += analyzed;
+        onProgress?.({
+          step: 'sentiment',
+          progress: 2.5,
+          total: 3,
+          message: `Sentiment analysis started (Job: ${response.jobId.substring(0, 20)}...)`,
+        });
 
-          // Update progress for each date
-          onProgress?.({
-            step: 'sentiment',
-            progress: 2 + (i / dates.length),
-            total: 3,
-            message: `Analyzing sentiment: ${i + 1}/${dates.length} days...`,
-          });
-        } catch (error) {
-          console.error(
-            `[SyncOrchestrator] Sentiment sync failed for ${ticker} on ${date}:`,
-            error
-          );
-          result.errors.push(`Sentiment analysis failed for ${date}: ${error}`);
-          // Continue with next date
-        }
+        console.log(
+          `[SyncOrchestrator] Lambda sentiment analysis triggered: Job ID ${response.jobId}, Status: ${response.status}`
+        );
+      } catch (error) {
+        const errorMsg = `Lambda sentiment trigger failed: ${error}`;
+        console.warn(`[SyncOrchestrator] ${errorMsg}, falling back to local analysis`);
+        result.errors.push(errorMsg);
+
+        // Fallback to local sentiment analysis
+        await performLocalSentimentAnalysis(
+          ticker,
+          startDate,
+          endDate,
+          result,
+          onProgress
+        );
       }
-
-      result.sentimentAnalyses = totalAnalyses;
-      result.daysProcessed = dates.length;
-
-      console.log(
-        `[SyncOrchestrator] Sentiment sync complete: ${result.sentimentAnalyses} analyses across ${result.daysProcessed} days`
+    } else {
+      // Use local sentiment analysis
+      console.log('[SyncOrchestrator] Using local sentiment analysis');
+      await performLocalSentimentAnalysis(
+        ticker,
+        startDate,
+        endDate,
+        result,
+        onProgress
       );
-    } catch (error) {
-      const errorMsg = `Sentiment sync failed: ${error}`;
-      console.error(`[SyncOrchestrator] ${errorMsg}`);
-      result.errors.push(errorMsg);
     }
 
     // Complete
