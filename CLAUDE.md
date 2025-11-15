@@ -48,9 +48,10 @@ npm run logs                      # View Lambda logs
 # Backend API Gateway URL (from Lambda deployment)
 EXPO_PUBLIC_BACKEND_URL=https://your-api-id.execute-api.us-east-1.amazonaws.com
 
-# Feature Flags for ML Migration
-EXPO_PUBLIC_BROWSER_SENTIMENT=true   # Use browser-based sentiment (recommended)
-EXPO_PUBLIC_BROWSER_PREDICTION=false # Use browser-based prediction (test first)
+# Feature Flags for ML Migration (Lambda-first)
+EXPO_PUBLIC_USE_LAMBDA_SENTIMENT=true    # Use Lambda sentiment (recommended)
+EXPO_PUBLIC_BROWSER_SENTIMENT=false      # Browser fallback for offline
+EXPO_PUBLIC_BROWSER_PREDICTION=false     # Use browser-based prediction (test first)
 ```
 
 **Setup Steps**:

@@ -329,9 +329,9 @@ Use this for ongoing production health monitoring:
 
 ## Emergency Contacts
 
-**AWS Support**: https://console.aws.amazon.com/support/home
-**CloudWatch Logs**: https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups
-**Cost Explorer**: https://console.aws.amazon.com/cost-management/home#/cost-explorer
+- **AWS Support**: [AWS Support Console](https://console.aws.amazon.com/support/home)
+- **CloudWatch Logs**: [CloudWatch Logs Console](https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups)
+- **Cost Explorer**: [AWS Cost Explorer](https://console.aws.amazon.com/cost-management/home#/cost-explorer)
 
 ---
 
@@ -347,4 +347,4 @@ Deployment is successful when:
 - ✅ No errors in first 24 hours
 - ✅ User feedback positive
 
-**Congratulations on your deployment! 🎉**
+## Congratulations on your deployment! 🎉

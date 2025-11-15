@@ -38,6 +38,7 @@ All tables use **PAY_PER_REQUEST** (on-demand billing):
 - Average 30-day data range per query
 
 **Daily Operations:**
+
 | Operation | Count | Cost |
 |-----------|-------|------|
 | Stock Price Reads | ~2,000 (80% cache hit) | $0.0005 |
@@ -49,6 +50,10 @@ All tables use **PAY_PER_REQUEST** (on-demand billing):
 | Job Tracking | ~200 (job status polls) | $0.0003 |
 | **Daily Total** | | **~$0.30/day** |
 | **Monthly Total** | | **~$9/month** |
+
+## Cost Target
+
+Target: <$20/month ✅
 
 **Storage Costs:**
 - StocksCache: ~10 MB (minimal historical data)
