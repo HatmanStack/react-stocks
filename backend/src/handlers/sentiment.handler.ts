@@ -13,7 +13,7 @@ import * as SentimentJobsRepository from '../repositories/sentimentJobs.reposito
 import * as SentimentCacheRepository from '../repositories/sentimentCache.repository.js';
 import * as NewsCacheRepository from '../repositories/newsCache.repository.js';
 import { generateJobId } from '../utils/job.util.js';
-import { createSuccessResponse, createErrorResponse } from '../utils/response.util.js';
+import { successResponse, errorResponse } from '../utils/response.util.js';
 
 /**
  * POST /sentiment - Trigger sentiment analysis for a ticker
@@ -30,27 +30,27 @@ export async function handleSentimentRequest(
   try {
     // Parse and validate request body
     if (!event.body) {
-      return createErrorResponse(400, 'Request body is required');
+      return errorResponse(400, 'Request body is required');
     }
 
     let body: { ticker?: string; startDate?: string; endDate?: string };
     try {
       body = JSON.parse(event.body);
     } catch {
-      return createErrorResponse(400, 'Invalid JSON in request body');
+      return errorResponse(400, 'Invalid JSON in request body');
     }
 
     const { ticker, startDate, endDate } = body;
 
     // Validate required fields
     if (!ticker || !startDate || !endDate) {
-      return createErrorResponse(400, 'Missing required fields: ticker, startDate, endDate');
+      return errorResponse(400, 'Missing required fields: ticker, startDate, endDate');
     }
 
     // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
-      return createErrorResponse(400, 'Invalid date format. Use YYYY-MM-DD');
+      return errorResponse(400, 'Invalid date format. Use YYYY-MM-DD');
     }
 
     // Generate deterministic job ID
@@ -61,7 +61,7 @@ export async function handleSentimentRequest(
 
     if (existingJob) {
       // Return existing job status
-      return createSuccessResponse({
+      return successResponse({
         jobId,
         status: existingJob.status,
         ticker: existingJob.ticker,
@@ -90,7 +90,7 @@ export async function handleSentimentRequest(
       // Mark job as completed
       await SentimentJobsRepository.markJobCompleted(jobId, result.articlesProcessed);
 
-      return createSuccessResponse({
+      return successResponse({
         jobId,
         status: 'COMPLETED',
         ticker: ticker.toUpperCase(),
@@ -117,7 +117,7 @@ export async function handleSentimentRequest(
       requestId: event.requestContext.requestId,
     });
 
-    return createErrorResponse(
+    return errorResponse(
       500,
       error instanceof Error ? error.message : 'Internal server error'
     );
@@ -141,18 +141,18 @@ export async function handleSentimentJobStatusRequest(
     const jobId = event.pathParameters?.jobId;
 
     if (!jobId) {
-      return createErrorResponse(400, 'Job ID is required');
+      return errorResponse(400, 'Job ID is required');
     }
 
     // Fetch job from database
     const job = await SentimentJobsRepository.getJob(jobId);
 
     if (!job) {
-      return createErrorResponse(404, `Job not found: ${jobId}`);
+      return errorResponse(404, `Job not found: ${jobId}`);
     }
 
     // Return job status with all metadata
-    return createSuccessResponse({
+    return successResponse({
       jobId: job.jobId,
       status: job.status,
       ticker: job.ticker,
@@ -169,7 +169,7 @@ export async function handleSentimentJobStatusRequest(
       requestId: event.requestContext.requestId,
     });
 
-    return createErrorResponse(
+    return errorResponse(
       500,
       error instanceof Error ? error.message : 'Internal server error'
     );
@@ -197,14 +197,14 @@ export async function handleSentimentResultsRequest(
 
     // Validate ticker
     if (!ticker) {
-      return createErrorResponse(400, 'Query parameter "ticker" is required');
+      return errorResponse(400, 'Query parameter "ticker" is required');
     }
 
     // Fetch all sentiments for ticker
     const allSentiments = await SentimentCacheRepository.querySentimentsByTicker(ticker);
 
     if (allSentiments.length === 0) {
-      return createSuccessResponse({
+      return successResponse({
         ticker: ticker.toUpperCase(),
         startDate: startDate || null,
         endDate: endDate || null,
@@ -275,7 +275,7 @@ export async function handleSentimentResultsRequest(
       })
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    return createSuccessResponse({
+    return successResponse({
       ticker: ticker.toUpperCase(),
       startDate: startDate || null,
       endDate: endDate || null,
@@ -287,7 +287,7 @@ export async function handleSentimentResultsRequest(
       requestId: event.requestContext.requestId,
     });
 
-    return createErrorResponse(
+    return errorResponse(
       500,
       error instanceof Error ? error.message : 'Internal server error'
     );
