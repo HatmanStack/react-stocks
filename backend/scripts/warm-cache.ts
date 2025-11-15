@@ -17,16 +17,15 @@ import { fetchCompanyNews } from '../src/services/finnhub.service.js';
 import {
   queryStocksByDateRange,
   batchPutStocks,
-  type StockCacheItem,
 } from '../src/repositories/stocksCache.repository.js';
 import {
   queryArticlesByTicker,
   batchPutArticles,
   existsInCache,
-  type NewsCacheItem,
 } from '../src/repositories/newsCache.repository.js';
 import { generateArticleHash } from '../src/utils/hash.util.js';
-import type { TiingoStockPrice, FinnhubNewsArticle } from '../src/types/tiingo.types.js';
+import { transformTiingoToCache, transformFinnhubToCache } from '../src/utils/cacheTransform.util.js';
+import type { FinnhubNewsArticle } from '../src/types/finnhub.types.js';
 
 // Popular tickers to warm cache for
 const POPULAR_TICKERS = [
@@ -63,52 +62,6 @@ function today(): string {
 }
 
 /**
- * Transform Tiingo price data to cache format
- */
-function transformTiingoToCache(ticker: string, tiingoData: TiingoStockPrice[]): Omit<StockCacheItem, 'ttl'>[] {
-  return tiingoData.map((price) => ({
-    ticker,
-    date: price.date.split('T')[0],
-    priceData: {
-      open: price.open,
-      high: price.high,
-      low: price.low,
-      close: price.close,
-      volume: price.volume,
-      adjOpen: price.adjOpen,
-      adjHigh: price.adjHigh,
-      adjLow: price.adjLow,
-      adjClose: price.adjClose,
-      adjVolume: price.adjVolume,
-      divCash: price.divCash,
-      splitFactor: price.splitFactor,
-    },
-    fetchedAt: Date.now(),
-  }));
-}
-
-/**
- * Transform Finnhub article to cache format
- */
-function transformFinnhubToCache(ticker: string, finnhubArticle: FinnhubNewsArticle): Omit<NewsCacheItem, 'ttl'> {
-  const date = new Date(finnhubArticle.datetime * 1000).toISOString().split('T')[0];
-
-  return {
-    ticker,
-    articleHash: generateArticleHash(finnhubArticle.url),
-    article: {
-      title: finnhubArticle.headline,
-      url: finnhubArticle.url,
-      description: finnhubArticle.summary,
-      date,
-      publisher: finnhubArticle.source,
-      imageUrl: finnhubArticle.image,
-    },
-    fetchedAt: Date.now(),
-  };
-}
-
-/**
  * Warm stock prices cache for a ticker
  */
 async function warmStockPrices(ticker: string, startDate: string, endDate: string, apiKey: string): Promise<void> {
@@ -118,14 +71,15 @@ async function warmStockPrices(ticker: string, startDate: string, endDate: strin
     // Check if already cached
     const cachedData = await queryStocksByDateRange(ticker, startDate, endDate);
 
-    // Calculate cache coverage
-    const expectedDays = Math.ceil(
+    // Calculate cache coverage based on trading days (markets trade ~5/7 days)
+    const calendarDays = Math.ceil(
       (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)
     );
+    const expectedTradingDays = Math.ceil(calendarDays * 5 / 7); // Approximate weekdays only
     const cachedDays = cachedData.length;
-    const coveragePercent = expectedDays > 0 ? (cachedDays / expectedDays) * 100 : 0;
+    const coveragePercent = expectedTradingDays > 0 ? (cachedDays / expectedTradingDays) * 100 : 0;
 
-    console.log(`[WarmCache] ${ticker} stock prices: ${cachedDays}/${expectedDays} days cached (${coveragePercent.toFixed(1)}%)`);
+    console.log(`[WarmCache] ${ticker} stock prices: ${cachedDays}/${expectedTradingDays} trading days cached (${coveragePercent.toFixed(1)}%)`);
 
     // If coverage is >80%, skip fetching
     if (coveragePercent > 80) {

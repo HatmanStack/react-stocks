@@ -24,3 +24,6 @@ export * from './hash.util.js';
 
 // Metrics utilities
 export * from './metrics.util.js';
+
+// Cache transform utilities
+export * from './cacheTransform.util.js';
