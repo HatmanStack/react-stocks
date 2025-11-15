@@ -13,32 +13,60 @@ export function formatCurrency(value: number, decimals: number = 2): string {
 }
 
 /**
- * Format a number as percentage
- * @param value - Number to format (e.g., 0.1523 for 15.23%)
+ * Format a price with dollar sign and 2 decimal places (alias for formatCurrency with null handling)
+ * @param price - Price value to format
  * @param decimals - Number of decimal places (default: 2)
- * @returns Formatted percentage string (e.g., "15.23%")
+ * @returns Formatted price string (e.g., "$123.45")
  */
-export function formatPercentage(value: number, decimals: number = 2): string {
-  const percentage = value * 100;
-  const sign = percentage >= 0 ? '+' : '';
-  return `${sign}${percentage.toFixed(decimals)}%`;
+export function formatPrice(price: number | null | undefined, decimals = 2): string {
+  if (price === null || price === undefined) {
+    return 'N/A';
+  }
+  return `$${price.toFixed(decimals)}`;
+}
+
+/**
+ * Format a number as percentage
+ * @param value - Number to format (already as percentage, e.g., 15.23 for 15.23%)
+ * @param decimals - Number of decimal places (default: 2)
+ * @returns Formatted percentage string (e.g., "+15.23%", "-3.10%")
+ */
+export function formatPercentage(value: number | null | undefined, decimals: number = 2): string {
+  if (value === null || value === undefined) {
+    return 'N/A';
+  }
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${value.toFixed(decimals)}%`;
 }
 
 /**
  * Format large numbers with K, M, B suffixes
  * @param volume - Number to format
- * @returns Formatted string (e.g., "1.5M", "23.4K")
+ * @returns Formatted string (e.g., "1.23M", "12.35K")
  */
-export function formatVolume(volume: number): string {
+export function formatVolume(volume: number | null | undefined): string {
+  if (volume === null || volume === undefined) {
+    return 'N/A';
+  }
+
   if (volume >= 1_000_000_000) {
-    return `${(volume / 1_000_000_000).toFixed(1)}B`;
+    return `${(volume / 1_000_000_000).toFixed(2)}B`;
   } else if (volume >= 1_000_000) {
-    return `${(volume / 1_000_000).toFixed(1)}M`;
+    return `${(volume / 1_000_000).toFixed(2)}M`;
   } else if (volume >= 1_000) {
-    return `${(volume / 1_000).toFixed(1)}K`;
+    return `${(volume / 1_000).toFixed(2)}K`;
   } else {
     return volume.toString();
   }
+}
+
+/**
+ * Format large numbers with K/M/B abbreviations (alias for formatVolume)
+ * @param num - Number value to format
+ * @returns Formatted number string (e.g., "1.23B", "1.00M")
+ */
+export function formatLargeNumber(num: number | null | undefined): string {
+  return formatVolume(num);
 }
 
 /**
