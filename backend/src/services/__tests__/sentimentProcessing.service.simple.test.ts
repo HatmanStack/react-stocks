@@ -6,6 +6,7 @@
 import { describe, it, expect } from '@jest/globals';
 
 describe('SentimentProcessingService', () => {
+  // TODO: Fix ES modules + Jest mocking (GitHub issue #7)
   it.skip('should have core processing function exported', async () => {
     const { processSentimentForTicker } = await import('../sentimentProcessing.service.js');
     expect(typeof processSentimentForTicker).toBe('function');
