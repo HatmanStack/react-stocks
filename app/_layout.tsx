@@ -87,7 +87,7 @@ export default function RootLayout() {
   if (!isReady) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1976D2" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -101,7 +101,7 @@ export default function RootLayout() {
               <StockProvider>
                 <PortfolioProvider>
                   <Slot />
-                  <StatusBar style="dark" />
+                  <StatusBar style="light" />
                 </PortfolioProvider>
               </StockProvider>
             </QueryClientProvider>
@@ -120,6 +120,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
   },
 });
