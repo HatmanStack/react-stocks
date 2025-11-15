@@ -41,7 +41,17 @@ describe('useSentimentPolling', () => {
       cached: false,
     };
 
+    const mockStatusInProgress: LambdaSentiment.SentimentJobStatus = {
+      jobId: 'AAPL_2025-01-01_2025-01-30',
+      status: 'IN_PROGRESS',
+      ticker: 'AAPL',
+      startDate: '2025-01-01',
+      endDate: '2025-01-30',
+      cached: false,
+    };
+
     mockedService.triggerSentimentAnalysis.mockResolvedValue(mockJobResponse);
+    mockedService.getSentimentJobStatus.mockResolvedValue(mockStatusInProgress);
 
     const { result } = renderHook(() =>
       useSentimentPolling('AAPL', '2025-01-01', '2025-01-30')
@@ -285,7 +295,17 @@ describe('useSentimentPolling', () => {
       cached: false,
     };
 
+    const mockStatusInProgress: LambdaSentiment.SentimentJobStatus = {
+      jobId: 'AAPL_2025-01-01_2025-01-30',
+      status: 'IN_PROGRESS',
+      ticker: 'AAPL',
+      startDate: '2025-01-01',
+      endDate: '2025-01-30',
+      cached: false,
+    };
+
     mockedService.triggerSentimentAnalysis.mockResolvedValue(mockJobResponse);
+    mockedService.getSentimentJobStatus.mockResolvedValue(mockStatusInProgress);
 
     const { result } = renderHook(() =>
       useSentimentPolling('AAPL', '2025-01-01', '2025-01-30')
@@ -311,7 +331,17 @@ describe('useSentimentPolling', () => {
       cached: false,
     };
 
+    const mockStatusInProgress: LambdaSentiment.SentimentJobStatus = {
+      jobId: 'AAPL_2025-01-01_2025-01-30',
+      status: 'IN_PROGRESS',
+      ticker: 'AAPL',
+      startDate: '2025-01-01',
+      endDate: '2025-01-30',
+      cached: false,
+    };
+
     mockedService.triggerSentimentAnalysis.mockResolvedValue(mockJobResponse);
+    mockedService.getSentimentJobStatus.mockResolvedValue(mockStatusInProgress);
 
     const { result, unmount } = renderHook(() =>
       useSentimentPolling('AAPL', '2025-01-01', '2025-01-30')
