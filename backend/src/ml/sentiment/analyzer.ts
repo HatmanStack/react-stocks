@@ -147,24 +147,24 @@ export class SentimentAnalyzer {
   ): SentimentResult {
     // Initialize statistics for each sentiment category
     const stats: Record<'POS' | 'NEUT' | 'NEG', SentimentStats> = {
-      POS: { count: 0, totalScore: 0, scores: [], averageConfidence: 0 },
-      NEUT: { count: 0, totalScore: 0, scores: [], averageConfidence: 0 },
-      NEG: { count: 0, totalScore: 0, scores: [], averageConfidence: 0 },
+      POS: { count: 0, totalConfidence: 0, confidences: [], averageConfidence: 0 },
+      NEUT: { count: 0, totalConfidence: 0, confidences: [], averageConfidence: 0 },
+      NEG: { count: 0, totalConfidence: 0, confidences: [], averageConfidence: 0 },
     };
 
-    // Accumulate statistics
+    // Accumulate statistics (confidence values, not raw scores)
     for (const result of results) {
       const stat = stats[result.sentiment];
       stat.count += 1;
-      stat.totalScore += result.confidence;
-      stat.scores.push(result.confidence);
+      stat.totalConfidence += result.confidence;
+      stat.confidences.push(result.confidence);
     }
 
     // Calculate average confidence for each category
     for (const sentiment of ['POS', 'NEUT', 'NEG'] as const) {
       const stat = stats[sentiment];
       if (stat.count > 0) {
-        stat.averageConfidence = stat.totalScore / stat.count;
+        stat.averageConfidence = stat.totalConfidence / stat.count;
       }
     }
 

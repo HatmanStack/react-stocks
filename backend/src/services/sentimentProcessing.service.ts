@@ -11,7 +11,8 @@
 
 import * as NewsCacheRepository from '../repositories/newsCache.repository.js';
 import * as SentimentCacheRepository from '../repositories/sentimentCache.repository.js';
-import { analyzeSentimentBatch } from '../ml/sentiment/analyzer.js';
+import { analyzeSentimentBatch, analyzeSentiment } from '../ml/sentiment/analyzer.js';
+import { aggregateDailySentiment, type DailySentiment } from '../utils/sentiment.util.js';
 import type {
   NewsCacheItem,
   SentimentCacheItem,
@@ -19,25 +20,13 @@ import type {
 } from '../repositories/index.js';
 
 /**
- * Daily aggregated sentiment result
- */
-export interface DailySentiment {
-  date: string;
-  positive: number;
-  negative: number;
-  sentimentScore: number;
-  classification: 'POS' | 'NEG' | 'NEUT';
-  articleCount: number;
-}
-
-/**
  * Result of sentiment processing operation
  */
 export interface SentimentProcessingResult {
   ticker: string;
-  articlesProcessed: number;
-  articlesSkipped: number; // Already cached
-  articlesNotFound: number; // News not in cache
+  articlesProcessed: number; // New articles analyzed
+  articlesSkipped: number; // Articles with cached sentiment (deduplicated)
+  articlesNotFound: number; // Articles in cache but outside requested date range
   dailySentiment: DailySentiment[];
   processingTimeMs: number;
 }
@@ -235,6 +224,13 @@ async function partitionArticlesByCache(
 
 /**
  * Analyze articles and return sentiment cache items
+ *
+ * Uses hybrid error handling:
+ * 1. Try batch analysis
+ * 2. If batch fails, retry once
+ * 3. If still fails, analyze articles individually to get partial success
+ *
+ * @returns Successful cache items (may be partial if some articles failed)
  */
 async function analyzeArticles(
   ticker: string,
@@ -244,42 +240,99 @@ async function analyzeArticles(
     return [];
   }
 
-  try {
-    // Prepare articles for batch analysis
-    const articlesForAnalysis = articles.map((item) => ({
-      text: `${item.article.title || ''} ${item.article.description || ''}`.trim(),
-      hash: item.articleHash,
-    }));
+  // Prepare articles for batch analysis
+  const articlesForAnalysis = articles.map((item) => ({
+    text: `${item.article.title || ''} ${item.article.description || ''}`.trim(),
+    hash: item.articleHash,
+  }));
 
-    // Analyze in parallel
-    const sentimentResults = await analyzeSentimentBatch(articlesForAnalysis);
+  // Try batch analysis with one retry
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const sentimentResults = await analyzeSentimentBatch(articlesForAnalysis);
 
-    // Convert to cache format
-    const cacheItems: Omit<SentimentCacheItem, 'ttl'>[] = sentimentResults.map(
-      (result) => ({
+      // Convert to cache format
+      const cacheItems: Omit<SentimentCacheItem, 'ttl'>[] = sentimentResults.map(
+        (result) => ({
+          ticker,
+          articleHash: result.articleHash,
+          sentiment: {
+            positive: parseInt(result.sentiment.positive[0]),
+            negative: parseInt(result.sentiment.negative[0]),
+            sentimentScore: result.sentimentScore,
+            classification: result.classification,
+          },
+          analyzedAt: Date.now(),
+        })
+      );
+
+      return cacheItems;
+    } catch (error) {
+      if (attempt === 1) {
+        console.warn('[SentimentProcessingService] Batch analysis failed, retrying...', {
+          ticker,
+          articleCount: articles.length,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Will retry
+      } else {
+        console.error('[SentimentProcessingService] Batch analysis failed after retry, switching to per-article analysis', {
+          ticker,
+          articleCount: articles.length,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Fall through to per-article analysis
+      }
+    }
+  }
+
+  // Batch failed twice - analyze articles individually for partial success
+  const results = await Promise.allSettled(
+    articlesForAnalysis.map(async (article) => {
+      const sentimentResult = await analyzeSentiment(article.text, article.hash);
+
+      return {
         ticker,
-        articleHash: result.articleHash,
+        articleHash: sentimentResult.articleHash,
         sentiment: {
-          positive: parseInt(result.sentiment.positive[0]),
-          negative: parseInt(result.sentiment.negative[0]),
-          sentimentScore: result.sentimentScore,
-          classification: result.classification,
+          positive: parseInt(sentimentResult.sentiment.positive[0]),
+          negative: parseInt(sentimentResult.sentiment.negative[0]),
+          sentimentScore: sentimentResult.sentimentScore,
+          classification: sentimentResult.classification,
         },
         analyzedAt: Date.now(),
-      })
-    );
+      } as Omit<SentimentCacheItem, 'ttl'>;
+    })
+  );
 
-    return cacheItems;
-  } catch (error) {
-    console.error('[SentimentProcessingService] Error analyzing articles:', error, {
+  // Collect successful results and log failures
+  const successfulItems: Omit<SentimentCacheItem, 'ttl'>[] = [];
+  const failedHashes: string[] = [];
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled') {
+      successfulItems.push(result.value);
+    } else {
+      failedHashes.push(articlesForAnalysis[index].hash);
+      console.error('[SentimentProcessingService] Failed to analyze article:', {
+        ticker,
+        articleHash: articlesForAnalysis[index].hash,
+        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+      });
+    }
+  });
+
+  if (failedHashes.length > 0) {
+    console.warn('[SentimentProcessingService] Partial success in article analysis', {
       ticker,
-      articleCount: articles.length,
+      totalArticles: articles.length,
+      successful: successfulItems.length,
+      failed: failedHashes.length,
+      failedHashes: failedHashes.slice(0, 5), // Log first 5 failed hashes
     });
-
-    // Return partial results if some analyses failed
-    // This allows processing to continue even if some articles fail
-    return [];
   }
+
+  return successfulItems;
 }
 
 /**
@@ -302,67 +355,5 @@ function filterSentimentsByDateRange(
   return sentiments.filter((s) => articleHashesInRange.has(s.articleHash));
 }
 
-/**
- * Aggregate sentiment by date
- *
- * Groups article-level sentiment into daily aggregates
- */
-function aggregateDailySentiment(
-  sentiments: SentimentCacheItem[],
-  articles: NewsCacheItem[]
-): DailySentiment[] {
-  // Create map of articleHash -> article date
-  const articleDateMap = new Map<string, string>();
-  for (const article of articles) {
-    articleDateMap.set(article.articleHash, article.article.date);
-  }
-
-  // Group sentiments by date
-  const dailyGroups = new Map<string, SentimentData[]>();
-
-  for (const sentiment of sentiments) {
-    const date = articleDateMap.get(sentiment.articleHash);
-    if (!date) continue; // Skip if article not found
-
-    if (!dailyGroups.has(date)) {
-      dailyGroups.set(date, []);
-    }
-    dailyGroups.get(date)!.push(sentiment.sentiment);
-  }
-
-  // Aggregate each day's sentiments
-  const dailySentiments: DailySentiment[] = [];
-
-  for (const [date, sentiments] of dailyGroups.entries()) {
-    const totalPositive = sentiments.reduce((sum, s) => sum + s.positive, 0);
-    const totalNegative = sentiments.reduce((sum, s) => sum + s.negative, 0);
-    const totalArticles = sentiments.length;
-
-    // Calculate aggregate sentiment score
-    const totalSentences = totalPositive + totalNegative;
-    const sentimentScore =
-      totalSentences > 0 ? (totalPositive - totalNegative) / totalSentences : 0;
-
-    // Classify overall daily sentiment
-    let classification: 'POS' | 'NEG' | 'NEUT';
-    if (sentimentScore > 0.1) {
-      classification = 'POS';
-    } else if (sentimentScore < -0.1) {
-      classification = 'NEG';
-    } else {
-      classification = 'NEUT';
-    }
-
-    dailySentiments.push({
-      date,
-      positive: totalPositive,
-      negative: totalNegative,
-      sentimentScore,
-      classification,
-      articleCount: totalArticles,
-    });
-  }
-
-  // Sort by date
-  return dailySentiments.sort((a, b) => a.date.localeCompare(b.date));
-}
+// Note: aggregateDailySentiment is now imported from utils/sentiment.util.ts
+// to avoid duplication with handler logic and ensure consistent classification thresholds
