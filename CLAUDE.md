@@ -29,8 +29,7 @@ npm run format         # Prettier formatting
 # Backend deployment (one-time setup)
 cd backend
 npm install                       # Install backend dependencies
-npm run build                     # Build Lambda function
-sam build && sam deploy --guided  # Deploy Lambda backend to AWS
+npm run deploy:guided             # Build + deploy Lambda (auto-updates frontend .env)
 
 # Backend development
 cd backend
@@ -38,6 +37,7 @@ npm test                          # Run backend tests
 npm run test:watch                # Watch mode for backend tests
 npm run validate                  # Validate AWS prerequisites
 npm run logs                      # View Lambda logs
+npm run update-env                # Manually update frontend .env with API URL
 ```
 
 ## Environment Setup
@@ -55,10 +55,9 @@ EXPO_PUBLIC_BROWSER_PREDICTION=false     # Use browser-based prediction (test fi
 ```
 
 **Setup Steps**:
-1. Deploy backend: `cd backend && sam deploy --guided` (see `backend/DEPLOYMENT.md`)
-2. Copy `.env.example` to `.env`
-3. Update `EXPO_PUBLIC_BACKEND_URL` with your Lambda API Gateway URL
-4. Optionally enable browser-based ML via feature flags
+1. Deploy backend: `cd backend && npm run deploy:guided`
+2. Frontend `.env` is auto-updated with API Gateway URL
+3. Optionally enable browser-based ML via feature flags in `.env`
 
 **⚠️ Security**: API keys for Tiingo and Polygon are **never** stored in frontend code. They are configured as Lambda environment variables during backend deployment.
 

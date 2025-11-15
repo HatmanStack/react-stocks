@@ -1,728 +1,928 @@
-# Phase 1: DynamoDB Foundation
+# Phase 1: Dark Theme Implementation
 
 ## Phase Goal
 
-Establish DynamoDB infrastructure as the shared cache layer, including table definitions, IAM permissions, and base repository abstractions. By the end of this phase, Lambda functions will have the ability to read/write to DynamoDB tables, with comprehensive unit tests validating CRUD operations.
+Implement a professional dark theme based on Material Design 3 with financial-focused color semantics and monospaced typography for numeric data. This phase establishes the visual foundation that all subsequent phases will build upon.
 
 **Success Criteria:**
-- âœ… 4 DynamoDB tables deployed via SAM template
-- âœ… IAM role grants Lambda read/write permissions to all tables
-- âœ… Repository pattern abstracts DynamoDB operations
-- âœ… Shared utilities for TTL, batch operations, and retries
-- âœ… Unit tests validate all repository methods
-- âœ… SAM deploy succeeds without errors
+- Dark theme active throughout the app (#121212 - #1e1e1e backgrounds)
+- Green/red colors properly applied to financial gains/losses
+- Monospaced fonts rendering all numeric data
+- Theme switches cleanly without requiring app restart
+- All existing functionality works with dark theme
 
-**Estimated tokens:** ~35,000
+**Estimated Tokens:** ~95,000
 
 ---
 
 ## Prerequisites
 
-- **Phase 0 complete**: Reviewed architecture decisions and design patterns
-- **AWS SAM CLI**: Version â‰¥1.100.0 installed (`sam --version`)
-- **AWS credentials**: Configured with permissions to create DynamoDB tables and IAM roles
-- **Backend deployed**: Existing Lambda function deployed and functional
-- **Git clean**: Working directory committed or changes stashed
+- Phase 0 read and understood
+- Git working directory clean or changes committed
+- All existing tests passing (`npm test`)
+- Dependencies installed:
+  ```bash
+  npm install  # Ensure React Native Paper v5.14+ installed
+  ```
 
 ---
 
 ## Tasks
 
-### Task 1.1: Define DynamoDB Tables in SAM Template
+### Task 1: Install Victory Native Dependencies
 
-**Goal:** Add 4 DynamoDB table definitions to `backend/template.yaml` with proper schemas, indexes, and TTL configuration.
+**Goal:** Install charting library and required peer dependencies for future phases
 
-**Files to Modify:**
-- `backend/template.yaml` - Add Resources section for DynamoDB tables
-
-**Prerequisites:**
-- Review Phase-0.md ADR-3 for table schemas
-- Understand DynamoDB on-demand vs provisioned capacity (use on-demand for cost efficiency)
+**Files to Modify/Create:**
+- `package.json` - Add dependencies
 
 **Implementation Steps:**
+1. Install Victory Native and required peer dependencies
+2. Verify installation by checking package.json
+3. Run `npm install` to ensure no conflicts
+4. Check that metro bundler still starts successfully
 
-1. **Add StocksCache table** to the Resources section:
-   - Partition key: `ticker` (String)
-   - Sort key: `date` (String)
-   - Enable TTL on `ttl` attribute
-   - Use on-demand billing mode
-   - Add tags for cost tracking (e.g., `Project: react-stocks`, `CacheType: stocks`)
-
-2. **Add NewsCache table**:
-   - Partition key: `ticker` (String)
-   - Sort key: `articleHash` (String)
-   - Enable TTL on `ttl` attribute
-   - Use on-demand billing mode
-
-3. **Add SentimentCache table**:
-   - Partition key: `ticker` (String)
-   - Sort key: `articleHash` (String)
-   - Enable TTL on `ttl` attribute
-   - Use on-demand billing mode
-
-4. **Add SentimentJobs table**:
-   - Partition key: `jobId` (String)
-   - No sort key (simple key-value store)
-   - Enable TTL on `ttl` attribute
-   - Use on-demand billing mode
-
-5. **Add table ARN outputs** to Outputs section for reference:
-   - `StocksCacheTableArn`
-   - `NewsCacheTableArn`
-   - `SentimentCacheTableArn`
-   - `SentimentJobsTableArn`
+**Dependencies to Install:**
+```bash
+npm install victory-native react-native-svg
+```
 
 **Verification Checklist:**
-- [ ] All 4 tables defined with correct key schemas
-- [ ] TTL enabled on each table pointing to `ttl` attribute
-- [ ] BillingMode set to PAY_PER_REQUEST (on-demand)
-- [ ] Table names use `!Sub` for stack-based naming (e.g., `${AWS::StackName}-StocksCache`)
-- [ ] Outputs export table ARNs for cross-stack reference
-- [ ] YAML syntax is valid (`sam validate --lint`)
+- [ ] `victory-native` appears in package.json dependencies
+- [ ] `react-native-svg` appears in package.json dependencies
+- [ ] `npm install` completes without errors
+- [ ] `npm start` launches Expo dev server successfully
+- [ ] No new TypeScript errors (`npm run type-check`)
 
 **Testing Instructions:**
-- Run `sam validate --template backend/template.yaml` to check syntax
-- Run `sam build` in `backend/` directory to ensure template compiles
-- Do NOT deploy yet (will deploy after IAM roles added)
+No unit tests required for dependency installation. Verify by running type-check and ensuring app builds.
 
 **Commit Message Template:**
 ```
-feat(dynamodb): add DynamoDB table definitions to SAM template
+chore(deps): install Victory Native for charting
 
-- Define StocksCache table with ticker+date composite key
-- Define NewsCache table with ticker+articleHash composite key
-- Define SentimentCache table with ticker+articleHash composite key
-- Define SentimentJobs table with jobId primary key
-- Enable TTL on all tables for auto-expiration
-- Use on-demand billing for cost efficiency
-- Export table ARNs in CloudFormation outputs
-
-Task: Phase 1, Task 1.1
+- Add victory-native for professional charts
+- Add react-native-svg peer dependency
+- Prepare for price and sentiment visualization
 ```
 
-**Estimated tokens:** ~3,000
+**Estimated Tokens:** ~1,000
 
 ---
 
-### Task 1.2: Grant Lambda IAM Permissions for DynamoDB
+### Task 2: Create Dark Color Palette
 
-**Goal:** Update the Lambda function's IAM role to grant read/write permissions to all 4 DynamoDB tables.
+**Goal:** Replace light theme colors with dark theme palette following Material Design 3 guidelines
 
-**Files to Modify:**
-- `backend/template.yaml` - Add Policies to ReactStocksFunction
+**Files to Modify/Create:**
+- `src/theme/colors.ts` - Update color definitions
 
 **Prerequisites:**
-- Task 1.1 complete (tables defined)
-- Understand AWS IAM policy syntax (Statement, Effect, Action, Resource)
+- Task 1 complete
+- Understand ADR-007 (Color System - Financial Semantics) from Phase 0
 
 **Implementation Steps:**
+1. Read the existing `src/theme/colors.ts` file to understand current structure
+2. Replace light colors with dark equivalents while maintaining the same export structure
+3. Use Material Design 3 dark theme guidelines:
+   - Background: #121212 to #1e1e1e range
+   - Surface: Slightly lighter than background (#1e1e1e to #2c2c2c)
+   - Text: High contrast on dark backgrounds (#FFFFFF, #B3B3B3, #808080)
+4. Keep existing financial semantic colors (positive green, negative red) but ensure they work on dark backgrounds
+5. Add any missing dark theme colors (surfaceVariant, outline, etc.)
 
-1. **Add DynamoDB policy statement** to Lambda function's `Policies` section:
-   - Grant `dynamodb:GetItem`, `dynamodb:PutItem`, `dynamodb:UpdateItem`, `dynamodb:DeleteItem`, `dynamodb:Query`, `dynamodb:BatchGetItem`, `dynamodb:BatchWriteItem`
-   - Apply to all 4 table ARNs using `!GetAtt`
-   - Use principle of least privilege (only grant necessary actions)
-
-2. **Add environment variables** to Lambda function:
-   - `STOCKS_CACHE_TABLE`: Reference to StocksCache table name
-   - `NEWS_CACHE_TABLE`: Reference to NewsCache table name
-   - `SENTIMENT_CACHE_TABLE`: Reference to SentimentCache table name
-   - `SENTIMENT_JOBS_TABLE`: Reference to SentimentJobs table name
-
-3. **Verify CloudFormation references** use `!Ref` for table names and `!GetAtt` for ARNs
+**Key Color Requirements:**
+- Primary: Keep blue (#2196F3 or similar) - good contrast on dark
+- Background: #121212 (Material dark baseline)
+- Surface: #1e1e1e (cards, modals)
+- Surface Variant: #2c2c2c (differentiated surfaces)
+- On Background: #FFFFFF (primary text)
+- On Surface: #E0E0E0 (card text)
+- Positive: #4CAF50 (gains) - verify contrast ratio e 4.5:1
+- Negative: #F44336 (losses) - verify contrast ratio e 4.5:1
 
 **Verification Checklist:**
-- [ ] IAM policy grants all required DynamoDB actions
-- [ ] Policy Resource list includes all 4 table ARNs
-- [ ] Environment variables correctly reference table names
-- [ ] No wildcard permissions (e.g., `dynamodb:*` on `*` resources)
-- [ ] Template validates without errors (`sam validate`)
+- [ ] All existing color exports maintained (no breaking changes)
+- [ ] Background color is in #121212 - #1e1e1e range
+- [ ] Text colors have sufficient contrast (use WebAIM contrast checker)
+- [ ] Green and red colors visible on dark background
+- [ ] No hardcoded hex values elsewhere in codebase (all use theme)
 
 **Testing Instructions:**
-- Run `sam validate --template backend/template.yaml`
-- Run `sam build` to ensure no syntax errors
-- Visually inspect generated IAM policy in `.aws-sam/build/template.yaml`
+Create a test file to verify color contrast:
+
+```typescript
+// src/theme/__tests__/colors.test.ts
+describe('Dark Color Palette', () => {
+  it('has dark background colors', () => {
+    expect(colors.background).toMatch(/#1[0-9a-f]{5}/i);
+  });
+
+  it('maintains financial semantic colors', () => {
+    expect(colors.positive).toBe('#4CAF50');
+    expect(colors.negative).toBe('#F44336');
+  });
+
+  // Add contrast ratio tests if desired
+});
+```
 
 **Commit Message Template:**
 ```
-feat(lambda): grant DynamoDB read/write permissions to Lambda function
+style(theme): implement dark color palette
 
-- Add IAM policy statement for DynamoDB operations
-- Grant GetItem, PutItem, UpdateItem, DeleteItem, Query, BatchGetItem, BatchWriteItem
-- Apply policy to all 4 cache tables (StocksCache, NewsCache, SentimentCache, SentimentJobs)
-- Add environment variables for table name references
-- Follow least privilege principle (no wildcard permissions)
-
-Task: Phase 1, Task 1.2
+- Replace light backgrounds with #121212-#1e1e1e range
+- Update surface colors for dark theme
+- Ensure text colors have proper contrast ratios
+- Maintain green/red financial semantic colors
 ```
 
-**Estimated tokens:** ~2,000
+**Estimated Tokens:** ~8,000
 
 ---
 
-### Task 1.3: Deploy DynamoDB Infrastructure
+### Task 3: Add Monospaced Font Configuration
 
-**Goal:** Deploy the updated SAM template to create DynamoDB tables and update Lambda IAM role.
+**Goal:** Configure platform-specific monospaced fonts for financial data display
 
-**Files to Modify:**
-- None (deployment only)
+**Files to Modify/Create:**
+- `src/theme/typography.ts` - Add mono font configuration
 
 **Prerequisites:**
-- Task 1.2 complete (IAM policies added)
-- AWS credentials configured with deployment permissions
-- Terminal access to `backend/` directory
+- Task 2 complete
+- Understand ADR-002 (Typography System) from Phase 0
 
 **Implementation Steps:**
+1. Read existing `src/theme/typography.ts` to understand structure
+2. Add monospaced font configuration with platform detection:
+   - iOS: 'Menlo' or 'Courier New'
+   - Android: 'Roboto Mono' or 'monospace'
+   - Web: 'Monaco', 'Consolas', or 'Courier New'
+3. Use React Native's Platform API to select appropriate font
+4. Add mono font to the fonts object in typography
+5. Consider fallback chain for maximum compatibility
 
-1. **Build the SAM application**:
-   - Navigate to `backend/` directory
-   - Run `sam build` to compile TypeScript and template
-   - Verify build succeeds without errors
+**Font Selection Logic:**
+```typescript
+import { Platform } from 'react-native';
 
-2. **Deploy using guided mode** (first time with new parameters):
-   - Run `sam deploy --guided`
-   - Confirm stack name (use existing stack name to update)
-   - Confirm region
-   - Confirm capabilities `CAPABILITY_IAM` (required for IAM role changes)
-   - Review changeset (should show 4 new tables, 1 IAM role update)
-   - Confirm deployment
-
-3. **Verify deployment** in AWS Console:
-   - Open DynamoDB console â†’ Tables
-   - Confirm all 4 tables exist with correct schemas
-   - Check TTL is enabled on each table (may take a few minutes to activate)
-   - Open Lambda console â†’ Functions â†’ Permissions
-   - Confirm IAM role has DynamoDB policy attached
-
-4. **Save deployment outputs**:
-   - Note table ARNs from CloudFormation Outputs
-   - Verify environment variables set in Lambda configuration
+const monoFont = Platform.select({
+  ios: 'Menlo',
+  android: 'monospace', // Uses Roboto Mono on modern Android
+  web: 'Monaco, Consolas, Courier New, monospace',
+  default: 'monospace',
+});
+```
 
 **Verification Checklist:**
-- [ ] `sam build` completes successfully
-- [ ] `sam deploy` completes without errors
-- [ ] All 4 DynamoDB tables visible in AWS Console
-- [ ] TTL enabled on each table (check "Time to Live" tab)
-- [ ] Lambda function has environment variables set (STOCKS_CACHE_TABLE, etc.)
-- [ ] Lambda execution role has DynamoDB permissions (check IAM policy)
-- [ ] No breaking changes to existing Lambda functionality (test `/stocks` endpoint)
+- [ ] Mono font configured for all platforms (ios, android, web)
+- [ ] Fallback fonts specified for web
+- [ ] No additional font files needed (use system fonts only)
+- [ ] Typography object structure maintained
+- [ ] TypeScript types updated if needed
 
 **Testing Instructions:**
-- Run `sam build && sam deploy --guided`
-- After deployment, test existing `/stocks` endpoint: `curl https://your-api-url.execute-api.us-east-1.amazonaws.com/stocks?ticker=AAPL&startDate=2025-01-01&type=prices`
-- Verify response is unchanged (tables exist but not used yet)
-- Check CloudWatch Logs for Lambda execution (should show environment variables set)
+```typescript
+// src/theme/__tests__/typography.test.ts
+describe('Typography', () => {
+  it('includes monospaced font configuration', () => {
+    expect(typography.fonts.mono).toBeDefined();
+  });
+
+  it('uses system mono fonts (no custom font loading)', () => {
+    // Verify no .ttf or .otf imports
+    expect(typography.fonts.mono).toMatch(/menlo|monospace|monaco/i);
+  });
+});
+```
 
 **Commit Message Template:**
 ```
-chore(deploy): deploy DynamoDB tables and updated IAM permissions
+feat(typography): add monospaced font configuration
 
-- Successfully deployed 4 DynamoDB tables via SAM
-- Tables: StocksCache, NewsCache, SentimentCache, SentimentJobs
-- TTL enabled on all tables for auto-expiration
-- Lambda IAM role updated with DynamoDB permissions
-- Environment variables configured for table name references
-
-Task: Phase 1, Task 1.3
+- Configure platform-specific mono fonts (Menlo, Roboto Mono, Monaco)
+- Add fallback chain for web compatibility
+- Prepare for MonoText component implementation
 ```
 
-**Estimated tokens:** ~2,500
+**Estimated Tokens:** ~6,000
 
 ---
 
-### Task 1.4: Create Shared DynamoDB Utilities
+### Task 4: Update Theme Configuration for Dark Mode
 
-**Goal:** Build reusable utility functions for DynamoDB operations (TTL calculation, batch operations, retries) to be used across all repositories.
+**Goal:** Switch main theme from MD3LightTheme to MD3DarkTheme and apply custom colors
 
-**Files to Create:**
-- `backend/src/utils/dynamodb.util.ts` - DynamoDB-specific utilities
-- `backend/src/utils/cache.util.ts` - Cache helper functions
-- `backend/src/utils/job.util.ts` - Job ID generation and parsing
+**Files to Modify/Create:**
+- `src/theme/theme.ts` - Switch to dark theme base
 
 **Prerequisites:**
-- Task 1.3 complete (tables deployed)
-- Understand DynamoDB SDK v3 command pattern (`send(new GetItemCommand(...))`)
+- Tasks 1-3 complete
+- Understand ADR-001 (Dark Theme Strategy) from Phase 0
 
 **Implementation Steps:**
+1. Read existing `src/theme/theme.ts` to see current light theme configuration
+2. Import `MD3DarkTheme` instead of `MD3LightTheme` from `react-native-paper`
+3. Spread `MD3DarkTheme` as base and override with custom dark colors
+4. Ensure custom theme additions (spacing, borderRadius, shadows, typography) are preserved
+5. Update TypeScript types to include mono font
 
-1. **Create `dynamodb.util.ts`** with functions:
-   - `buildUpdateExpression(updates: Record<string, any>): { UpdateExpression, ExpressionAttributeNames, ExpressionAttributeValues }` - Generate DynamoDB update syntax
-   - `batchGetItems<T>(tableName: string, keys: any[]): Promise<T[]>` - Handle batch reads with pagination (DynamoDB limit: 100 items)
-   - `batchPutItems(tableName: string, items: any[]): Promise<void>` - Handle batch writes (DynamoDB limit: 25 items per request)
-   - `withRetry<T>(fn: () => Promise<T>, maxRetries: number = 3): Promise<T>` - Exponential backoff retry for throttling
+**Key Changes:**
+```typescript
+// Before
+import { MD3LightTheme } from 'react-native-paper';
+export const theme = {
+  ...MD3LightTheme,
+  colors: { /* custom colors */ }
+};
 
-2. **Create `cache.util.ts`** with functions:
-   - `calculateTTL(daysFromNow: number): number` - Return Unix timestamp for DynamoDB TTL (e.g., `Date.now() / 1000 + daysFromNow * 86400`)
-   - `isCacheFresh(fetchedAt: number, maxAgeMs: number): boolean` - Check if cached item is still fresh
-   - `generateCacheKey(ticker: string, date: string): string` - Consistent key generation (e.g., `${ticker}#${date}`)
-
-3. **Create `job.util.ts`** with functions:
-   - `generateJobId(ticker: string, startDate: string, endDate: string): string` - Deterministic job ID (e.g., `${ticker}_${startDate}_${endDate}`)
-   - `parseJobId(jobId: string): { ticker: string, startDate: string, endDate: string }` - Extract components from job ID
-
-4. **Add TypeScript types** for common structures:
-   - `CacheItem` interface with `ttl`, `fetchedAt` properties
-   - `JobStatus` type: `'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'`
-
-5. **Export all utilities** from a barrel file `backend/src/utils/index.ts` for easy imports
+// After
+import { MD3DarkTheme } from 'react-native-paper';
+export const theme = {
+  ...MD3DarkTheme,
+  colors: {
+    ...MD3DarkTheme.colors,
+    // Override with custom dark colors from colors.ts
+  },
+  // Add mono font to fonts
+  fonts: {
+    ...MD3DarkTheme.fonts,
+    mono: typography.fonts.mono,
+  }
+};
+```
 
 **Verification Checklist:**
-- [ ] All utility functions have JSDoc comments with examples
-- [ ] Functions are pure (no side effects beyond DynamoDB calls)
-- [ ] TypeScript types are properly defined and exported
-- [ ] Batch functions handle pagination correctly (test with >25 items)
-- [ ] Retry function implements exponential backoff (test timing)
-- [ ] TTL calculation returns Unix timestamp (seconds, not milliseconds)
+- [ ] Theme extends MD3DarkTheme instead of MD3LightTheme
+- [ ] Custom colors from colors.ts applied to theme.colors
+- [ ] Mono font accessible via theme.fonts.mono
+- [ ] Custom properties (spacing, borderRadius, shadows) preserved
+- [ ] TypeScript types include mono font in theme.fonts
 
 **Testing Instructions:**
+```typescript
+// src/theme/__tests__/theme.test.ts
+import { theme } from '../theme';
 
-Create unit tests in `backend/src/utils/__tests__/`:
+describe('Dark Theme', () => {
+  it('uses dark background color', () => {
+    expect(theme.colors.background).toMatch(/#1[0-9a-f]{5}/i);
+  });
 
-- **`dynamodb.util.test.ts`**:
-  - Test `buildUpdateExpression` with various update objects
-  - Test `batchPutItems` splits large arrays into chunks of 25
-  - Test `withRetry` retries on failure and succeeds on retry
+  it('includes mono font in fonts', () => {
+    expect(theme.fonts.mono).toBeDefined();
+  });
 
-- **`cache.util.test.ts`**:
-  - Test `calculateTTL` returns correct Unix timestamp
-  - Test `isCacheFresh` correctly identifies stale items
-  - Test `generateCacheKey` returns consistent format
-
-- **`job.util.test.ts`**:
-  - Test `generateJobId` creates deterministic IDs
-  - Test `parseJobId` correctly extracts ticker and dates
-
-Run tests: `cd backend && npm test -- utils`
+  it('preserves custom theme properties', () => {
+    expect(theme.custom).toBeDefined();
+    expect(theme.custom.spacing).toBeDefined();
+  });
+});
+```
 
 **Commit Message Template:**
 ```
-feat(utils): create shared DynamoDB and cache utility functions
+feat(theme): switch to Material Design 3 dark theme
 
-- Add dynamodb.util.ts with batch operations and retry logic
-- Add cache.util.ts for TTL calculation and freshness checks
-- Add job.util.ts for job ID generation and parsing
-- Implement exponential backoff retry for throttling errors
-- Add comprehensive unit tests for all utilities
-- Export utilities from barrel file for easy imports
-
-Task: Phase 1, Task 1.4
+- Replace MD3LightTheme with MD3DarkTheme
+- Apply custom dark color palette
+- Add mono font to theme.fonts
+- Preserve custom spacing and border radius
 ```
 
-**Estimated tokens:** ~4,000
+**Estimated Tokens:** ~10,000
 
 ---
 
-### Task 1.5: Create StocksCache Repository
+### Task 5: Create MonoText Component
 
-**Goal:** Implement repository pattern for StocksCache table, providing CRUD operations for stock price data.
+**Goal:** Build reusable component for rendering financial numbers with monospaced fonts
 
-**Files to Create:**
-- `backend/src/repositories/stocksCache.repository.ts` - StocksCache operations
-- `backend/src/repositories/__tests__/stocksCache.repository.test.ts` - Unit tests
+**Files to Modify/Create:**
+- `src/components/common/MonoText.tsx` - NEW component
+- `src/components/common/index.ts` - Add export
 
 **Prerequisites:**
-- Task 1.4 complete (utilities available)
-- Review Phase-0.md ADR-3 for StocksCache schema
+- Task 4 complete
+- Understand Pattern 2 (Monospaced Number Rendering) from Phase 0
 
 **Implementation Steps:**
+1. Create `MonoText.tsx` component that extends Text props
+2. Use `useTheme()` hook to access mono font and colors
+3. Support props: `variant` (price/percentage/volume), `positive`, `negative`
+4. Apply color based on positive/negative props (green/red)
+5. Default to theme.colors.onSurface for neutral numbers
+6. Export from index.ts for easy imports
 
-1. **Define TypeScript interfaces** for stock cache data:
-   - `StockCacheItem` with properties: `ticker`, `date`, `priceData`, `metadata`, `ttl`, `fetchedAt`
-   - `PriceData` with OHLCV properties matching SQLite schema
+**Component Interface:**
+```typescript
+interface MonoTextProps extends TextProps {
+  variant?: 'price' | 'percentage' | 'volume';
+  positive?: boolean;
+  negative?: boolean;
+  children: React.ReactNode;
+}
+```
 
-2. **Create repository with methods**:
-   - `getStock(ticker: string, date: string): Promise<StockCacheItem | null>` - Get single stock price
-   - `putStock(item: StockCacheItem): Promise<void>` - Cache stock data with auto-calculated TTL (7 days)
-   - `batchGetStocks(ticker: string, dates: string[]): Promise<StockCacheItem[]>` - Get multiple dates
-   - `batchPutStocks(items: StockCacheItem[]): Promise<void>` - Batch cache multiple records
-   - `queryStocksByDateRange(ticker: string, startDate: string, endDate: string): Promise<StockCacheItem[]>` - Query using DynamoDB Query API
-
-3. **Initialize DynamoDB client** outside functions for Lambda reuse:
-   - Use `DynamoDBClient` from `@aws-sdk/client-dynamodb`
-   - Use `DynamoDBDocumentClient` for automatic marshalling
-   - Get table name from `process.env.STOCKS_CACHE_TABLE`
-
-4. **Add TTL auto-calculation**:
-   - Use `calculateTTL(7)` from cache.util.ts when putting items
-   - Always set `fetchedAt` to current timestamp
-
-5. **Add error handling**:
-   - Handle `ConditionalCheckFailedException` (item already exists)
-   - Handle `ProvisionedThroughputExceededException` with retry
-   - Log errors with context (ticker, date, operation)
+**Implementation Guidance:**
+- Use `theme.fonts.mono` for fontFamily
+- Determine color: positive ’ green, negative ’ red, default ’ onSurface
+- Variant affects fontSize: price (16), percentage (14), volume (12)
+- Merge custom styles with default styles (allow overrides)
 
 **Verification Checklist:**
-- [ ] All methods have JSDoc comments with examples
-- [ ] DynamoDB client initialized outside handler functions
-- [ ] TTL automatically set to 7 days from now
-- [ ] Batch operations use `batchGetItems` and `batchPutItems` utilities
-- [ ] Error handling for DynamoDB-specific errors
-- [ ] TypeScript types match DynamoDB schema
+- [ ] Component renders with monospaced font
+- [ ] Positive prop applies green color
+- [ ] Negative prop applies red color
+- [ ] Neutral numbers use default text color
+- [ ] Variant prop changes font size appropriately
+- [ ] Exported from src/components/common/index.ts
 
 **Testing Instructions:**
+```typescript
+// src/components/common/__tests__/MonoText.test.tsx
+import { render } from '@testing-library/react-native';
+import { PaperProvider } from 'react-native-paper';
+import { MonoText } from '../MonoText';
+import { theme } from '@/theme';
 
-Create comprehensive unit tests:
+describe('MonoText', () => {
+  const wrapper = ({ children }) => (
+    <PaperProvider theme={theme}>{children}</PaperProvider>
+  );
 
-- **Test `putStock` and `getStock`**:
-  - Put stock data, retrieve it, verify match
-  - Verify TTL is set correctly (~7 days from now)
-  - Test cache miss returns null
+  it('renders with monospaced font', () => {
+    const { getByText } = render(<MonoText>$123.45</MonoText>, { wrapper });
+    const element = getByText('$123.45');
+    expect(element.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fontFamily: expect.stringMatching(/mono/i) })
+      ])
+    );
+  });
 
-- **Test `batchPutStocks` and `batchGetStocks`**:
-  - Put 30 stocks (more than batch limit), verify all saved
-  - Batch get 30 stocks, verify all retrieved
+  it('applies green color when positive', () => {
+    const { getByText } = render(<MonoText positive>+5.2%</MonoText>, { wrapper });
+    const element = getByText('+5.2%');
+    expect(element.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ color: theme.colors.positive })
+      ])
+    );
+  });
 
-- **Test `queryStocksByDateRange`**:
-  - Put stocks for ticker AAPL on 5 different dates
-  - Query date range covering 3 dates, verify only 3 returned
-  - Query with no results, verify empty array
+  it('applies red color when negative', () => {
+    const { getByText } = render(<MonoText negative>-3.1%</MonoText>, { wrapper });
+    const element = getByText('-3.1%');
+    expect(element.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ color: theme.colors.negative })
+      ])
+    );
+  });
 
-Run tests: `cd backend && npm test -- repositories/stocksCache.repository`
-
-**Note:** Tests may require DynamoDB Local or mocking. If using mocks, create `backend/src/repositories/__mocks__/dynamodb.mock.ts` with in-memory storage.
+  it('matches snapshot', () => {
+    const { toJSON } = render(<MonoText variant="price">$999.99</MonoText>, { wrapper });
+    expect(toJSON()).toMatchSnapshot();
+  });
+});
+```
 
 **Commit Message Template:**
 ```
-feat(repository): create StocksCache repository for DynamoDB operations
+feat(components): add MonoText component for financial data
 
-- Implement CRUD operations for stock price caching
-- Add batch get/put methods for efficient multi-date queries
-- Auto-calculate TTL (7 days) on put operations
-- Add date range queries using DynamoDB Query API
-- Implement error handling for DynamoDB-specific exceptions
-- Add comprehensive unit tests with 95%+ coverage
-
-Task: Phase 1, Task 1.5
+- Create reusable monospaced text component
+- Support positive/negative color variants
+- Add price/percentage/volume variants
+- Include comprehensive tests
 ```
 
-**Estimated tokens:** ~5,000
+**Estimated Tokens:** ~12,000
 
 ---
 
-### Task 1.6: Create NewsCache Repository
+### Task 6: Create Skeleton Component
 
-**Goal:** Implement repository for NewsCache table to cache news articles by ticker and article hash.
+**Goal:** Build reusable skeleton loader component for loading states
 
-**Files to Create:**
-- `backend/src/repositories/newsCache.repository.ts` - NewsCache operations
-- `backend/src/repositories/__tests__/newsCache.repository.test.ts` - Unit tests
+**Files to Modify/Create:**
+- `src/components/common/Skeleton.tsx` - NEW component
+- `src/components/common/index.ts` - Add export
 
 **Prerequisites:**
-- Task 1.5 complete (reference StocksCache repository pattern)
-- Review Phase-0.md ADR-3 for NewsCache schema
+- Task 5 complete
+- Understand ADR-005 (Loading States) and Pattern 3 (Skeleton Pattern) from Phase 0
 
 **Implementation Steps:**
+1. Create `Skeleton.tsx` component that renders a placeholder box
+2. Use `theme.colors.surfaceVariant` for background color
+3. Support props: `width`, `height`, `borderRadius`, `style`
+4. Keep it simple - no shimmer/pulse animations
+5. Export from index.ts
 
-1. **Define TypeScript interfaces**:
-   - `NewsCacheItem` with properties: `ticker`, `articleHash`, `article`, `ttl`, `fetchedAt`
-   - `NewsArticle` with properties: `title`, `url`, `description`, `date`, `publisher`
+**Component Interface:**
+```typescript
+interface SkeletonProps extends ViewProps {
+  width?: number | string;
+  height?: number | string;
+  borderRadius?: number;
+}
+```
 
-2. **Create repository with methods**:
-   - `getArticle(ticker: string, articleHash: string): Promise<NewsCacheItem | null>`
-   - `putArticle(item: NewsCacheItem): Promise<void>` - Auto-calculate TTL (30 days)
-   - `batchPutArticles(items: NewsCacheItem[]): Promise<void>`
-   - `queryArticlesByTicker(ticker: string): Promise<NewsCacheItem[]>` - Get all articles for ticker
-   - `existsInCache(ticker: string, articleHash: string): Promise<boolean>` - Check if article cached
-
-3. **Follow same patterns as StocksCache**:
-   - Initialize DynamoDB client outside functions
-   - Use `calculateTTL(30)` for 30-day expiration
-   - Use batch utilities from dynamodb.util.ts
-   - Handle DynamoDB-specific errors
-
-4. **Add deduplication logic**:
-   - `existsInCache` method prevents duplicate article insertion
-   - Use conditional expression in `putArticle`: `attribute_not_exists(articleHash)`
+**Implementation Guidance:**
+- Default width: '100%'
+- Default height: 20
+- Default borderRadius: 4 (matches theme.borderRadius.sm)
+- Use theme.colors.surfaceVariant for professional look
+- Allow style overrides via style prop
 
 **Verification Checklist:**
-- [ ] TTL set to 30 days (not 7 like stocks)
-- [ ] `existsInCache` method implemented for duplicate detection
-- [ ] Batch operations handle >25 articles correctly
-- [ ] All methods follow StocksCache repository pattern
-- [ ] Conditional expressions prevent duplicate articles
+- [ ] Component renders as gray box
+- [ ] Width/height props work correctly
+- [ ] BorderRadius customizable
+- [ ] Uses theme color (surfaceVariant)
+- [ ] Style prop merges correctly
+- [ ] Exported from common/index.ts
 
 **Testing Instructions:**
+```typescript
+// src/components/common/__tests__/Skeleton.test.tsx
+import { render } from '@testing-library/react-native';
+import { PaperProvider } from 'react-native-paper';
+import { Skeleton } from '../Skeleton';
+import { theme } from '@/theme';
 
-Create unit tests similar to StocksCache:
+describe('Skeleton', () => {
+  const wrapper = ({ children }) => (
+    <PaperProvider theme={theme}>{children}</PaperProvider>
+  );
 
-- **Test CRUD operations**:
-  - Put article, get article, verify match
-  - Verify TTL ~30 days from now
-  - Test cache miss returns null
+  it('renders with default dimensions', () => {
+    const { UNSAFE_getByType } = render(<Skeleton />, { wrapper });
+    const view = UNSAFE_getByType('View');
+    expect(view.props.style).toEqual(
+      expect.objectContaining({
+        width: '100%',
+        height: 20,
+        borderRadius: 4,
+      })
+    );
+  });
 
-- **Test `existsInCache`**:
-  - Put article, verify exists returns true
-  - Check non-existent article, verify returns false
+  it('accepts custom width and height', () => {
+    const { UNSAFE_getByType } = render(<Skeleton width={200} height={40} />, { wrapper });
+    const view = UNSAFE_getByType('View');
+    expect(view.props.style).toEqual(
+      expect.objectContaining({
+        width: 200,
+        height: 40,
+      })
+    );
+  });
 
-- **Test batch operations**:
-  - Put 50 articles, verify all cached
-  - Query all articles for ticker, verify count matches
-
-Run tests: `cd backend && npm test -- repositories/newsCache.repository`
+  it('uses theme surfaceVariant color', () => {
+    const { UNSAFE_getByType } = render(<Skeleton />, { wrapper });
+    const view = UNSAFE_getByType('View');
+    expect(view.props.style.backgroundColor).toBe(theme.colors.surfaceVariant);
+  });
+});
+```
 
 **Commit Message Template:**
 ```
-feat(repository): create NewsCache repository for article caching
+feat(components): add Skeleton loader component
 
-- Implement CRUD operations for news article caching
-- Add existsInCache method for duplicate detection
-- Auto-calculate TTL (30 days) for article expiration
-- Add batch put operations for efficient bulk caching
-- Add query by ticker to retrieve all cached articles
-- Comprehensive unit tests with edge case coverage
-
-Task: Phase 1, Task 1.6
+- Create simple skeleton box component
+- Use theme surfaceVariant color
+- Support customizable width, height, borderRadius
+- Add unit tests
 ```
 
-**Estimated tokens:** ~4,500
+**Estimated Tokens:** ~10,000
 
 ---
 
-### Task 1.7: Create SentimentCache Repository
+### Task 7: Update Root Layout with Dark Theme
 
-**Goal:** Implement repository for SentimentCache table to cache sentiment analysis results.
+**Goal:** Ensure dark theme applies globally from app root
 
-**Files to Create:**
-- `backend/src/repositories/sentimentCache.repository.ts` - SentimentCache operations
-- `backend/src/repositories/__tests__/sentimentCache.repository.test.ts` - Unit tests
+**Files to Modify/Create:**
+- `app/_layout.tsx` - Verify dark theme usage
 
 **Prerequisites:**
-- Task 1.6 complete
-- Review Phase-0.md ADR-3 for SentimentCache schema
+- Tasks 1-6 complete
+- Dark theme already imported and used
 
 **Implementation Steps:**
-
-1. **Define TypeScript interfaces**:
-   - `SentimentCacheItem` with properties: `ticker`, `articleHash`, `sentiment`, `analyzedAt`, `ttl`
-   - `SentimentData` with properties: `positive`, `negative`, `sentimentScore`, `classification` (POS/NEG/NEUT)
-
-2. **Create repository with methods**:
-   - `getSentiment(ticker: string, articleHash: string): Promise<SentimentCacheItem | null>`
-   - `putSentiment(item: SentimentCacheItem): Promise<void>` - Auto-calculate TTL (90 days)
-   - `batchPutSentiments(items: SentimentCacheItem[]): Promise<void>`
-   - `querySentimentsByTicker(ticker: string): Promise<SentimentCacheItem[]>`
-   - `existsInCache(ticker: string, articleHash: string): Promise<boolean>`
-
-3. **Key differences from NewsCache**:
-   - TTL is 90 days (sentiment is timeless)
-   - `analyzedAt` timestamp instead of `fetchedAt`
-   - Sentiment data structure differs from article structure
-
-4. **Follow established patterns**:
-   - Same error handling as previous repositories
-   - Use batch utilities for >25 items
-   - Conditional expressions to prevent duplicates
+1. Read `app/_layout.tsx` to verify PaperProvider wraps app
+2. Confirm it imports and uses the theme from `src/theme/theme`
+3. Update StatusBar style to 'light' for dark theme
+4. Update loading container background to match dark theme
+5. Test that theme is applied globally
 
 **Verification Checklist:**
-- [ ] TTL set to 90 days (longest expiration)
-- [ ] `analyzedAt` timestamp set on put operations
-- [ ] Sentiment data structure matches frontend expectations
-- [ ] All methods follow repository pattern
-- [ ] Comprehensive error handling
+- [ ] PaperProvider wraps entire app
+- [ ] Theme imported from src/theme/theme (dark theme)
+- [ ] StatusBar style is 'light' (light text on dark background)
+- [ ] Loading container uses dark background color
+- [ ] No errors when app starts
 
 **Testing Instructions:**
-
-Create unit tests:
-
-- **Test CRUD operations**:
-  - Put sentiment, get sentiment, verify match
-  - Verify TTL ~90 days from now
-  - Test cache miss returns null
-
-- **Test batch operations**:
-  - Put 100 sentiments, verify all cached
-  - Query by ticker, verify results
-
-- **Test `existsInCache`**:
-  - Verify returns true for cached sentiment
-  - Verify returns false for uncached
-
-Run tests: `cd backend && npm test -- repositories/sentimentCache.repository`
+Manual testing:
+1. Start app: `npm run web`
+2. Verify loading screen has dark background
+3. Verify status bar has light text (if visible)
+4. Navigate through app and confirm dark theme everywhere
 
 **Commit Message Template:**
 ```
-feat(repository): create SentimentCache repository for sentiment results
+style(theme): apply dark theme globally in root layout
 
-- Implement CRUD operations for sentiment caching
-- Auto-calculate TTL (90 days) for long-term caching
-- Add batch put for efficient multi-article sentiment storage
-- Add existsInCache for duplicate detection
-- Query by ticker to retrieve all cached sentiments
-- Comprehensive unit tests with full coverage
-
-Task: Phase 1, Task 1.7
+- Verify PaperProvider uses dark theme
+- Update StatusBar to light style
+- Set loading container to dark background
 ```
 
-**Estimated tokens:** ~4,000
+**Estimated Tokens:** ~5,000
 
 ---
 
-### Task 1.8: Create SentimentJobs Repository
+### Task 8: Update Common Components for Dark Theme
 
-**Goal:** Implement repository for SentimentJobs table to track async sentiment processing jobs.
+**Goal:** Audit and update existing common components to work properly with dark theme
 
-**Files to Create:**
-- `backend/src/repositories/sentimentJobs.repository.ts` - Job tracking operations
-- `backend/src/repositories/__tests__/sentimentJobs.repository.test.ts` - Unit tests
+**Files to Modify/Create:**
+- `src/components/common/LoadingIndicator.tsx` - Update spinner color
+- `src/components/common/ErrorDisplay.tsx` - Update text colors
+- `src/components/common/EmptyState.tsx` - Update icon and text colors
+- `src/components/common/OfflineIndicator.tsx` - Update banner colors
 
 **Prerequisites:**
-- Task 1.7 complete
-- Review Phase-0.md ADR-2 for job status workflow
+- Task 7 complete
+- All common components should use useTheme() hook
 
 **Implementation Steps:**
+1. Read each common component file
+2. Replace any hardcoded colors with theme colors via useTheme()
+3. Ensure text uses theme.colors.onSurface or appropriate contrast color
+4. Update ActivityIndicator color to theme.colors.primary
+5. Verify icons use theme colors
+6. Test each component renders correctly on dark background
 
-1. **Define TypeScript interfaces**:
-   - `SentimentJob` with properties: `jobId`, `status`, `ticker`, `startDate`, `endDate`, `startedAt`, `completedAt`, `articlesProcessed`, `error`, `ttl`
-   - `JobStatus` type: `'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'`
+**Specific Updates Needed:**
 
-2. **Create repository with methods**:
-   - `getJob(jobId: string): Promise<SentimentJob | null>`
-   - `createJob(job: Omit<SentimentJob, 'ttl'>): Promise<void>` - Auto-calculate TTL (24 hours)
-   - `updateJobStatus(jobId: string, status: JobStatus, updates?: Partial<SentimentJob>): Promise<void>` - Use `buildUpdateExpression` utility
-   - `markJobCompleted(jobId: string, articlesProcessed: number): Promise<void>` - Helper method
-   - `markJobFailed(jobId: string, error: string): Promise<void>` - Helper method
+**LoadingIndicator:**
+- ActivityIndicator color should use `theme.colors.primary`
+- Text should use `theme.colors.onBackground`
 
-3. **Job lifecycle management**:
-   - `createJob` sets status to `PENDING`, generates TTL for 24 hours
-   - `updateJobStatus` uses DynamoDB UpdateItem for atomic updates
-   - Helper methods (`markJobCompleted`, `markJobFailed`) wrap `updateJobStatus`
+**ErrorDisplay:**
+- Error icon color should use `theme.colors.error`
+- Text should use `theme.colors.onSurface`
+- Retry button should use theme colors
 
-4. **Add idempotency**:
-   - Check if job exists before creating
-   - Return existing job if already COMPLETED (prevent duplicate processing)
+**EmptyState:**
+- Icon color should use `theme.colors.onSurfaceVariant`
+- Text should use `theme.colors.onSurface`
+
+**OfflineIndicator:**
+- Banner background should use `theme.colors.errorContainer`
+- Text should use `theme.colors.onErrorContainer`
 
 **Verification Checklist:**
-- [ ] TTL set to 24 hours (jobs are short-lived)
-- [ ] `updateJobStatus` uses atomic UpdateItem (not GetItem + PutItem)
-- [ ] Helper methods provide clean API for common status transitions
-- [ ] Idempotency handled for duplicate job creation
-- [ ] Job lifecycle follows PENDING â†’ IN_PROGRESS â†’ COMPLETED/FAILED
+- [ ] No hardcoded color values (search for #FFFFFF, #000000, etc.)
+- [ ] All components use useTheme() hook
+- [ ] Text is readable on dark backgrounds
+- [ ] Icons are visible
+- [ ] Components tested manually in dark theme
 
 **Testing Instructions:**
+Update existing component tests to render with dark theme:
 
-Create unit tests:
-
-- **Test job creation**:
-  - Create job, verify status is PENDING
-  - Verify TTL is ~24 hours from now
-  - Create duplicate job, verify idempotent behavior
-
-- **Test status updates**:
-  - Create job, update to IN_PROGRESS, verify status changed
-  - Mark completed, verify completedAt timestamp set
-  - Mark failed, verify error message stored
-
-- **Test helpers**:
-  - `markJobCompleted` sets status to COMPLETED and articlesProcessed
-  - `markJobFailed` sets status to FAILED and error message
-
-Run tests: `cd backend && npm test -- repositories/sentimentJobs.repository`
+```typescript
+// Example for LoadingIndicator test
+describe('LoadingIndicator', () => {
+  it('uses theme primary color for spinner', () => {
+    const { UNSAFE_getByType } = render(<LoadingIndicator />, {
+      wrapper: ({ children }) => (
+        <PaperProvider theme={theme}>
+          {children}
+        </PaperProvider>
+      )
+    });
+    const spinner = UNSAFE_getByType('ActivityIndicator');
+    expect(spinner.props.color).toBe(theme.colors.primary);
+  });
+});
+```
 
 **Commit Message Template:**
 ```
-feat(repository): create SentimentJobs repository for async job tracking
+style(components): update common components for dark theme
 
-- Implement job lifecycle management (PENDING â†’ IN_PROGRESS â†’ COMPLETED/FAILED)
-- Add atomic status updates using DynamoDB UpdateItem
-- Create helper methods for common transitions (markJobCompleted, markJobFailed)
-- Auto-calculate TTL (24 hours) for job cleanup
-- Implement idempotency for duplicate job creation
-- Comprehensive unit tests covering all job states
-
-Task: Phase 1, Task 1.8
+- Replace hardcoded colors with theme colors
+- Ensure text contrast on dark backgrounds
+- Update spinner and icon colors
+- Verify all components use useTheme() hook
 ```
 
-**Estimated tokens:** ~4,500
+**Estimated Tokens:** ~15,000
 
 ---
 
-### Task 1.9: Create Repository Barrel Export
+### Task 9: Create Number Formatting Utilities
 
-**Goal:** Create a single entry point for importing all repositories, simplifying imports in Lambda handlers.
+**Goal:** Build utility functions for consistent financial number formatting
 
-**Files to Create:**
-- `backend/src/repositories/index.ts` - Barrel export file
+**Files to Modify/Create:**
+- `src/utils/formatting/numberFormatting.ts` - NEW utility file
+- `src/utils/formatting/index.ts` - NEW index export
 
 **Prerequisites:**
-- Tasks 1.5-1.8 complete (all repositories created)
+- Task 5 complete (MonoText component ready to use formatted numbers)
+- Understand Pitfall 2 (Inconsistent Number Formatting) from Phase 0
 
 **Implementation Steps:**
+1. Create `src/utils/formatting/` directory
+2. Create `numberFormatting.ts` with formatting functions
+3. Implement formatters for: price, percentage, volume, large numbers
+4. Add optional parameters for decimal places
+5. Handle edge cases (null, undefined, negative numbers)
+6. Create index.ts to export utilities
 
-1. **Create `index.ts`** that exports all repositories:
-   ```typescript
-   export * from './stocksCache.repository';
-   export * from './newsCache.repository';
-   export * from './sentimentCache.repository';
-   export * from './sentimentJobs.repository';
-   ```
+**Functions to Implement:**
 
-2. **Verify imports work** from other files:
-   - Test import: `import { StocksCacheRepository } from '@/repositories';`
-   - Ensure TypeScript path alias `@/*` maps to `src/*` in `tsconfig.json`
+```typescript
+export function formatPrice(price: number | null | undefined, decimals = 2): string
+export function formatPercentage(percent: number | null | undefined, decimals = 2): string
+export function formatVolume(volume: number | null | undefined): string
+export function formatLargeNumber(num: number | null | undefined): string
+```
+
+**Examples:**
+- `formatPrice(123.456)` ’ `"$123.46"`
+- `formatPercentage(5.234)` ’ `"+5.23%"`
+- `formatPercentage(-3.1)` ’ `"-3.10%"`
+- `formatVolume(1234567)` ’ `"1.23M"`
+- `formatLargeNumber(1000000)` ’ `"1.00M"`
+
+**Implementation Guidance:**
+- Handle null/undefined by returning '-' or 'N/A'
+- Always show sign (+/-) for percentages
+- Use K/M/B suffixes for large numbers
+- Keep consistent decimal places
 
 **Verification Checklist:**
-- [ ] All repositories exported from barrel file
-- [ ] Imports work from other files using barrel export
-- [ ] No circular dependencies introduced
+- [ ] All four formatters implemented
+- [ ] Edge cases handled (null, undefined, 0, negative)
+- [ ] Sign prefix added to percentages
+- [ ] Large numbers abbreviated with K/M/B
+- [ ] Exported from formatting/index.ts
 
 **Testing Instructions:**
-- Create test file that imports all repositories via barrel
-- Run TypeScript compiler: `cd backend && npx tsc --noEmit`
-- Verify no compilation errors
+```typescript
+// src/utils/formatting/__tests__/numberFormatting.test.ts
+import {
+  formatPrice,
+  formatPercentage,
+  formatVolume,
+  formatLargeNumber
+} from '../numberFormatting';
+
+describe('Number Formatting Utilities', () => {
+  describe('formatPrice', () => {
+    it('formats positive price with $ and 2 decimals', () => {
+      expect(formatPrice(123.456)).toBe('$123.46');
+    });
+
+    it('handles null/undefined', () => {
+      expect(formatPrice(null)).toBe('N/A');
+      expect(formatPrice(undefined)).toBe('N/A');
+    });
+
+    it('formats zero correctly', () => {
+      expect(formatPrice(0)).toBe('$0.00');
+    });
+  });
+
+  describe('formatPercentage', () => {
+    it('formats positive percentage with + prefix', () => {
+      expect(formatPercentage(5.234)).toBe('+5.23%');
+    });
+
+    it('formats negative percentage with - prefix', () => {
+      expect(formatPercentage(-3.1)).toBe('-3.10%');
+    });
+
+    it('handles zero', () => {
+      expect(formatPercentage(0)).toBe('+0.00%');
+    });
+  });
+
+  describe('formatVolume', () => {
+    it('abbreviates millions', () => {
+      expect(formatVolume(1234567)).toBe('1.23M');
+    });
+
+    it('abbreviates thousands', () => {
+      expect(formatVolume(12345)).toBe('12.35K');
+    });
+
+    it('handles small numbers', () => {
+      expect(formatVolume(123)).toBe('123');
+    });
+  });
+
+  describe('formatLargeNumber', () => {
+    it('abbreviates billions', () => {
+      expect(formatLargeNumber(1234567890)).toBe('1.23B');
+    });
+
+    it('abbreviates millions', () => {
+      expect(formatLargeNumber(1234567)).toBe('1.23M');
+    });
+  });
+});
+```
 
 **Commit Message Template:**
 ```
-feat(repository): create barrel export for all repositories
+feat(utils): add financial number formatting utilities
 
-- Export all repository modules from single entry point
-- Simplify imports in Lambda handlers
-- Verify no circular dependencies
-
-Task: Phase 1, Task 1.9
+- Add formatPrice with $ prefix and 2 decimals
+- Add formatPercentage with +/- prefix
+- Add formatVolume with K/M/B abbreviations
+- Add formatLargeNumber for compact display
+- Include comprehensive test coverage
 ```
 
-**Estimated tokens:** ~1,000
+**Estimated Tokens:** ~12,000
+
+---
+
+### Task 10: Update Existing Components to Use MonoText
+
+**Goal:** Replace numeric displays in portfolio and search with MonoText component
+
+**Files to Modify/Create:**
+- `src/components/portfolio/PortfolioItem.tsx` - Update price display
+- `src/components/stock/PriceListItem.tsx` - Update price display
+- `src/components/stock/StockMetadataCard.tsx` - Update numeric fields
+
+**Prerequisites:**
+- Tasks 5 and 9 complete (MonoText and formatting utilities available)
+
+**Implementation Steps:**
+1. Read each component file to identify numeric displays
+2. Import MonoText and formatting utilities
+3. Replace Text components containing numbers with MonoText
+4. Apply formatting utilities to raw numbers
+5. Set positive/negative props based on data (e.g., change > 0)
+6. Verify layout doesn't break with new component
+
+**Example Transformation:**
+```typescript
+// Before
+<Text>${price}</Text>
+<Text>{change}%</Text>
+
+// After
+import { MonoText } from '@/components/common';
+import { formatPrice, formatPercentage } from '@/utils/formatting';
+
+<MonoText variant="price">
+  {formatPrice(price)}
+</MonoText>
+<MonoText variant="percentage" positive={change > 0} negative={change < 0}>
+  {formatPercentage(change)}
+</MonoText>
+```
+
+**Verification Checklist:**
+- [ ] All numeric displays use MonoText
+- [ ] Formatting utilities applied consistently
+- [ ] Positive/negative colors show correctly
+- [ ] Layout unchanged (no spacing issues)
+- [ ] Snapshot tests updated if needed
+
+**Testing Instructions:**
+Update component tests to verify MonoText usage:
+
+```typescript
+describe('PortfolioItem', () => {
+  it('displays price with monospaced font', () => {
+    const { getByText } = render(<PortfolioItem item={mockItem} />);
+    const price = getByText(/\$123\.45/);
+    expect(price.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fontFamily: expect.stringMatching(/mono/i) })
+      ])
+    );
+  });
+
+  it('shows positive change in green', () => {
+    const item = { ...mockItem, change: 5.2 };
+    const { getByText } = render(<PortfolioItem item={item} />);
+    const change = getByText(/\+5\.20%/);
+    expect(change.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ color: theme.colors.positive })
+      ])
+    );
+  });
+});
+```
+
+**Commit Message Template:**
+```
+refactor(components): use MonoText for all financial numbers
+
+- Update PortfolioItem to use MonoText for price/change
+- Update PriceListItem to use MonoText
+- Update StockMetadataCard numeric fields
+- Apply formatting utilities consistently
+- Ensure positive/negative colors applied
+```
+
+**Estimated Tokens:** ~16,000
 
 ---
 
 ## Phase Verification
 
-After completing all tasks, verify the entire phase:
+Before proceeding to Phase 2, verify all tasks complete:
 
-**Infrastructure Validation:**
-- [ ] Run `sam build` in `backend/` without errors
-- [ ] Run `sam validate` without errors
-- [ ] All 4 DynamoDB tables exist in AWS Console
-- [ ] TTL enabled on all tables (check "Time to Live" tab)
-- [ ] Lambda IAM role has DynamoDB policy attached
+### Automated Verification
 
-**Code Validation:**
-- [ ] All repository tests pass: `cd backend && npm test -- repositories`
-- [ ] All utility tests pass: `cd backend && npm test -- utils`
-- [ ] TypeScript compiles without errors: `cd backend && npx tsc --noEmit`
-- [ ] ESLint passes: `cd backend && npm run lint`
+Run all tests:
+```bash
+npm test
+npm run type-check
+```
 
-**Integration Test (Manual):**
-1. Import a repository in Lambda handler
-2. Deploy Lambda
-3. Invoke Lambda and write to DynamoDB
-4. Verify item appears in DynamoDB Console
+All tests should pass with no TypeScript errors.
 
-**Known Limitations:**
-- Tables are empty (no data yet) - will populate in Phase 2
-- Lambda handlers don't use repositories yet - will integrate in Phase 2
-- No frontend integration - will add in Phase 4
+### Visual Verification
+
+Start the app in web mode:
+```bash
+npm run web
+```
+
+**Checklist:**
+- [ ] App displays with dark theme (#121212 background visible)
+- [ ] Text is readable (white/light gray on dark background)
+- [ ] Loading screen has dark background
+- [ ] Portfolio screen shows dark theme
+- [ ] Numeric data uses monospaced font (visually distinct from other text)
+- [ ] Green color used for positive changes
+- [ ] Red color used for negative changes
+- [ ] No visual regressions (layout still intact)
+
+### Manual Testing Flows
+
+1. **Navigate through app:**
+   - Search screen ’ dark background 
+   - Portfolio screen ’ dark cards 
+   - Stock detail ’ dark theme 
+   - News tab ’ dark theme 
+
+2. **Check numbers:**
+   - Portfolio prices ’ monospaced 
+   - Percentage changes ’ monospaced with colors 
+   - Stock detail prices ’ monospaced 
+
+3. **Loading states:**
+   - Initial app load ’ dark loading screen 
+   - Data loading ’ verify no white flashes 
+
+### Known Issues / Technical Debt
+
+Document any issues encountered:
+
+- _List any workarounds or temporary solutions_
+- _Note any components not yet updated (will be addressed in Phase 2)_
+- _Performance concerns if any_
 
 ---
 
-## Next Steps
+## Integration Points
 
-âœ… **Phase 1 Complete!** You now have:
-- 4 DynamoDB tables deployed
-- IAM permissions configured
-- Repository pattern for all cache operations
-- Shared utilities for common tasks
-- Comprehensive unit tests
+Phase 1 provides the foundation for:
 
-**Proceed to Phase 2:** Implement Lambda caching layer for stocks and news endpoints.
+- **Phase 2**: List views will use MonoText and dark theme colors
+- **Phase 3**: Charts will use theme colors for consistency
+- **Phase 4**: Skeleton component will be used extensively
+- **Phase 5**: Web optimizations will build on dark theme
 
-â†’ **[Phase 2: Lambda Caching Layer](./Phase-2.md)**
+**Critical Exports from Phase 1:**
+- `MonoText` component for all numeric displays
+- `Skeleton` component for loading states
+- Number formatting utilities
+- Dark theme applied globally
+
+---
+
+**Phase 1 Complete!**
+
+Verify all tasks complete and tests pass before proceeding to **[Phase 2: List Views Modernization](./Phase-2.md)**.

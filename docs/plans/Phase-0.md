@@ -1,649 +1,722 @@
-# Phase 0: Foundation - Architecture & Design Decisions
+# Phase 0: Foundation
 
-## Overview
+**Status:** Reference Document (applies to all phases)
 
-This phase establishes architectural decisions, design patterns, and technical standards that apply across all implementation phases. These decisions inform how DynamoDB tables are structured, how Lambda functions interact with the cache, and how the frontend handles async sentiment loading.
-
-**This is a reference document** - you won't write code in this phase, but you'll refer back to these decisions throughout Phases 1-5.
+This phase documents architecture decisions, design patterns, and shared conventions that apply across all implementation phases. Read this completely before starting any implementation work.
 
 ---
 
 ## Architecture Decision Records (ADRs)
 
-### ADR-1: DynamoDB as Shared Cache, SQLite as Local Source of Truth
+### ADR-001: Dark Theme Implementation Strategy
 
-**Decision:** Use DynamoDB as a shared cache layer while maintaining SQLite/localStorage as the local source of truth.
-
-**Context:**
-- Current architecture: SQLite (native) / localStorage (web) as only data store
-- Problem: Each user computes identical sentiment analysis for same articles
-- Need: Share expensive computations across users while preserving offline capabilities
+**Decision:** Extend React Native Paper's MD3DarkTheme instead of building custom theme from scratch
 
 **Rationale:**
-- **Offline-first preserved**: Local DB remains functional without network
-- **Shared cache**: DynamoDB prevents redundant API calls and sentiment computation
-- **Platform compatibility**: Works across iOS, Android, Web without platform-specific code
-- **Cost-effective**: DynamoDB on-demand pricing scales with actual usage
+- React Native Paper already installed and used throughout the app
+- MD3DarkTheme provides Material Design 3 dark mode best practices (#121212 background)
+- Cross-platform compatibility maintained (iOS, Android, Web)
+- Customization points well-documented and type-safe
+- Reduces implementation time and maintenance burden
 
-**Consequences:**
-- **Positive**: 90%+ reduction in API calls for popular stocks, faster load times
-- **Negative**: Increased complexity (two data sources), potential sync issues
-- **Mitigation**: Clear cache invalidation strategy, local DB is authoritative for user data
+**Alternatives Considered:**
+- Custom theme system: Too much work, breaks cross-platform consistency
+- Styled-components/Emotion: Would require rewriting all components
+- NativeWind/Tailwind: Doesn't integrate well with React Native Paper
 
-**Implementation Pattern:**
-```typescript
-// Three-tier lookup pattern
-async function getData(ticker: string): Promise<Data> {
-  // Tier 1: Local DB (fastest, always check first)
-  const localData = await LocalRepository.findByTicker(ticker);
-  if (localData && isFresh(localData)) return localData;
-
-  // Tier 2: DynamoDB cache (shared across users)
-  const cachedData = await DynamoRepository.getFromCache(ticker);
-  if (cachedData) {
-    await LocalRepository.upsert(cachedData); // Hydrate local DB
-    return cachedData;
-  }
-
-  // Tier 3: Compute/Fetch (expensive, cache result)
-  const freshData = await fetchFromAPI(ticker);
-  await DynamoRepository.putInCache(ticker, freshData); // Cache for other users
-  await LocalRepository.upsert(freshData); // Store locally
-  return freshData;
-}
-```
+**Implications:**
+- Continue using `useTheme()` hook from React Native Paper
+- Theme colors accessible via `theme.colors.*`
+- Custom additions via `theme.custom.*` property
+- Type augmentation needed for custom color properties
 
 ---
 
-### ADR-2: Async Sentiment Processing with Job Tracking
+### ADR-002: Typography System - Monospaced Numbers
 
-**Decision:** Process sentiment analysis asynchronously in Lambda with job status tracking in DynamoDB.
-
-**Context:**
-- Current: Sequential sentiment processing blocks UI for 45+ seconds
-- Need: Return prices/news immediately, process sentiment in background
-- Constraint: Lambda max timeout is 15 minutes (not 30s as previously thought)
-
-**Rationale:**
-- **Non-blocking**: Frontend gets prices/news instantly, sentiment loads progressively
-- **User experience**: Show spinner on sentiment tab, other tabs fully functional
-- **Scalability**: Lambda auto-scales for multiple users processing sentiment concurrently
-- **Idempotent**: Job tracking prevents duplicate sentiment computation for same ticker+date
-
-**Job Status States:**
-```
-PENDING → IN_PROGRESS → COMPLETED
-                      ↘ FAILED
-```
-
-**Implementation Pattern:**
-```typescript
-// Lambda: POST /sentiment endpoint
-async function processSentiment(ticker: string, dateRange: string) {
-  const jobId = generateJobId(ticker, dateRange);
-
-  // Check if job already exists
-  const existingJob = await JobRepository.getJob(jobId);
-  if (existingJob?.status === 'COMPLETED') {
-    return { jobId, status: 'COMPLETED', cached: true };
-  }
-
-  // Create/update job status
-  await JobRepository.updateJob(jobId, { status: 'IN_PROGRESS', startedAt: Date.now() });
-
-  try {
-    // Fetch news articles (from cache or API)
-    const articles = await getNewsArticles(ticker, dateRange);
-
-    // Analyze sentiment for each article
-    const sentimentResults = await analyzeSentimentBatch(articles);
-
-    // Store in DynamoDB sentiment cache
-    await SentimentRepository.batchPut(ticker, sentimentResults);
-
-    // Mark job complete
-    await JobRepository.updateJob(jobId, {
-      status: 'COMPLETED',
-      completedAt: Date.now(),
-      articlesProcessed: articles.length
-    });
-
-    return { jobId, status: 'COMPLETED', cached: false };
-  } catch (error) {
-    await JobRepository.updateJob(jobId, { status: 'FAILED', error: error.message });
-    throw error;
-  }
-}
-
-// Frontend: Poll for job completion
-async function pollSentimentJob(jobId: string, maxAttempts = 60) {
-  for (let i = 0; i < maxAttempts; i++) {
-    const job = await fetch(`/sentiment/job/${jobId}`);
-    if (job.status === 'COMPLETED') {
-      // Fetch sentiment from DynamoDB and hydrate local DB
-      const sentiment = await fetchSentimentResults(jobId);
-      await LocalRepository.upsert(sentiment);
-      return sentiment;
-    }
-    if (job.status === 'FAILED') throw new Error(job.error);
-
-    await sleep(2000); // Poll every 2 seconds
-  }
-  throw new Error('Job timeout after 120 seconds');
-}
-```
-
----
-
-### ADR-3: DynamoDB Table Design - Single-Table vs Multi-Table
-
-**Decision:** Use **three separate tables** (StocksCache, NewsCache, SentimentCache) instead of single-table design.
-
-**Context:**
-- DynamoDB best practice often recommends single-table design for access patterns
-- Our use case: Simple key-value lookups by ticker + date
-- Team familiarity: Multi-table is more intuitive for developers unfamiliar with single-table
-
-**Rationale:**
-- **Simplicity**: Each table has obvious purpose, easier to reason about
-- **Access patterns**: We only query by ticker+date (no complex joins or GSIs needed)
-- **Cost**: No difference in cost for our access patterns
-- **Evolution**: Easier to add indexes or modify schema per table independently
-
-**Table Schemas:**
-
-**StocksCache Table:**
-```
-PK: ticker (String) - e.g., "AAPL"
-SK: date (String) - e.g., "2025-01-15"
-Attributes:
-  - priceData (Map) - OHLCV data
-  - metadata (Map) - Company info
-  - ttl (Number) - Expire after 7 days
-  - fetchedAt (Number) - Timestamp
-```
-
-**NewsCache Table:**
-```
-PK: ticker (String) - e.g., "AAPL"
-SK: articleHash (String) - e.g., "hash_12345"
-Attributes:
-  - article (Map) - Title, URL, description, date
-  - ttl (Number) - Expire after 30 days
-  - fetchedAt (Number) - Timestamp
-```
-
-**SentimentCache Table:**
-```
-PK: ticker (String) - e.g., "AAPL"
-SK: articleHash (String) - e.g., "hash_12345"
-Attributes:
-  - sentiment (Map) - Positive/negative counts, sentiment score
-  - analyzedAt (Number) - Timestamp
-  - ttl (Number) - Expire after 90 days (sentiment is timeless)
-```
-
-**SentimentJobs Table:**
-```
-PK: jobId (String) - e.g., "AAPL_2025-01-01_2025-01-30"
-Attributes:
-  - status (String) - PENDING | IN_PROGRESS | COMPLETED | FAILED
-  - ticker (String)
-  - startDate (String)
-  - endDate (String)
-  - startedAt (Number)
-  - completedAt (Number)
-  - articlesProcessed (Number)
-  - error (String)
-  - ttl (Number) - Expire after 24 hours
-```
-
-**Consequences:**
-- **Positive**: Clear separation of concerns, easy to understand
-- **Negative**: 4 tables instead of 1 (but no cost difference for our patterns)
-- **Mitigation**: Use SAM template to define all tables in one place
-
----
-
-### ADR-4: TTL Strategy for Cost Management
-
-**Decision:** Use DynamoDB TTL to auto-delete stale cached data.
-
-**Context:**
-- DynamoDB charges for storage (first 25GB free, then $0.25/GB)
-- Sentiment analysis results are timeless (won't change)
-- Stock prices and news become less relevant over time
-
-**Rationale:**
-- **Cost control**: Auto-delete old data prevents unbounded storage growth
-- **Accuracy**: Old stock prices rarely queried, can re-fetch if needed
-- **DynamoDB native**: TTL is free and automatic (no Lambda needed)
-
-**TTL Values:**
-| Table | TTL Duration | Rationale |
-|-------|--------------|-----------|
-| StocksCache | 7 days | Historical prices rarely change, re-fetch is cheap |
-| NewsCache | 30 days | News articles don't change, but useful for recent context |
-| SentimentCache | 90 days | Sentiment is timeless, keep longer to maximize cache hits |
-| SentimentJobs | 24 hours | Jobs only relevant during processing, cleanup quickly |
+**Decision:** Use platform-specific monospaced fonts for numeric data, sans-serif for labels
 
 **Implementation:**
-- Add `ttl` attribute (Unix timestamp) to all items
-- Enable TTL on each table pointing to `ttl` attribute
-- Calculate TTL on insert: `Date.now() / 1000 + (7 * 24 * 60 * 60)` for 7 days
+```typescript
+// Numbers: Menlo (iOS), Roboto Mono (Android), Monaco (Web)
+// Labels: System default sans-serif
+```
+
+**Rationale:**
+- Financial apps require aligned columns for easy scanning
+- Monospaced fonts prevent layout shift when numbers update
+- Platform-specific fonts ensure native feel and performance
+- No custom font loading reduces bundle size
+
+**Where to Apply:**
+- Stock prices, percentages, volume numbers
+- Portfolio balance, gains/losses
+- Sentiment scores
+- Chart axis labels
+
+**Where NOT to Apply:**
+- Headlines, article titles
+- Company names, ticker symbols
+- Button labels, navigation
+- Descriptive text
 
 ---
 
-### ADR-5: Lambda Sentiment Analysis - Node.js Port vs Python Microservice
+### ADR-003: Information Density - Context-Dependent
 
-**Decision:** Port sentiment analysis to Node.js and run in Lambda (not call Python microservice).
+**Decision:** Implement dense layouts for list views, spacious layouts for detail screens
 
-**Context:**
-- Current: Browser-based JavaScript sentiment analyzer (rule-based, AFINN lexicon)
-- Alternative 1: Call existing Python microservice from Lambda
-- Alternative 2: Port JavaScript analyzer to run in Lambda
+**Dense Layouts (Portfolio, Search, News Lists):**
+- Compact card spacing (4-8px margins)
+- Two-line maximum per item
+- Small font sizes (12-14px)
+- Mini charts (sparklines)
+- Show 8-12 items per screen
+
+**Spacious Layouts (Stock Detail Screen):**
+- Generous padding (16-24px)
+- Large, readable charts
+- Clear visual hierarchy
+- Focus on single stock's data
+- Ample touch targets (44px minimum)
 
 **Rationale:**
-- **Performance**: Node.js analyzer is <100ms per article (already ported to browser)
-- **Cost**: No external HTTP calls, no microservice cold starts
-- **Simplicity**: Single Lambda function, no network dependencies
-- **Existing code**: `src/ml/sentiment/analyzer.ts` already implements algorithm
-
-**Implementation:**
-- Copy `src/ml/sentiment/analyzer.ts` to `backend/src/ml/sentiment/`
-- Adjust imports (remove React Native dependencies)
-- Use in Lambda handler directly
-- No external API calls needed
-
-**Trade-offs:**
-- **Accuracy**: Rule-based (not FinBERT neural net), but current app already uses this
-- **Consistency**: Frontend and backend use identical algorithm
-- **Latency**: ~100ms per article × 50 articles = ~5s total (acceptable for async processing)
+- Users scan lists to find stocks of interest (requires density)
+- Users study detail screens to make decisions (requires clarity)
+- Matches Bloomberg (dense lists) + Robinhood (spacious details) patterns
 
 ---
 
-### ADR-6: Frontend Polling vs WebSocket for Sentiment Updates
+### ADR-004: Chart Library - Victory Native
 
-**Decision:** Use **HTTP polling** initially, defer WebSocket to Phase 6 (post-MVP).
-
-**Context:**
-- Sentiment jobs typically complete in 5-15 seconds
-- WebSocket adds complexity (API Gateway WebSocket API, connection management)
-- Polling is simpler and sufficient for infrequent updates
+**Decision:** Use Victory Native for all data visualization
 
 **Rationale:**
-- **Simplicity**: HTTP polling requires no new infrastructure
-- **Good enough**: 2-second poll interval = max 2-second delay after job completes
-- **Cost**: Minimal (10-15 polls = negligible API Gateway cost)
-- **Upgrade path**: Can add WebSocket in Phase 6 without breaking changes
+- Cross-platform (uses react-native-svg, works on web/mobile)
+- Declarative API matches React paradigms
+- Built-in animations and interactions
+- Good documentation and TypeScript support
+- Active maintenance
+
+**Alternatives Considered:**
+- Recharts: Web-only, not cross-platform
+- react-native-chart-kit: Limited customization
+- D3.js: Too low-level, requires custom React wrappers
+
+**Chart Types:**
+- **Price**: VictoryArea with gradient fill
+- **Sentiment**: VictoryLine with background zones (VictoryArea for zones)
+- **Mini charts**: VictoryLine (simplified, no axes)
+
+**Performance Considerations:**
+- Limit data points to 90 days max for performance
+- Use `interpolation="natural"` for smooth curves
+- Implement data sampling for very large datasets
+
+---
+
+### ADR-005: Loading States - Skeleton Screens
+
+**Decision:** Use skeleton screens (placeholder boxes) instead of spinners
 
 **Implementation Pattern:**
 ```typescript
-// Frontend polling (Phase 4)
-async function pollForSentiment(jobId: string): Promise<SentimentData> {
-  const maxAttempts = 60; // 2 minutes timeout
-  const pollInterval = 2000; // 2 seconds
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const response = await fetch(`${API_URL}/sentiment/job/${jobId}`);
-    const job = await response.json();
-
-    if (job.status === 'COMPLETED') {
-      // Fetch results from Lambda
-      const results = await fetch(`${API_URL}/sentiment/${ticker}?startDate=${start}&endDate=${end}`);
-      return results.json();
-    }
-
-    if (job.status === 'FAILED') {
-      throw new Error(`Sentiment analysis failed: ${job.error}`);
-    }
-
-    // Still processing, wait and retry
-    await new Promise(resolve => setTimeout(resolve, pollInterval));
-  }
-
-  throw new Error('Sentiment analysis timeout');
-}
+// Show gray boxes matching final content layout
+// Smooth fade-in when real data loads
+// No shimmer/pulse effects (keep it simple and professional)
 ```
 
-**Future Enhancement (Phase 6):**
-- API Gateway WebSocket API for real-time updates
-- Lambda sends completion message to connected clients
-- Reduces polling overhead for slow sentiment jobs
+**Rationale:**
+- Reduces perceived loading time
+- Users understand layout before data arrives
+- More professional than spinners
+- Bloomberg and modern financial apps use this pattern
+
+**Where to Apply:**
+- Portfolio list while loading
+- Stock detail screen (price, metadata)
+- News feed while fetching articles
+- Search results during API calls
 
 ---
 
-## Technical Standards
+### ADR-006: Animation Timing
 
-### Error Handling Pattern
+**Decision:** Use Material Design motion guidelines
 
-All Lambda functions and repositories use consistent error handling:
+**Standard Durations:**
+- Micro-interactions: 150ms (button press, card tap)
+- Screen transitions: 300ms (navigation, modal open/close)
+- Data updates: 200ms (number changes, chart updates)
+- Skeleton fade-in: 200ms
+
+**Easing:**
+- Enter: `cubic-bezier(0.0, 0.0, 0.2, 1)` - deceleration
+- Exit: `cubic-bezier(0.4, 0.0, 1, 1)` - acceleration
+- Standard: `cubic-bezier(0.4, 0.0, 0.2, 1)` - most transitions
+
+**Performance:**
+- Use `react-native-reanimated` for smooth 60fps animations
+- Avoid animating expensive properties (avoid `width`, prefer `transform: scale`)
+- Run animations on UI thread when possible
+
+---
+
+### ADR-007: Color System - Financial Semantics
+
+**Decision:** Reserve green/red exclusively for financial gains/losses
+
+**Color Usage Rules:**
+```
+Green (#4CAF50): Positive price movement, gains, up arrows
+Red (#F44336): Negative price movement, losses, down arrows
+Blue (#2196F3): Primary actions, links, informational
+Gray (#9E9E9E): Neutral sentiment, disabled states
+Yellow (#FF9800): Warnings (not used for financial data)
+```
+
+**Rationale:**
+- Users associate green=good, red=bad in financial context
+- Consistency with every trading platform globally
+- Accessibility: Don't rely on color alone (add arrows, +/- symbols)
+
+**Avoid:**
+- Using green for success messages in financial context (confusing)
+- Using red for errors when showing losses (redundant, alarming)
+- Inverting colors for design purposes (never show gains in red)
+
+---
+
+## Design Patterns
+
+### Pattern 1: Theme Hook Usage
+
+**Always use the theme hook for colors:**
 
 ```typescript
-// Lambda handler pattern
-export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayResponse> {
-  try {
-    // Validate inputs
-    const { ticker, startDate, endDate } = validateQueryParams(event.queryStringParameters);
+import { useTheme } from 'react-native-paper';
 
-    // Business logic
-    const data = await fetchData(ticker, startDate, endDate);
+function MyComponent() {
+  const theme = useTheme();
 
-    // Success response
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    };
-  } catch (error) {
-    // Log error with context
-    console.error('[HandlerName] Error:', error, {
-      requestId: event.requestContext.requestId,
-      ticker,
-    });
-
-    // Return appropriate error code
-    const statusCode = error instanceof ValidationError ? 400 :
-                       error instanceof NotFoundError ? 404 :
-                       500;
-
-    return {
-      statusCode,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        error: error.message,
-        requestId: event.requestContext.requestId,
-      }),
-    };
-  }
+  return (
+    <View style={{ backgroundColor: theme.colors.background }}>
+      <Text style={{ color: theme.colors.onBackground }}>Text</Text>
+    </View>
+  );
 }
 ```
 
-### Testing Patterns
-
-**Unit Tests** (for repositories and utilities):
+**Never hardcode colors:**
 ```typescript
-describe('StocksCacheRepository', () => {
-  beforeEach(async () => {
-    // Clear test table
-    await clearTable('StocksCache-test');
+// L BAD
+<View style={{ backgroundColor: '#121212' }}>
+
+//  GOOD
+<View style={{ backgroundColor: theme.colors.background }}>
+```
+
+---
+
+### Pattern 2: Monospaced Number Rendering
+
+**Create a reusable MonoText component:**
+
+```typescript
+// src/components/common/MonoText.tsx
+import { Text, TextProps } from 'react-native';
+import { useTheme } from 'react-native-paper';
+
+interface MonoTextProps extends TextProps {
+  variant?: 'price' | 'percentage' | 'volume';
+  positive?: boolean;
+  negative?: boolean;
+}
+
+export function MonoText({
+  variant = 'price',
+  positive,
+  negative,
+  style,
+  ...props
+}: MonoTextProps) {
+  const theme = useTheme();
+
+  // Determine color based on positive/negative
+  const color = positive
+    ? theme.colors.positive
+    : negative
+    ? theme.colors.negative
+    : theme.colors.onSurface;
+
+  return (
+    <Text
+      {...props}
+      style={[
+        {
+          fontFamily: theme.fonts.mono,
+          color,
+        },
+        style
+      ]}
+    />
+  );
+}
+```
+
+**Usage:**
+```typescript
+<MonoText variant="price" positive={change > 0}>
+  ${price.toFixed(2)}
+</MonoText>
+```
+
+---
+
+### Pattern 3: Skeleton Component Pattern
+
+**Create base Skeleton component:**
+
+```typescript
+// src/components/common/Skeleton.tsx
+import { View, ViewProps } from 'react-native';
+import { useTheme } from 'react-native-paper';
+import Animated, { FadeIn } from 'react-native-reanimated';
+
+interface SkeletonProps extends ViewProps {
+  width?: number | string;
+  height?: number | string;
+  borderRadius?: number;
+}
+
+export function Skeleton({
+  width = '100%',
+  height = 20,
+  borderRadius = 4,
+  style,
+  ...props
+}: SkeletonProps) {
+  const theme = useTheme();
+
+  return (
+    <View
+      {...props}
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: theme.colors.surfaceVariant,
+        },
+        style
+      ]}
+    />
+  );
+}
+```
+
+**Usage:**
+```typescript
+// Show skeleton while loading
+{isLoading ? (
+  <Skeleton width="80%" height={24} />
+) : (
+  <Animated.View entering={FadeIn.duration(200)}>
+    <Text>{data.title}</Text>
+  </Animated.View>
+)}
+```
+
+---
+
+### Pattern 4: Responsive Density
+
+**Use hook to determine layout density:**
+
+```typescript
+// src/hooks/useLayoutDensity.ts
+import { useWindowDimensions } from 'react-native';
+
+export function useLayoutDensity() {
+  const { width } = useWindowDimensions();
+
+  // Dense layout for narrower screens, spacious for wider
+  const isDense = width < 768; // tablet breakpoint
+
+  return {
+    isDense,
+    cardSpacing: isDense ? 6 : 12,
+    cardPadding: isDense ? 12 : 16,
+    fontSize: {
+      title: isDense ? 14 : 16,
+      subtitle: isDense ? 12 : 14,
+      caption: isDense ? 10 : 12,
+    }
+  };
+}
+```
+
+**Usage:**
+```typescript
+function PortfolioItem() {
+  const { isDense, cardSpacing, cardPadding } = useLayoutDensity();
+
+  return (
+    <Card style={{ marginVertical: cardSpacing, padding: cardPadding }}>
+      {/* ... */}
+    </Card>
+  );
+}
+```
+
+---
+
+### Pattern 5: Chart Component Structure
+
+**Consistent pattern for all charts:**
+
+```typescript
+import { VictoryArea, VictoryChart, VictoryAxis } from 'victory-native';
+import { useTheme } from 'react-native-paper';
+
+interface PriceChartProps {
+  data: Array<{ x: Date; y: number }>;
+  positive?: boolean; // determines gradient color
+}
+
+export function PriceChart({ data, positive }: PriceChartProps) {
+  const theme = useTheme();
+
+  return (
+    <VictoryChart /* ... */>
+      <VictoryAxis /* styling with theme colors */ />
+      <VictoryArea
+        data={data}
+        style={{
+          data: {
+            fill: positive ? theme.colors.positive : theme.colors.negative,
+            fillOpacity: 0.2,
+            stroke: positive ? theme.colors.positive : theme.colors.negative,
+            strokeWidth: 2,
+          }
+        }}
+      />
+    </VictoryChart>
+  );
+}
+```
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+
+**Every new component must have:**
+1. Snapshot test (basic render)
+2. Prop variation tests
+3. Interaction tests (button press, etc.)
+4. Theme integration test (renders with dark theme)
+
+**Example:**
+```typescript
+describe('MonoText', () => {
+  it('renders with monospaced font', () => {
+    const { getByText } = render(<MonoText>$123.45</MonoText>);
+    expect(getByText('$123.45')).toHaveStyle({ fontFamily: expect.stringContaining('Mono') });
   });
 
-  it('should cache stock data and retrieve by ticker+date', async () => {
-    const testData = {
-      ticker: 'AAPL',
-      date: '2025-01-15',
-      priceData: { open: 150, close: 155, high: 156, low: 149, volume: 1000000 },
-    };
-
-    await StocksCacheRepository.putStock(testData);
-
-    const retrieved = await StocksCacheRepository.getStock('AAPL', '2025-01-15');
-    expect(retrieved).toEqual(testData);
-  });
-
-  it('should return null for cache miss', async () => {
-    const retrieved = await StocksCacheRepository.getStock('NOTFOUND', '2025-01-15');
-    expect(retrieved).toBeNull();
+  it('applies positive color when positive prop is true', () => {
+    const { getByText } = render(<MonoText positive>+5.2%</MonoText>);
+    // Assert color matches theme.colors.positive
   });
 });
 ```
 
-**Integration Tests** (for Lambda endpoints):
-```typescript
-describe('GET /stocks with DynamoDB caching', () => {
-  it('should return cached data on second request', async () => {
-    // First request - cache miss
-    const response1 = await callLambda({ ticker: 'AAPL', startDate: '2025-01-01', endDate: '2025-01-30' });
-    expect(response1.statusCode).toBe(200);
-    expect(response1.body.cached).toBe(false);
+### Visual Regression Tests
 
-    // Second request - cache hit
-    const response2 = await callLambda({ ticker: 'AAPL', startDate: '2025-01-01', endDate: '2025-01-30' });
-    expect(response2.statusCode).toBe(200);
-    expect(response2.body.cached).toBe(true);
-    expect(response2.body.data).toEqual(response1.body.data);
+**Critical screens to snapshot:**
+- Portfolio list (dense layout)
+- Stock detail (spacious layout)
+- News feed (dense cards)
+- Charts (price and sentiment)
+
+**Use React Native Testing Library:**
+```typescript
+import { render } from '@testing-library/react-native';
+
+it('matches snapshot for dark theme', () => {
+  const { toJSON } = render(<PortfolioScreen />, {
+    wrapper: ({ children }) => (
+      <PaperProvider theme={darkTheme}>
+        {children}
+      </PaperProvider>
+    )
   });
+  expect(toJSON()).toMatchSnapshot();
 });
 ```
 
-### Commit Message Format
+### Integration Tests
 
-Use conventional commits throughout all phases:
-
-```
-type(scope): brief description
-
-- Detailed change 1
-- Detailed change 2
-- Reference to issue/task if applicable
-```
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `refactor`: Code restructuring without behavior change
-- `test`: Adding or updating tests
-- `docs`: Documentation changes
-- `chore`: Build, config, or tooling changes
-
-**Scopes:**
-- `dynamodb`: DynamoDB table or repository changes
-- `lambda`: Lambda function changes
-- `frontend`: React Native/Expo changes
-- `api`: API endpoint changes
-- `cache`: Caching logic changes
-
-**Examples:**
-```
-feat(dynamodb): add StocksCache table with TTL support
-
-- Define table schema in template.yaml
-- Add PK (ticker) and SK (date) attributes
-- Configure TTL on `ttl` attribute for 7-day expiration
-- Add GSI for date-based queries
-
-Task: Phase 1, Task 1.1
-```
-
-```
-feat(lambda): implement async sentiment processing endpoint
-
-- Add POST /sentiment endpoint to trigger analysis
-- Create SentimentJobs table for job tracking
-- Implement job status polling GET /sentiment/job/:jobId
-- Add sentiment batch analysis using ported analyzer.ts
-
-Task: Phase 3, Task 3.2
-```
+**Key flows to test:**
+1. Portfolio list � Stock detail navigation
+2. Search � Add to portfolio
+3. Chart data loading and rendering
+4. Skeleton � Real data transition
 
 ---
 
 ## Common Pitfalls to Avoid
 
-### DynamoDB Pitfalls
+### Pitfall 1: Hardcoding Dark Theme Colors
 
-**❌ Don't: Query without consistent read**
+**L Wrong:**
 ```typescript
-// Wrong: Eventually consistent read (may return stale data)
-const result = await dynamodb.query({ TableName, KeyConditionExpression });
+<View style={{ backgroundColor: '#1e1e1e' }} />
 ```
 
-**✅ Do: Use ConsistentRead for critical data**
+** Correct:**
 ```typescript
-// Correct: Strongly consistent read
-const result = await dynamodb.query({
-  TableName,
-  KeyConditionExpression,
-  ConsistentRead: true, // Add this for fresh data
-});
+const theme = useTheme();
+<View style={{ backgroundColor: theme.colors.surface }} />
 ```
 
-**❌ Don't: Forget to handle DynamoDB-specific errors**
+**Why:** Theme colors might change, and hardcoding breaks maintainability.
+
+---
+
+### Pitfall 2: Inconsistent Number Formatting
+
+**L Wrong:**
 ```typescript
-// Wrong: Generic catch
-try {
-  await dynamodb.putItem(params);
-} catch (error) {
-  console.error('Error:', error);
+<Text>${price}</Text> // Shows $123.456789
+<Text>${otherPrice.toFixed(2)}</Text> // Shows $123.45
+```
+
+** Correct:**
+```typescript
+// Create utility function
+export function formatPrice(price: number): string {
+  return `$${price.toFixed(2)}`;
 }
-```
 
-**✅ Do: Handle conditional check failures, provisioned throughput exceeded**
-```typescript
-// Correct: Specific error handling
-try {
-  await dynamodb.putItem(params);
-} catch (error) {
-  if (error.name === 'ConditionalCheckFailedException') {
-    // Item already exists, handle idempotently
-  } else if (error.name === 'ProvisionedThroughputExceededException') {
-    // Retry with exponential backoff
-  } else {
-    throw error;
-  }
-}
-```
-
-### Lambda Pitfalls
-
-**❌ Don't: Reuse DynamoDB client without proper initialization**
-```typescript
-// Wrong: Client may not be initialized
-const dynamodb = new DynamoDBClient();
-
-export async function handler(event) {
-  const result = await dynamodb.send(new GetItemCommand(params)); // May fail
-}
-```
-
-**✅ Do: Initialize client outside handler for reuse across invocations**
-```typescript
-// Correct: Client initialized once, reused across warm starts
-const dynamodb = new DynamoDBClient({ region: process.env.AWS_REGION });
-
-export async function handler(event) {
-  const result = await dynamodb.send(new GetItemCommand(params));
-}
-```
-
-**❌ Don't: Forget to enable CORS for frontend requests**
-```typescript
-// Wrong: No CORS headers
-return {
-  statusCode: 200,
-  body: JSON.stringify(data),
-};
-```
-
-**✅ Do: Include CORS headers in all responses**
-```typescript
-// Correct: CORS headers for frontend access
-return {
-  statusCode: 200,
-  headers: {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*', // Or specific origin
-  },
-  body: JSON.stringify(data),
-};
-```
-
-### Frontend Pitfalls
-
-**❌ Don't: Poll indefinitely without timeout**
-```typescript
-// Wrong: Infinite loop if job never completes
-while (true) {
-  const job = await checkJobStatus(jobId);
-  if (job.status === 'COMPLETED') break;
-  await sleep(2000);
-}
-```
-
-**✅ Do: Set max attempts and timeout**
-```typescript
-// Correct: Timeout after 60 attempts (2 minutes)
-for (let i = 0; i < 60; i++) {
-  const job = await checkJobStatus(jobId);
-  if (job.status === 'COMPLETED') return job;
-  await sleep(2000);
-}
-throw new Error('Job timeout');
-```
-
-**❌ Don't: Show error immediately on cache miss**
-```typescript
-// Wrong: User sees error flash before data loads
-const { data, isLoading, error } = useQuery({
-  queryKey: ['sentiment', ticker],
-  queryFn: () => fetchSentiment(ticker),
-});
-
-if (error) return <ErrorDisplay error={error} />; // Bad UX
-```
-
-**✅ Do: Show loading state while fetching from Lambda**
-```typescript
-// Correct: Show spinner during async fetch
-const { data, isLoading, error } = useQuery({
-  queryKey: ['sentiment', ticker],
-  queryFn: () => fetchSentiment(ticker),
-  retry: 3, // Retry on transient failures
-});
-
-if (isLoading) return <LoadingSpinner message="Analyzing sentiment..." />;
-if (error) return <ErrorDisplay error={error} />;
+<MonoText>{formatPrice(price)}</MonoText>
 ```
 
 ---
 
-## Shared Utilities to Create
+### Pitfall 3: Blocking the Main Thread with Animations
 
-These utilities will be used across multiple phases:
+**L Wrong:**
+```typescript
+// JS thread animation (janky)
+Animated.timing(value, {
+  toValue: 1,
+  duration: 300,
+  useNativeDriver: false, // L
+});
+```
 
-### `backend/src/utils/dynamodb.util.ts`
-- `buildUpdateExpression(updates: Record<string, any>)` - Generate DynamoDB update expressions
-- `batchGetItems(tableName: string, keys: any[])` - Handle batch reads with pagination
-- `batchPutItems(tableName: string, items: any[])` - Handle batch writes (max 25 items)
-- `withRetry(fn: () => Promise<T>, maxRetries: number)` - Exponential backoff retry
+** Correct:**
+```typescript
+// UI thread animation (smooth)
+import Animated, { withTiming } from 'react-native-reanimated';
 
-### `backend/src/utils/cache.util.ts`
-- `calculateTTL(daysFromNow: number)` - Generate Unix timestamp for DynamoDB TTL
-- `isCacheFresh(item: CacheItem, maxAgeMs: number)` - Check if cached item is fresh
-- `generateCacheKey(ticker: string, date: string)` - Consistent key generation
-
-### `backend/src/utils/job.util.ts`
-- `generateJobId(ticker: string, startDate: string, endDate: string)` - Deterministic job ID
-- `parseJobId(jobId: string)` - Extract ticker and date range from job ID
-
-### `src/services/api/lambda.service.ts` (Frontend)
-- `callLambdaEndpoint(path: string, params: Record<string, string>)` - Wrapper for Lambda API calls
-- `pollJobStatus(jobId: string, maxAttempts: number)` - Generic job polling logic
+value.value = withTiming(1, { duration: 300 });
+```
 
 ---
 
-## Performance Benchmarks
+### Pitfall 4: Skeleton Screen Doesn't Match Final Layout
 
-Measure and track these metrics throughout implementation:
+**L Wrong:**
+```typescript
+// Skeleton: 3 boxes
+<Skeleton height={20} />
+<Skeleton height={20} />
+<Skeleton height={20} />
 
-| Metric | Current | Target | Measurement |
-|--------|---------|--------|-------------|
-| Sentiment load time (30 days) | 45s | <3s | Time from search to sentiment tab data displayed |
-| Cache hit rate (popular stocks) | 0% | >90% | DynamoDB reads / total requests |
-| API calls (100 users, same stock) | 100 | <10 | Tiingo/Polygon requests / unique stock |
-| Offline mode functionality | ✅ | ✅ | App works without network after initial sync |
-| Lambda cold start | N/A | <500ms | First invocation after deploy |
-| Lambda warm execution | N/A | <200ms | Cached data retrieval |
+// Real data: Title + subtitle + description (different structure)
+```
+
+** Correct:**
+```typescript
+// Match the exact structure
+{isLoading ? (
+  <>
+    <Skeleton width="80%" height={24} /> {/* Title */}
+    <Skeleton width="60%" height={16} style={{ marginTop: 8 }} /> {/* Subtitle */}
+    <Skeleton width="100%" height={60} style={{ marginTop: 12 }} /> {/* Description */}
+  </>
+) : (
+  <>
+    <Text variant="titleLarge">{data.title}</Text>
+    <Text variant="bodyMedium">{data.subtitle}</Text>
+    <Text variant="bodySmall">{data.description}</Text>
+  </>
+)}
+```
 
 ---
 
-## Next Steps
+### Pitfall 5: Using Victory Native Without Proper Sizing
 
-After reviewing Phase 0:
+**L Wrong:**
+```typescript
+<VictoryChart>
+  {/* No width/height specified, renders tiny or broken */}
+</VictoryChart>
+```
 
-1. **Proceed to Phase 1**: DynamoDB table creation and IAM setup
-2. **Bookmark this file**: Refer back to ADRs when making implementation decisions
-3. **Set up testing tools**: Install DynamoDB Local if developing without AWS connection
+** Correct:**
+```typescript
+import { useWindowDimensions } from 'react-native';
 
-**Ready?** → **[Phase 1: DynamoDB Foundation](./Phase-1.md)**
+function PriceChart() {
+  const { width } = useWindowDimensions();
+
+  return (
+    <VictoryChart
+      width={width - 32} // Account for padding
+      height={200}
+    >
+      {/* ... */}
+    </VictoryChart>
+  );
+}
+```
+
+---
+
+## File Organization
+
+### Theme Files Structure
+
+```
+src/theme/
+     theme.ts          # Main theme export (updated to dark)
+     colors.ts         # Dark color palette
+     typography.ts     # Monospaced fonts + hierarchy
+     index.ts          # Re-exports
+```
+
+### Component Structure
+
+```
+src/components/
+     common/
+        MonoText.tsx       # NEW: Monospaced number component
+        Skeleton.tsx       # NEW: Skeleton loader component
+        ...existing...
+     charts/              # NEW: Chart components
+        PriceChart.tsx
+        SentimentChart.tsx
+        MiniChart.tsx
+     ...existing...
+```
+
+### Hook Organization
+
+```
+src/hooks/
+     useLayoutDensity.ts    # NEW: Context-dependent density
+     useChartData.ts        # NEW: Chart data formatting
+     ...existing...
+```
+
+---
+
+## Commit Message Conventions
+
+Use Conventional Commits format:
+
+```
+type(scope): brief description
+
+- Detail 1
+- Detail 2
+- Detail 3
+```
+
+**Types:**
+- `feat`: New feature (dark theme, chart component)
+- `style`: Visual styling changes (colors, spacing)
+- `refactor`: Code restructuring without behavior change
+- `test`: Adding or updating tests
+- `docs`: Documentation updates
+- `fix`: Bug fixes
+
+**Scopes:**
+- `theme`: Theme system changes
+- `typography`: Font and text styling
+- `charts`: Victory Native chart components
+- `portfolio`: Portfolio screen
+- `search`: Search screen
+- `news`: News feed
+- `stock-detail`: Stock detail screen
+- `skeleton`: Loading states
+
+**Examples:**
+```
+feat(theme): implement dark theme with MD3 colors
+
+- Extend MD3DarkTheme from React Native Paper
+- Add dark color palette (#121212 background)
+- Configure custom colors for gains/losses
+- Add type augmentation for custom theme properties
+```
+
+```
+feat(typography): add monospaced number component
+
+- Create MonoText component with platform-specific fonts
+- Support positive/negative color variants
+- Add formatPrice utility function
+- Update portfolio items to use MonoText
+```
+
+---
+
+## Development Workflow
+
+1. **Read the phase file completely** before writing any code
+2. **Install dependencies** listed in phase prerequisites
+3. **Write tests first** (TDD approach)
+4. **Implement feature** following patterns in Phase 0
+5. **Run tests** and ensure they pass
+6. **Manual testing** in web browser (web-first priority)
+7. **Commit with conventional message**
+8. **Verify task checklist** before moving to next task
+
+---
+
+## Performance Targets
+
+- **First Paint**: <1s (skeleton screens visible)
+- **Interactive**: <2s (buttons respond to touch)
+- **Chart Render**: <500ms (Victory Native chart displays)
+- **List Scroll**: 60fps (no jank on portfolio/news lists)
+- **Animation Smoothness**: 60fps (all transitions)
+
+---
+
+## Browser Support (Web-First)
+
+**Primary Targets:**
+- Chrome 90+ (primary testing browser)
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+**Mobile Browsers:**
+- Safari iOS 14+
+- Chrome Android 90+
+
+**Note:** While cross-platform, prioritize web experience. Mobile native can have slightly different optimizations if needed.
+
+---
+
+This foundation document should be referenced throughout all phases. When in doubt about architecture decisions, patterns, or conventions, return to Phase 0.
+
+**Ready to begin implementation?** � Proceed to **[Phase 1: Dark Theme Implementation](./Phase-1.md)**
