@@ -25,11 +25,18 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
     return isNaN(numValue) ? null : numValue;
   };
 
+  const formatPredictionValue = (value: string | number): string => {
+    const numValue = parseValue(value);
+    if (numValue === null) return 'N/A';
+    // Divide by 100 since stored values are percentages (5.25), but formatPercentage expects decimals (0.0525)
+    return formatPercentage(numValue / 100);
+  };
+
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
-      accessibilityLabel={`${item.ticker}, ${item.name || 'Stock'}. Predictions: 1 day ${formatPrediction(item.next)}, 2 weeks ${formatPrediction(item.wks)}, 1 month ${formatPrediction(item.mnth)}`}
+      accessibilityLabel={`${item.ticker}, ${item.name || 'Stock'}. Predictions: 1 day ${formatPredictionValue(item.next)}, 2 weeks ${formatPredictionValue(item.wks)}, 1 month ${formatPredictionValue(item.mnth)}`}
       accessibilityHint="Double tap to view stock details"
       accessibilityRole="button"
     >
@@ -69,7 +76,7 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
                     style={styles.predictionValue}
                     allowFontScaling={true}
                   >
-                    {formatPercentage(parseValue(item.next))}
+                    {formatPredictionValue(item.next)}
                   </MonoText>
                 </View>
                 <View style={styles.predictionItem}>
@@ -83,7 +90,7 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
                     style={styles.predictionValue}
                     allowFontScaling={true}
                   >
-                    {formatPercentage(parseValue(item.wks))}
+                    {formatPredictionValue(item.wks)}
                   </MonoText>
                 </View>
                 <View style={styles.predictionItem}>
@@ -97,7 +104,7 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
                     style={styles.predictionValue}
                     allowFontScaling={true}
                   >
-                    {formatPercentage(parseValue(item.mnth))}
+                    {formatPredictionValue(item.mnth)}
                   </MonoText>
                 </View>
               </View>
