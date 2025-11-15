@@ -9,6 +9,7 @@ import { Text, useTheme } from 'react-native-paper';
 import type { StockDetails } from '@/types/database.types';
 import { formatCurrency, formatVolume } from '@/utils/formatting/numberFormatting';
 import { formatShortDate } from '@/utils/formatting/dateFormatting';
+import { MonoText } from '@/components/common';
 
 interface PriceListItemProps {
   item: StockDetails;
@@ -50,34 +51,57 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
 
         {/* OHLC Prices */}
         <View style={styles.priceColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor }]}>
+          <MonoText
+            variant="price"
+            style={[styles.text, { color: textColor }]}
+            positive={item.close > item.open}
+            negative={item.close < item.open}
+          >
             {formatCurrency(item.open)}
-          </Text>
+          </MonoText>
         </View>
 
         <View style={styles.priceColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor, fontWeight: 'bold' }]}>
+          <MonoText
+            variant="price"
+            style={[styles.text, { color: textColor, fontWeight: 'bold' }]}
+            positive={item.close > item.open}
+            negative={item.close < item.open}
+          >
             {formatCurrency(item.close)}
-          </Text>
+          </MonoText>
         </View>
 
         <View style={styles.priceColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor }]}>
+          <MonoText
+            variant="price"
+            style={[styles.text, { color: textColor }]}
+            positive={item.close > item.open}
+            negative={item.close < item.open}
+          >
             {formatCurrency(item.high)}
-          </Text>
+          </MonoText>
         </View>
 
         <View style={styles.priceColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor }]}>
+          <MonoText
+            variant="price"
+            style={[styles.text, { color: textColor }]}
+            positive={item.close > item.open}
+            negative={item.close < item.open}
+          >
             {formatCurrency(item.low)}
-          </Text>
+          </MonoText>
         </View>
 
         {/* Volume */}
         <View style={styles.volumeColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor }]}>
+          <MonoText
+            variant="volume"
+            style={[styles.text, { color: textColor }]}
+          >
             {formatVolume(item.volume)}
-          </Text>
+          </MonoText>
         </View>
       </View>
     </View>
