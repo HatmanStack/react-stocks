@@ -7,13 +7,13 @@
  * - GET /sentiment - Get cached sentiment results
  */
 
-import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
+import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { processSentimentForTicker } from '../services/sentimentProcessing.service.js';
 import * as SentimentJobsRepository from '../repositories/sentimentJobs.repository.js';
 import * as SentimentCacheRepository from '../repositories/sentimentCache.repository.js';
 import * as NewsCacheRepository from '../repositories/newsCache.repository.js';
 import { generateJobId } from '../utils/job.util.js';
-import { successResponse, errorResponse } from '../utils/response.util.js';
+import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
 
 /**
  * POST /sentiment - Trigger sentiment analysis for a ticker
@@ -26,31 +26,31 @@ import { successResponse, errorResponse } from '../utils/response.util.js';
  */
 export async function handleSentimentRequest(
   event: APIGatewayProxyEventV2
-): Promise<APIGatewayProxyResultV2> {
+): Promise<APIGatewayResponse> {
   try {
     // Parse and validate request body
     if (!event.body) {
-      return errorResponse(400, 'Request body is required');
+      return errorResponse('Request body is required', 400);
     }
 
     let body: { ticker?: string; startDate?: string; endDate?: string };
     try {
       body = JSON.parse(event.body);
     } catch {
-      return errorResponse(400, 'Invalid JSON in request body');
+      return errorResponse('Invalid JSON in request body', 400);
     }
 
     const { ticker, startDate, endDate } = body;
 
     // Validate required fields
     if (!ticker || !startDate || !endDate) {
-      return errorResponse(400, 'Missing required fields: ticker, startDate, endDate');
+      return errorResponse('Missing required fields: ticker, startDate, endDate', 400);
     }
 
     // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
-      return errorResponse(400, 'Invalid date format. Use YYYY-MM-DD');
+      return errorResponse('Invalid date format. Use YYYY-MM-DD', 400);
     }
 
     // Generate deterministic job ID
@@ -118,8 +118,8 @@ export async function handleSentimentRequest(
     });
 
     return errorResponse(
-      500,
-      error instanceof Error ? error.message : 'Internal server error'
+      error instanceof Error ? error.message : 'Internal server error',
+      500
     );
   }
 }
@@ -135,20 +135,20 @@ export async function handleSentimentRequest(
  */
 export async function handleSentimentJobStatusRequest(
   event: APIGatewayProxyEventV2
-): Promise<APIGatewayProxyResultV2> {
+): Promise<APIGatewayResponse> {
   try {
     // Extract job ID from path parameters
     const jobId = event.pathParameters?.jobId;
 
     if (!jobId) {
-      return errorResponse(400, 'Job ID is required');
+      return errorResponse('Job ID is required', 400);
     }
 
     // Fetch job from database
     const job = await SentimentJobsRepository.getJob(jobId);
 
     if (!job) {
-      return errorResponse(404, `Job not found: ${jobId}`);
+      return errorResponse(`Job not found: ${jobId}`, 404);
     }
 
     // Return job status with all metadata
@@ -170,8 +170,8 @@ export async function handleSentimentJobStatusRequest(
     });
 
     return errorResponse(
-      500,
-      error instanceof Error ? error.message : 'Internal server error'
+      error instanceof Error ? error.message : 'Internal server error',
+      500
     );
   }
 }
@@ -187,7 +187,7 @@ export async function handleSentimentJobStatusRequest(
  */
 export async function handleSentimentResultsRequest(
   event: APIGatewayProxyEventV2
-): Promise<APIGatewayProxyResultV2> {
+): Promise<APIGatewayResponse> {
   try {
     // Parse query parameters
     const params = event.queryStringParameters || {};
@@ -197,7 +197,7 @@ export async function handleSentimentResultsRequest(
 
     // Validate ticker
     if (!ticker) {
-      return errorResponse(400, 'Query parameter "ticker" is required');
+      return errorResponse('Query parameter "ticker" is required', 400);
     }
 
     // Fetch all sentiments for ticker
@@ -288,8 +288,8 @@ export async function handleSentimentResultsRequest(
     });
 
     return errorResponse(
-      500,
-      error instanceof Error ? error.message : 'Internal server error'
+      error instanceof Error ? error.message : 'Internal server error',
+      500
     );
   }
 }
