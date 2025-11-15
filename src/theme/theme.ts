@@ -1,9 +1,10 @@
 /**
  * Theme Configuration
  * Complete theme object combining colors, typography, and spacing
+ * Using Material Design 3 Dark Theme
  */
 
-import { MD3LightTheme } from 'react-native-paper';
+import { MD3DarkTheme } from 'react-native-paper';
 import { colors } from './colors';
 import { typography } from './typography';
 
@@ -60,29 +61,33 @@ export const shadows = {
 
 /**
  * Main theme object
- * Extends React Native Paper's MD3LightTheme
+ * Extends React Native Paper's MD3DarkTheme
  */
 export const theme = {
-  ...MD3LightTheme,
+  ...MD3DarkTheme,
   colors: {
-    ...MD3LightTheme.colors,
+    ...MD3DarkTheme.colors,
     primary: colors.primary,
-    primaryContainer: colors.primaryLight,
+    primaryContainer: colors.primaryDark,
     secondary: colors.secondary,
-    secondaryContainer: colors.secondaryLight,
+    secondaryContainer: colors.secondaryDark,
     surface: colors.surface,
     surfaceVariant: colors.surfaceVariant,
     background: colors.background,
     error: colors.error,
     onPrimary: colors.textInverse,
-    onSecondary: colors.textInverse,
+    onSecondary: colors.text,
     onSurface: colors.text,
     onBackground: colors.text,
-    onError: colors.textInverse,
+    onError: colors.text,
     // Custom sentiment colors
     positive: colors.positive,
     negative: colors.negative,
     neutral: colors.neutral,
+  },
+  fonts: {
+    ...MD3DarkTheme.fonts,
+    mono: typography.fonts.mono,
   },
   // Custom theme additions
   custom: {
@@ -100,6 +105,9 @@ declare module 'react-native-paper' {
     positive: string;
     negative: string;
     neutral: string;
+  }
+  interface ThemeFonts {
+    mono: string;
   }
 }
 
