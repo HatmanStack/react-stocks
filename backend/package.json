@@ -13,6 +13,7 @@
     "test:integration": "node --experimental-vm-modules node_modules/jest/bin/jest.js --testPathPattern=integration",
     "clean": "rm -rf dist coverage",
     "warm-cache": "tsx scripts/warm-cache.ts",
+    "create-dashboard": "./scripts/create-dashboard.sh",
     "deploy": "./scripts/deploy.sh",
     "deploy:guided": "./scripts/deploy.sh --guided",
     "validate": "./scripts/validate.sh",

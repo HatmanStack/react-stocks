@@ -48,9 +48,10 @@ npm run logs                      # View Lambda logs
 # Backend API Gateway URL (from Lambda deployment)
 EXPO_PUBLIC_BACKEND_URL=https://your-api-id.execute-api.us-east-1.amazonaws.com
 
-# Feature Flags for ML Migration
-EXPO_PUBLIC_BROWSER_SENTIMENT=true   # Use browser-based sentiment (recommended)
-EXPO_PUBLIC_BROWSER_PREDICTION=false # Use browser-based prediction (test first)
+# Feature Flags for ML Migration (Lambda-first)
+EXPO_PUBLIC_USE_LAMBDA_SENTIMENT=true    # Use Lambda sentiment (recommended)
+EXPO_PUBLIC_BROWSER_SENTIMENT=false      # Browser fallback for offline
+EXPO_PUBLIC_BROWSER_PREDICTION=false     # Use browser-based prediction (test first)
 ```
 
 **Setup Steps**:
@@ -204,17 +205,24 @@ Each step:
 - **Implementation**: `src/services/api/tiingo.service.ts`, `src/services/api/polygon.service.ts`
 - **Backend source**: `backend/` directory (AWS SAM template)
 
-### Browser-Based Machine Learning
+### Sentiment Analysis (Lambda-based - Primary)
 
-**Sentiment Analysis**:
+**Lambda Sentiment Processing** (Primary method):
+- **Type**: Asynchronous Lambda-based sentiment analysis
+- **Implementation**: `backend/src/services/sentimentProcessing.service.ts`
+- **Feature Flag**: `EXPO_PUBLIC_USE_LAMBDA_SENTIMENT` (default: true)
+- **Caching**: Results cached in DynamoDB for cross-user sharing
+- **Performance**: <15s for 30-day range (vs 45s+ browser-based)
+- **Frontend Integration**: `src/services/api/lambdaSentiment.service.ts`
+- **Polling**: Frontend polls Lambda job status asynchronously
+
+**Browser-Based Sentiment** (Deprecated - Offline Fallback Only):
 - **Type**: JavaScript rule-based sentiment analyzer
-- **Implementation**: `src/ml/sentiment/analyzer.ts`
+- **Implementation**: `src/ml/sentiment/sentiment.service.ts` (deprecated)
+- **Status**: ⚠️ **Deprecated** - Will be removed in v2.0
+- **Usage**: Fallback only when Lambda unavailable (offline mode)
+- **Performance**: <100ms per article but blocks UI for sequential processing
 - **Lexicon**: Financial-specific word list in `src/data/sentiment-words.json`
-- **Feature Flag**: `EXPO_PUBLIC_BROWSER_SENTIMENT` (default: true)
-- **Fallback**: Python microservice (deprecated, for rollback only)
-- **Performance**: <100ms per article (runs in browser)
-- **Accuracy**: Directional agreement with FinBERT (not exact match)
-- **Processing**: Tokenizes text, scores words, normalizes to 0-1 range
 
 **Stock Predictions**:
 - **Type**: Logistic regression (ported from Python scikit-learn)

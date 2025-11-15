@@ -1,6 +1,10 @@
 /**
  * Sentiment Data Synchronization Service
  * Analyzes news articles for sentiment using browser-based ML and stores word counts in database
+ *
+ * @deprecated This service is deprecated and will be removed in v2.0.
+ * Use Lambda sentiment processing instead (src/services/api/lambdaSentiment.service.ts).
+ * Kept as fallback for offline mode when Lambda unavailable.
  */
 
 import * as NewsRepository from '@/database/repositories/news.repository';
