@@ -4,13 +4,16 @@
  * This ensures all tabs have access to the same data without refetching
  */
 
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useContext, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useStockData } from '@/hooks/useStockData';
 import { useNewsData } from '@/hooks/useNewsData';
 import { useSentimentData, useArticleSentiment } from '@/hooks/useSentimentData';
+import { useSentimentPolling } from '@/hooks/useSentimentPolling';
 import { differenceInDays } from 'date-fns';
 import { useStock } from './StockContext';
 import type { StockDetails, NewsDetails, CombinedWordDetails, WordCountDetails } from '@/types/database.types';
+import type { SentimentJobStatus } from '@/services/api/lambdaSentiment.service';
 
 interface StockDetailContextType {
   ticker: string;
@@ -35,6 +38,13 @@ interface StockDetailContextType {
   articleSentimentData: WordCountDetails[];
   articleSentimentLoading: boolean;
   articleSentimentError: Error | null;
+
+  // Sentiment polling state (for async Lambda sentiment)
+  isSentimentPolling: boolean;
+  sentimentJobId: string | null;
+  sentimentJobStatus: SentimentJobStatus | null;
+  triggerSentimentAnalysis: () => Promise<void>;
+  cancelSentimentPolling: () => void;
 }
 
 const StockDetailContext = createContext<StockDetailContextType | undefined>(undefined);
@@ -47,6 +57,7 @@ export function StockDetailProvider({
   ticker: string;
 }) {
   const { startDate, endDate } = useStock();
+  const queryClient = useQueryClient();
 
   // Calculate number of days
   const days = useMemo(() => {
@@ -60,6 +71,25 @@ export function StockDetailProvider({
   const { data: newsData = [], isLoading: newsLoading, error: newsError } = useNewsData(ticker, { days });
   const { data: sentimentData = [], isLoading: sentimentLoading, error: sentimentError } = useSentimentData(ticker, { days });
   const { data: articleSentimentData = [], isLoading: articleSentimentLoading, error: articleSentimentError } = useArticleSentiment(ticker, { days });
+
+  // Sentiment polling (for async Lambda sentiment analysis)
+  const {
+    isPolling: isSentimentPolling,
+    jobId: sentimentJobId,
+    jobStatus: sentimentJobStatus,
+    triggerAnalysis,
+    cancelPolling,
+  } = useSentimentPolling(ticker, startDate, endDate, {
+    onComplete: useCallback((data) => {
+      console.log('[StockDetailContext] Sentiment analysis complete:', data.length, 'days');
+      // Invalidate React Query cache to re-fetch sentiment data
+      queryClient.invalidateQueries({ queryKey: ['sentimentData', ticker] });
+      queryClient.invalidateQueries({ queryKey: ['articleSentiment', ticker] });
+    }, [ticker, queryClient]),
+    onError: useCallback((error) => {
+      console.error('[StockDetailContext] Sentiment analysis failed:', error);
+    }, []),
+  });
 
   const value: StockDetailContextType = useMemo(
     () => ({
@@ -77,6 +107,11 @@ export function StockDetailProvider({
       articleSentimentData,
       articleSentimentLoading,
       articleSentimentError: articleSentimentError as Error | null,
+      isSentimentPolling,
+      sentimentJobId,
+      sentimentJobStatus,
+      triggerSentimentAnalysis: triggerAnalysis,
+      cancelSentimentPolling: cancelPolling,
     }),
     [
       ticker,
@@ -93,6 +128,11 @@ export function StockDetailProvider({
       articleSentimentData,
       articleSentimentLoading,
       articleSentimentError,
+      isSentimentPolling,
+      sentimentJobId,
+      sentimentJobStatus,
+      triggerAnalysis,
+      cancelPolling,
     ]
   );
 
