@@ -14,6 +14,7 @@ import * as SentimentCacheRepository from '../repositories/sentimentCache.reposi
 import * as NewsCacheRepository from '../repositories/newsCache.repository.js';
 import { generateJobId } from '../utils/job.util.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
+import { aggregateDailySentiment } from '../utils/sentiment.util.js';
 
 /**
  * POST /sentiment - Trigger sentiment analysis for a ticker
@@ -200,6 +201,20 @@ export async function handleSentimentResultsRequest(
       return errorResponse('Query parameter "ticker" is required', 400);
     }
 
+    // Validate date format if provided
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (startDate && !dateRegex.test(startDate)) {
+      return errorResponse('Query parameter "startDate" must be in YYYY-MM-DD format', 400);
+    }
+    if (endDate && !dateRegex.test(endDate)) {
+      return errorResponse('Query parameter "endDate" must be in YYYY-MM-DD format', 400);
+    }
+
+    // Validate date range if both provided
+    if (startDate && endDate && startDate > endDate) {
+      return errorResponse('startDate must be before or equal to endDate', 400);
+    }
+
     // Fetch all sentiments for ticker
     const allSentiments = await SentimentCacheRepository.querySentimentsByTicker(ticker);
 
@@ -216,64 +231,16 @@ export async function handleSentimentResultsRequest(
     // Fetch all news articles to get dates
     const allArticles = await NewsCacheRepository.queryArticlesByTicker(ticker);
 
-    // Create map of articleHash -> article date
-    const articleDateMap = new Map<string, string>();
-    for (const article of allArticles) {
-      articleDateMap.set(article.articleHash, article.article.date);
-    }
-
-    // Filter sentiments by date range if provided
-    const filteredSentiments = allSentiments.filter((sentiment) => {
-      const articleDate = articleDateMap.get(sentiment.articleHash);
-      if (!articleDate) return false;
-
-      if (startDate && articleDate < startDate) return false;
-      if (endDate && articleDate > endDate) return false;
-
+    // Filter articles by date range if provided
+    const articlesInRange = allArticles.filter((article) => {
+      if (startDate && article.article.date < startDate) return false;
+      if (endDate && article.article.date > endDate) return false;
       return true;
     });
 
-    // Group sentiments by date
-    const dailyGroups = new Map<string, SentimentCacheRepository.SentimentCacheItem[]>();
-
-    for (const sentiment of filteredSentiments) {
-      const date = articleDateMap.get(sentiment.articleHash);
-      if (!date) continue;
-
-      if (!dailyGroups.has(date)) {
-        dailyGroups.set(date, []);
-      }
-      dailyGroups.get(date)!.push(sentiment);
-    }
-
-    // Aggregate daily sentiment
-    const dailySentiment = Array.from(dailyGroups.entries())
-      .map(([date, sentiments]) => {
-        const totalPositive = sentiments.reduce((sum, s) => sum + s.sentiment.positive, 0);
-        const totalNegative = sentiments.reduce((sum, s) => sum + s.sentiment.negative, 0);
-        const totalSentences = totalPositive + totalNegative;
-
-        const sentimentScore = totalSentences > 0 ? (totalPositive - totalNegative) / totalSentences : 0;
-
-        let classification: 'POS' | 'NEG' | 'NEUT';
-        if (sentimentScore > 0.1) {
-          classification = 'POS';
-        } else if (sentimentScore < -0.1) {
-          classification = 'NEG';
-        } else {
-          classification = 'NEUT';
-        }
-
-        return {
-          date,
-          positive: totalPositive,
-          negative: totalNegative,
-          sentimentScore,
-          classification,
-          articleCount: sentiments.length,
-        };
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
+    // Aggregate daily sentiment using shared utility
+    // This ensures consistent thresholds and classification logic across handlers and services
+    const dailySentiment = aggregateDailySentiment(allSentiments, articlesInRange);
 
     return successResponse({
       ticker: ticker.toUpperCase(),

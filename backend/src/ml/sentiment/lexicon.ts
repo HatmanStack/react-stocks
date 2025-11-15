@@ -137,9 +137,10 @@ export const FINANCIAL_LEXICON: Record<string, number> = {
 };
 
 /**
- * Get the sentiment score for a word, checking both financial and base lexicons
+ * Get the sentiment score for a word from the financial lexicon
+ * Note: Only checks FINANCIAL_LEXICON, not the base AFINN lexicon
  * @param word - Word to score (will be lowercased)
- * @returns Sentiment score or 0 if not found
+ * @returns Sentiment score from financial lexicon, or 0 if not found
  */
 export function getWordScore(word: string): number {
   const lowerWord = word.toLowerCase();

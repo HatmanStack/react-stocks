@@ -14,12 +14,18 @@ export interface SentenceResult {
 }
 
 /**
+ * Named tuple for sentiment category bucket
+ * Represents [count, confidence] as returned by Python FinBERT service
+ */
+export type SentimentBucket = [count: string, confidence: string];
+
+/**
  * Aggregated sentiment analysis result matching Python service format
  */
 export interface SentimentResult {
-  positive: [string, string]; // [count, confidence]
-  neutral: [string, string]; // [count, confidence]
-  negative: [string, string]; // [count, confidence]
+  positive: SentimentBucket;
+  neutral: SentimentBucket;
+  negative: SentimentBucket;
   hash: string;
 }
 
@@ -52,10 +58,11 @@ export interface SentimentAnalyzerConfig {
 
 /**
  * Statistics for a sentiment category
+ * Tracks confidence-based aggregates (not raw sentiment scores)
  */
 export interface SentimentStats {
   count: number;
-  totalScore: number;
-  scores: number[];
-  averageConfidence: number;
+  totalConfidence: number; // Sum of confidence values (0-1)
+  confidences: number[]; // Array of individual confidence values (0-1)
+  averageConfidence: number; // Mean confidence for this category
 }
