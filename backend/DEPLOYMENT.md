@@ -30,7 +30,7 @@ sam build
 ### 2. Deploy with guided mode
 
 ```bash
-sam deploy --guided
+npm run deploy:guided
 ```
 
 **You will be prompted for:**
@@ -43,15 +43,30 @@ sam deploy --guided
 - **Disable rollback**: `n` (recommended for first deployment)
 - **Save arguments to config**: `Y`
 
-### 3. Note the API URL
+### 3. Frontend .env Auto-Update
 
-After successful deployment, note the output:
-```
-Outputs:
-ReactStocksApiUrl = https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com
+After successful deployment, the script automatically:
+- Fetches the API Gateway URL from CloudFormation outputs
+- Creates `../.env` from `../.env.example` (if not exists)
+- Updates `EXPO_PUBLIC_BACKEND_URL` with the deployed API URL
+
+**Manual update anytime:**
+```bash
+# Uses stack name from samconfig.toml
+npm run update-env
+
+# Or specify a stack name explicitly
+npm run update-env react-stocks-test
 ```
 
-**Save this URL** - you'll need it for frontend integration in Phase 4.
+The API URL will be displayed:
+```
+Frontend .env file updated at:
+  /home/user/react-stocks/.env
+
+Backend API URL set to:
+  https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com
+```
 
 ## Subsequent Deployments
 
@@ -59,10 +74,15 @@ After the first deployment, subsequent updates are simpler:
 
 ```bash
 cd backend
-npm run build
-sam build
-sam deploy
+npm run deploy
 ```
+
+This will:
+1. Build TypeScript (`npm run build`)
+2. Validate SAM template (`sam validate`)
+3. Build Lambda package (`sam build`)
+4. Deploy to AWS (`sam deploy`)
+5. Auto-update frontend `.env` with API URL
 
 SAM will use the saved configuration from `samconfig.toml`.
 

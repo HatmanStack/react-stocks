@@ -114,6 +114,20 @@ export async function triggerSentimentAnalysis(
       const status = error.response?.status;
       const errorData = error.response?.data as { error?: string };
 
+      // Log detailed error info for debugging
+      console.error('[LambdaSentiment] Axios error details:', {
+        message: error.message,
+        code: error.code,
+        status: status,
+        statusText: error.response?.statusText,
+        data: errorData,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          baseURL: error.config?.baseURL,
+        },
+      });
+
       if (status === 400) {
         throw new Error(errorData?.error || 'Invalid request parameters');
       }
@@ -124,6 +138,13 @@ export async function triggerSentimentAnalysis(
 
       if (status === 500) {
         throw new Error(errorData?.error || 'Backend service error');
+      }
+
+      // Network or CORS error
+      if (!status) {
+        throw new Error(
+          `Network error: ${error.message}. Check your internet connection and CORS configuration.`
+        );
       }
     }
 

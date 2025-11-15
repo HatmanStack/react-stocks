@@ -11,3 +11,4 @@ backend/samconfig.toml
 backend/.aws-sam/
 docs-data/
 backend/samconfig.toml
+
