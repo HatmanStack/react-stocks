@@ -73,22 +73,22 @@ export async function findByDate(date: string): Promise<CombinedWordDetails | nu
 
 /**
  * Insert or update a combined word count record
- * Uses INSERT OR REPLACE since date is the primary key
+ * Uses INSERT OR REPLACE with composite key (ticker, date)
  * @param combinedWord - Combined word details
  */
 export async function upsert(combinedWord: CombinedWordDetails): Promise<void> {
   const db = await getDatabase();
   const sql = `
     INSERT OR REPLACE INTO ${TABLE_NAMES.COMBINED_WORD_DETAILS} (
-      date, ticker, positive, negative, sentimentNumber,
+      ticker, date, positive, negative, sentimentNumber,
       sentiment, nextDay, twoWks, oneMnth, updateDate
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   try {
     await db.runAsync(sql, [
-      combinedWord.date,
       combinedWord.ticker,
+      combinedWord.date,
       combinedWord.positive,
       combinedWord.negative,
       combinedWord.sentimentNumber,

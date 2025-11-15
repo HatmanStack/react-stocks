@@ -3,6 +3,7 @@ version = 0.1
 # Development environment (default)
 [default.global.parameters]
 stack_name = "react-stocks-backend-dev"
+region = "us-west-2"
 
 [default.build.parameters]
 cached = true
@@ -15,8 +16,11 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
-region = "us-east-1"
-parameter_overrides = "TiingoApiKey=\"REPLACE_WITH_YOUR_KEY\" PolygonApiKey=\"REPLACE_WITH_YOUR_KEY\" Environment=\"development\" AllowedOrigins=\"*\""
+region = "us-west-2"
+parameter_overrides = "AllowedOrigins=\"*\""
+stack_name = "react-stocks-test"
+s3_prefix = "react-stocks-test"
+image_repositories = []
 
 [default.package.parameters]
 resolve_s3 = true

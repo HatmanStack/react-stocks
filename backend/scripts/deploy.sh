@@ -49,8 +49,15 @@ echo "======================================"
 echo "Deployment complete!"
 echo "======================================"
 echo ""
-echo "To view the API URL, run:"
-echo "  aws cloudformation describe-stacks --stack-name react-stocks-backend --query 'Stacks[0].Outputs[?OutputKey==\`ReactStocksApiUrl\`].OutputValue' --output text"
-echo ""
-echo "To view logs, run:"
-echo "  ./scripts/logs.sh"
+
+# Auto-update frontend .env file
+if [ -f "./scripts/update-env.sh" ]; then
+  echo ""
+  ./scripts/update-env.sh
+else
+  echo "To view the API URL, run:"
+  echo "  aws cloudformation describe-stacks --stack-name react-stocks-backend --query 'Stacks[0].Outputs[?OutputKey==\`ReactStocksApiUrl\`].OutputValue' --output text"
+  echo ""
+  echo "To view logs, run:"
+  echo "  ./scripts/logs.sh"
+fi

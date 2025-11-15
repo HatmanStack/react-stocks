@@ -62,7 +62,8 @@ export default function NewsScreen() {
     <NewsListItem item={item} />
   );
 
-  const keyExtractor = (item: NewsDetails) => `${item.ticker}-${item.id || item.articleUrl}`;
+  const keyExtractor = (item: NewsDetails, index: number) =>
+    item.articleUrl || `${item.ticker}-${item.articleDate}-${index}`;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>

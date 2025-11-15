@@ -236,7 +236,6 @@ Resources:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
-        TreeShake: true
         Target: node20
         Sourcemap: false
         EntryPoints:

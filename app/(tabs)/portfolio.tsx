@@ -9,6 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { PortfolioItem } from '@/components/portfolio/PortfolioItem';
 import { AddStockButton } from '@/components/portfolio/AddStockButton';
+import { AddStockModal } from '@/components/portfolio/AddStockModal';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -21,6 +22,7 @@ import { differenceInDays } from 'date-fns';
 
 export default function PortfolioScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const { portfolio, isLoading, error, refetch, removeFromPortfolio } = usePortfolioContext();
   const { setSelectedTicker, startDate, endDate } = useStock();
 
@@ -55,7 +57,11 @@ export default function PortfolioScreen() {
   }, [removeFromPortfolio]);
 
   const handleAddStock = useCallback(() => {
-    router.push('/(tabs)/');
+    setModalVisible(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setModalVisible(false);
   }, []);
 
   const handleRefresh = useCallback(async () => {
@@ -135,6 +141,7 @@ export default function PortfolioScreen() {
         }
       />
       <AddStockButton onPress={handleAddStock} />
+      <AddStockModal visible={modalVisible} onDismiss={handleCloseModal} />
     </SafeAreaView>
   );
 }

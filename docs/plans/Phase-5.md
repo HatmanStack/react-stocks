@@ -1,892 +1,1037 @@
-# Phase 5: Migration & Optimization
+# Phase 5: Web Optimization & Final Polish
 
 ## Phase Goal
 
-Migrate existing local sentiment data to DynamoDB shared cache, optimize Lambda performance, deprecate local sentiment processing code, and prepare the hybrid caching system for production use. This phase ensures smooth transition from old architecture to new, with performance tuning and monitoring.
+Optimize the application for web browsers (primary platform), add progressive enhancements for web-specific features, implement responsive breakpoints, and apply final polish for a professional, production-ready experience. Ensure the app performs excellently in Chrome, Firefox, Safari, and Edge.
 
 **Success Criteria:**
-- ✅ Existing local sentiment migrated to DynamoDB (optional, for seeding cache)
-- ✅ Lambda cold start time <500ms
-- ✅ Lambda warm execution time <200ms for cached data
-- ✅ DynamoDB costs monitored and <$20/month for 100 users
-- ✅ Deprecated code removed or feature-flagged
-- ✅ CloudWatch dashboards created for monitoring
-- ✅ Production deployment successful with zero downtime
+- Responsive layouts for tablet and desktop screens
+- Hover states on all interactive elements (web-only)
+- Keyboard navigation support
+- SEO metadata and meta tags
+- Loading performance optimized (< 2s interactive)
+- No console errors or warnings
+- Accessibility standards met (WCAG 2.1 AA)
+- Professional polish on all screens
 
-**Estimated tokens:** ~25,000
+**Estimated Tokens:** ~94,000
 
 ---
 
 ## Prerequisites
 
-- **Phase 4 complete**: Frontend using Lambda sentiment endpoints
-- **All tests passing**: Both backend and frontend
-- **Feature flag enabled**: `EXPO_PUBLIC_USE_LAMBDA_SENTIMENT=true`
-- **Production backend deployed**: Lambda and DynamoDB operational
+- Phases 0-4 complete
+- All features implemented (dark theme, charts, animations)
+- App functional on web
+- All tests passing
 
 ---
 
 ## Tasks
 
-### Task 5.1: Create Data Migration Script (Optional)
+### Task 1: Add Responsive Breakpoints
 
-**Goal:** Create script to migrate existing local sentiment data to DynamoDB, seeding the shared cache with historical data.
+**Goal:** Create responsive layouts that adapt to tablet and desktop screens
 
-**Note:** This task is **optional** - you may choose to start with empty DynamoDB cache and let it populate naturally. Migration is only beneficial if you have significant existing sentiment data worth preserving.
-
-**Files to Create:**
-- `scripts/migrate-sentiment-to-dynamodb.ts` - Migration script
-- `scripts/README.md` - Documentation for running migration
+**Files to Modify/Create:**
+- `src/hooks/useResponsive.ts` - NEW hook for breakpoint detection
+- `src/hooks/index.ts` - Add export
+- Update layouts to use responsive hook
 
 **Prerequisites:**
-- Local database has sentiment data to migrate
-- DynamoDB tables deployed and accessible
-- AWS credentials configured
+- useLayoutDensity hook from Phase 2 (can be enhanced or used alongside)
 
 **Implementation Steps:**
+1. Create `useResponsive.ts` hook
+2. Define breakpoints: mobile (< 768px), tablet (768-1024px), desktop (> 1024px)
+3. Use `useWindowDimensions` to detect current breakpoint
+4. Return boolean flags and size values
+5. Export hook for use across components
 
-1. **Create migration script skeleton**:
-   ```typescript
-   import * as SentimentCacheRepository from '../backend/src/repositories/sentimentCache.repository';
-   import * as WordCountRepository from '../src/database/repositories/wordCount.repository';
-   import * as CombinedWordRepository from '../src/database/repositories/combinedWord.repository';
+**Hook Interface:**
+```typescript
+interface ResponsiveValues {
+  isMobile: boolean;
+  isTablet: boolean;
+  isDesktop: boolean;
+  width: number;
+  height: number;
+  breakpoint: 'mobile' | 'tablet' | 'desktop';
+}
 
-   async function migrateSentimentData() {
-     console.log('[Migration] Starting sentiment data migration to DynamoDB...');
+function useResponsive(): ResponsiveValues
+```
 
-     // Step 1: Export all local sentiment data
-     const localArticleSentiment = await WordCountRepository.findAll();
-     const localDailySentiment = await CombinedWordRepository.findAll();
+**Implementation:**
+```typescript
+import { useWindowDimensions } from 'react-native';
+import { useMemo } from 'react';
 
-     console.log(`[Migration] Found ${localArticleSentiment.length} article sentiments`);
-     console.log(`[Migration] Found ${localDailySentiment.length} daily sentiments`);
+export function useResponsive(): ResponsiveValues {
+  const { width, height } = useWindowDimensions();
 
-     // Step 2: Transform to DynamoDB format
-     // Step 3: Batch upload to DynamoDB
-     // Step 4: Verify migration success
-   }
-   ```
+  const values = useMemo(() => {
+    const isMobile = width < 768;
+    const isTablet = width >= 768 && width < 1024;
+    const isDesktop = width >= 1024;
 
-2. **Implement data transformation**:
-   - Convert local SQLite schema to DynamoDB SentimentCache format
-   - Map `ticker`, `articleHash`, `sentiment` fields
-   - Calculate TTL for migrated data (90 days from now)
+    const breakpoint = isMobile ? 'mobile' : isTablet ? 'tablet' : 'desktop';
 
-3. **Implement batch upload**:
-   - Use `batchPutSentiments()` repository method
-   - Upload in chunks of 25 items (DynamoDB batch limit)
-   - Log progress every 100 items
+    return {
+      isMobile,
+      isTablet,
+      isDesktop,
+      width,
+      height,
+      breakpoint,
+    };
+  }, [width, height]);
 
-4. **Add deduplication**:
-   - Check if item already exists in DynamoDB before uploading
-   - Skip items that already cached (prevent duplicates)
-
-5. **Add dry-run mode**:
-   - `--dry-run` flag to preview migration without writing
-   - Log what would be migrated without actually migrating
-
-6. **Add progress tracking**:
-   - Show progress bar or percentage complete
-   - Estimate remaining time based on upload rate
+  return values;
+}
+```
 
 **Verification Checklist:**
-- [ ] Script can export all local sentiment data
-- [ ] Transformation correctly maps local schema to DynamoDB
-- [ ] Batch uploads handle pagination (chunks of 25)
-- [ ] Deduplication prevents duplicate uploads
-- [ ] Dry-run mode works without writing to DynamoDB
-- [ ] Progress tracking shows completion status
+- [ ] Hook detects breakpoints correctly
+- [ ] Breakpoint flags accurate
+- [ ] Memoized for performance
+- [ ] Exported from hooks/index.ts
+- [ ] TypeScript types defined
 
 **Testing Instructions:**
+```typescript
+// src/hooks/__tests__/useResponsive.test.ts
+import { renderHook } from '@testing-library/react-hooks';
+import { useResponsive } from '../useResponsive';
+import { useWindowDimensions } from 'react-native';
 
-Manual testing (use test environment):
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions');
 
-- **Test dry-run mode**:
-  - Run `ts-node scripts/migrate-sentiment-to-dynamodb.ts --dry-run`
-  - Verify no data written to DynamoDB
-  - Verify logs show what would be migrated
+describe('useResponsive', () => {
+  it('detects mobile breakpoint', () => {
+    (useWindowDimensions as jest.Mock).mockReturnValue({ width: 375, height: 667 });
+    const { result } = renderHook(() => useResponsive());
 
-- **Test actual migration** (small dataset):
-  - Use test ticker with 10 articles
-  - Run migration
-  - Verify data appears in DynamoDB Console
-  - Verify TTL set correctly
+    expect(result.current.isMobile).toBe(true);
+    expect(result.current.breakpoint).toBe('mobile');
+  });
 
-- **Test deduplication**:
-  - Run migration twice
-  - Verify second run skips already-migrated items
+  it('detects tablet breakpoint', () => {
+    (useWindowDimensions as jest.Mock).mockReturnValue({ width: 800, height: 1024 });
+    const { result } = renderHook(() => useResponsive());
+
+    expect(result.current.isTablet).toBe(true);
+    expect(result.current.breakpoint).toBe('tablet');
+  });
+
+  it('detects desktop breakpoint', () => {
+    (useWindowDimensions as jest.Mock).mockReturnValue({ width: 1440, height: 900 });
+    const { result } = renderHook(() => useResponsive());
+
+    expect(result.current.isDesktop).toBe(true);
+    expect(result.current.breakpoint).toBe('desktop');
+  });
+});
+```
 
 **Commit Message Template:**
 ```
-feat(migration): create sentiment data migration script
+feat(hooks): add useResponsive for breakpoint detection
 
-- Export local sentiment data from SQLite/localStorage
-- Transform to DynamoDB SentimentCache format
-- Batch upload with deduplication checks
-- Add dry-run mode for safe preview
-- Progress tracking with completion estimates
-- Documentation for running migration
-
-Task: Phase 5, Task 5.1
+- Create hook with mobile/tablet/desktop detection
+- Define breakpoints at 768px and 1024px
+- Return boolean flags and current width/height
+- Memoize for performance
 ```
 
-**Estimated tokens:** ~5,000
+**Estimated Tokens:** ~10,000
 
 ---
 
-### Task 5.2: Optimize Lambda Cold Start Performance
+### Task 2: Implement Responsive Stock Detail Layout
 
-**Goal:** Reduce Lambda cold start time to <500ms through code optimization and configuration tuning.
+**Goal:** Multi-column layout for stock detail on tablet/desktop
 
-**Files to Modify:**
-- `backend/template.yaml` - Adjust Lambda configuration
-- `backend/src/index.ts` - Optimize imports
-- `backend/tsconfig.json` - Optimize compilation
-
-**Prerequisites:**
-- Understand Lambda cold start causes (code size, initialization time)
-- Access to CloudWatch Logs to measure cold starts
-
-**Implementation Steps:**
-
-1. **Optimize Lambda configuration** in template.yaml:
-   - **Increase memory**: Test 512MB vs 1024MB vs 2048MB
-     - Higher memory = faster CPU, may reduce cold start
-     - Monitor CloudWatch Metrics for duration vs cost
-   - **Enable provisioned concurrency** (optional, costs money):
-     - Pre-warm 1-2 instances to eliminate cold starts
-     - Only for production if cold starts unacceptable
-   - **Reduce timeout**: Lower from 900s to 60s (sentiment processing should complete in <15s)
-
-2. **Optimize code bundle size**:
-   - **Tree-shake dependencies**: Ensure esbuild configured correctly
-     - Check `backend/template.yaml` Metadata section
-     - Verify `Minify: true` and `TreeShaking: true`
-   - **Remove unused dependencies**: Audit package.json for unused packages
-   - **Use dynamic imports**: Lazy load handlers (already implemented)
-
-3. **Optimize module initialization**:
-   - **Move imports outside handlers**: Already done (DynamoDB client initialized outside)
-   - **Avoid global initialization**: Don't connect to DBs or make API calls at module load time
-   - **Cache static data**: Precompute sentiment lexicon at build time (if applicable)
-
-4. **Measure cold start time**:
-   - Add CloudWatch metric for cold start detection
-   - Log `INIT_START` and handler invocation time
-   - Formula: `Cold Start Duration = Handler Start - INIT_START`
-
-5. **Test different memory settings**:
-   - Deploy with 512MB, measure cold start
-   - Deploy with 1024MB, measure cold start
-   - Deploy with 2048MB, measure cold start
-   - Choose optimal memory for cost vs performance
-
-**Verification Checklist:**
-- [ ] Lambda bundle size <5MB (check `.aws-sam/build/`)
-- [ ] Tree-shaking enabled in esbuild config
-- [ ] Unused dependencies removed
-- [ ] Cold start time <500ms at chosen memory setting
-- [ ] CloudWatch Logs show INIT duration
-
-**Testing Instructions:**
-
-Measure cold starts:
-
-- **Force cold start**:
-  - Deploy Lambda
-  - Wait 15 minutes (Lambda will evict container)
-  - Invoke Lambda, measure duration
-  - Check CloudWatch Logs for INIT_START → Handler Start duration
-
-- **Compare memory settings**:
-  - Test at 512MB: Record cold start time
-  - Test at 1024MB: Record cold start time
-  - Test at 2048MB: Record cold start time
-  - Calculate cost difference vs performance gain
-
-- **Measure warm starts**:
-  - Invoke Lambda twice within 5 minutes
-  - Second invocation should be <200ms
-  - Verify no INIT_START log (warm start)
-
-**Commit Message Template:**
-```
-perf(lambda): optimize cold start performance to <500ms
-
-- Increase Lambda memory to 1024MB for faster CPU
-- Verify esbuild tree-shaking and minification enabled
-- Remove unused dependencies from package.json
-- Add CloudWatch metric for cold start detection
-- Measure cold start: 450ms @ 1024MB (vs 800ms @ 512MB)
-- Warm start: 180ms average
-
-Task: Phase 5, Task 5.2
-```
-
-**Estimated tokens:** ~4,500
-
----
-
-### Task 5.3: Implement Cache Warming on Deployment
-
-**Goal:** Automatically warm cache for popular stocks after Lambda deployment to ensure immediate cache hits for common requests.
-
-**Files to Create:**
-- `backend/scripts/warm-popular-stocks.ts` - Cache warming script
-- `.github/workflows/warm-cache.yml` - GitHub Actions workflow (optional, if using GitHub)
+**Files to Modify/Create:**
+- `app/(tabs)/stock/[ticker]/index.tsx` - Responsive price tab layout
+- `src/components/stock/StockMetadataCard.tsx` - Responsive metadata display
 
 **Prerequisites:**
-- Task 2.5 complete (cache warming strategy designed)
-- Understand Lambda invoke from scripts
+- Task 1 complete (useResponsive available)
+- Phase 3 charts implemented
 
 **Implementation Steps:**
+1. Import useResponsive in stock detail screen
+2. Create multi-column layout for tablet/desktop
+3. Desktop: Chart on left (70%), metadata on right (30%)
+4. Tablet: Chart on top, metadata below (but wider)
+5. Mobile: Single column (current behavior)
+6. Use flexbox for responsive layout
+7. Test at various screen sizes
 
-1. **Create cache warming script**:
-   ```typescript
-   const POPULAR_TICKERS = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'META', 'NVDA', 'AMD', 'NFLX', 'DIS'];
+**Responsive Layout:**
+```typescript
+function PriceTab() {
+  const { isDesktop, isTablet } = useResponsive();
 
-   async function warmCache() {
-     console.log('[CacheWarm] Warming cache for popular stocks...');
+  if (isDesktop) {
+    return (
+      <View style={{ flexDirection: 'row', padding: 20 }}>
+        <View style={{ flex: 7, marginRight: 20 }}>
+          <PriceChart />
+        </View>
+        <View style={{ flex: 3 }}>
+          <StockMetadataCard />
+          <PriceListSummary />
+        </View>
+      </View>
+    );
+  }
 
-     for (const ticker of POPULAR_TICKERS) {
-       try {
-         console.log(`[CacheWarm] Processing ${ticker}...`);
+  if (isTablet) {
+    return (
+      <View style={{ padding: 16 }}>
+        <PriceChart />
+        <View style={{ flexDirection: 'row', marginTop: 16 }}>
+          <StockMetadataCard style={{ flex: 1, marginRight: 8 }} />
+          <PriceListSummary style={{ flex: 1, marginLeft: 8 }} />
+        </View>
+      </View>
+    );
+  }
 
-         // Trigger sentiment analysis (will cache results)
-         const response = await triggerSentimentAnalysis({
-           ticker,
-           startDate: formatDateForDB(subDays(new Date(), 30)),
-           endDate: formatDateForDB(new Date()),
-         });
-
-         console.log(`[CacheWarm] ${ticker} - Job ID: ${response.jobId}`);
-
-         // Optional: Wait for completion
-         await waitForJobCompletion(response.jobId, 60); // 2 minutes timeout
-
-         console.log(`[CacheWarm] ${ticker} - Complete`);
-       } catch (error) {
-         console.error(`[CacheWarm] ${ticker} - Failed:`, error);
-         // Continue with next ticker
-       }
-     }
-
-     console.log('[CacheWarm] Cache warming complete!');
-   }
-   ```
-
-2. **Add npm script** to run warming:
-   ```json
-   {
-     "scripts": {
-       "warm-cache": "ts-node scripts/warm-popular-stocks.ts"
-     }
-   }
-   ```
-
-3. **Create GitHub Actions workflow** (optional):
-   - Trigger on deployment success
-   - Invoke cache warming script
-   - Example: `.github/workflows/warm-cache.yml`
-
-4. **Add throttling**:
-   - Don't warm all stocks simultaneously (avoid DynamoDB throttling)
-   - Process 2-3 stocks in parallel, not all 10
-   - Add delay between batches (5 seconds)
-
-5. **Add logging**:
-   - Log progress for each stock
-   - Log cache hit rate (some may already be cached)
-   - Log total time for warming
+  // Mobile - single column
+  return (
+    <View>
+      <PriceChart />
+      <StockMetadataCard />
+      <PriceList />
+    </View>
+  );
+}
+```
 
 **Verification Checklist:**
-- [ ] Script warms top 10 popular stocks
-- [ ] Throttling prevents DynamoDB throttling errors
-- [ ] npm script runs successfully
-- [ ] Cache verified in DynamoDB Console after warming
-- [ ] GitHub Actions workflow triggers on deploy (if implemented)
+- [ ] Desktop shows two-column layout
+- [ ] Tablet shows optimized layout
+- [ ] Mobile maintains single column
+- [ ] Responsive to window resize
+- [ ] No layout breaks at breakpoints
 
 **Testing Instructions:**
-
 Manual testing:
-
-- **Run cache warming script**:
-  - Clear DynamoDB cache (or use test table)
-  - Run `npm run warm-cache` in backend/
-  - Verify 10 stocks processed
-  - Check DynamoDB Console for cached sentiment
-  - Verify subsequent requests return cached data
-
-- **Test throttling**:
-  - Run script against production
-  - Monitor CloudWatch Logs for throttling errors
-  - Adjust parallel count if throttling occurs
+1. Open app in browser
+2. Resize window from mobile to desktop sizes
+3. Verify layout changes at breakpoints
+4. Check all content visible
+5. Test on actual tablet/desktop
 
 **Commit Message Template:**
 ```
-feat(cache): implement automatic cache warming on deployment
+feat(stock-detail): add responsive multi-column layout
 
-- Create script to warm cache for top 10 popular stocks
-- Add throttling to prevent DynamoDB overload (2 parallel)
-- Add npm script for manual cache warming
-- Optional: GitHub Actions workflow for post-deploy warming
-- Logging shows progress and cache hit rates
-
-Task: Phase 5, Task 5.3
+- Implement two-column desktop layout (chart + metadata)
+- Add tablet-optimized layout
+- Maintain mobile single-column layout
+- Use flexbox for responsive design
 ```
 
-**Estimated tokens:** ~4,000
+**Estimated Tokens:** ~12,000
 
 ---
 
-### Task 5.4: Create CloudWatch Dashboard for Monitoring
+### Task 3: Add Hover States for Web
 
-**Goal:** Create CloudWatch dashboard to monitor cache performance, Lambda execution, and DynamoDB metrics.
+**Goal:** All interactive elements show hover feedback on web
 
-**Files to Create:**
-- `backend/cloudwatch-dashboard.json` - Dashboard definition
-- `backend/scripts/create-dashboard.sh` - Script to deploy dashboard
+**Files to Modify/Create:**
+- Update all interactive components with hover styles
+- Use Platform.OS === 'web' checks for web-only styles
 
 **Prerequisites:**
-- CloudWatch Metrics being published (Phase 2 Task 2.4)
-- Access to CloudWatch Console
+- All interactive components identified
 
 **Implementation Steps:**
+1. Identify all interactive elements (cards, buttons, links)
+2. Add hover styles using React Native Web's hover support
+3. Use `onMouseEnter` and `onMouseLeave` for custom hover logic if needed
+4. Apply hover styles: opacity change, subtle background color change, cursor pointer
+5. Ensure hover doesn't conflict with press animations
+6. Test on multiple browsers
 
-1. **Define dashboard widgets** in JSON:
-   ```json
-   {
-     "widgets": [
-       {
-         "type": "metric",
-         "properties": {
-           "title": "Cache Hit Rate",
-           "metrics": [
-             ["ReactStocks", "CacheHitRate", { "stat": "Average" }]
-           ],
-           "period": 300,
-           "stat": "Average",
-           "region": "us-east-1"
-         }
-       },
-       {
-         "type": "metric",
-         "properties": {
-           "title": "Lambda Duration",
-           "metrics": [
-             ["AWS/Lambda", "Duration", { "FunctionName": "ReactStocksFunction" }]
-           ],
-           "period": 300,
-           "stat": "Average"
-         }
-       },
-       {
-         "type": "metric",
-         "properties": {
-           "title": "DynamoDB Consumed Read/Write Capacity",
-           "metrics": [
-             ["AWS/DynamoDB", "ConsumedReadCapacityUnits", { "TableName": "StocksCache" }],
-             ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", { "TableName": "StocksCache" }]
-           ],
-           "period": 300
-         }
-       },
-       {
-         "type": "metric",
-         "properties": {
-           "title": "Lambda Errors",
-           "metrics": [
-             ["AWS/Lambda", "Errors", { "FunctionName": "ReactStocksFunction" }]
-           ],
-           "period": 300,
-           "stat": "Sum"
-         }
-       },
-       {
-         "type": "metric",
-         "properties": {
-           "title": "API Gateway Requests",
-           "metrics": [
-             ["AWS/ApiGateway", "Count", { "ApiName": "ReactStocksApi" }]
-           ],
-           "period": 300,
-           "stat": "Sum"
-         }
-       }
-     ]
-   }
-   ```
+**Hover Pattern:**
+```typescript
+import { Platform } from 'react-native';
 
-2. **Create deployment script**:
-   ```bash
-   #!/bin/bash
-   aws cloudwatch put-dashboard \
-     --dashboard-name ReactStocksCachePerformance \
-     --dashboard-body file://cloudwatch-dashboard.json
-   ```
+const styles = StyleSheet.create({
+  card: {
+    // base styles
+  },
+  // Web-only hover style
+  ...(Platform.OS === 'web' && {
+    cardHover: {
+      cursor: 'pointer',
+      opacity: 0.9,
+    },
+  }),
+});
 
-3. **Add widgets for**:
-   - Cache hit rate (custom metric from Phase 2)
-   - Lambda duration (cold start vs warm)
-   - DynamoDB read/write capacity
-   - Lambda errors and throttles
-   - API Gateway request count
-   - Sentiment job completion time
+// In component
+const [isHovered, setIsHovered] = useState(false);
 
-4. **Add alarms** (optional but recommended):
-   - Alarm if cache hit rate <70% (investigate why)
-   - Alarm if Lambda errors >5 in 5 minutes
-   - Alarm if DynamoDB throttling occurs
-   - SNS notification to admin email
+<View
+  style={[styles.card, isHovered && styles.cardHover]}
+  onMouseEnter={() => Platform.OS === 'web' && setIsHovered(true)}
+  onMouseLeave={() => Platform.OS === 'web' && setIsHovered(false)}
+>
+```
+
+**Or use React Native Web's automatic hover:**
+```typescript
+// React Native Web supports :hover via style arrays
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: theme.colors.primary,
+  },
+  buttonHover: {
+    backgroundColor: theme.colors.primaryDark,
+  },
+});
+
+// RNW will apply hover automatically if you use this pattern
+<Pressable style={({ hovered }) => [styles.button, hovered && styles.buttonHover]}>
+```
+
+**Components to Update:**
+- PortfolioItem - hover shows subtle background change
+- SearchResultItem - hover changes opacity
+- NewsListItem - hover highlights card
+- All buttons - hover darkens slightly
+- Chart elements - hover shows tooltips (if applicable)
 
 **Verification Checklist:**
-- [ ] Dashboard created in CloudWatch Console
-- [ ] All widgets display metrics correctly
-- [ ] Metrics update in real-time
-- [ ] Alarms configured (if implemented)
-- [ ] Dashboard accessible from CloudWatch Console
+- [ ] All cards show hover state
+- [ ] All buttons show hover state
+- [ ] Cursor changes to pointer on interactive elements
+- [ ] Hover doesn't break press animations
+- [ ] Works in Chrome, Firefox, Safari, Edge
 
 **Testing Instructions:**
-
-Manual testing:
-
-- **Create dashboard**:
-  - Run `bash backend/scripts/create-dashboard.sh`
-  - Open CloudWatch Console → Dashboards
-  - Verify "ReactStocksCachePerformance" dashboard exists
-
-- **Verify metrics**:
-  - Make test requests to Lambda
-  - Wait 1-2 minutes for metrics to update
-  - Refresh dashboard, verify metrics populated
-
-- **Test alarms** (if implemented):
-  - Trigger alarm condition (e.g., force Lambda errors)
-  - Verify SNS notification received
+Test in each browser:
+1. Hover over portfolio items
+2. Hover over buttons
+3. Hover over news cards
+4. Verify cursor changes
+5. Verify subtle visual feedback
 
 **Commit Message Template:**
 ```
-feat(monitoring): create CloudWatch dashboard for cache performance
+feat(web): add hover states to all interactive elements
 
-- Define dashboard with 5 key metric widgets
-- Monitor cache hit rate, Lambda duration, DynamoDB usage
-- Add alarms for low cache hit rate and Lambda errors
-- Create deployment script for dashboard
-- Documentation for accessing dashboard
-
-Task: Phase 5, Task 5.4
+- Add hover styles to cards and buttons
+- Change cursor to pointer on hover
+- Apply subtle background/opacity changes
+- Web-only feature using Platform checks
 ```
 
-**Estimated tokens:** ~4,000
+**Estimated Tokens:** ~15,000
 
 ---
 
-### Task 5.5: Deprecate Local Sentiment Processing Code
+### Task 4: Implement Keyboard Navigation
 
-**Goal:** Remove or feature-flag deprecated local sentiment processing code to reduce bundle size and code complexity.
+**Goal:** Full keyboard navigation support for accessibility
 
-**Files to Modify:**
-- `src/services/sync/sentimentDataSync.ts` - Deprecate or remove
-- `src/ml/sentiment/` - Mark as deprecated (keep for fallback)
-- `src/hooks/useSentimentData.ts` - Clean up old logic
+**Files to Modify/Create:**
+- Add keyboard event handlers to interactive elements
+- Ensure focus indicators visible
 
 **Prerequisites:**
-- Phase 4 complete (Lambda sentiment fully functional)
-- Feature flag tested and enabled in production
+- Understand web accessibility requirements
 
 **Implementation Steps:**
+1. Ensure all interactive elements are focusable (use Pressable, Button)
+2. Add visible focus indicators (outline on focus)
+3. Support Tab key navigation through elements
+4. Support Enter/Space to activate buttons
+5. Support Escape to close modals
+6. Add keyboard shortcuts for common actions (optional)
+7. Test with keyboard only (no mouse)
 
-1. **Mark files as deprecated**:
-   - Add deprecation notice to top of files:
-     ```typescript
-     /**
-      * @deprecated This file is deprecated and will be removed in v2.0.
-      * Use Lambda sentiment processing instead (src/services/api/lambdaSentiment.service.ts).
-      * Kept for fallback when Lambda unavailable (offline mode).
-      */
-     ```
+**Focus Indicator Pattern:**
+```typescript
+const styles = StyleSheet.create({
+  button: {
+    // base styles
+  },
+  buttonFocused: {
+    outline: `2px solid ${theme.colors.primary}`,
+    outlineOffset: 2,
+  },
+});
 
-2. **Remove unused exports**:
-   - If `sentimentDataSync.ts` only used as fallback, keep minimal functions
-   - Remove any functions not used in fallback path
+const [isFocused, setIsFocused] = useState(false);
 
-3. **Clean up useSentimentData hook**:
-   - Remove commented-out old code
-   - Simplify fallback logic
-   - Add comment explaining why local analysis kept (offline mode)
+<Pressable
+  style={[styles.button, isFocused && styles.buttonFocused]}
+  onFocus={() => setIsFocused(true)}
+  onBlur={() => setIsFocused(false)}
+  accessible
+  accessibilityRole="button"
+>
+```
 
-4. **Update CLAUDE.md documentation**:
-   - Mark browser-based sentiment as "Deprecated" in architecture section
-   - Update to: "Lambda sentiment (primary) with browser fallback (offline mode)"
-
-5. **Consider removing in future version** (v2.0):
-   - Plan to remove local sentiment entirely after 6 months
-   - Requires offline mode to fail gracefully without sentiment
-   - Document plan in GitHub issue or roadmap
+**Keyboard Shortcuts (Optional):**
+- `/` - Focus search bar
+- `Escape` - Close modals
+- `Arrow keys` - Navigate lists
+- `Enter` - Select item
 
 **Verification Checklist:**
-- [ ] Deprecation notices added to old files
-- [ ] Unused code removed
-- [ ] Documentation updated
-- [ ] Fallback code still functional (offline mode)
-- [ ] No breaking changes to existing functionality
+- [ ] Can navigate with Tab key
+- [ ] Focus indicators visible
+- [ ] Enter/Space activate buttons
+- [ ] Escape closes modals
+- [ ] Logical tab order
+- [ ] No keyboard traps
 
 **Testing Instructions:**
-
-- **Test fallback still works**:
-  - Disable Lambda (set feature flag to false)
-  - Trigger sentiment analysis
-  - Verify local analysis used
-  - Verify results correct
-
-- **Verify bundle size reduction** (optional):
-  - Build app before and after cleanup
-  - Compare bundle sizes
-  - Expect minor reduction (~5-10% if code removed)
+Keyboard-only testing:
+1. Unplug mouse or don't use it
+2. Tab through entire app
+3. Verify all elements reachable
+4. Verify focus indicators clear
+5. Test Enter/Space on buttons
+6. Test Escape on modals
 
 **Commit Message Template:**
 ```
-chore(deprecate): mark local sentiment processing as deprecated
+feat(accessibility): implement keyboard navigation support
 
-- Add deprecation notices to sentimentDataSync.ts and ml/sentiment/
-- Remove unused exports and commented code
-- Keep minimal fallback for offline mode
-- Update documentation to reflect Lambda as primary
-- Plan removal in v2.0 (6 months)
-
-Task: Phase 5, Task 5.5
+- Add focus indicators to all interactive elements
+- Support Tab key navigation
+- Handle Enter/Space for activation
+- Handle Escape for modal dismissal
+- Ensure logical tab order throughout app
 ```
 
-**Estimated tokens:** ~3,500
+**Estimated Tokens:** ~12,000
 
 ---
 
-### Task 5.6: Optimize DynamoDB Costs
+### Task 5: Add SEO Metadata and Meta Tags
 
-**Goal:** Analyze and optimize DynamoDB usage to keep costs <$20/month for 100 active users.
+**Goal:** Proper HTML head metadata for SEO and social sharing
 
-**Files to Modify:**
-- `backend/template.yaml` - Adjust TTL settings (if needed)
-- `backend/src/repositories/` - Optimize batch sizes
+**Files to Modify/Create:**
+- `app/_layout.tsx` - Add head metadata
+- Create custom Head component if needed
 
 **Prerequisites:**
-- CloudWatch metrics showing DynamoDB usage
-- AWS Cost Explorer access to view DynamoDB costs
+- Understand expo-router Head component
+- Know SEO best practices
 
 **Implementation Steps:**
+1. Import Head from expo-router
+2. Add title, description, keywords
+3. Add Open Graph tags for social sharing
+4. Add Twitter Card tags
+5. Add favicon and app icons
+6. Add viewport meta tag
+7. Add theme-color meta tag
 
-1. **Analyze current usage** in AWS Cost Explorer:
-   - Check DynamoDB costs over last 30 days
-   - Identify cost drivers: Storage, Read/Write requests
-   - Calculate cost per user
+**Head Implementation:**
+```typescript
+import Head from 'expo-router/head';
 
-2. **Optimize TTL settings**:
-   - Current: 7 days (stocks), 30 days (news), 90 days (sentiment)
-   - If storage costs high, reduce TTLs:
-     - Stocks: 5 days (vs 7)
-     - News: 21 days (vs 30)
-     - Sentiment: 60 days (vs 90)
-   - Balance cost vs cache hit rate
+export default function RootLayout() {
+  return (
+    <>
+      <Head>
+        <title>Stock Tracker - Professional Stock Analysis</title>
+        <meta
+          name="description"
+          content="Track stocks, analyze sentiment, and visualize price trends with our professional stock tracking application."
+        />
+        <meta name="keywords" content="stocks, finance, portfolio, trading, sentiment analysis" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta name="theme-color" content="#121212" />
 
-3. **Optimize batch operations**:
-   - Ensure all repositories use `batchWriteItem` (max 25 items)
-   - Avoid single `putItem` in loops
-   - Use `batchGetItem` for multi-item reads
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Stock Tracker - Professional Stock Analysis" />
+        <meta property="og:description" content="Track stocks and analyze market sentiment" />
+        <meta property="og:image" content="/og-image.png" />
 
-4. **Enable DynamoDB on-demand autoscaling** (already configured):
-   - Verify billing mode is `PAY_PER_REQUEST`
-   - Monitor for throttling (indicates need for provisioned capacity)
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Stock Tracker" />
+        <meta name="twitter:description" content="Professional stock tracking and analysis" />
 
-5. **Add cost monitoring alarm**:
-   - Create billing alarm if DynamoDB costs exceed $25/month
-   - SNS notification to admin
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      </Head>
 
-6. **Estimate costs at scale**:
-   - Current: ~10 users, X reads/writes per day
-   - Projected: 100 users, 10X reads/writes
-   - DynamoDB pricing: $0.25/GB storage, $0.25 per million writes, $0.25 per million reads
-   - Calculate: Should be <$20/month if cache hit rate >80%
+      {/* ... rest of layout */}
+    </>
+  );
+}
+```
 
 **Verification Checklist:**
-- [ ] DynamoDB costs <$5/month for current usage
-- [ ] Projected costs <$20/month for 100 users
-- [ ] TTL settings optimized for cost vs performance
-- [ ] Batch operations used correctly
-- [ ] Billing alarm configured
+- [ ] Title appears in browser tab
+- [ ] Description set for search engines
+- [ ] Open Graph tags for social sharing
+- [ ] Favicon displays
+- [ ] Viewport meta tag for mobile
+- [ ] Theme color matches dark theme
 
 **Testing Instructions:**
-
-Manual cost analysis:
-
-- **Check AWS Cost Explorer**:
-  - Open AWS Console → Cost Explorer
-  - Filter by Service: DynamoDB
-  - View costs for last 30 days
-  - Identify cost breakdown (storage vs requests)
-
-- **Calculate projected costs**:
-  - Measure current reads/writes per day
-  - Multiply by 10 for 100 users
-  - Use AWS Pricing Calculator
-  - Verify <$20/month
+1. View page source in browser
+2. Verify all meta tags present
+3. Test social sharing (paste URL in Slack/Discord)
+4. Verify Open Graph preview
+5. Check favicon in browser tab
 
 **Commit Message Template:**
 ```
-perf(cost): optimize DynamoDB costs for <$20/month target
+feat(seo): add comprehensive SEO metadata and meta tags
 
-- Analyze current usage in AWS Cost Explorer
-- Optimize TTL settings (reduce to 60 days for sentiment)
-- Verify batch operations used correctly
-- Add billing alarm at $25/month threshold
-- Projected cost for 100 users: ~$18/month
-
-Task: Phase 5, Task 5.6
+- Add title, description, keywords meta tags
+- Add Open Graph tags for social sharing
+- Add Twitter Card tags
+- Set theme-color for dark theme
+- Add favicon and app icons
 ```
 
-**Estimated tokens:** ~4,000
+**Estimated Tokens:** ~10,000
 
 ---
 
-### Task 5.7: Production Deployment Checklist
+### Task 6: Optimize Web Performance
 
-**Goal:** Create comprehensive pre-deployment checklist and deploy to production with zero downtime.
+**Goal:** Fast loading and interactive experience on web
 
-**Files to Create:**
-- `docs/DEPLOYMENT.md` - Deployment guide
-- `backend/scripts/pre-deploy-check.sh` - Pre-deployment validation script
+**Files to Modify/Create:**
+- Various optimizations across codebase
+- Add lazy loading where appropriate
 
 **Prerequisites:**
-- All Phase 5 tasks complete
-- Testing validated on dev/staging environment
-- Stakeholders notified of deployment
+- App functional with all features
 
 **Implementation Steps:**
+1. Lazy load heavy components (charts)
+2. Optimize image loading (if any images added)
+3. Code splitting with dynamic imports
+4. Minimize bundle size
+5. Use React.memo for expensive components
+6. Optimize re-renders with useMemo/useCallback
+7. Analyze bundle with `npx expo export:web --analyze`
 
-1. **Create pre-deployment checklist**:
-   - [ ] All tests passing (backend and frontend)
-   - [ ] Feature flags configured correctly
-   - [ ] Environment variables set in production
-   - [ ] DynamoDB tables exist and accessible
-   - [ ] Lambda IAM roles have correct permissions
-   - [ ] CloudWatch dashboard created
-   - [ ] Alarms configured and tested
-   - [ ] Cache warming script ready
-   - [ ] Rollback plan documented
+**Lazy Loading Pattern:**
+```typescript
+import { lazy, Suspense } from 'react';
+const PriceChart = lazy(() => import('@/components/charts/PriceChart'));
 
-2. **Create pre-deploy validation script**:
-   ```bash
-   #!/bin/bash
-   echo "Running pre-deployment checks..."
+function PriceTab() {
+  return (
+    <Suspense fallback={<Skeleton width="100%" height={250} />}>
+      <PriceChart data={data} />
+    </Suspense>
+  );
+}
+```
 
-   # Check AWS credentials
-   aws sts get-caller-identity || { echo "AWS credentials not configured"; exit 1; }
+**Memoization:**
+```typescript
+// Memoize expensive components
+export const PriceChart = React.memo(({ data, width }) => {
+  // ... chart implementation
+});
 
-   # Check DynamoDB tables exist
-   aws dynamodb describe-table --table-name StocksCache || { echo "StocksCache table not found"; exit 1; }
+// Memoize expensive calculations
+const chartData = useMemo(
+  () => transformPriceData(stockData),
+  [stockData]
+);
 
-   # Check Lambda function exists
-   aws lambda get-function --function-name ReactStocksFunction || { echo "Lambda function not found"; exit 1; }
+// Memoize callbacks to prevent re-renders
+const handlePress = useCallback(
+  (item) => {
+    setSelectedTicker(item.ticker);
+    router.push(`/stock/${item.ticker}`);
+  },
+  [setSelectedTicker]
+);
+```
 
-   # Run tests
-   npm test || { echo "Tests failed"; exit 1; }
+**Bundle Analysis:**
+```bash
+# Analyze bundle size
+npx expo export:web --analyze
 
-   echo "✅ All pre-deployment checks passed!"
-   ```
-
-3. **Deploy backend** (Lambda + DynamoDB):
-   - Run pre-deploy checks
-   - Run `sam build && sam deploy`
-   - Verify deployment in CloudFormation Console
-   - Test endpoints with curl
-   - Run cache warming script
-
-4. **Deploy frontend** (Expo):
-   - Update `EXPO_PUBLIC_BACKEND_URL` if API Gateway URL changed
-   - Run `npm run build` (web) or `eas build` (native)
-   - Deploy to hosting (Vercel, Netlify, etc.)
-   - Test on production URL
-
-5. **Post-deployment validation**:
-   - [ ] API endpoints responding correctly
-   - [ ] Cache hit rates >70% after warming
-   - [ ] CloudWatch Logs show no errors
-   - [ ] Frontend loads correctly on all platforms
-   - [ ] Sentiment polling works end-to-end
-   - [ ] Offline mode functional
-
-6. **Monitor for 24 hours**:
-   - Watch CloudWatch Dashboard for anomalies
-   - Monitor error rates
-   - Check user feedback (if applicable)
-   - Be ready to rollback if critical issues
+# Check which dependencies are largest
+# Consider replacing heavy dependencies or lazy loading
+```
 
 **Verification Checklist:**
-- [ ] Pre-deploy script passes all checks
-- [ ] Backend deployed without errors
-- [ ] Frontend deployed and accessible
-- [ ] Post-deployment tests pass
-- [ ] No user-facing errors reported
-- [ ] CloudWatch shows healthy metrics
+- [ ] Heavy components lazy loaded
+- [ ] Expensive components memoized
+- [ ] Callbacks wrapped in useCallback
+- [ ] Computations wrapped in useMemo
+- [ ] Bundle size reasonable (< 500KB gzipped)
+- [ ] Initial load < 2s
 
 **Testing Instructions:**
-
-Production smoke tests:
-
-- **Test cache flow**:
-  - Clear browser cache
-  - Search for AAPL
-  - Verify price/news load immediately
-  - Verify sentiment completes in <15s
-
-- **Test error handling**:
-  - Search for invalid ticker
-  - Verify error message displayed
-  - Verify no console errors
-
-- **Test offline mode**:
-  - Enable airplane mode
-  - Search for cached stock
-  - Verify data loads from local DB
+1. Clear browser cache
+2. Load app with DevTools Network tab open
+3. Measure load time and bundle size
+4. Run Lighthouse performance audit
+5. Target: 90+ performance score
 
 **Commit Message Template:**
 ```
-chore(deploy): production deployment v1.0.0
+perf(web): optimize loading performance and bundle size
 
-- All pre-deployment checks passed
-- Backend deployed successfully (Lambda + DynamoDB)
-- Frontend deployed to production
-- Cache warming completed for top 10 stocks
-- Post-deployment validation passed
-- Monitoring active, no errors detected
-
-Task: Phase 5, Task 5.7
+- Lazy load chart components
+- Add React.memo to expensive components
+- Memoize callbacks and computations
+- Analyze and optimize bundle size
+- Achieve < 2s interactive time
 ```
 
-**Estimated tokens:** ~5,000
+**Estimated Tokens:** ~12,000
+
+---
+
+### Task 7: Improve Accessibility (A11y)
+
+**Goal:** Meet WCAG 2.1 AA accessibility standards
+
+**Files to Modify/Create:**
+- Add accessibility props throughout app
+- Ensure proper ARIA labels
+
+**Prerequisites:**
+- Understand WCAG guidelines
+- Task 4 complete (keyboard navigation)
+
+**Implementation Steps:**
+1. Add `accessible` and `accessibilityLabel` to all interactive elements
+2. Add `accessibilityHint` for complex interactions
+3. Add `accessibilityRole` for semantic elements
+4. Ensure color contrast ratios meet AA standards (already verified in Phase 1)
+5. Add live regions for dynamic content
+6. Test with screen reader (VoiceOver, NVDA)
+7. Run automated accessibility audit
+
+**Accessibility Props Pattern:**
+```typescript
+<Pressable
+  accessible
+  accessibilityRole="button"
+  accessibilityLabel="Add stock to portfolio"
+  accessibilityHint="Double tap to add this stock to your watchlist"
+  onPress={handleAddStock}
+>
+  <Icon name="add" />
+</Pressable>
+
+<FlatList
+  data={portfolio}
+  accessible
+  accessibilityRole="list"
+  accessibilityLabel="Your portfolio stocks"
+  renderItem={({ item }) => (
+    <View
+      accessible
+      accessibilityRole="listitem"
+      accessibilityLabel={`${item.ticker}, ${item.name}, current price ${formatPrice(item.price)}, change ${formatPercentage(item.change)}`}
+    >
+      <PortfolioItem item={item} />
+    </View>
+  )}
+/>
+
+// Live region for dynamic updates
+<View
+  accessible
+  accessibilityLiveRegion="polite"
+  accessibilityLabel={`Price updated to ${currentPrice}`}
+>
+  <MonoText>{formatPrice(currentPrice)}</MonoText>
+</View>
+```
+
+**Components to Update:**
+- All buttons and interactive elements
+- All list items
+- Charts (add descriptions)
+- Modals (trap focus, announce)
+- Error messages (polite live region)
+- Loading states (assertive live region)
+
+**Verification Checklist:**
+- [ ] All interactive elements have labels
+- [ ] Semantic roles assigned
+- [ ] Lists marked as lists
+- [ ] Buttons marked as buttons
+- [ ] Live regions for dynamic content
+- [ ] Screen reader test passed
+- [ ] Automated audit passed
+
+**Testing Instructions:**
+1. Use browser accessibility DevTools
+2. Run Lighthouse accessibility audit
+3. Test with screen reader (enable VoiceOver/NVDA)
+4. Navigate app with screen reader only
+5. Verify all content announced correctly
+
+**Commit Message Template:**
+```
+feat(accessibility): achieve WCAG 2.1 AA compliance
+
+- Add accessibilityLabel to all interactive elements
+- Add accessibilityRole for semantic meaning
+- Add live regions for dynamic updates
+- Test with screen reader
+- Pass automated accessibility audit
+```
+
+**Estimated Tokens:** ~13,000
+
+---
+
+### Task 8: Add Error Boundaries and Fallbacks
+
+**Goal:** Graceful error handling with user-friendly fallback UI
+
+**Files to Modify/Create:**
+- Verify ErrorBoundary from Phase 0 is comprehensive
+- Add fallback UI for common errors
+
+**Prerequisites:**
+- ErrorBoundary already exists (from app/_layout.tsx)
+
+**Implementation Steps:**
+1. Review existing ErrorBoundary implementation
+2. Add specific error fallbacks for:
+   - Network errors (API failures)
+   - Chart rendering errors
+   - Data parsing errors
+3. Add retry mechanisms
+4. Log errors to console (production: could send to error tracking service)
+5. Ensure error UI matches dark theme
+
+**Enhanced ErrorBoundary:**
+```typescript
+// Error fallback component
+function ErrorFallback({ error, resetError }: { error: Error; resetError: () => void }) {
+  const theme = useTheme();
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Ionicons name="alert-circle" size={64} color={theme.colors.error} />
+      <Text style={[styles.title, { color: theme.colors.onBackground }]}>
+        Something went wrong
+      </Text>
+      <Text style={[styles.message, { color: theme.colors.onSurfaceVariant }]}>
+        {error.message}
+      </Text>
+      <Button mode="contained" onPress={resetError}>
+        Try Again
+      </Button>
+    </View>
+  );
+}
+
+// In ErrorBoundary
+class ErrorBoundary extends React.Component {
+  // ... existing implementation
+  render() {
+    if (this.state.hasError) {
+      return <ErrorFallback error={this.state.error} resetError={this.resetError} />;
+    }
+    return this.props.children;
+  }
+}
+```
+
+**Specific Error Handling:**
+```typescript
+// In API calls
+try {
+  const data = await fetchStockData(ticker);
+  return data;
+} catch (error) {
+  if (error.response?.status === 404) {
+    throw new Error('Stock not found. Please check the ticker symbol.');
+  }
+  if (error.response?.status === 429) {
+    throw new Error('Rate limit exceeded. Please try again in a few moments.');
+  }
+  throw new Error('Failed to load stock data. Please check your connection.');
+}
+```
+
+**Verification Checklist:**
+- [ ] ErrorBoundary catches all errors
+- [ ] Fallback UI user-friendly
+- [ ] Retry mechanism works
+- [ ] Network errors handled specifically
+- [ ] Error UI matches dark theme
+- [ ] Errors logged appropriately
+
+**Testing Instructions:**
+1. Force errors by modifying code temporarily
+2. Verify error boundary catches
+3. Verify fallback UI displays
+4. Test retry button
+5. Test specific error messages
+
+**Commit Message Template:**
+```
+feat(error-handling): enhance error boundaries and fallbacks
+
+- Add comprehensive error fallback UI
+- Handle network errors specifically
+- Add retry mechanisms
+- Style error UI for dark theme
+- Log errors for debugging
+```
+
+**Estimated Tokens:** ~10,000
+
+---
+
+### Task 9: Final Visual Polish
+
+**Goal:** Pixel-perfect visual refinements and consistency
+
+**Files to Modify/Create:**
+- Review all screens for visual consistency
+- Fix any remaining visual bugs
+
+**Implementation Steps:**
+1. Audit all screens for visual consistency
+2. Ensure consistent spacing throughout (use theme.spacing)
+3. Verify all colors use theme (no hardcoded hex values)
+4. Check font sizes for hierarchy
+5. Ensure proper alignment and margins
+6. Fix any layout issues at different screen sizes
+7. Polish loading states
+8. Polish empty states
+9. Polish error states
+
+**Visual Consistency Checklist:**
+
+**Spacing:**
+- [ ] All cards use consistent margin (12-16px)
+- [ ] All sections use consistent padding (16-24px)
+- [ ] List items have consistent spacing
+
+**Typography:**
+- [ ] Headings use proper hierarchy (h1 > h2 > h3)
+- [ ] Body text readable (14-16px)
+- [ ] All numbers use MonoText
+
+**Colors:**
+- [ ] No hardcoded colors (search codebase for /#[0-9a-f]{3,6}/i)
+- [ ] All colors from theme
+- [ ] Proper contrast ratios
+
+**Layout:**
+- [ ] No horizontal scrolling on mobile
+- [ ] No content cut off
+- [ ] Proper responsive behavior
+- [ ] Touch targets e 44px
+
+**States:**
+- [ ] Loading states show skeleton
+- [ ] Empty states have helpful message
+- [ ] Error states actionable
+
+**Verification Checklist:**
+- [ ] Visual audit complete
+- [ ] No hardcoded colors
+- [ ] Consistent spacing
+- [ ] Proper typography hierarchy
+- [ ] All states polished
+
+**Testing Instructions:**
+1. Navigate through entire app
+2. Screenshot each screen
+3. Compare for consistency
+4. Fix inconsistencies
+5. Test at mobile, tablet, desktop sizes
+
+**Commit Message Template:**
+```
+style(polish): final visual consistency pass
+
+- Ensure all spacing uses theme values
+- Verify all colors from theme
+- Check typography hierarchy
+- Polish all loading/empty/error states
+- Fix layout issues at all breakpoints
+```
+
+**Estimated Tokens:** ~10,000
 
 ---
 
 ## Phase Verification
 
-After completing all tasks, verify the entire phase:
+Final verification before declaring complete:
 
-**Migration Validation (if Task 5.1 completed):**
-- [ ] Local sentiment data migrated to DynamoDB
-- [ ] No duplicate entries in DynamoDB
-- [ ] TTL set correctly on migrated items
+### Automated Verification
 
-**Performance Validation:**
-- [ ] Lambda cold start <500ms
-- [ ] Lambda warm execution <200ms
-- [ ] DynamoDB costs <$20/month projected
-
-**Monitoring Validation:**
-- [ ] CloudWatch Dashboard showing all metrics
-- [ ] Alarms configured and tested
-- [ ] Logs accessible and readable
-
-**Code Cleanup Validation:**
-- [ ] Deprecated code marked with notices
-- [ ] Unused code removed
-- [ ] Documentation updated
-
-**Production Validation:**
-- [ ] Backend deployed successfully
-- [ ] Frontend deployed successfully
-- [ ] All features functional in production
-- [ ] No critical errors in first 24 hours
-
----
-
-## Next Steps
-
-✅ **Phase 5 Complete!** You now have:
-- Production-ready hybrid caching system
-- Optimized Lambda performance (<500ms cold start)
-- CloudWatch monitoring and alarms
-- Cost-optimized DynamoDB (<$20/month for 100 users)
-- Deprecated code cleaned up
-- Deployment checklist and validation
-
-**Post-Launch:**
-1. Monitor CloudWatch Dashboard daily for first week
-2. Collect user feedback on performance improvements
-3. Plan Phase 6 (optional): WebSocket for real-time updates
-4. Consider expanding to more data types (predictions, technical indicators)
-5. Iterate based on metrics and feedback
-
----
-
-## Project Complete! 🎉
-
-Congratulations! You have successfully implemented a hybrid caching architecture that:
-
-- ✅ Eliminates 45+ second UI hangs (now <3 seconds)
-- ✅ Shares expensive computations across users (90%+ cache hit rate)
-- ✅ Preserves offline-first architecture
-- ✅ Scales to 100+ concurrent users
-- ✅ Costs <$20/month for typical usage
-
-**Total Implementation**: ~188,000 tokens across 5 phases
-
-### Performance Comparison
-
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Sentiment load time (30 days) | 45+ seconds | <3 seconds | **93% faster** |
-| Price/News load time | 2-5 seconds | <2 seconds | **Immediate** |
-| API calls (100 users, same stock) | 100 calls | <10 calls | **90% reduction** |
-| UI responsiveness | Blocked | Non-blocking | **No hangs** |
-| Offline mode | ✅ | ✅ | **Preserved** |
-
-### Architecture Summary
-
-**Data Flow:**
-```
-User searches stock
-  ↓
-Frontend checks local DB → Cache hit? → Display
-  ↓ (cache miss)
-Lambda checks DynamoDB → Cache hit? → Return
-  ↓ (cache miss)
-Lambda calls Tiingo/Polygon API → Cache in DynamoDB → Return
-  ↓
-Frontend stores in local DB → Display
-  ↓ (async)
-Lambda analyzes sentiment → Cache in DynamoDB
-  ↓
-Frontend polls for completion → Display when ready
+```bash
+npm test
+npm run type-check
+npm run lint
 ```
 
-**Key Decisions:**
-- Multi-table DynamoDB design (simple, intuitive)
-- Synchronous sentiment processing in Lambda (simple, fast enough)
-- HTTP polling for job status (no WebSocket complexity)
-- Feature flag for easy rollback (EXPO_PUBLIC_USE_LAMBDA_SENTIMENT)
-- TTL-based cost optimization (7/30/90 days)
+All pass with no errors or warnings.
 
-### Maintenance Guide
+### Visual Verification
 
-**Monthly Tasks:**
-- Review AWS Cost Explorer for DynamoDB costs
-- Check CloudWatch Dashboard for performance trends
-- Review Lambda execution duration (cold vs warm)
-- Update cache warming list if popular stocks change
+**Cross-Browser Testing:**
+Test in all major browsers:
+- [ ] Chrome - primary target 
+- [ ] Firefox 
+- [ ] Safari 
+- [ ] Edge 
 
-**Quarterly Tasks:**
-- Review TTL settings based on storage costs
-- Analyze cache hit rates and adjust warming strategy
-- Consider provisioned concurrency if cold starts problematic
-- Update dependencies (Lambda runtime, npm packages)
+**Responsive Testing:**
+- [ ] Mobile (375px) 
+- [ ] Tablet (768px) 
+- [ ] Desktop (1440px) 
+- [ ] Ultra-wide (1920px+) 
 
-**Rollback Procedure (if needed):**
-1. Set `EXPO_PUBLIC_USE_LAMBDA_SENTIMENT=false` in frontend
-2. Redeploy frontend
-3. Local analysis will be used immediately
-4. No backend changes needed
-5. Investigate Lambda issues
-6. Re-enable when resolved
+**Features:**
+- [ ] Dark theme consistent 
+- [ ] Charts render correctly 
+- [ ] Animations smooth 
+- [ ] Interactions responsive 
+- [ ] Hover states work 
+- [ ] Keyboard navigation works 
+
+### Performance Verification
+
+**Lighthouse Audit:**
+Run in Chrome DevTools:
+```
+Performance: 90+
+Accessibility: 90+
+Best Practices: 90+
+SEO: 90+
+```
+
+**Load Times:**
+- [ ] First Contentful Paint < 1.5s
+- [ ] Time to Interactive < 2.5s
+- [ ] Total Bundle Size < 500KB gzipped
+
+### Accessibility Verification
+
+- [ ] WCAG 2.1 AA compliance
+- [ ] Screen reader test passed
+- [ ] Keyboard navigation complete
+- [ ] Color contrast ratios e 4.5:1
+- [ ] Focus indicators visible
+
+### Final Checks
+
+- [ ] No console errors
+- [ ] No console warnings
+- [ ] All features functional
+- [ ] No broken links or navigation
+- [ ] All forms work
+- [ ] All modals open/close correctly
 
 ---
 
-Thank you for following this implementation plan! If you encounter any issues or have questions, refer back to Phase 0 for architecture decisions and common pitfalls. Good luck with your deployment! 🚀
+## Production Checklist
+
+Before deploying to production:
+
+**Code Quality:**
+- [ ] All tests passing
+- [ ] No TypeScript errors
+- [ ] No ESLint warnings
+- [ ] Code formatted with Prettier
+
+**Performance:**
+- [ ] Bundle optimized
+- [ ] Images optimized (if any)
+- [ ] Lazy loading implemented
+- [ ] Lighthouse score 90+
+
+**SEO & Meta:**
+- [ ] Title tags set
+- [ ] Meta descriptions set
+- [ ] Open Graph tags
+- [ ] Favicon added
+
+**Accessibility:**
+- [ ] WCAG AA compliant
+- [ ] Screen reader tested
+- [ ] Keyboard accessible
+
+**Error Handling:**
+- [ ] Error boundaries in place
+- [ ] User-friendly error messages
+- [ ] Retry mechanisms work
+
+**Browser Support:**
+- [ ] Chrome 90+ 
+- [ ] Firefox 88+ 
+- [ ] Safari 14+ 
+- [ ] Edge 90+ 
+
+---
+
+## Known Limitations
+
+Document any known limitations:
+- _Victory Native performance on older devices_
+- _Some animations may be reduced on low-end hardware_
+- _Haptic feedback not available on web_
+
+---
+
+## Post-Implementation
+
+After Phase 5 complete:
+
+**Monitoring:**
+- Set up analytics (optional)
+- Monitor performance metrics
+- Track user feedback
+
+**Future Enhancements:**
+- Real-time price updates (WebSocket)
+- Custom watchlist alerts
+- Export portfolio to CSV
+- Dark/light theme toggle
+- Advanced charting tools
+
+---
+
+**Phase 5 Complete!**
+
+**<� UI Modernization Project COMPLETE!**
+
+The app now features:
+-  Professional dark theme
+-  Financial-focused typography (monospaced numbers)
+-  Dense list views and spacious detail screens
+-  Victory Native charts (price, sentiment, sparklines)
+-  Smooth 60fps animations throughout
+-  Web-optimized with hover states and keyboard navigation
+-  Accessible (WCAG 2.1 AA)
+-  Production-ready performance
+
+Ready for deployment! =�

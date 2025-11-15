@@ -54,12 +54,8 @@ export const NewsListItem: React.FC<NewsListItemProps> = React.memo(({ item }) =
             <Text variant="bodySmall" style={[styles.publisher, { color: theme.colors.primary }]}>
               {item.publisher}
             </Text>
-            <Text
-              variant="bodySmall"
-              style={[styles.separator, { color: theme.colors.onSurfaceVariant }]}
-              accessible={false}
-            >
-              •
+            <Text variant="bodySmall" style={[styles.separator, { color: theme.colors.onSurfaceVariant }]}>
+              {' • '}
             </Text>
             <Text variant="bodySmall" style={[styles.date, { color: theme.colors.onSurfaceVariant }]}>
               {formatNewsDate(item.articleDate)}
