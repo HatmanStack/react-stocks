@@ -183,10 +183,23 @@ async function warmSentiment(ticker: string, from: string, to: string): Promise<
     // Check if already cached
     const cachedSentiment = await querySentimentByTicker(ticker);
 
-    // Filter by date range (sentiment is keyed by article hash, not date directly)
-    // If we have significant cached sentiment, skip processing
-    if (cachedSentiment.length > 10) {
-      console.log(`[WarmCache] ✓ ${ticker} sentiment already cached (${cachedSentiment.length} articles)`);
+    // Use consistent threshold with news cache (NEWS_LIMIT/2 for good coverage)
+    const SENTIMENT_THRESHOLD = NEWS_LIMIT / 2; // 25 articles
+
+    // Filter by date range if possible (sentiment has article dates)
+    const filteredCached = cachedSentiment.filter((item) => {
+      const itemDate = item.date || '';
+      return itemDate >= from && itemDate <= to;
+    });
+
+    const cachedCount = filteredCached.length;
+    const coveragePercent = (cachedCount / SENTIMENT_THRESHOLD) * 100;
+
+    console.log(`[WarmCache] ${ticker} sentiment: ${cachedCount} articles cached (${coveragePercent.toFixed(1)}% of ${SENTIMENT_THRESHOLD} threshold)`);
+
+    // If coverage is sufficient (>50% of expected articles), skip processing
+    if (cachedCount >= SENTIMENT_THRESHOLD) {
+      console.log(`[WarmCache] ✓ ${ticker} sentiment already cached (${cachedCount} articles)`);
       return;
     }
 

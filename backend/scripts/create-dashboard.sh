@@ -36,14 +36,19 @@ AWS_REGION=${AWS_REGION:-us-east-1}
 echo -e "${YELLOW}Using AWS region: ${AWS_REGION}${NC}"
 
 # Get stack name from samconfig.toml or use default
-STACK_NAME=$(grep -A 10 "\[default.deploy.parameters\]" ../samconfig.toml 2>/dev/null | grep "stack_name" | cut -d'"' -f2 || echo "react-stocks")
+STACK_NAME=$(grep -A 10 "\[default.deploy.parameters\]" samconfig.toml 2>/dev/null | grep "stack_name" | cut -d'"' -f2 || echo "react-stocks")
 echo -e "${YELLOW}Using stack name: ${STACK_NAME}${NC}"
 
 # Dashboard name
 DASHBOARD_NAME="${STACK_NAME}-CachePerformance"
 
 # Read dashboard JSON and replace placeholders
-DASHBOARD_BODY=$(cat cloudwatch-dashboard.json | sed "s/StocksCache/${STACK_NAME}-StocksCache/g" | sed "s/NewsCache/${STACK_NAME}-NewsCache/g" | sed "s/SentimentCache/${STACK_NAME}-SentimentCache/g" | sed "s/SentimentJobs/${STACK_NAME}-SentimentJobs/g")
+DASHBOARD_BODY=$(sed -e "s/StocksCache/${STACK_NAME}-StocksCache/g" \
+                     -e "s/NewsCache/${STACK_NAME}-NewsCache/g" \
+                     -e "s/SentimentCache/${STACK_NAME}-SentimentCache/g" \
+                     -e "s/SentimentJobs/${STACK_NAME}-SentimentJobs/g" \
+                     -e "s/us-east-1/${AWS_REGION}/g" \
+                     cloudwatch-dashboard.json)
 
 echo ""
 echo "Creating/updating dashboard: ${DASHBOARD_NAME}"
