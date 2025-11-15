@@ -110,10 +110,7 @@ export function useSentimentData(
       }
 
       // Tier 2: Check Lambda cache (shared across users)
-      // Only if USE_LAMBDA_SENTIMENT is enabled (will be added in Task 4.9)
-      const useLambda = Environment.USE_BROWSER_SENTIMENT === false; // Temporary - will be replaced with USE_LAMBDA_SENTIMENT
-
-      if (useLambda) {
+      if (Environment.USE_LAMBDA_SENTIMENT) {
         try {
           console.log(`[useSentimentData] Checking Lambda cache for ${ticker}`);
           const lambdaResults = await getSentimentResults(ticker, startDate, endDate);

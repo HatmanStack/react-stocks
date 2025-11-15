@@ -163,10 +163,8 @@ export async function syncAllData(
       message: `Triggering sentiment analysis for ${ticker}...`,
     });
 
-    // Check if Lambda sentiment is enabled (temporary check - will use USE_LAMBDA_SENTIMENT in Task 4.9)
-    const useLambdaSentiment = Environment.USE_BROWSER_SENTIMENT === false;
-
-    if (useLambdaSentiment) {
+    // Check if Lambda sentiment is enabled
+    if (Environment.USE_LAMBDA_SENTIMENT) {
       // Use Lambda for sentiment analysis (async, non-blocking)
       try {
         const response = await triggerSentimentAnalysis({
