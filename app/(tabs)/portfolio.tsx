@@ -7,10 +7,11 @@ import React, { useState, useCallback } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { PortfolioItem } from '@/components/portfolio/PortfolioItem';
+import { PortfolioItemSkeleton } from '@/components/portfolio/PortfolioItemSkeleton';
 import { AddStockButton } from '@/components/portfolio/AddStockButton';
 import { AddStockModal } from '@/components/portfolio/AddStockModal';
-import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { OfflineIndicator } from '@/components/common/OfflineIndicator';
@@ -93,13 +94,23 @@ export default function PortfolioScreen() {
     }
   }, [portfolio, startDate, endDate, refetch]);
 
-  const renderPortfolioItem = useCallback(({ item }: { item: PortfolioDetails }) => (
-    <PortfolioItem
-      item={item}
-      onPress={() => handleStockPress(item)}
-      onDelete={() => handleDeleteStock(item)}
-    />
-  ), [handleStockPress, handleDeleteStock]);
+  const renderPortfolioItem = useCallback(
+    ({ item }: { item: PortfolioDetails }) => (
+      <Animated.View entering={FadeIn.duration(200)}>
+        <PortfolioItem
+          item={item}
+          onPress={() => handleStockPress(item)}
+          onDelete={() => handleDeleteStock(item)}
+        />
+      </Animated.View>
+    ),
+    [handleStockPress, handleDeleteStock]
+  );
+
+  const renderSkeletonItem = useCallback(
+    ({ index }: { index: number }) => <PortfolioItemSkeleton key={`skeleton-${index}`} />,
+    []
+  );
 
   const renderEmptyState = () => (
     <EmptyState
@@ -109,10 +120,6 @@ export default function PortfolioScreen() {
     />
   );
 
-  if (isLoading) {
-    return <LoadingIndicator message="Loading portfolio..." />;
-  }
-
   if (error) {
     return (
       <ErrorDisplay
@@ -120,6 +127,23 @@ export default function PortfolioScreen() {
         onRetry={refetch}
         title="Failed to load portfolio"
       />
+    );
+  }
+
+  // Show skeleton loaders during initial load
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <OfflineIndicator />
+        <FlatList
+          data={Array.from({ length: 6 })}
+          renderItem={renderSkeletonItem}
+          keyExtractor={(_, index) => `skeleton-${index}`}
+          contentContainerStyle={styles.listContent}
+        />
+        <AddStockButton onPress={handleAddStock} />
+        <AddStockModal visible={modalVisible} onDismiss={handleCloseModal} />
+      </SafeAreaView>
     );
   }
 

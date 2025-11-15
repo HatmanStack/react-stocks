@@ -17,6 +17,8 @@
       "@/types/*": ["src/types/*"],
       "@/constants/*": ["src/constants/*"],
       "@/theme/*": ["src/theme/*"]
-    }
-  }
+    },
+    "typeRoots": ["./node_modules/@types", "./src/types"]
+  },
+  "include": ["**/*.ts", "**/*.tsx", "src/types/**/*.d.ts"]
 }
