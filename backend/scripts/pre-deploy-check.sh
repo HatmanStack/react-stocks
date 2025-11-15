@@ -4,8 +4,8 @@
 #
 # Validates that all prerequisites are met before deploying to production
 # Run: ./scripts/pre-deploy-check.sh
-
-set -e
+#
+# Note: Does not use 'set -e' to allow all checks to run to completion
 
 # Color codes for output
 GREEN='\033[0;32m'
@@ -81,7 +81,9 @@ fi
 
 # Check 5: DynamoDB tables (if already deployed)
 echo "Checking DynamoDB tables..."
-STACK_NAME=$(grep -A 10 "\[default.deploy.parameters\]" samconfig.toml 2>/dev/null | grep "stack_name" | cut -d'"' -f2 || echo "react-stocks")
+# Extract stack_name from samconfig.toml, with fallback to "react-stocks"
+# Note: samconfig.toml may not have stack_name parameter; defaults to "react-stocks"
+STACK_NAME=$(grep "stack_name" samconfig.toml 2>/dev/null | cut -d'=' -f2 | tr -d ' "' || echo "react-stocks")
 
 TABLE_NAMES=(
     "${STACK_NAME}-StocksCache"
@@ -117,18 +119,18 @@ fi
 
 # Check 7: Tests passing
 echo "Running tests..."
-if npm test &> /dev/null; then
+if npm test; then
     check_pass "All tests passing"
 else
-    check_fail "Tests failing (run: npm test to see errors)"
+    check_fail "Tests failing"
 fi
 
 # Check 8: TypeScript compilation
 echo "Checking TypeScript..."
-if npx tsc --noEmit &> /dev/null; then
+if npx tsc --noEmit; then
     check_pass "TypeScript compilation clean"
 else
-    check_warn "TypeScript errors detected (run: npx tsc to see errors)"
+    check_warn "TypeScript errors detected"
 fi
 
 # Check 9: Git working directory clean
