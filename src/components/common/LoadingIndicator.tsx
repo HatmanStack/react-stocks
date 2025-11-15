@@ -5,6 +5,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text, Animated } from 'react-native';
+import { useTheme } from 'react-native-paper';
 
 interface LoadingIndicatorProps {
   message?: string;
@@ -12,6 +13,7 @@ interface LoadingIndicatorProps {
 }
 
 export function LoadingIndicator({ message, size = 'large' }: LoadingIndicatorProps) {
+  const theme = useTheme();
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -40,10 +42,10 @@ export function LoadingIndicator({ message, size = 'large' }: LoadingIndicatorPr
   return (
     <View style={styles.container}>
       <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-        <ActivityIndicator size={size} color="#1976D2" />
+        <ActivityIndicator size={size} color={theme.colors.primary} />
       </Animated.View>
       {message && (
-        <Animated.Text style={[styles.message, { opacity: pulseAnim }]}>
+        <Animated.Text style={[styles.message, { opacity: pulseAnim, color: theme.colors.onBackground }]}>
           {message}
         </Animated.Text>
       )}
@@ -61,7 +63,6 @@ const styles = StyleSheet.create({
   message: {
     marginTop: 12,
     fontSize: 14,
-    color: '#757575',
     textAlign: 'center',
   },
 });

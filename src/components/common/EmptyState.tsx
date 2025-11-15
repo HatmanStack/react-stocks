@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 
 interface EmptyStateProps {
   message: string;
@@ -18,11 +19,13 @@ export function EmptyState({
   icon = 'file-tray-outline',
   description
 }: EmptyStateProps) {
+  const theme = useTheme();
+
   return (
     <View style={styles.container}>
-      <Ionicons name={icon} size={64} color="#BDBDBD" />
-      <Text style={styles.message}>{message}</Text>
-      {description && <Text style={styles.description}>{description}</Text>}
+      <Ionicons name={icon} size={64} color={theme.colors.onSurfaceVariant} />
+      <Text style={[styles.message, { color: theme.colors.onSurface }]}>{message}</Text>
+      {description && <Text style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>{description}</Text>}
     </View>
   );
 }
@@ -37,13 +40,11 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#757575',
     marginTop: 16,
     textAlign: 'center',
   },
   description: {
     fontSize: 14,
-    color: '#9E9E9E',
     marginTop: 8,
     textAlign: 'center',
   },
