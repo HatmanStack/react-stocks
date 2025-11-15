@@ -3,7 +3,7 @@
  * Main search interface for looking up stock symbols
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -25,9 +25,20 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { setSelectedTicker, setDateRange, startDate, endDate } = useStock();
   const queryClient = useQueryClient();
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Search for symbols
   const {
@@ -76,10 +87,16 @@ export default function SearchScreen() {
         console.log(`[SearchScreen] Sentiment analysis in progress: Job ${syncResult.sentimentJobId}`);
         setSyncMessage(`Stock data synced. Sentiment analysis in progress...`);
 
+        // Clear any existing timeout to prevent race conditions
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+
         // Clear message after 3 seconds
-        setTimeout(() => {
+        timeoutRef.current = setTimeout(() => {
           setSyncMessage('');
           setIsSyncing(false);
+          timeoutRef.current = null;
         }, 3000);
       } else {
         setIsSyncing(false);
