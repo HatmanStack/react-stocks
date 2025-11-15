@@ -3,12 +3,13 @@
  * Displays news articles for a stock
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useStockDetail } from '@/contexts/StockDetailContext';
 import { NewsListItem } from '@/components/news/NewsListItem';
-import { LoadingIndicator } from '@/components/common/LoadingIndicator';
+import { NewsListItemSkeleton } from '@/components/news/NewsListItemSkeleton';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { NewsDetails } from '@/types/database.types';
@@ -23,11 +24,30 @@ export default function NewsScreen() {
     return [...newsData].sort((a, b) => b.articleDate.localeCompare(a.articleDate));
   }, [newsData]);
 
-  // Render loading state
+  const renderSkeletonItem = useCallback(
+    ({ index }: { index: number }) => <NewsListItemSkeleton key={`skeleton-${index}`} />,
+    []
+  );
+
+  const renderNewsItem = useCallback(
+    ({ item }: { item: NewsDetails }) => (
+      <Animated.View entering={FadeIn.duration(200)}>
+        <NewsListItem item={item} />
+      </Animated.View>
+    ),
+    []
+  );
+
+  // Render loading state with skeleton
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <LoadingIndicator message="Loading news..." />
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <FlatList
+          data={Array.from({ length: 5 })}
+          renderItem={renderSkeletonItem}
+          keyExtractor={(_, index) => `skeleton-${index}`}
+          contentContainerStyle={styles.listContent}
+        />
       </SafeAreaView>
     );
   }
@@ -58,18 +78,16 @@ export default function NewsScreen() {
     );
   }
 
-  const renderItem = ({ item }: { item: NewsDetails }) => (
-    <NewsListItem item={item} />
+  const keyExtractor = useCallback(
+    (item: NewsDetails, index: number) => item.articleUrl || `${item.ticker}-${item.articleDate}-${index}`,
+    []
   );
-
-  const keyExtractor = (item: NewsDetails, index: number) =>
-    item.articleUrl || `${item.ticker}-${item.articleDate}-${index}`;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <FlatList
         data={sortedNewsData}
-        renderItem={renderItem}
+        renderItem={renderNewsItem}
         keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         removeClippedSubviews={true}

@@ -6,6 +6,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { PortfolioItem } from '@/components/portfolio/PortfolioItem';
@@ -24,6 +25,7 @@ import { differenceInDays } from 'date-fns';
 export default function PortfolioScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const theme = useTheme();
   const { portfolio, isLoading, error, refetch, removeFromPortfolio } = usePortfolioContext();
   const { setSelectedTicker, startDate, endDate } = useStock();
 
@@ -160,7 +162,9 @@ export default function PortfolioScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#1976D2']}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+            progressBackgroundColor={theme.colors.surface}
           />
         }
       />

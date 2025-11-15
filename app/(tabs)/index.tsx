@@ -8,8 +8,10 @@ import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SearchBar } from '@/components/search/SearchBar';
 import { SearchResultItem } from '@/components/search/SearchResultItem';
+import { SearchResultSkeleton } from '@/components/search/SearchResultSkeleton';
 import { DateRangePicker } from '@/components/common/DateRangePicker';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -119,12 +121,19 @@ export default function SearchScreen() {
     }
   }, [setSelectedTicker, startDate, endDate, queryClient]);
 
-  const renderSearchResult = useCallback(({ item }: { item: SymbolDetails }) => (
-    <SearchResultItem
-      symbol={item}
-      onPress={() => handleSelectStock(item)}
-    />
-  ), [handleSelectStock]);
+  const renderSearchResult = useCallback(
+    ({ item }: { item: SymbolDetails }) => (
+      <Animated.View entering={FadeIn.duration(200)}>
+        <SearchResultItem symbol={item} onPress={() => handleSelectStock(item)} />
+      </Animated.View>
+    ),
+    [handleSelectStock]
+  );
+
+  const renderSkeletonItem = useCallback(
+    ({ index }: { index: number }) => <SearchResultSkeleton key={`skeleton-${index}`} />,
+    []
+  );
 
   const renderListHeader = () => (
     <View style={styles.headerContainer}>
@@ -146,10 +155,6 @@ export default function SearchScreen() {
           icon="search-outline"
         />
       );
-    }
-
-    if (isLoading) {
-      return <LoadingIndicator message="Searching..." />;
     }
 
     if (error) {
@@ -176,14 +181,29 @@ export default function SearchScreen() {
       <OfflineIndicator />
       <SearchBar onSearchChange={handleSearchChange} />
 
-      <FlatList
-        data={searchResults}
-        renderItem={renderSearchResult}
-        keyExtractor={(item) => item.ticker}
-        ListHeaderComponent={renderListHeader}
-        ListEmptyComponent={renderEmptyState}
-        contentContainerStyle={searchResults.length === 0 ? styles.emptyContent : undefined}
-      />
+      {/* Show skeleton while searching */}
+      {isLoading && searchQuery.length > 0 ? (
+        <FlatList
+          ListHeaderComponent={renderListHeader}
+          data={Array.from({ length: 8 })}
+          renderItem={renderSkeletonItem}
+          keyExtractor={(_, index) => `skeleton-${index}`}
+        />
+      ) : (
+        <FlatList
+          data={searchResults}
+          renderItem={renderSearchResult}
+          keyExtractor={(item) => item.ticker}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={renderEmptyState}
+          contentContainerStyle={searchResults.length === 0 ? styles.emptyContent : undefined}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={21}
+        />
+      )}
 
       {isSyncing && (
         <View style={styles.syncOverlay}>
