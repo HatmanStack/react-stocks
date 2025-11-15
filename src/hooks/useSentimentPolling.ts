@@ -131,7 +131,7 @@ export function useSentimentPolling(
   const [sentimentData, setSentimentData] = useState<DailySentiment[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const attemptCountRef = useRef(0);
   const isMountedRef = useRef(true);
 
@@ -140,7 +140,7 @@ export function useSentimentPolling(
    */
   const cancelPolling = useCallback(() => {
     if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
+      clearTimeout(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
     setIsPolling(false);
@@ -148,7 +148,7 @@ export function useSentimentPolling(
   }, []);
 
   /**
-   * Poll job status until completion
+   * Poll job status until completion (self-rescheduling to prevent overlaps)
    */
   const pollJobStatus = useCallback(
     async (currentJobId: string) => {
@@ -196,7 +196,15 @@ export function useSentimentPolling(
           cancelPolling();
           setError(timeoutError);
           onError?.(timeoutError);
+          return;
         }
+
+        // Self-reschedule next poll after delay (prevents overlapping requests)
+        if (!isMountedRef.current) return;
+
+        pollIntervalRef.current = setTimeout(() => {
+          pollJobStatus(currentJobId);
+        }, pollInterval);
       } catch (err) {
         console.error('[useSentimentPolling] Error polling job status:', err);
 
@@ -225,15 +233,10 @@ export function useSentimentPolling(
       setIsPolling(true);
       attemptCountRef.current = 0;
 
-      // Poll immediately
+      // Start polling (will self-reschedule)
       pollJobStatus(currentJobId);
-
-      // Then poll at interval
-      pollIntervalRef.current = setInterval(() => {
-        pollJobStatus(currentJobId);
-      }, pollInterval);
     },
-    [enabled, pollInterval, pollJobStatus]
+    [enabled, pollJobStatus]
   );
 
   /**
