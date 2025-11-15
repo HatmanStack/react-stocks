@@ -339,7 +339,7 @@ describe('News Handler Integration Tests', () => {
       mockFetchCompanyNews.mockResolvedValue(apiArticles);
 
       // Setup: First 10 articles already exist in cache, last 10 are new
-      mockExistsInCache.mockImplementation(async (ticker: string, hash: string) => {
+      mockExistsInCache.mockImplementation(async (_ticker: string, hash: string) => {
         return hash.includes('article1') && !hash.includes('article10'); // First 10 exist
       });
 
@@ -354,7 +354,6 @@ describe('News Handler Integration Tests', () => {
       const response = await handleNewsRequest(event);
 
       expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
 
       // Verify existsInCache was called for each article
       expect(mockExistsInCache).toHaveBeenCalledTimes(20);
