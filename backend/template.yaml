@@ -15,8 +15,8 @@ Parameters:
 
 Globals:
   Function:
-    Timeout: 30
-    MemorySize: 512
+    Timeout: 60
+    MemorySize: 1024
     Runtime: nodejs20.x
     Architectures:
       - x86_64
@@ -134,6 +134,7 @@ Resources:
           - '*'
         AllowMethods:
           - GET
+          - POST
           - OPTIONS
         AllowHeaders:
           - Content-Type
@@ -189,16 +190,37 @@ Resources:
             ApiId: !Ref ReactStocksApi
             Path: /search
             Method: GET
+        SentimentPostApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /sentiment
+            Method: POST
+        SentimentGetApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /sentiment
+            Method: GET
+        SentimentJobApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /sentiment/job/{jobId}
+            Method: GET
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
         Minify: true
+        TreeShake: true
         Target: node20
         Sourcemap: false
         EntryPoints:
           - src/index.ts
         External:
           - aws-sdk
+          - '@aws-sdk/client-dynamodb'
+          - '@aws-sdk/lib-dynamodb'
 
 Outputs:
   ReactStocksApiUrl:

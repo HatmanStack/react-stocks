@@ -4,6 +4,10 @@
  * Provides a service interface that matches the existing Python API service.
  * This allows drop-in replacement of the Cloud Run sentiment service with
  * the browser-based sentiment analyzer.
+ *
+ * @deprecated This service is deprecated and will be removed in v2.0.
+ * Lambda sentiment processing is now the primary method (src/services/api/lambdaSentiment.service.ts).
+ * Kept as fallback for offline mode when Lambda unavailable.
  */
 
 import { getSentimentAnalyzer } from './analyzer';
