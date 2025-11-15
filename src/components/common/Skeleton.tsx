@@ -4,12 +4,12 @@
  */
 
 import React from 'react';
-import { View, ViewProps } from 'react-native';
+import { View, ViewProps, DimensionValue } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 export interface SkeletonProps extends ViewProps {
-  width?: number | string;
-  height?: number | string;
+  width?: DimensionValue;
+  height?: DimensionValue;
   borderRadius?: number;
 }
 

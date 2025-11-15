@@ -27,22 +27,23 @@ export function formatPrice(price: number | null | undefined, decimals = 2): str
 
 /**
  * Format a number as percentage
- * @param value - Number to format (already as percentage, e.g., 15.23 for 15.23%)
+ * @param value - Number to format as decimal (e.g., 0.0525 for 5.25%)
  * @param decimals - Number of decimal places (default: 2)
- * @returns Formatted percentage string (e.g., "+15.23%", "-3.10%")
+ * @returns Formatted percentage string (e.g., "+5.25%", "-3.25%")
  */
 export function formatPercentage(value: number | null | undefined, decimals: number = 2): string {
   if (value === null || value === undefined) {
     return 'N/A';
   }
-  const sign = value >= 0 ? '+' : '';
-  return `${sign}${value.toFixed(decimals)}%`;
+  const percentage = value * 100;
+  const sign = percentage >= 0 ? '+' : '';
+  return `${sign}${percentage.toFixed(decimals)}%`;
 }
 
 /**
  * Format large numbers with K, M, B suffixes
  * @param volume - Number to format
- * @returns Formatted string (e.g., "1.23M", "12.35K")
+ * @returns Formatted string (e.g., "1.5M", "23.4K")
  */
 export function formatVolume(volume: number | null | undefined): string {
   if (volume === null || volume === undefined) {
@@ -50,11 +51,11 @@ export function formatVolume(volume: number | null | undefined): string {
   }
 
   if (volume >= 1_000_000_000) {
-    return `${(volume / 1_000_000_000).toFixed(2)}B`;
+    return `${(volume / 1_000_000_000).toFixed(1)}B`;
   } else if (volume >= 1_000_000) {
-    return `${(volume / 1_000_000).toFixed(2)}M`;
+    return `${(volume / 1_000_000).toFixed(1)}M`;
   } else if (volume >= 1_000) {
-    return `${(volume / 1_000).toFixed(2)}K`;
+    return `${(volume / 1_000).toFixed(1)}K`;
   } else {
     return volume.toString();
   }

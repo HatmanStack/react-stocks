@@ -18,21 +18,17 @@ interface PriceListItemProps {
 export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item }) => {
   const theme = useTheme();
 
-  // Determine row color based on close vs open
+  // Determine row color based on close vs open (use surfaceVariant for dark theme compatibility)
   const getRowColor = (): string => {
-    if (item.close > item.open) {
-      return '#E8F5E9'; // Light green (bullish)
-    } else if (item.close < item.open) {
-      return '#FFEBEE'; // Light red (bearish)
-    }
-    return '#F5F5F5'; // Light gray (neutral)
+    // Use subtle theme colors instead of hardcoded light theme colors
+    return theme.colors.surfaceVariant;
   };
 
   const getTextColor = (): string => {
     if (item.close > item.open) {
-      return '#2E7D32'; // Dark green
+      return theme.colors.positive; // Green for gains
     } else if (item.close < item.open) {
-      return '#C62828'; // Dark red
+      return theme.colors.negative; // Red for losses
     }
     return theme.colors.onSurface;
   };
@@ -40,7 +36,7 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
   const textColor = getTextColor();
 
   return (
-    <View style={[styles.container, { backgroundColor: getRowColor() }]}>
+    <View style={[styles.container, { backgroundColor: getRowColor(), borderBottomColor: theme.colors.outline }]}>
       <View style={styles.row}>
         {/* Date */}
         <View style={styles.dateColumn}>
@@ -115,7 +111,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
   },
   row: {
     flexDirection: 'row',
