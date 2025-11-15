@@ -7,7 +7,8 @@
  * This script:
  * 1. Fetches 30 days of stock prices for popular tickers
  * 2. Fetches 50 news articles for each ticker
- * 3. Caches all data in DynamoDB
+ * 3. Analyzes sentiment for all cached articles
+ * 4. Caches all data in DynamoDB
  *
  * Idempotent: Safe to run multiple times (skips already cached data)
  */
@@ -26,6 +27,8 @@ import {
 import { generateArticleHash } from '../src/utils/hash.util.js';
 import { transformTiingoToCache, transformFinnhubToCache } from '../src/utils/cacheTransform.util.js';
 import type { FinnhubNewsArticle } from '../src/types/finnhub.types.js';
+import { processSentimentForTicker } from '../src/services/sentimentProcessing.service.js';
+import { querySentimentByTicker } from '../src/repositories/sentimentCache.repository.js';
 
 // Popular tickers to warm cache for
 const POPULAR_TICKERS = [
@@ -171,6 +174,35 @@ async function warmNews(ticker: string, from: string, to: string, apiKey: string
 }
 
 /**
+ * Warm sentiment cache for a ticker
+ */
+async function warmSentiment(ticker: string, from: string, to: string): Promise<void> {
+  console.log(`[WarmCache] Checking sentiment for ${ticker}...`);
+
+  try {
+    // Check if already cached
+    const cachedSentiment = await querySentimentByTicker(ticker);
+
+    // Filter by date range (sentiment is keyed by article hash, not date directly)
+    // If we have significant cached sentiment, skip processing
+    if (cachedSentiment.length > 10) {
+      console.log(`[WarmCache] ✓ ${ticker} sentiment already cached (${cachedSentiment.length} articles)`);
+      return;
+    }
+
+    // Process sentiment for the ticker
+    console.log(`[WarmCache] Analyzing sentiment for ${ticker}...`);
+    const result = await processSentimentForTicker(ticker, from, to);
+
+    console.log(`[WarmCache] ✓ Analyzed ${result.articlesProcessed} articles for ${ticker}`);
+    console.log(`[WarmCache]   - Skipped ${result.articlesSkipped} (already cached)`);
+    console.log(`[WarmCache]   - Generated ${result.dailySentiment.length} daily sentiment scores`);
+  } catch (error) {
+    console.error(`[WarmCache] ✗ Error warming sentiment for ${ticker}:`, error);
+  }
+}
+
+/**
  * Main cache warming function
  */
 async function warmCache(): Promise<void> {
@@ -214,6 +246,9 @@ async function warmCache(): Promise<void> {
 
       // Warm news
       await warmNews(ticker, startDate, endDate, finnhubApiKey);
+
+      // Warm sentiment (requires news to be cached first)
+      await warmSentiment(ticker, startDate, endDate);
 
       const tickerDuration = Date.now() - tickerStartTime;
       console.log(`[WarmCache] ${ticker} completed in ${(tickerDuration / 1000).toFixed(1)}s`);
