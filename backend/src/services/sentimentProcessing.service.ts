@@ -16,7 +16,6 @@ import { aggregateDailySentiment, type DailySentiment } from '../utils/sentiment
 import type {
   NewsCacheItem,
   SentimentCacheItem,
-  SentimentData,
 } from '../repositories/index.js';
 
 /**
