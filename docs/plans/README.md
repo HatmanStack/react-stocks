@@ -31,13 +31,17 @@ The implementation maintains cross-platform compatibility using React Native Pap
 | Phase | Goal | Est. Tokens |
 |-------|------|-------------|
 | [Phase 0](./Phase-0.md) | Foundation - Architecture and design system setup | N/A (reference) |
-| [Phase 1](./Phase-1.md) | Dark theme implementation and typography system | ~95,000 |
+| [Phase 1](./Phase-1.md) | Dark theme implementation and typography system | ~100,000 |
 | [Phase 2](./Phase-2.md) | List views modernization (portfolio, search, news) | ~98,000 |
 | [Phase 3](./Phase-3.md) | Stock detail screen and data visualization | ~102,000 |
 | [Phase 4](./Phase-4.md) | Animations, interactions, and skeleton loaders | ~96,000 |
 | [Phase 5](./Phase-5.md) | Web optimization and final polish | ~94,000 |
 
-**Total Estimated Tokens:** ~485,000 across 5 implementation phases
+**Total Estimated Tokens:** ~490,000 across 5 implementation phases
+
+**Expected Implementation Time:** 2-3 weeks for an experienced engineer working full-time
+
+**Note:** Phase 0 is a reference document containing architecture decisions and patterns. Implementation work begins with Phase 1.
 
 ## Navigation
 
@@ -55,6 +59,25 @@ The implementation maintains cross-platform compatibility using React Native Pap
 3. Follow phases sequentially - each builds on previous work
 4. Run tests after each task to verify functionality
 5. Commit frequently using conventional commit format
+
+## Troubleshooting & Rollback
+
+If you encounter blockers during implementation:
+
+1. **Document the Error**: Note the specific error message, task number, and what you were attempting
+2. **Check File Structure**: Verify the codebase structure matches expectations outlined in Phase 0
+3. **Review Recent Changes**: Use `git log` and `git diff` to see what changed
+4. **Rollback if Needed**:
+   - To undo uncommitted changes: `git checkout .`
+   - To rollback to start of phase: `git reset --hard <commit-hash-before-phase>`
+   - Find commit hashes with: `git log --oneline`
+5. **Report Blocker**: Document the issue with reproduction steps for the project lead
+
+**Common Issues:**
+- **File not found**: Check if the file path matches your project structure. Create missing directories/files as needed.
+- **Dependency conflicts**: Run `npm install` and check for peer dependency warnings. May need to adjust versions.
+- **Test failures**: Ensure all previous phase tests pass before continuing. Run `npm test` to verify.
+- **TypeScript errors**: Run `npm run type-check` to see all errors at once.
 
 ## Success Criteria
 

@@ -78,7 +78,7 @@ function calculatePriceChange(data: ChartDataPoint[]): { isPositive: boolean; pe
 - [ ] Dates sorted ascending
 - [ ] Returns memoized result
 - [ ] TypeScript types defined
-- [ ] Exported from hooks/index.ts
+- [ ] Functions exported from hooks/index.ts (verify with: grep "useChartData" src/hooks/index.ts)
 
 **Testing Instructions:**
 ```typescript
@@ -723,13 +723,13 @@ feat(stock-detail): integrate sentiment chart on sentiment tab
 Before:
                                     
  AAPL  Apple Inc.                  
- $186.40  +2.35% ‘                 
+ $186.40  +2.35% ï¿½                 
                                     
 
 After:
                                     
- AAPL  Apple Inc.              =È     <- MiniChart here
- $186.40  +2.35% ‘                 
+ AAPL  Apple Inc.              =ï¿½     <- MiniChart here
+ $186.40  +2.35% ï¿½                 
                                     
 ```
 
