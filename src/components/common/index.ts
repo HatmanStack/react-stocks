@@ -10,3 +10,4 @@ export { LoadingIndicator } from './LoadingIndicator';
 export { ErrorDisplay } from './ErrorDisplay';
 export { EmptyState } from './EmptyState';
 export { MonoText } from './MonoText';
+export { Skeleton } from './Skeleton';
