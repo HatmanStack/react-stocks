@@ -134,6 +134,7 @@ Resources:
           - '*'
         AllowMethods:
           - GET
+          - POST
           - OPTIONS
         AllowHeaders:
           - Content-Type
@@ -188,6 +189,24 @@ Resources:
           Properties:
             ApiId: !Ref ReactStocksApi
             Path: /search
+            Method: GET
+        SentimentPostApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /sentiment
+            Method: POST
+        SentimentGetApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /sentiment
+            Method: GET
+        SentimentJobApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /sentiment/job/{jobId}
             Method: GET
     Metadata:
       BuildMethod: esbuild
