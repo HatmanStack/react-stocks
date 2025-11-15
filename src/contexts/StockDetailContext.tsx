@@ -10,6 +10,7 @@ import { useStockData } from '@/hooks/useStockData';
 import { useNewsData } from '@/hooks/useNewsData';
 import { useSentimentData, useArticleSentiment } from '@/hooks/useSentimentData';
 import { useSentimentPolling } from '@/hooks/useSentimentPolling';
+import { Environment } from '@/config/environment';
 import { differenceInDays } from 'date-fns';
 import { useStock } from './StockContext';
 import type { StockDetails, NewsDetails, CombinedWordDetails, WordCountDetails } from '@/types/database.types';
@@ -73,6 +74,7 @@ export function StockDetailProvider({
   const { data: articleSentimentData = [], isLoading: articleSentimentLoading, error: articleSentimentError } = useArticleSentiment(ticker, { days });
 
   // Sentiment polling (for async Lambda sentiment analysis)
+  // Only enabled when USE_LAMBDA_SENTIMENT flag is true
   const {
     isPolling: isSentimentPolling,
     jobId: sentimentJobId,
@@ -80,6 +82,7 @@ export function StockDetailProvider({
     triggerAnalysis,
     cancelPolling,
   } = useSentimentPolling(ticker, startDate, endDate, {
+    enabled: Environment.USE_LAMBDA_SENTIMENT,
     onComplete: useCallback((data) => {
       console.log('[StockDetailContext] Sentiment analysis complete:', data.length, 'days');
       // Invalidate React Query cache to re-fetch sentiment data
