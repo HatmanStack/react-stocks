@@ -22,3 +22,7 @@ export { usePortfolio, useIsInPortfolio, usePortfolioCount } from './usePortfoli
 
 // Symbol search hooks
 export { useSymbolSearch, useSymbolDetails, useAllSymbols } from './useSymbolSearch';
+
+// Layout hooks
+export { useLayoutDensity } from './useLayoutDensity';
+export type { LayoutDensity } from './useLayoutDensity';
