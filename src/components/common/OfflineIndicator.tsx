@@ -16,9 +16,9 @@ export function OfflineIndicator() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="offline-indicator">
       <Ionicons name="cloud-offline" size={16} color="#fff" />
-      <Text style={styles.text}>You are offline. Showing cached data.</Text>
+      <Text style={styles.text}>Offline Mode - Using local analysis</Text>
     </View>
   );
 }
