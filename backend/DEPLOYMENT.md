@@ -76,6 +76,36 @@ sam deploy --parameter-overrides \
   PolygonApiKey="new-polygon-key"
 ```
 
+## Configuring CORS for Production
+
+**⚠️ SECURITY IMPORTANT**: By default, the API allows requests from any origin (`*`) for development convenience.
+**For production deployments**, restrict CORS to your actual frontend domain(s):
+
+### Single Production Domain
+
+```bash
+sam deploy --parameter-overrides \
+  AllowedOrigins="https://your-production-domain.com"
+```
+
+### Multiple Domains (Production + Staging)
+
+```bash
+sam deploy --parameter-overrides \
+  AllowedOrigins="https://prod.example.com,https://staging.example.com"
+```
+
+### Development (Default)
+
+For development/testing, the default `*` is acceptable but should **never** be used in production:
+
+```bash
+# Default behavior (no parameter needed)
+sam deploy
+```
+
+**Recommendation**: Always specify `AllowedOrigins` in production to prevent unauthorized access.
+
 ## Viewing Logs
 
 ### Tail live logs

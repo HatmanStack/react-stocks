@@ -6,14 +6,24 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { handleStocksRequest } from '../../src/handlers/stocks.handler';
 import type { TiingoStockPrice, TiingoSymbolMetadata } from '../../src/types/tiingo.types';
+import type { StockCacheItem } from '../../src/repositories/stocksCache.repository';
 
 // Mock the Tiingo service
 const mockFetchStockPrices = jest.fn<() => Promise<TiingoStockPrice[]>>();
 const mockFetchSymbolMetadata = jest.fn<() => Promise<TiingoSymbolMetadata>>();
 
+// Mock the repository
+const mockQueryStocksByDateRange = jest.fn<() => Promise<StockCacheItem[]>>();
+const mockBatchPutStocks = jest.fn<() => Promise<void>>();
+
 jest.mock('../../src/services/tiingo.service', () => ({
   fetchStockPrices: mockFetchStockPrices,
   fetchSymbolMetadata: mockFetchSymbolMetadata,
+}));
+
+jest.mock('../../src/repositories/stocksCache.repository', () => ({
+  queryStocksByDateRange: mockQueryStocksByDateRange,
+  batchPutStocks: mockBatchPutStocks,
 }));
 
 describe('Stocks Handler', () => {
@@ -66,6 +76,10 @@ describe('Stocks Handler', () => {
 
     // Clear mocks
     jest.clearAllMocks();
+
+    // Default repository mocks - return empty cache (miss)
+    mockQueryStocksByDateRange.mockResolvedValue([]);
+    mockBatchPutStocks.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
