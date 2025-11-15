@@ -33,6 +33,14 @@ export const Environment = {
    */
   USE_BROWSER_PREDICTION:
     process.env.EXPO_PUBLIC_BROWSER_PREDICTION === 'true',
+
+  /**
+   * Use Lambda for sentiment analysis instead of local browser analysis
+   * Default: true (enabled)
+   * Set EXPO_PUBLIC_USE_LAMBDA_SENTIMENT=false to rollback to local analysis
+   */
+  USE_LAMBDA_SENTIMENT:
+    process.env.EXPO_PUBLIC_USE_LAMBDA_SENTIMENT !== 'false', // Default to true
 } as const;
 
 /**
@@ -75,6 +83,7 @@ export function logEnvironmentStatus(): void {
   console.log(`  - BACKEND_URL: ${Environment.BACKEND_URL || '❌ NOT SET'}`);
   console.log(`  - USE_BROWSER_SENTIMENT: ${Environment.USE_BROWSER_SENTIMENT}`);
   console.log(`  - USE_BROWSER_PREDICTION: ${Environment.USE_BROWSER_PREDICTION}`);
+  console.log(`  - USE_LAMBDA_SENTIMENT: ${Environment.USE_LAMBDA_SENTIMENT}`);
 }
 
 /**
