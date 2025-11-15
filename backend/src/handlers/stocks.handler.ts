@@ -6,11 +6,11 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
 import { logError } from '../utils/error.util';
 import { logMetrics, MetricUnit } from '../utils/metrics.util';
+import { transformTiingoToCache, transformCacheToTiingo } from '../utils/cacheTransform.util';
 import { fetchStockPrices, fetchSymbolMetadata } from '../services/tiingo.service';
 import {
   queryStocksByDateRange,
   batchPutStocks,
-  type StockCacheItem,
 } from '../repositories/stocksCache.repository';
 import type { TiingoStockPrice, TiingoSymbolMetadata } from '../types/tiingo.types';
 
@@ -38,52 +38,6 @@ function generateDateRange(startDate: string, endDate: string): string[] {
 }
 
 /**
- * Transform Tiingo price data to cache format
- */
-function transformTiingoToCache(ticker: string, tiingoData: TiingoStockPrice[]): Omit<StockCacheItem, 'ttl'>[] {
-  return tiingoData.map((price) => ({
-    ticker,
-    date: price.date.split('T')[0], // Extract date from ISO timestamp
-    priceData: {
-      open: price.open,
-      high: price.high,
-      low: price.low,
-      close: price.close,
-      volume: price.volume,
-      adjOpen: price.adjOpen,
-      adjHigh: price.adjHigh,
-      adjLow: price.adjLow,
-      adjClose: price.adjClose,
-      adjVolume: price.adjVolume,
-      divCash: price.divCash,
-      splitFactor: price.splitFactor,
-    },
-    fetchedAt: Date.now(),
-  }));
-}
-
-/**
- * Transform cached stock data back to Tiingo format for response
- */
-function transformCacheToTiingo(cacheItems: StockCacheItem[]): TiingoStockPrice[] {
-  return cacheItems.map((item) => ({
-    date: `${item.date}T00:00:00.000Z`, // Add timestamp for consistency
-    open: item.priceData.open,
-    high: item.priceData.high,
-    low: item.priceData.low,
-    close: item.priceData.close,
-    volume: item.priceData.volume,
-    adjOpen: item.priceData.adjOpen || item.priceData.open,
-    adjHigh: item.priceData.adjHigh || item.priceData.high,
-    adjLow: item.priceData.adjLow || item.priceData.low,
-    adjClose: item.priceData.adjClose || item.priceData.close,
-    adjVolume: item.priceData.adjVolume || item.priceData.volume,
-    divCash: item.priceData.divCash || 0,
-    splitFactor: item.priceData.splitFactor || 1,
-  }));
-}
-
-/**
  * Handle stock prices request with three-tier caching
  */
 async function handlePricesRequest(
@@ -98,13 +52,13 @@ async function handlePricesRequest(
     // Tier 1: Check DynamoDB cache
     const cachedData = await queryStocksByDateRange(ticker, startDate, effectiveEndDate);
 
-    // Generate expected date range (market days only - approximation)
-    const expectedDates = generateDateRange(startDate, effectiveEndDate);
-    const cachedDates = new Set(cachedData.map((item) => item.date));
+    // Calculate expected trading days (markets trade ~5/7 days - Mon-Fri, excluding holidays)
+    const calendarDays = generateDateRange(startDate, effectiveEndDate).length;
+    const expectedTradingDays = Math.ceil(calendarDays * 5 / 7); // Approximate weekdays only
 
-    // Calculate cache hit rate
-    const cacheHitRate = expectedDates.length > 0
-      ? cachedDates.size / expectedDates.length
+    // Calculate cache hit rate based on trading days, not calendar days
+    const cacheHitRate = expectedTradingDays > 0
+      ? cachedData.length / expectedTradingDays
       : 0;
 
     // If cache hit rate is >80%, use cached data
@@ -130,7 +84,7 @@ async function handlePricesRequest(
 
     // Tier 2: Cache miss or insufficient coverage - fetch from Tiingo
     console.log(`[StocksHandler] Cache miss for ${ticker}: ${(cacheHitRate * 100).toFixed(1)}% - fetching from API`);
-    const apiData = await fetchStockPrices(ticker, startDate, endDate, apiKey);
+    const apiData = await fetchStockPrices(ticker, startDate, effectiveEndDate, apiKey);
 
     // Log metrics for cache miss
     logMetrics(
@@ -163,7 +117,7 @@ async function handlePricesRequest(
     // If DynamoDB cache check fails, fall back to direct API call
     console.warn('[StocksHandler] Cache check failed, falling back to API:', error);
 
-    const apiData = await fetchStockPrices(ticker, startDate, endDate, apiKey);
+    const apiData = await fetchStockPrices(ticker, startDate, effectiveEndDate, apiKey);
 
     return {
       data: apiData,
@@ -233,6 +187,15 @@ export async function handleStocksRequest(
       return errorResponse('Invalid endDate format. Must be YYYY-MM-DD.', 400);
     }
 
+    // Validate date range (startDate must be <= endDate)
+    if (type === 'prices' && startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (start > end) {
+        return errorResponse('Invalid date range. startDate must be before or equal to endDate.', 400);
+      }
+    }
+
     // Get API key from environment
     const apiKey = process.env.TIINGO_API_KEY;
     if (!apiKey) {
@@ -267,14 +230,17 @@ export async function handleStocksRequest(
     );
 
     // Return response with cache metadata
-    return successResponse({
-      data: result.data,
-      _meta: {
-        cached: result.cached,
-        cacheHitRate: result.cacheHitRate !== undefined ? result.cacheHitRate : null,
-        timestamp: new Date().toISOString(),
-      },
-    });
+    return successResponse(
+      result.data,
+      200,
+      {
+        _meta: {
+          cached: result.cached,
+          cacheHitRate: result.cacheHitRate !== undefined ? result.cacheHitRate : null,
+          timestamp: new Date().toISOString(),
+        },
+      }
+    );
   } catch (error) {
     const duration = Date.now() - startTime;
 

@@ -6,67 +6,28 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
 import { logError } from '../utils/error.util';
 import { logMetrics, MetricUnit } from '../utils/metrics.util';
+import { transformFinnhubToCache, transformCacheToFinnhub } from '../utils/cacheTransform.util';
+import { generateArticleHash } from '../utils/hash.util';
 import { fetchCompanyNews } from '../services/finnhub.service';
 import {
   queryArticlesByTicker,
   batchPutArticles,
   existsInCache,
-  type NewsCacheItem,
 } from '../repositories/newsCache.repository';
-import { generateArticleHash } from '../utils/hash.util';
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
 
 /**
- * Transform Finnhub article to cache format
- */
-function transformFinnhubToCache(ticker: string, finnhubArticle: FinnhubNewsArticle): Omit<NewsCacheItem, 'ttl'> {
-  // Convert Unix timestamp to ISO date string
-  const date = new Date(finnhubArticle.datetime * 1000).toISOString().split('T')[0];
-
-  return {
-    ticker,
-    articleHash: generateArticleHash(finnhubArticle.url),
-    article: {
-      title: finnhubArticle.headline,
-      url: finnhubArticle.url,
-      description: finnhubArticle.summary,
-      date,
-      publisher: finnhubArticle.source,
-      imageUrl: finnhubArticle.image,
-    },
-    fetchedAt: Date.now(),
-  };
-}
-
-/**
- * Transform cached article to Finnhub format for response
- */
-function transformCacheToFinnhub(cacheItem: NewsCacheItem): FinnhubNewsArticle {
-  // Convert ISO date string back to Unix timestamp (approximate - use noon UTC)
-  const datetime = Math.floor(new Date(`${cacheItem.article.date}T12:00:00Z`).getTime() / 1000);
-
-  return {
-    category: 'general', // Cached articles don't have category info
-    datetime,
-    headline: cacheItem.article.title,
-    id: 0, // Generated ID not available for cached articles
-    image: cacheItem.article.imageUrl || '',
-    related: '', // Not stored in cache
-    source: cacheItem.article.publisher || '',
-    summary: cacheItem.article.description || '',
-    url: cacheItem.article.url,
-  };
-}
-
-/**
  * Filter out articles already in cache
- * Returns only new articles that need to be cached
+ * Returns only new articles with pre-computed hashes to avoid double hashing
  */
 async function filterNewArticles(
   ticker: string,
   apiArticles: FinnhubNewsArticle[]
-): Promise<{ newArticles: FinnhubNewsArticle[]; duplicateCount: number }> {
-  const newArticles: FinnhubNewsArticle[] = [];
+): Promise<{
+  newArticles: Array<{ article: FinnhubNewsArticle; hash: string }>;
+  duplicateCount: number;
+}> {
+  const newArticles: Array<{ article: FinnhubNewsArticle; hash: string }> = [];
   let duplicateCount = 0;
 
   for (const article of apiArticles) {
@@ -74,7 +35,7 @@ async function filterNewArticles(
     const exists = await existsInCache(ticker, hash);
 
     if (!exists) {
-      newArticles.push(article);
+      newArticles.push({ article, hash }); // Return hash to avoid recomputing
     } else {
       duplicateCount++;
     }
@@ -154,11 +115,11 @@ async function handleNewsWithCache(
       { Endpoint: 'news', Ticker: ticker, CacheHit: 'false' }
     );
 
-    // Cache only new articles
+    // Cache only new articles using pre-computed hashes
     if (newArticles.length > 0) {
       try {
-        const cacheItems = newArticles.map((article) =>
-          transformFinnhubToCache(ticker, article)
+        const cacheItems = newArticles.map(({ article, hash }) =>
+          transformFinnhubToCache(ticker, article, hash)
         );
         await batchPutArticles(cacheItems);
         console.log(`[NewsHandler] Cached ${newArticles.length} new articles for ${ticker}`);
@@ -228,6 +189,13 @@ export async function handleNewsRequest(
       return errorResponse('Invalid date format. Use YYYY-MM-DD.', 400);
     }
 
+    // Validate date range (from must be <= to)
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    if (fromDate > toDate) {
+      return errorResponse('Invalid date range. from date must be before or equal to to date.', 400);
+    }
+
     // Get API key from environment
     const apiKey = process.env.FINNHUB_API_KEY;
     if (!apiKey) {
@@ -251,15 +219,18 @@ export async function handleNewsRequest(
     );
 
     // Return response with cache metadata
-    return successResponse({
-      data: result.data,
-      _meta: {
-        cached: result.cached,
-        newArticles: result.newArticlesCount,
-        cachedArticles: result.cachedArticlesCount,
-        timestamp: new Date().toISOString(),
-      },
-    });
+    return successResponse(
+      result.data,
+      200,
+      {
+        _meta: {
+          cached: result.cached,
+          newArticles: result.newArticlesCount,
+          cachedArticles: result.cachedArticlesCount,
+          timestamp: new Date().toISOString(),
+        },
+      }
+    );
   } catch (error) {
     const duration = Date.now() - startTime;
 

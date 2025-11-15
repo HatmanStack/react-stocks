@@ -31,16 +31,18 @@ const CORS_HEADERS = {
  * Create a successful API response
  * @param data - Response data to return
  * @param statusCode - HTTP status code (default: 200)
+ * @param meta - Optional metadata to include at top level (e.g., { _meta: {...} })
  * @returns API Gateway response object
  */
 export function successResponse<T>(
   data: T,
-  statusCode: number = 200
+  statusCode: number = 200,
+  meta?: Record<string, any>
 ): APIGatewayResponse {
   return {
     statusCode,
     headers: CORS_HEADERS,
-    body: JSON.stringify({ data }),
+    body: JSON.stringify(meta ? { data, ...meta } : { data }),
   };
 }
 
