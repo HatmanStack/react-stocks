@@ -5,9 +5,11 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, IconButton } from 'react-native-paper';
+import { Card, IconButton, useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import type { PortfolioDetails } from '@/types/database.types';
+import { MonoText } from '@/components/common';
+import { formatPercentage } from '@/utils/formatting';
 
 interface PortfolioItemProps {
   item: PortfolioDetails;
@@ -16,17 +18,11 @@ interface PortfolioItemProps {
 }
 
 export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
-  const getPredictionColor = (value: string | number): string => {
-    const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(numValue)) return '#9E9E9E';
-    return numValue >= 0 ? '#4CAF50' : '#F44336';
-  };
+  const theme = useTheme();
 
-  const formatPrediction = (value: string | number): string => {
+  const parseValue = (value: string | number): number | null => {
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(numValue)) return 'N/A';
-    const sign = numValue >= 0 ? '+' : '';
-    return `${sign}${numValue.toFixed(2)}%`;
+    return isNaN(numValue) ? null : numValue;
   };
 
   return (
@@ -42,7 +38,7 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
           <View style={styles.container}>
             <View style={styles.leftContent}>
               <View style={styles.headerRow}>
-                <Text style={styles.ticker} allowFontScaling={true}>
+                <Text style={[styles.ticker, { color: theme.colors.primary }]} allowFontScaling={true}>
                   {item.ticker}
                 </Text>
                 <IconButton
@@ -57,52 +53,52 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
                 />
               </View>
               {item.name && (
-                <Text style={styles.name} numberOfLines={1} allowFontScaling={true}>
+                <Text style={[styles.name, { color: theme.colors.onSurface }]} numberOfLines={1} allowFontScaling={true}>
                   {item.name}
                 </Text>
               )}
               <View style={styles.predictionsContainer}>
                 <View style={styles.predictionItem}>
-                  <Text style={styles.predictionLabel} allowFontScaling={true}>
+                  <Text style={[styles.predictionLabel, { color: theme.colors.onSurfaceVariant }]} allowFontScaling={true}>
                     1 Day
                   </Text>
-                  <Text
-                    style={[
-                      styles.predictionValue,
-                      { color: getPredictionColor(item.next) },
-                    ]}
+                  <MonoText
+                    variant="percentage"
+                    positive={parseValue(item.next) !== null && parseValue(item.next)! >= 0}
+                    negative={parseValue(item.next) !== null && parseValue(item.next)! < 0}
+                    style={styles.predictionValue}
                     allowFontScaling={true}
                   >
-                    {formatPrediction(item.next)}
-                  </Text>
+                    {formatPercentage(parseValue(item.next))}
+                  </MonoText>
                 </View>
                 <View style={styles.predictionItem}>
-                  <Text style={styles.predictionLabel} allowFontScaling={true}>
+                  <Text style={[styles.predictionLabel, { color: theme.colors.onSurfaceVariant }]} allowFontScaling={true}>
                     2 Weeks
                   </Text>
-                  <Text
-                    style={[
-                      styles.predictionValue,
-                      { color: getPredictionColor(item.wks) },
-                    ]}
+                  <MonoText
+                    variant="percentage"
+                    positive={parseValue(item.wks) !== null && parseValue(item.wks)! >= 0}
+                    negative={parseValue(item.wks) !== null && parseValue(item.wks)! < 0}
+                    style={styles.predictionValue}
                     allowFontScaling={true}
                   >
-                    {formatPrediction(item.wks)}
-                  </Text>
+                    {formatPercentage(parseValue(item.wks))}
+                  </MonoText>
                 </View>
                 <View style={styles.predictionItem}>
-                  <Text style={styles.predictionLabel} allowFontScaling={true}>
+                  <Text style={[styles.predictionLabel, { color: theme.colors.onSurfaceVariant }]} allowFontScaling={true}>
                     1 Month
                   </Text>
-                  <Text
-                    style={[
-                      styles.predictionValue,
-                      { color: getPredictionColor(item.mnth) },
-                    ]}
+                  <MonoText
+                    variant="percentage"
+                    positive={parseValue(item.mnth) !== null && parseValue(item.mnth)! >= 0}
+                    negative={parseValue(item.mnth) !== null && parseValue(item.mnth)! < 0}
+                    style={styles.predictionValue}
                     allowFontScaling={true}
                   >
-                    {formatPrediction(item.mnth)}
-                  </Text>
+                    {formatPercentage(parseValue(item.mnth))}
+                  </MonoText>
                 </View>
               </View>
             </View>
@@ -134,14 +130,12 @@ const styles = StyleSheet.create({
   ticker: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1976D2',
   },
   deleteButton: {
     margin: 0,
   },
   name: {
     fontSize: 14,
-    color: '#212121',
     marginBottom: 8,
   },
   predictionsContainer: {
@@ -153,11 +147,9 @@ const styles = StyleSheet.create({
   },
   predictionLabel: {
     fontSize: 11,
-    color: '#757575',
     marginBottom: 2,
   },
   predictionValue: {
-    fontSize: 14,
     fontWeight: '600',
   },
 });
