@@ -12,37 +12,44 @@ import type { SymbolDetails } from '@/types/database.types';
 interface SearchResultItemProps {
   symbol: SymbolDetails;
   onPress: () => void;
+  disabled?: boolean;
+  subtitle?: string;
 }
 
-export function SearchResultItem({ symbol, onPress }: SearchResultItemProps) {
+export function SearchResultItem({ symbol, onPress, disabled = false, subtitle }: SearchResultItemProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
+      disabled={disabled}
       accessibilityLabel={`${symbol.ticker}, ${symbol.name}`}
       accessibilityHint="Double tap to view stock details"
       accessibilityRole="button"
     >
-      <Card style={styles.card}>
+      <Card style={[styles.card, disabled && styles.disabledCard]}>
         <Card.Content>
           <View style={styles.container}>
             <View style={styles.leftContent}>
-              <Text style={styles.ticker} allowFontScaling={true}>
+              <Text style={[styles.ticker, disabled && styles.disabledText]} allowFontScaling={true}>
                 {symbol.ticker}
               </Text>
-              <Text style={styles.name} numberOfLines={1} allowFontScaling={true}>
+              <Text style={[styles.name, disabled && styles.disabledText]} numberOfLines={1} allowFontScaling={true}>
                 {symbol.name}
               </Text>
-              {symbol.exchangeCode && (
+              {subtitle ? (
+                <Text style={styles.subtitle} allowFontScaling={true}>
+                  {subtitle}
+                </Text>
+              ) : symbol.exchangeCode ? (
                 <Text style={styles.exchange} allowFontScaling={true}>
                   {symbol.exchangeCode}
                 </Text>
-              )}
+              ) : null}
             </View>
             <Ionicons
-              name="chevron-forward"
+              name={disabled ? "checkmark-circle" : "chevron-forward"}
               size={24}
-              color="#9E9E9E"
+              color={disabled ? "#4CAF50" : "#9E9E9E"}
               accessible={false}
             />
           </View>
@@ -79,5 +86,16 @@ const styles = StyleSheet.create({
   exchange: {
     fontSize: 12,
     color: '#757575',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  disabledCard: {
+    opacity: 0.6,
+  },
+  disabledText: {
+    color: '#9E9E9E',
   },
 });

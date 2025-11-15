@@ -174,9 +174,33 @@ API keys are configured via SAM template parameters during deployment. DynamoDB 
 
 ## Scripts
 
+### Build & Development
 - `npm run build` - Compile TypeScript to JavaScript
-- `npm test` - Run test suite
+- `npm run build:watch` - Watch mode for development
 - `npm run clean` - Remove build artifacts
+
+### Testing
+- `npm test` - Run test suite
+- `npm run test:watch` - Watch mode for tests
+- `npm run test:coverage` - Generate coverage report
+- `npm run test:integration` - Run integration tests only
+
+### Deployment
+- `npm run deploy` - Build + deploy + auto-update frontend .env
+- `npm run deploy:guided` - Guided deployment (first time)
+- `npm run update-env [stack-name]` - Manually update frontend .env with API URL
+- `npm run validate` - Validate AWS prerequisites
+
+**Examples:**
+```bash
+npm run update-env                    # Uses stack from samconfig.toml
+npm run update-env react-stocks-test  # Uses specific stack name
+```
+
+### Utilities
+- `npm run logs` - View Lambda logs
+- `npm run warm-cache` - Pre-populate DynamoDB cache
+- `npm run create-dashboard` - Create CloudWatch dashboard
 
 ## Security
 

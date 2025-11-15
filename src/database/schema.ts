@@ -69,14 +69,15 @@ export const CREATE_WORD_COUNT_DETAILS_TABLE = `
     oneMnth REAL NOT NULL,
     body TEXT,
     sentiment TEXT NOT NULL,
-    sentimentNumber REAL NOT NULL
+    sentimentNumber REAL NOT NULL,
+    UNIQUE(ticker, hash)
   );
 `;
 
 export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS combined_word_count_details (
-    date TEXT PRIMARY KEY NOT NULL,
     ticker TEXT NOT NULL,
+    date TEXT NOT NULL,
     positive INTEGER NOT NULL,
     negative INTEGER NOT NULL,
     sentimentNumber REAL NOT NULL,
@@ -84,7 +85,8 @@ export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
     nextDay REAL NOT NULL,
     twoWks REAL NOT NULL,
     oneMnth REAL NOT NULL,
-    updateDate TEXT
+    updateDate TEXT,
+    PRIMARY KEY (ticker, date)
   );
 `;
 

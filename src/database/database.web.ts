@@ -269,7 +269,7 @@ class WebDatabase {
 
   // Combined sentiment operations (daily aggregated)
   private upsertCombinedSentiment(params: any[]): any {
-    const [date, ticker, positive, negative, sentimentNumber, sentiment, nextDay, twoWks, oneMnth, updateDate] = params;
+    const [ticker, date, positive, negative, sentimentNumber, sentiment, nextDay, twoWks, oneMnth, updateDate] = params;
 
     if (!this.data.sentiment[ticker]) {
       this.data.sentiment[ticker] = [];

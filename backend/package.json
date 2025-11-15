@@ -17,7 +17,8 @@
     "deploy": "./scripts/deploy.sh",
     "deploy:guided": "./scripts/deploy.sh --guided",
     "validate": "./scripts/validate.sh",
-    "logs": "./scripts/logs.sh"
+    "logs": "./scripts/logs.sh",
+    "update-env": "./scripts/update-env.sh"
   },
   "keywords": [
     "aws-lambda",

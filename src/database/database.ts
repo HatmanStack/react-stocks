@@ -33,11 +33,12 @@ export async function initializeDatabase(): Promise<void> {
       console.log('[Database] Tables already exist');
     }
 
-    // Check version for migrations (future use)
+    // Check version for future migrations
     const currentVersion = await getDatabaseVersion();
     if (currentVersion !== DB_VERSION) {
       console.log(`[Database] Version mismatch: ${currentVersion} -> ${DB_VERSION}`);
-      // Future: Add migration logic here
+      // Set new version
+      await database.execAsync(`PRAGMA user_version = ${DB_VERSION}`);
     }
 
     isInitialized = true;
