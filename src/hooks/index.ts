@@ -30,3 +30,7 @@ export type { LayoutDensity } from './useLayoutDensity';
 // Chart data hooks
 export { useChartData, transformPriceData, transformSentimentData, calculatePriceChange } from './useChartData';
 export type { ChartDataPoint, PriceChange } from './useChartData';
+
+// Responsive hooks
+export { useResponsive } from './useResponsive';
+export type { ResponsiveValues } from './useResponsive';
