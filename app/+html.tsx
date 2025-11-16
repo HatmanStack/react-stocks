@@ -6,6 +6,7 @@
 
 import { ScrollViewStyleReset } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
+import { colors } from '../src/theme/colors';
 
 // This file is web-only and used to configure the root HTML for every web page.
 // For PWA and static metadata, use this file to set <head> tags that need to be present at build time.
@@ -20,14 +21,14 @@ export default function Root({ children }: PropsWithChildren) {
         {/* Primary Meta Tags */}
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
 
         {/* PWA Configuration */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#121212" />
+        <meta name="theme-color" content={colors.background} />
 
         {/* PWA Manifest */}
         <link rel="manifest" href="/manifest.json" />
@@ -38,7 +39,7 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
 
-        {/* Ressets for React Native Web */}
+        {/* Resets for React Native Web */}
         <ScrollViewStyleReset />
 
         {/* Global Styles */}
@@ -53,7 +54,7 @@ export default function Root({ children }: PropsWithChildren) {
               padding: 0;
             }
             body {
-              background-color: #121212;
+              background-color: ${colors.background};
               color: #ffffff;
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
               overflow-x: hidden;

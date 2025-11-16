@@ -5,6 +5,7 @@ import { LineChart } from 'react-native-svg-charts';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as shape from 'd3-shape';
 import type { ChartDataPoint } from '@/hooks/useChartData';
+import '@/types/theme'; // Import theme type augmentation for custom colors
 
 interface MiniChartProps {
   data: ChartDataPoint[];

@@ -23,6 +23,7 @@ import { PortfolioProvider } from '../src/contexts/PortfolioContext';
 
 // Theme
 import { theme } from '../src/theme/theme';
+import { colors } from '../src/theme/colors';
 import '../src/types/theme'; // Import theme type augmentation
 
 // Error Boundary
@@ -107,7 +108,7 @@ export default function RootLayout() {
           content="stocks, finance, portfolio, trading, sentiment analysis, stock market, investment, stock tracker"
         />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-        <meta name="theme-color" content="#121212" />
+        <meta name="theme-color" content={colors.background} />
 
         {/* Open Graph */}
         <meta property="og:type" content="website" />
