@@ -1,14 +1,15 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { PortfolioItem } from '../PortfolioItem';
-import { PaperProvider } from 'react-native-paper';
+import { createTestWrapper } from '@/utils/testUtils';
 import { theme } from '@/theme/theme';
-import { useLatestStockPrice } from '@/hooks';
+import { useLatestStockPrice, useStockData } from '@/hooks';
 
 // Mock the hooks
 jest.mock('@/hooks', () => ({
   ...jest.requireActual('@/hooks'),
   useLatestStockPrice: jest.fn(),
+  useStockData: jest.fn(),
 }));
 
 // Mock Ionicons
@@ -18,6 +19,9 @@ jest.mock('@expo/vector-icons', () => ({
 
 const mockUseLatestStockPrice = useLatestStockPrice as jest.MockedFunction<
   typeof useLatestStockPrice
+>;
+const mockUseStockData = useStockData as jest.MockedFunction<
+  typeof useStockData
 >;
 
 const mockItem = {
@@ -52,12 +56,17 @@ const mockLatestPrice = {
 };
 
 describe('PortfolioItem', () => {
-  const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <PaperProvider theme={theme}>{children}</PaperProvider>
-  );
+  const wrapper = createTestWrapper();
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Mock useStockData to return empty data by default
+    mockUseStockData.mockReturnValue({
+      data: [],
+      isLoading: false,
+      error: null,
+    } as any);
   });
 
   it('displays ticker and name on first line', () => {
