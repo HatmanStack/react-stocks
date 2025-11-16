@@ -71,26 +71,28 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    margin: 8,
+    margin: 16, // More spacious margins
     marginBottom: 0,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 12, // More spacing
   },
   ticker: {
     fontWeight: 'bold',
-    marginRight: 8,
+    marginRight: 12,
+    fontSize: 24, // Larger ticker
   },
   exchange: {
-    fontSize: 12,
+    fontSize: 14, // Slightly larger exchange
     textTransform: 'uppercase',
   },
   name: {
-    marginBottom: 8,
+    marginBottom: 12, // More spacing
+    fontSize: 18, // Larger company name
   },
   description: {
-    lineHeight: 20,
+    lineHeight: 24, // More generous line height
   },
 });

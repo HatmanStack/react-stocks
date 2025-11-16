@@ -71,15 +71,18 @@ export default function StockDetailLayout() {
     <StockDetailProvider ticker={ticker || 'AAPL'}>
       <View style={styles.container}>
         <OfflineIndicator />
-        <Appbar.Header elevated>
+        <Appbar.Header elevated style={styles.header}>
           <Appbar.Content
             title={ticker}
             subtitle={isLoading ? 'Loading...' : companyName}
+            titleStyle={styles.headerTitle}
+            subtitleStyle={styles.headerSubtitle}
           />
           <Appbar.Action
             icon={inPortfolio ? 'star' : 'star-outline'}
             onPress={handleTogglePortfolio}
             color={inPortfolio ? '#FFD700' : '#9E9E9E'}
+            size={28}
           />
         </Appbar.Header>
 
@@ -105,5 +108,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  header: {
+    height: 72, // More spacious header
+  },
+  headerTitle: {
+    fontSize: 28, // Larger ticker
+    fontWeight: '700',
+  },
+  headerSubtitle: {
+    fontSize: 18, // Larger company name
+    marginTop: 4,
   },
 });
