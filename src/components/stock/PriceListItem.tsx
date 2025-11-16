@@ -9,6 +9,7 @@ import { Text, useTheme } from 'react-native-paper';
 import type { StockDetails } from '@/types/database.types';
 import { formatCurrency, formatVolume } from '@/utils/formatting/numberFormatting';
 import { formatShortDate } from '@/utils/formatting/dateFormatting';
+import { MonoText } from '@/components/common';
 
 interface PriceListItemProps {
   item: StockDetails;
@@ -17,21 +18,17 @@ interface PriceListItemProps {
 export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item }) => {
   const theme = useTheme();
 
-  // Determine row color based on close vs open
+  // Determine row color based on close vs open (use surfaceVariant for dark theme compatibility)
   const getRowColor = (): string => {
-    if (item.close > item.open) {
-      return '#E8F5E9'; // Light green (bullish)
-    } else if (item.close < item.open) {
-      return '#FFEBEE'; // Light red (bearish)
-    }
-    return '#F5F5F5'; // Light gray (neutral)
+    // Use subtle theme colors instead of hardcoded light theme colors
+    return theme.colors.surfaceVariant;
   };
 
   const getTextColor = (): string => {
     if (item.close > item.open) {
-      return '#2E7D32'; // Dark green
+      return theme.colors.positive; // Green for gains
     } else if (item.close < item.open) {
-      return '#C62828'; // Dark red
+      return theme.colors.negative; // Red for losses
     }
     return theme.colors.onSurface;
   };
@@ -39,7 +36,7 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
   const textColor = getTextColor();
 
   return (
-    <View style={[styles.container, { backgroundColor: getRowColor() }]}>
+    <View style={[styles.container, { backgroundColor: getRowColor(), borderBottomColor: theme.colors.outline }]}>
       <View style={styles.row}>
         {/* Date */}
         <View style={styles.dateColumn}>
@@ -50,34 +47,57 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
 
         {/* OHLC Prices */}
         <View style={styles.priceColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor }]}>
+          <MonoText
+            variant="price"
+            style={styles.text}
+            positive={item.close > item.open}
+            negative={item.close < item.open}
+          >
             {formatCurrency(item.open)}
-          </Text>
+          </MonoText>
         </View>
 
         <View style={styles.priceColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor, fontWeight: 'bold' }]}>
+          <MonoText
+            variant="price"
+            style={[styles.text, { fontWeight: 'bold' }]}
+            positive={item.close > item.open}
+            negative={item.close < item.open}
+          >
             {formatCurrency(item.close)}
-          </Text>
+          </MonoText>
         </View>
 
         <View style={styles.priceColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor }]}>
+          <MonoText
+            variant="price"
+            style={styles.text}
+            positive={item.close > item.open}
+            negative={item.close < item.open}
+          >
             {formatCurrency(item.high)}
-          </Text>
+          </MonoText>
         </View>
 
         <View style={styles.priceColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor }]}>
+          <MonoText
+            variant="price"
+            style={styles.text}
+            positive={item.close > item.open}
+            negative={item.close < item.open}
+          >
             {formatCurrency(item.low)}
-          </Text>
+          </MonoText>
         </View>
 
-        {/* Volume */}
+        {/* Volume - intentionally neutral (no positive/negative coloring) */}
         <View style={styles.volumeColumn}>
-          <Text variant="bodySmall" style={[styles.text, { color: textColor }]}>
+          <MonoText
+            variant="volume"
+            style={styles.text}
+          >
             {formatVolume(item.volume)}
-          </Text>
+          </MonoText>
         </View>
       </View>
     </View>
@@ -91,7 +111,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
   },
   row: {
     flexDirection: 'row',

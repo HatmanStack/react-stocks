@@ -6,19 +6,24 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export function OfflineIndicator() {
+  const theme = useTheme();
   const { isConnected } = useNetworkStatus();
 
   if (isConnected) {
     return null;
   }
 
+  // Use theme colors for proper dark mode support
+  const textColor = theme.colors.onPrimary; // White text on colored background
+
   return (
-    <View style={styles.container} testID="offline-indicator">
-      <Ionicons name="cloud-offline" size={16} color="#fff" />
-      <Text style={styles.text}>Offline Mode - Using local analysis</Text>
+    <View style={[styles.container, { backgroundColor: theme.custom.colors.warning }]} testID="offline-indicator">
+      <Ionicons name="cloud-offline" size={16} color={textColor} />
+      <Text style={[styles.text, { color: textColor }]}>Offline Mode - Using local analysis</Text>
     </View>
   );
 }
@@ -28,13 +33,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF9800',
     paddingVertical: 8,
     paddingHorizontal: 16,
     gap: 8,
   },
   text: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: '500',
   },

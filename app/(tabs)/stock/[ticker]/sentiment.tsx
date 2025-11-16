@@ -8,8 +8,10 @@ import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStockDetail } from '@/contexts/StockDetailContext';
 import { SentimentToggle } from '@/components/sentiment/SentimentToggle';
+import { SentimentChart } from '@/components/charts/SentimentChart';
 import { CombinedWordItem } from '@/components/sentiment/CombinedWordItem';
 import { SingleWordItem } from '@/components/sentiment/SingleWordItem';
+import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -76,6 +78,15 @@ export default function SentimentScreen() {
           data={sortedAggregateData}
           renderItem={renderAggregateItem}
           keyExtractor={keyExtractorAggregate}
+          ListHeaderComponent={() => (
+            <View style={styles.chartContainer}>
+              {isAggregateLoading ? (
+                <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
+              ) : sortedAggregateData && sortedAggregateData.length > 0 ? (
+                <SentimentChart data={sortedAggregateData} />
+              ) : null}
+            </View>
+          )}
           contentContainerStyle={styles.listContent}
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
@@ -126,10 +137,17 @@ export default function SentimentScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.Create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  chartContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  chartSkeleton: {
+    alignSelf: 'center',
   },
   listContent: {
     paddingVertical: 8,

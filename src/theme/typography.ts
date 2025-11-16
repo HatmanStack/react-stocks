@@ -3,6 +3,8 @@
  * Font styles and text configurations
  */
 
+import { Platform } from 'react-native';
+
 export const typography = {
   // Font families
   fonts: {
@@ -10,6 +12,13 @@ export const typography = {
     medium: 'System',
     bold: 'System',
     light: 'System',
+    // Monospaced font for financial data (platform-specific)
+    mono: Platform.select({
+      ios: 'Menlo',
+      android: 'monospace',
+      web: 'Monaco, Consolas, "Courier New", monospace',
+      default: 'monospace',
+    }) as string,
   },
 
   // Font sizes

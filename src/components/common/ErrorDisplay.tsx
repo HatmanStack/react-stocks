@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Button } from 'react-native-paper';
+import { Button, useTheme } from 'react-native-paper';
 
 interface ErrorDisplayProps {
   error: Error | string;
@@ -14,12 +14,13 @@ interface ErrorDisplayProps {
 }
 
 export function ErrorDisplay({ error, onRetry, title = 'Something went wrong' }: ErrorDisplayProps) {
+  const theme = useTheme();
   const errorMessage = typeof error === 'string' ? error : error?.message || 'An unknown error occurred';
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{errorMessage}</Text>
+      <Text style={[styles.title, { color: theme.colors.onSurface }]}>{title}</Text>
+      <Text style={[styles.message, { color: theme.colors.onSurfaceVariant }]}>{errorMessage}</Text>
       {onRetry && (
         <Button mode="contained" onPress={onRetry} style={styles.button}>
           Try Again
@@ -39,13 +40,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#212121',
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: '#757575',
     textAlign: 'center',
     marginBottom: 16,
   },

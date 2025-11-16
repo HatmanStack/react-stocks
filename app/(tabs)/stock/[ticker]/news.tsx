@@ -3,17 +3,20 @@
  * Displays news articles for a stock
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from 'react-native-paper';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useStockDetail } from '@/contexts/StockDetailContext';
 import { NewsListItem } from '@/components/news/NewsListItem';
-import { LoadingIndicator } from '@/components/common/LoadingIndicator';
+import { NewsListItemSkeleton } from '@/components/news/NewsListItemSkeleton';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { NewsDetails } from '@/types/database.types';
 
 export default function NewsScreen() {
+  const theme = useTheme();
   // Get news data from context (already fetched at layout level)
   const { newsData, newsLoading: isLoading, newsError: error } = useStockDetail();
 
@@ -23,11 +26,30 @@ export default function NewsScreen() {
     return [...newsData].sort((a, b) => b.articleDate.localeCompare(a.articleDate));
   }, [newsData]);
 
-  // Render loading state
+  const renderSkeletonItem = useCallback(
+    ({ index }: { index: number }) => <NewsListItemSkeleton key={`skeleton-${index}`} />,
+    []
+  );
+
+  const renderNewsItem = useCallback(
+    ({ item }: { item: NewsDetails }) => (
+      <Animated.View entering={FadeIn.duration(200)}>
+        <NewsListItem item={item} />
+      </Animated.View>
+    ),
+    []
+  );
+
+  // Render loading state with skeleton
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <LoadingIndicator message="Loading news..." />
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+        <FlatList
+          data={Array.from({ length: 5 })}
+          renderItem={renderSkeletonItem}
+          keyExtractor={(_, index) => `skeleton-${index}`}
+          contentContainerStyle={styles.listContent}
+        />
       </SafeAreaView>
     );
   }
@@ -35,7 +57,7 @@ export default function NewsScreen() {
   // Render error state
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <ErrorDisplay
           error={error || 'Failed to load news articles'}
         />
@@ -46,7 +68,7 @@ export default function NewsScreen() {
   // Render empty state
   if (!sortedNewsData || sortedNewsData.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.emptyContainer}>
           <EmptyState
             message="No news articles available for the selected date range"
@@ -58,18 +80,16 @@ export default function NewsScreen() {
     );
   }
 
-  const renderItem = ({ item }: { item: NewsDetails }) => (
-    <NewsListItem item={item} />
+  const keyExtractor = useCallback(
+    (item: NewsDetails, index: number) => item.articleUrl || `${item.ticker}-${item.articleDate}-${index}`,
+    []
   );
 
-  const keyExtractor = (item: NewsDetails, index: number) =>
-    item.articleUrl || `${item.ticker}-${item.articleDate}-${index}`;
-
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <FlatList
         data={sortedNewsData}
-        renderItem={renderItem}
+        renderItem={renderNewsItem}
         keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContent}
         removeClippedSubviews={true}
@@ -85,7 +105,6 @@ export default function NewsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   listContent: {
     paddingVertical: 8,

@@ -4,14 +4,18 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, StyleSheet, FlatList } from 'react-native';
+import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
+import { useTheme } from 'react-native-paper';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
 import { useStockDetail } from '@/contexts/StockDetailContext';
+import { useResponsive } from '@/hooks/useResponsive';
 import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
+import { PriceChart } from '@/components/charts/PriceChart';
+import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -19,6 +23,8 @@ import type { StockDetails } from '@/types/database.types';
 
 export default function PriceScreen() {
   const { ticker } = useLocalSearchParams<{ ticker: string }>();
+  const theme = useTheme();
+  const { isDesktop, isTablet } = useResponsive();
 
   // Get stock data from context (already fetched at layout level)
   const { stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
@@ -77,8 +83,77 @@ export default function PriceScreen() {
 
   const keyExtractor = (item: StockDetails) => `${item.ticker}-${item.date}`;
 
+  // Desktop layout: two-column with chart on left (70%) and metadata on right (30%)
+  if (isDesktop) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+        <ScrollView>
+          <View style={styles.desktopLayout}>
+            {/* Left column: Chart and price list */}
+            <View style={styles.desktopLeftColumn}>
+              <View style={styles.chartContainer}>
+                {isPriceLoading ? (
+                  <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
+                ) : sortedStockData && sortedStockData.length > 0 ? (
+                  <PriceChart data={sortedStockData} />
+                ) : null}
+              </View>
+
+              <PriceListHeader />
+              {sortedStockData.map((item) => (
+                <PriceListItem key={keyExtractor(item)} item={item} />
+              ))}
+            </View>
+
+            {/* Right column: Metadata */}
+            <View style={styles.desktopRightColumn}>
+              <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // Tablet layout: chart on top, metadata below in optimized layout
+  if (isTablet) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+        <FlatList
+          data={sortedStockData}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          ListHeaderComponent={() => (
+            <View>
+              {/* Chart full width */}
+              <View style={styles.chartContainer}>
+                {isPriceLoading ? (
+                  <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
+                ) : sortedStockData && sortedStockData.length > 0 ? (
+                  <PriceChart data={sortedStockData} />
+                ) : null}
+              </View>
+
+              {/* Metadata card */}
+              <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+
+              <PriceListHeader />
+            </View>
+          )}
+          stickyHeaderIndices={[0]}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={15}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={15}
+          windowSize={21}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Mobile layout: single column (original behavior)
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <FlatList
         data={sortedStockData}
         renderItem={renderItem}
@@ -86,6 +161,16 @@ export default function PriceScreen() {
         ListHeaderComponent={() => (
           <View>
             <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+
+            {/* Price Chart */}
+            <View style={styles.chartContainer}>
+              {isPriceLoading ? (
+                <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
+              ) : sortedStockData && sortedStockData.length > 0 ? (
+                <PriceChart data={sortedStockData} />
+              ) : null}
+            </View>
+
             <PriceListHeader />
           </View>
         )}
@@ -103,12 +188,30 @@ export default function PriceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+  },
+  chartContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  chartSkeleton: {
+    alignSelf: 'center',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  // Desktop responsive layout
+  desktopLayout: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 20,
+  },
+  desktopLeftColumn: {
+    flex: 7,
+  },
+  desktopRightColumn: {
+    flex: 3,
   },
 });

@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { Slot } from 'expo-router';
+import Head from 'expo-router/head';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -22,6 +23,8 @@ import { PortfolioProvider } from '../src/contexts/PortfolioContext';
 
 // Theme
 import { theme } from '../src/theme/theme';
+import { colors } from '../src/theme/colors';
+import '../src/types/theme'; // Import theme type augmentation
 
 // Error Boundary
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
@@ -87,13 +90,50 @@ export default function RootLayout() {
   if (!isReady) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1976D2" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
     <ErrorBoundary>
+      <Head>
+        <title>Stock Tracker - Professional Stock Analysis & Portfolio Management</title>
+        <meta
+          name="description"
+          content="Track stocks, analyze market sentiment, and visualize price trends with our professional stock tracking application. Real-time data, sentiment analysis, and portfolio management."
+        />
+        <meta
+          name="keywords"
+          content="stocks, finance, portfolio, trading, sentiment analysis, stock market, investment, stock tracker"
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+        <meta name="theme-color" content={colors.background} />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Stock Tracker - Professional Stock Analysis" />
+        <meta
+          property="og:description"
+          content="Track stocks, analyze sentiment, and manage your portfolio with real-time data and professional charts."
+        />
+        <meta property="og:site_name" content="Stock Tracker" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Stock Tracker - Professional Analysis" />
+        <meta
+          name="twitter:description"
+          content="Professional stock tracking and sentiment analysis platform"
+        />
+
+        {/* PWA Meta Tags */}
+        <meta name="application-name" content="Stock Tracker" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Stock Tracker" />
+      </Head>
+
       <GestureHandlerRootView style={styles.container}>
         <SafeAreaProvider>
           <PaperProvider theme={theme}>
@@ -101,7 +141,7 @@ export default function RootLayout() {
               <StockProvider>
                 <PortfolioProvider>
                   <Slot />
-                  <StatusBar style="dark" />
+                  <StatusBar style="light" />
                 </PortfolioProvider>
               </StockProvider>
             </QueryClientProvider>
@@ -120,6 +160,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
   },
 });
