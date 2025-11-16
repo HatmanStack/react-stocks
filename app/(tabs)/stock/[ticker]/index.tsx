@@ -12,6 +12,8 @@ import { useStockDetail } from '@/contexts/StockDetailContext';
 import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
+import { PriceChart } from '@/components/charts/PriceChart';
+import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -86,6 +88,16 @@ export default function PriceScreen() {
         ListHeaderComponent={() => (
           <View>
             <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+
+            {/* Price Chart */}
+            <View style={styles.chartContainer}>
+              {isPriceLoading ? (
+                <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
+              ) : sortedStockData && sortedStockData.length > 0 ? (
+                <PriceChart data={sortedStockData} />
+              ) : null}
+            </View>
+
             <PriceListHeader />
           </View>
         )}
@@ -104,6 +116,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  chartContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  chartSkeleton: {
+    alignSelf: 'center',
   },
   emptyContainer: {
     flex: 1,
