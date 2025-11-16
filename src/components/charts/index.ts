@@ -5,3 +5,4 @@
 
 export { PriceChart } from './PriceChart';
 export { SentimentChart } from './SentimentChart';
+export { MiniChart } from './MiniChart';
