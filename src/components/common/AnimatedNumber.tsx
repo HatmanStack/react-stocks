@@ -65,6 +65,9 @@ export function AnimatedNumber({
       positive={positive}
       negative={negative}
       style={style}
+      accessible
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={formatter(value)}
     >
       {/* Fallback text (won't be visible due to animatedProps) */}
       {formatter(value)}
