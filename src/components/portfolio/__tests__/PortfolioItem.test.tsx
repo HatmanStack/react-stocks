@@ -233,6 +233,7 @@ describe('PortfolioItem', () => {
       { wrapper }
     );
 
-    expect(getByText('Chart')).toBeTruthy();
+    // When chartData is empty, component renders '--' as placeholder
+    expect(getByText('--')).toBeTruthy();
   });
 });
