@@ -126,8 +126,8 @@ interface AnimatedCardProps extends CardProps {
 ```
 
 **Implementation Guidance:**
-- Scale: 1.0 (rest) ’ 0.98 (pressed)
-- Shadow: elevation 2 ’ 4 (pressed)
+- Scale: 1.0 (rest) ï¿½ 0.98 (pressed)
+- Shadow: elevation 2 ï¿½ 4 (pressed)
 - Duration: 150ms
 - Use `withSpring` for natural bounce
 - Wrap onPress to trigger animation
@@ -193,7 +193,7 @@ Manual testing:
 feat(components): add AnimatedCard with press feedback
 
 - Create animated card wrapper component
-- Add subtle scale animation on press (1.0 ’ 0.98)
+- Add subtle scale animation on press (1.0 ï¿½ 0.98)
 - Use spring physics for natural feel
 - Support all existing Card props
 ```
@@ -637,14 +637,14 @@ feat(portfolio): add swipe-to-delete gesture for items
 2. Wrap real content with Animated.View
 3. Add FadeIn.duration(200) animation
 4. Ensure skeleton and content don't overlap during transition
-5. Test all loading ’ loaded transitions
+5. Test all loading ï¿½ loaded transitions
 
 **Screens to Update:**
-- Portfolio screen (skeleton ’ portfolio items)
-- Search results (skeleton ’ results)
-- News feed (skeleton ’ news items)
-- Stock detail price tab (skeleton ’ price data)
-- Stock detail sentiment tab (skeleton ’ sentiment data)
+- Portfolio screen (skeleton ï¿½ portfolio items)
+- Search results (skeleton ï¿½ results)
+- News feed (skeleton ï¿½ news items)
+- Stock detail price tab (skeleton ï¿½ price data)
+- Stock detail sentiment tab (skeleton ï¿½ sentiment data)
 
 **Transition Pattern:**
 ```typescript
@@ -658,7 +658,7 @@ feat(portfolio): add swipe-to-delete gesture for items
 ```
 
 **Verification Checklist:**
-- [ ] All skeleton ’ content transitions smooth
+- [ ] All skeleton ï¿½ content transitions smooth
 - [ ] No flicker during transition
 - [ ] 200ms duration feels right
 - [ ] No overlapping content
@@ -909,6 +909,92 @@ Phase 4 provides:
 - AnimatedCard, AnimatedNumber components
 - Animation configuration patterns
 - Gesture implementations
+
+---
+
+## Review Feedback (Iteration 1)
+
+### Critical Issue: Dependencies Still Not Installed (Carried from Phase 3)
+
+> **Consider:** You're still getting test failures with "Cannot find module 'd3-shape'". This is the same issue from Phase 3 review. Did you run `npm install` after the dependencies were added to package.json?
+>
+> **Think about:** Looking at your Phase 4 commits, commit `772f40b` says "fix(charts): address reviewer feedback on type errors and color semantics". Did this commit include running `npm install` and committing the updated package-lock.json?
+>
+> **Reflect:** Without the dependencies installed, your chart animations can't be tested. How can you verify that the FadeInUp animation in PriceChart.tsx works if the tests can't even import the chart component?
+
+### Critical Issue: Theme Type Augmentation Still Not Imported (Carried from Phase 2)
+
+> **Consider:** TypeScript still reports errors like `Property 'positive' does not exist on type 'MD3Colors'` in your chart components. This is the same issue from Phase 2 and Phase 3 reviews.
+>
+> **Think about:** You created `src/types/theme.d.ts` with the type augmentation. But where did you import it? Module augmentations in TypeScript require an explicit import statement like `import '@/types/theme';` to take effect.
+>
+> **Reflect:** Would adding the import to `app/_layout.tsx` (which loads once at app startup) solve the TypeScript errors across all your components? Or would you prefer to import it in each component that uses the custom theme colors?
+
+### Task 5: AnimatedNumber - Created But Not Integrated
+
+> **Consider:** You created AnimatedNumber.tsx with good implementation - spring animations, animated props, MonoText integration. But run `grep -r "AnimatedNumber" src --exclude-dir=__tests__ --exclude="AnimatedNumber.tsx"` - where is it actually being used?
+>
+> **Think about:** The plan at line 332 says "Price and percentage changes animate when values update". Looking at PortfolioItem.tsx, are prices displayed with AnimatedNumber or regular MonoText?
+>
+> **Reflect:** The testing instructions (line 416-429) mention that AnimatedNumber needs data updates to test. Is it possible the component was created but integration was deferred because prices don't update dynamically in the current implementation? Or should it have been integrated as a demonstration?
+>
+> **Consider:** Would it be clearer to add a comment in AnimatedNumber.tsx explaining when/how it should be used, or to create a test component that demonstrates the animation?
+
+### Positive Implementation Notes
+
+> **Excellent Work:** Task 1 - Reanimated Configuration
+> - babel.config.js correctly configured
+> - reanimated plugin is last in plugins array (critical requirement)
+> - Clean, minimal configuration
+>
+> **Excellent Work:** Task 2 - AnimatedCard Component
+> - Perfect implementation matching plan specifications
+> - Scale 1.0 â†’ 0.98 as specified
+> - Spring physics with correct damping (15)
+> - Proper use of Pressable for press events
+> - Clean TypeScript interface
+>
+> **Excellent Work:** Task 3 - List Items Use AnimatedCard
+> - PortfolioItem.tsx updated (line 82-186)
+> - SearchResultItem.tsx updated (line 27-112)
+> - NewsListItem.tsx updated (line 44-135)
+> - All three list types now have press animations
+> - Consistent implementation across components
+>
+> **Excellent Work:** Task 4 - Chart Animations
+> - MiniChart: FadeIn animation (line 43)
+> - PriceChart: FadeInUp animation (line 6 import)
+> - SentimentChart: FadeInUp animation
+> - Proper use of reanimated entering animations
+>
+> **Excellent Work:** Task 6 - Screen Transitions
+> - app/(tabs)/stock/[ticker]/_layout.tsx updated
+> - Line 97: `animationEnabled: true`
+> - Material Top Tabs now have smooth transitions
+>
+> **Excellent Work:** Task 7 - Swipe-to-Delete
+> - PortfolioItem.tsx uses Swipeable from react-native-gesture-handler
+> - Line 75-187: Complete swipeable implementation
+> - Red delete action with proper icon
+> - Swipe threshold at 100px
+>
+> **Excellent Work:** Task 9 - Button Micro-interactions
+> - AddStockButton.tsx completely rewritten
+> - Press animations with scale 1.0 â†’ 0.95
+> - Spring physics (damping 15)
+> - Wrapped FAB with animated Pressable
+>
+> **Excellent Work:** Git Commits
+> - 9 commits for Phase 4, all following conventional format
+> - Clear, descriptive commit messages
+> - Logical progression through tasks
+> - Professional quality commits
+
+### Code Quality Observations
+
+> **Consider:** In AddStockButton.tsx line 60, there's a hardcoded background color `#1976D2`. Should this use `theme.colors.primary` instead for consistency?
+>
+> **Think about:** Looking at the FAB component on line 43, it has `onPress={() => {}}` with a comment "Handled by Pressable wrapper". Is there a cleaner way to disable the FAB's built-in onPress while still using it for visual styling?
 
 ---
 
