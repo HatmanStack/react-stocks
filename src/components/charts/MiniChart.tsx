@@ -13,12 +13,12 @@ interface MiniChartProps {
   positive?: boolean;
 }
 
-export function MiniChart({
+const MiniChartComponent = ({
   data,
   width = 60,
   height = 28,
   positive = false,
-}: MiniChartProps) {
+}: MiniChartProps) => {
   const theme = useTheme();
 
   // Extract y-values for the chart
@@ -54,4 +54,7 @@ export function MiniChart({
       />
     </Animated.View>
   );
-}
+};
+
+// Memoize component to prevent unnecessary re-renders
+export const MiniChart = React.memo(MiniChartComponent);

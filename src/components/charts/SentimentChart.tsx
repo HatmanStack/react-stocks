@@ -15,7 +15,7 @@ interface SentimentChartProps {
   height?: number;
 }
 
-export function SentimentChart({ data, width: customWidth, height = 220 }: SentimentChartProps) {
+const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: SentimentChartProps) => {
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
 
@@ -190,4 +190,7 @@ export function SentimentChart({ data, width: customWidth, height = 220 }: Senti
       />
     </Animated.View>
   );
-}
+};
+
+// Memoize component to prevent unnecessary re-renders
+export const SentimentChart = React.memo(SentimentChartComponent);
