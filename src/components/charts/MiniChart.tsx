@@ -33,7 +33,7 @@ export function MiniChart({
     return data.map(d => d.y);
   }, [data]);
 
-  const chartColor = positive ? theme.colors.positive : theme.colors.error;
+  const chartColor = positive ? theme.colors.positive : theme.colors.negative;
 
   if (chartData.length === 0) {
     return <View style={{ width, height }} />;
