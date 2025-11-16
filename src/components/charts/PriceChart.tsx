@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
-import { View, useWindowDimensions } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { View, useWindowDimensions, Text as RNText } from 'react-native';
+import { useTheme, Text as PaperText } from 'react-native-paper';
 import { AreaChart, Grid, XAxis, YAxis } from 'react-native-svg-charts';
-import { Text } from 'react-native-svg';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import * as shape from 'd3-shape';
 import { format, parseISO } from 'date-fns';
@@ -42,14 +41,12 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
 
     const isStockDetails = 'close' in data[0];
     if (isStockDetails) {
-      return (data as StockDetails[])
-        .map(d => d.date)
-        .sort();
+      // Don't sort - preserve order to match chartData indices
+      return (data as StockDetails[]).map(d => d.date);
     }
 
-    return (data as Array<{ date: string; price: number }>)
-      .map(d => d.date)
-      .sort();
+    // Don't sort - preserve order to match chartData indices
+    return (data as Array<{ date: string; price: number }>).map(d => d.date);
   }, [data]);
 
   const priceChange = useMemo(() => {
@@ -87,15 +84,12 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
   if (chartData.length === 0) {
     return (
       <View style={{ width, height, justifyContent: 'center', alignItems: 'center' }}>
-        <Text
-          fill={theme.colors.onSurfaceVariant}
-          fontSize={14}
-          x={width / 2}
-          y={height / 2}
-          textAnchor="middle"
+        <PaperText
+          variant="bodyMedium"
+          style={{ color: theme.colors.onSurfaceVariant }}
         >
           No data available
-        </Text>
+        </PaperText>
       </View>
     );
   }
