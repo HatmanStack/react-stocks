@@ -101,7 +101,7 @@ export const theme = {
 
 // Type augmentation for TypeScript
 declare module 'react-native-paper' {
-  interface ThemeColors {
+  interface MD3Colors {
     positive: string;
     negative: string;
     neutral: string;
