@@ -5,11 +5,12 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Linking, Alert } from 'react-native';
-import { Card, Text, useTheme } from 'react-native-paper';
+import { View, StyleSheet, Linking, Alert } from 'react-native';
+import { Text, useTheme } from 'react-native-paper';
 import type { NewsDetails } from '@/types/database.types';
 import { formatNewsDate } from '@/utils/formatting/dateFormatting';
 import { useLayoutDensity } from '@/hooks';
+import { AnimatedCard } from '@/components/common';
 
 interface NewsListItemProps {
   item: NewsDetails;
@@ -41,23 +42,20 @@ export const NewsListItem: React.FC<NewsListItemProps> = React.memo(({ item }) =
   };
 
   return (
-    <TouchableOpacity
+    <AnimatedCard
       onPress={handlePress}
-      activeOpacity={0.7}
+      style={[
+        styles.card,
+        {
+          marginHorizontal: 12,
+          marginVertical: cardSpacing * 0.67, // Reduced spacing between cards
+        },
+      ]}
       accessibilityLabel={`News article: ${item.title}. Published by ${item.publisher} on ${formatNewsDate(item.articleDate)}`}
       accessibilityHint="Double tap to open article in browser"
       accessibilityRole="button"
     >
-      <Card
-        style={[
-          styles.card,
-          {
-            marginHorizontal: 12,
-            marginVertical: cardSpacing * 0.67, // Reduced spacing between cards
-          },
-        ]}
-      >
-        <Card.Content style={{ padding: cardPadding }}>
+      <View style={{ padding: cardPadding }}>
           {/* Headline - 2 lines max, bold */}
           <Text
             variant="titleMedium"
@@ -131,9 +129,8 @@ export const NewsListItem: React.FC<NewsListItemProps> = React.memo(({ item }) =
               {item.articleDescription}
             </Text>
           )}
-        </Card.Content>
-      </Card>
-    </TouchableOpacity>
+        </View>
+      </AnimatedCard>
   );
 });
 
