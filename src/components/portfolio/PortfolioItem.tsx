@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import type { PortfolioDetails } from '@/types/database.types';
-import { MonoText, AnimatedCard } from '@/components/common';
+import { MonoText, AnimatedCard, AnimatedNumber } from '@/components/common';
 import { MiniChart } from '@/components/charts';
 import { formatPrice, formatPercentage } from '@/utils/formatting';
 import { useLatestStockPrice, useStockData } from '@/hooks';
@@ -133,16 +133,29 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
           {/* Line 2: Current Price + Change% + Mini Chart Placeholder */}
           <View style={styles.priceRow}>
             <View style={styles.priceInfo}>
-              <MonoText
-                variant="price"
-                style={[
-                  styles.price,
-                  { color: theme.colors.onSurface, fontSize: fontSize.title },
-                ]}
-                allowFontScaling={true}
-              >
-                {isLoading ? '--' : formatPrice(latestPrice?.close || 0)}
-              </MonoText>
+              {isLoading ? (
+                <MonoText
+                  variant="price"
+                  style={[
+                    styles.price,
+                    { color: theme.colors.onSurface, fontSize: fontSize.title },
+                  ]}
+                  allowFontScaling={true}
+                >
+                  --
+                </MonoText>
+              ) : (
+                <AnimatedNumber
+                  value={latestPrice?.close || 0}
+                  formatter={(val) => formatPrice(val)}
+                  variant="price"
+                  style={[
+                    styles.price,
+                    { color: theme.colors.onSurface, fontSize: fontSize.title },
+                  ]}
+                  allowFontScaling={true}
+                />
+              )}
 
               {!isLoading && (
                 <View style={styles.changeContainer}>
@@ -158,15 +171,15 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
                     }
                     style={styles.changeIcon}
                   />
-                  <MonoText
+                  <AnimatedNumber
+                    value={priceChange.percentage}
+                    formatter={(val) => formatPercentage(val)}
                     variant="percentage"
                     positive={isPositive}
                     negative={isNegative}
                     style={[styles.change, { fontSize: fontSize.subtitle }]}
                     allowFontScaling={true}
-                  >
-                    {formatPercentage(priceChange.percentage)}
-                  </MonoText>
+                  />
                 </View>
               )}
             </View>
