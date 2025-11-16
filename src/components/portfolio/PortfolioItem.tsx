@@ -188,7 +188,7 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
             {chartData.length > 0 ? (
               <MiniChart data={chartData} width={60} height={28} positive={isPositive} />
             ) : (
-              <View style={styles.chartPlaceholder}>
+              <View style={[styles.chartPlaceholder, { backgroundColor: `${theme.colors.surfaceVariant}19` }]}>
                 <Text style={[styles.chartText, { color: theme.colors.onSurfaceVariant }]}>
                   --
                 </Text>
@@ -257,7 +257,6 @@ const styles = StyleSheet.create({
     width: 60,
     height: 30,
     borderRadius: 4,
-    backgroundColor: 'rgba(158, 158, 158, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },

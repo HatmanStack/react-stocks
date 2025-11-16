@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react-hooks';
+import { renderHook } from '@testing-library/react-native';
 import { useResponsive } from '../useResponsive';
 import { useWindowDimensions } from 'react-native';
 
