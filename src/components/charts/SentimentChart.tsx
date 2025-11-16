@@ -3,6 +3,7 @@ import { View, useWindowDimensions } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { LineChart, Grid, XAxis, YAxis } from 'react-native-svg-charts';
 import { Rect, Text } from 'react-native-svg';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import * as shape from 'd3-shape';
 import { format, parseISO } from 'date-fns';
 import { transformSentimentData } from '@/hooks/useChartData';
@@ -133,7 +134,7 @@ export function SentimentChart({ data, width: customWidth, height = 220 }: Senti
   }
 
   return (
-    <View style={{ width, height: height + 60 }}>
+    <Animated.View entering={FadeInUp.duration(300)} style={{ width, height: height + 60 }}>
       <View style={{ height, flexDirection: 'row' }}>
         {/* Y-Axis */}
         <YAxis
@@ -187,6 +188,6 @@ export function SentimentChart({ data, width: customWidth, height = 220 }: Senti
         numberOfTicks={5}
         style={{ marginTop: 8 }}
       />
-    </View>
+    </Animated.View>
   );
 }

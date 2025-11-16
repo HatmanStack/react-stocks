@@ -3,6 +3,7 @@ import { View, useWindowDimensions } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { AreaChart, Grid, XAxis, YAxis } from 'react-native-svg-charts';
 import { Text } from 'react-native-svg';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import * as shape from 'd3-shape';
 import { format, parseISO } from 'date-fns';
 import { transformPriceData, calculatePriceChange } from '@/hooks/useChartData';
@@ -100,7 +101,7 @@ export function PriceChart({ data, width: customWidth, height = 220 }: PriceChar
   }
 
   return (
-    <View style={{ width, height: height + 60 }}>
+    <Animated.View entering={FadeInUp.duration(300)} style={{ width, height: height + 60 }}>
       <View style={{ height, flexDirection: 'row' }}>
         {/* Y-Axis */}
         <YAxis
@@ -151,6 +152,6 @@ export function PriceChart({ data, width: customWidth, height = 220 }: PriceChar
         numberOfTicks={5}
         style={{ marginTop: 8 }}
       />
-    </View>
+    </Animated.View>
   );
 }

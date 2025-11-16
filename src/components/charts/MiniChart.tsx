@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import { LineChart } from 'react-native-svg-charts';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import * as shape from 'd3-shape';
 import type { ChartDataPoint } from '@/hooks/useChartData';
 
@@ -40,7 +41,7 @@ export function MiniChart({
   }
 
   return (
-    <View style={{ width, height }}>
+    <Animated.View entering={FadeIn.duration(200)} style={{ width, height }}>
       <LineChart
         style={{ flex: 1 }}
         data={chartData}
@@ -51,6 +52,6 @@ export function MiniChart({
           strokeWidth: 1.5,
         }}
       />
-    </View>
+    </Animated.View>
   );
 }
