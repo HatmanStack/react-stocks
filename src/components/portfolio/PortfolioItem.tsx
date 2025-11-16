@@ -5,11 +5,11 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, IconButton, useTheme } from 'react-native-paper';
+import { View, Text, StyleSheet } from 'react-native';
+import { IconButton, useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import type { PortfolioDetails } from '@/types/database.types';
-import { MonoText } from '@/components/common';
+import { MonoText, AnimatedCard } from '@/components/common';
 import { MiniChart } from '@/components/charts';
 import { formatPrice, formatPercentage } from '@/utils/formatting';
 import { useLatestStockPrice, useStockData } from '@/hooks';
@@ -57,23 +57,20 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
   const isNegative = priceChange.percentage < 0;
 
   return (
-    <TouchableOpacity
+    <AnimatedCard
       onPress={onPress}
-      activeOpacity={0.7}
+      style={[
+        styles.card,
+        {
+          marginHorizontal: 12,
+          marginVertical: cardSpacing,
+        },
+      ]}
       accessibilityLabel={`${item.ticker}, ${item.name || 'Stock'}. Price: ${formatPrice(latestPrice?.close || 0)}, Change: ${formatPercentage(priceChange.percentage)}`}
       accessibilityHint="Double tap to view stock details"
       accessibilityRole="button"
     >
-      <Card
-        style={[
-          styles.card,
-          {
-            marginHorizontal: 12,
-            marginVertical: cardSpacing,
-          },
-        ]}
-      >
-        <Card.Content style={{ padding: cardPadding }}>
+      <View style={{ padding: cardPadding }}>
           {/* Line 1: Ticker + Company Name + Delete Button */}
           <View style={styles.headerRow}>
             <View style={styles.headerLeft}>
@@ -163,9 +160,8 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
               </View>
             )}
           </View>
-        </Card.Content>
-      </Card>
-    </TouchableOpacity>
+        </View>
+      </AnimatedCard>
   );
 }
 

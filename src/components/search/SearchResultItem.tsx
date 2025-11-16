@@ -5,11 +5,12 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, useTheme } from 'react-native-paper';
+import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import type { SymbolDetails } from '@/types/database.types';
 import { useLayoutDensity } from '@/hooks';
+import { AnimatedCard } from '@/components/common';
 
 interface SearchResultItemProps {
   symbol: SymbolDetails;
@@ -23,25 +24,21 @@ export function SearchResultItem({ symbol, onPress, disabled = false, subtitle }
   const { cardSpacing, cardPadding, fontSize } = useLayoutDensity();
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.7}
-      disabled={disabled}
+    <AnimatedCard
+      onPress={disabled ? undefined : onPress}
+      style={[
+        styles.card,
+        {
+          marginHorizontal: 12,
+          marginVertical: cardSpacing * 0.5, // Reduced from cardSpacing to make it even more compact
+        },
+        disabled && styles.disabledCard,
+      ]}
       accessibilityLabel={`${symbol.ticker}, ${symbol.name}`}
       accessibilityHint="Double tap to view stock details"
       accessibilityRole="button"
     >
-      <Card
-        style={[
-          styles.card,
-          {
-            marginHorizontal: 12,
-            marginVertical: cardSpacing * 0.5, // Reduced from cardSpacing to make it even more compact
-          },
-          disabled && styles.disabledCard,
-        ]}
-      >
-        <Card.Content style={{ padding: cardPadding * 0.8 }}> {/* Reduced padding for compact display */}
+      <View style={{ padding: cardPadding * 0.8 }}> {/* Reduced padding for compact display */}
           <View style={styles.container}>
             <View style={styles.leftContent}>
               <View style={styles.tickerRow}>
@@ -108,9 +105,8 @@ export function SearchResultItem({ symbol, onPress, disabled = false, subtitle }
               ) : null}
             </View>
           </View>
-        </Card.Content>
-      </Card>
-    </TouchableOpacity>
+        </View>
+      </AnimatedCard>
   );
 }
 
