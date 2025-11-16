@@ -35,7 +35,8 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
 
   // Calculate price change percentage
   const priceChange = useMemo(() => {
-    if (!latestPrice || !latestPrice.close || !latestPrice.open) {
+    // Use explicit null/undefined checks to allow zero values
+    if (latestPrice == null || latestPrice.close == null || latestPrice.open == null) {
       return { value: 0, percentage: 0 };
     }
     const value = latestPrice.close - latestPrice.open;
@@ -47,7 +48,8 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
   const chartData = useMemo(() => {
     if (!stockHistory || stockHistory.length === 0) return [];
 
-    return stockHistory
+    // Create a copy before sorting to avoid mutating the original array
+    return [...stockHistory]
       .sort((a, b) => a.date.localeCompare(b.date))
       .map(item => ({
         x: new Date(item.date),
