@@ -61,8 +61,8 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
   // Render right swipe action (delete)
   const renderRightActions = () => (
     <View style={[styles.deleteAction, { backgroundColor: theme.colors.error }]}>
-      <Ionicons name="trash" size={24} color="#FFF" />
-      <Text style={styles.deleteText}>Delete</Text>
+      <Ionicons name="trash" size={24} color={theme.colors.onError} />
+      <Text style={[styles.deleteText, { color: theme.colors.onError }]}>Delete</Text>
     </View>
   );
 
@@ -274,7 +274,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   deleteText: {
-    color: '#FFF',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,
