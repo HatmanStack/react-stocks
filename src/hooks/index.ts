@@ -26,3 +26,7 @@ export { useSymbolSearch, useSymbolDetails, useAllSymbols } from './useSymbolSea
 // Layout hooks
 export { useLayoutDensity } from './useLayoutDensity';
 export type { LayoutDensity } from './useLayoutDensity';
+
+// Chart data hooks
+export { useChartData, transformPriceData, transformSentimentData, calculatePriceChange } from './useChartData';
+export type { ChartDataPoint, PriceChange } from './useChartData';
