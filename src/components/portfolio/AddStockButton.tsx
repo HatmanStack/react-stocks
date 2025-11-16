@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { StyleSheet, Pressable } from 'react-native';
-import { FAB } from 'react-native-paper';
+import { FAB, useTheme } from 'react-native-paper';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -17,6 +17,7 @@ interface AddStockButtonProps {
 }
 
 export function AddStockButton({ onPress }: AddStockButtonProps) {
+  const theme = useTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -32,7 +33,7 @@ export function AddStockButton({ onPress }: AddStockButtonProps) {
   };
 
   return (
-    <Animated.View style={[styles.fab, animatedStyle]}>
+    <Animated.View style={[styles.fab, { backgroundColor: theme.colors.primary }, animatedStyle]}>
       <Pressable
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -57,6 +58,5 @@ const styles = StyleSheet.create({
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: '#1976D2',
   },
 });
