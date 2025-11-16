@@ -20,6 +20,7 @@ export function AddStockButton({ onPress }: AddStockButtonProps) {
   const theme = useTheme();
   const scale = useSharedValue(1);
   const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }]
@@ -45,14 +46,32 @@ export function AddStockButton({ onPress }: AddStockButtonProps) {
     }
   };
 
+  const handleFocus = () => {
+    if (Platform.OS === 'web') {
+      setIsFocused(true);
+    }
+  };
+
+  const handleBlur = () => {
+    if (Platform.OS === 'web') {
+      setIsFocused(false);
+    }
+  };
+
   // Web-specific hover styles
   const hoverStyle = Platform.OS === 'web' && isHovered ? {
     opacity: 0.9,
     cursor: 'pointer' as const,
   } : {};
 
+  // Web-specific focus styles
+  const focusStyle = Platform.OS === 'web' && isFocused ? {
+    outline: `2px solid ${theme.colors.onPrimary}`,
+    outlineOffset: 2,
+  } : {};
+
   return (
-    <Animated.View style={[styles.fab, { backgroundColor: theme.colors.primary }, animatedStyle, hoverStyle]}>
+    <Animated.View style={[styles.fab, { backgroundColor: theme.colors.primary }, animatedStyle, hoverStyle, focusStyle]}>
       <Pressable
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -60,6 +79,8 @@ export function AddStockButton({ onPress }: AddStockButtonProps) {
         // @ts-ignore - Web-only props
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
       >
         <FAB
           icon="plus"

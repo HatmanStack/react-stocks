@@ -20,10 +20,11 @@ export interface AnimatedCardProps extends Omit<CardProps, 'onPress'> {
 }
 
 /**
- * AnimatedCard provides press feedback animation and web hover states
+ * AnimatedCard provides press feedback animation, web hover states, and keyboard navigation
  * Scale: 1.0 (rest) → 0.98 (pressed)
  * Duration: 150ms with spring physics
  * Web: Adds hover state with subtle opacity change and cursor pointer
+ * Web: Adds focus indicator for keyboard navigation
  */
 export function AnimatedCard({
   onPress,
@@ -34,6 +35,7 @@ export function AnimatedCard({
   const theme = useTheme();
   const scale = useSharedValue(1);
   const [isHovered, setIsHovered] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }]
@@ -65,10 +67,28 @@ export function AnimatedCard({
     }
   };
 
+  const handleFocus = () => {
+    if (Platform.OS === 'web') {
+      setIsFocused(true);
+    }
+  };
+
+  const handleBlur = () => {
+    if (Platform.OS === 'web') {
+      setIsFocused(false);
+    }
+  };
+
   // Web-specific hover styles
   const hoverStyle = Platform.OS === 'web' && isHovered && onPress ? {
     opacity: 0.92,
     cursor: 'pointer' as const,
+  } : {};
+
+  // Web-specific focus styles
+  const focusStyle = Platform.OS === 'web' && isFocused && onPress ? {
+    outline: `2px solid ${theme.colors.primary}`,
+    outlineOffset: 2,
   } : {};
 
   return (
@@ -80,8 +100,10 @@ export function AnimatedCard({
       // @ts-ignore - Web-only props
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
     >
-      <Animated.View style={[animatedStyle, hoverStyle, style]}>
+      <Animated.View style={[animatedStyle, hoverStyle, focusStyle, style]}>
         <Card {...props}>
           {children}
         </Card>
