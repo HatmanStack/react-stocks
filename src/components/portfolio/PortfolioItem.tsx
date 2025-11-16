@@ -8,6 +8,8 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { IconButton, useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeOut } from 'react-native-reanimated';
+import { Swipeable } from 'react-native-gesture-handler';
 import type { PortfolioDetails } from '@/types/database.types';
 import { MonoText, AnimatedCard } from '@/components/common';
 import { MiniChart } from '@/components/charts';
@@ -56,20 +58,40 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
   const isPositive = priceChange.percentage > 0;
   const isNegative = priceChange.percentage < 0;
 
+  // Render right swipe action (delete)
+  const renderRightActions = () => (
+    <View style={[styles.deleteAction, { backgroundColor: theme.colors.error }]}>
+      <Ionicons name="trash" size={24} color="#FFF" />
+      <Text style={styles.deleteText}>Delete</Text>
+    </View>
+  );
+
+  const handleSwipeOpen = () => {
+    onDelete();
+  };
+
   return (
-    <AnimatedCard
-      onPress={onPress}
-      style={[
-        styles.card,
-        {
-          marginHorizontal: 12,
-          marginVertical: cardSpacing,
-        },
-      ]}
-      accessibilityLabel={`${item.ticker}, ${item.name || 'Stock'}. Price: ${formatPrice(latestPrice?.close || 0)}, Change: ${formatPercentage(priceChange.percentage)}`}
-      accessibilityHint="Double tap to view stock details"
-      accessibilityRole="button"
-    >
+    <Animated.View exiting={FadeOut.duration(200)}>
+      <Swipeable
+        renderRightActions={renderRightActions}
+        onSwipeableOpen={handleSwipeOpen}
+        overshootRight={false}
+        friction={2}
+        rightThreshold={40}
+      >
+        <AnimatedCard
+          onPress={onPress}
+          style={[
+            styles.card,
+            {
+              marginHorizontal: 12,
+              marginVertical: cardSpacing,
+            },
+          ]}
+          accessibilityLabel={`${item.ticker}, ${item.name || 'Stock'}. Price: ${formatPrice(latestPrice?.close || 0)}, Change: ${formatPercentage(priceChange.percentage)}`}
+          accessibilityHint="Double tap to view stock details. Swipe left to delete"
+          accessibilityRole="button"
+        >
       <View style={{ padding: cardPadding }}>
           {/* Line 1: Ticker + Company Name + Delete Button */}
           <View style={styles.headerRow}>
@@ -161,7 +183,9 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
             )}
           </View>
         </View>
-      </AnimatedCard>
+        </AnimatedCard>
+      </Swipeable>
+    </Animated.View>
   );
 }
 
@@ -227,5 +251,19 @@ const styles = StyleSheet.create({
   chartText: {
     fontSize: 10,
     opacity: 0.5,
+  },
+  deleteAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    marginVertical: 6,
+    marginRight: 12,
+    borderRadius: 8,
+  },
+  deleteText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });
