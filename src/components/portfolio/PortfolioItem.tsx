@@ -90,7 +90,11 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
               marginVertical: cardSpacing,
             },
           ]}
-          accessibilityLabel={`${item.ticker}, ${item.name || 'Stock'}. Price: ${formatPrice(latestPrice?.close || 0)}, Change: ${formatPercentage(priceChange.percentage)}`}
+          accessibilityLabel={
+            isLoading
+              ? `${item.ticker}, ${item.name || 'Stock'}. Price loading.`
+              : `${item.ticker}, ${item.name || 'Stock'}. Price: ${formatPrice(latestPrice?.close ?? null)}, Change: ${formatPercentage(priceChange.percentage)}`
+          }
           accessibilityHint="Double tap to view stock details. Swipe left to delete"
           accessibilityRole="button"
         >

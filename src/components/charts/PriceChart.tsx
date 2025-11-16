@@ -20,33 +20,33 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
 
   const width = customWidth || screenWidth - 32;
 
-  // Transform data if needed
-  const chartData = useMemo(() => {
-    if (data.length === 0) return [];
+  // Transform data and extract dates from the same source
+  const { chartData, dates } = useMemo(() => {
+    if (data.length === 0) return { chartData: [], dates: [] };
 
     // Check if data is StockDetails format
     const isStockDetails = 'close' in data[0];
 
     if (isStockDetails) {
+      // Transform data and derive both chartData and dates from the same transformed result
       const transformed = transformPriceData(data as StockDetails[]);
-      return transformed.map(point => point.y);
+      return {
+        chartData: transformed.map(point => point.y),
+        dates: transformed.map(point => {
+          // Extract date from the x value (which is a Date object)
+          const dateObj = point.x;
+          // Convert to ISO string format (YYYY-MM-DD)
+          return dateObj.toISOString().split('T')[0];
+        }),
+      };
     }
 
     // Already in simple format
-    return (data as Array<{ date: string; price: number }>).map(d => d.price);
-  }, [data]);
-
-  const dates = useMemo(() => {
-    if (data.length === 0) return [];
-
-    const isStockDetails = 'close' in data[0];
-    if (isStockDetails) {
-      // Don't sort - preserve order to match chartData indices
-      return (data as StockDetails[]).map(d => d.date);
-    }
-
-    // Don't sort - preserve order to match chartData indices
-    return (data as Array<{ date: string; price: number }>).map(d => d.date);
+    const simpleData = data as Array<{ date: string; price: number }>;
+    return {
+      chartData: simpleData.map(d => d.price),
+      dates: simpleData.map(d => d.date),
+    };
   }, [data]);
 
   const priceChange = useMemo(() => {
@@ -54,6 +54,12 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
 
     const firstPrice = chartData[0];
     const lastPrice = chartData[chartData.length - 1];
+
+    // Guard against division by zero (consistent with calculatePriceChange)
+    if (firstPrice === 0) {
+      return { isPositive: lastPrice > 0, percentage: 0 };
+    }
+
     const percentage = ((lastPrice - firstPrice) / firstPrice) * 100;
 
     return { isPositive: percentage > 0, percentage };

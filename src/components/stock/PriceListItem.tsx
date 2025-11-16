@@ -49,7 +49,7 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
         <View style={styles.priceColumn}>
           <MonoText
             variant="price"
-            style={[styles.text, { color: textColor }]}
+            style={styles.text}
             positive={item.close > item.open}
             negative={item.close < item.open}
           >
@@ -60,7 +60,7 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
         <View style={styles.priceColumn}>
           <MonoText
             variant="price"
-            style={[styles.text, { color: textColor, fontWeight: 'bold' }]}
+            style={[styles.text, { fontWeight: 'bold' }]}
             positive={item.close > item.open}
             negative={item.close < item.open}
           >
@@ -71,7 +71,7 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
         <View style={styles.priceColumn}>
           <MonoText
             variant="price"
-            style={[styles.text, { color: textColor }]}
+            style={styles.text}
             positive={item.close > item.open}
             negative={item.close < item.open}
           >
@@ -82,7 +82,7 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
         <View style={styles.priceColumn}>
           <MonoText
             variant="price"
-            style={[styles.text, { color: textColor }]}
+            style={styles.text}
             positive={item.close > item.open}
             negative={item.close < item.open}
           >
@@ -90,11 +90,11 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
           </MonoText>
         </View>
 
-        {/* Volume */}
+        {/* Volume - intentionally neutral (no positive/negative coloring) */}
         <View style={styles.volumeColumn}>
           <MonoText
             variant="volume"
-            style={[styles.text, { color: textColor }]}
+            style={styles.text}
           >
             {formatVolume(item.volume)}
           </MonoText>
