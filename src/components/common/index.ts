@@ -13,3 +13,5 @@ export { MonoText } from './MonoText';
 export { Skeleton } from './Skeleton';
 export { AnimatedCard } from './AnimatedCard';
 export type { AnimatedCardProps } from './AnimatedCard';
+export { AnimatedNumber } from './AnimatedNumber';
+export type { AnimatedNumberProps } from './AnimatedNumber';
