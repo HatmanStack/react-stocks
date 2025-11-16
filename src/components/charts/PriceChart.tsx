@@ -15,7 +15,7 @@ interface PriceChartProps {
   height?: number;
 }
 
-export function PriceChart({ data, width: customWidth, height = 220 }: PriceChartProps) {
+const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceChartProps) => {
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
 
@@ -154,4 +154,7 @@ export function PriceChart({ data, width: customWidth, height = 220 }: PriceChar
       />
     </Animated.View>
   );
-}
+};
+
+// Memoize component to prevent unnecessary re-renders
+export const PriceChart = React.memo(PriceChartComponent);
