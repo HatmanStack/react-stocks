@@ -1,6 +1,6 @@
 /**
  * Portfolio Item Component
- * Displays a stock in the portfolio with price, change, and mini chart placeholder
+ * Displays a stock in the portfolio with price, change, and mini chart
  * Redesigned for dense two-line layout
  */
 
@@ -10,8 +10,9 @@ import { Card, IconButton, useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import type { PortfolioDetails } from '@/types/database.types';
 import { MonoText } from '@/components/common';
+import { MiniChart } from '@/components/charts';
 import { formatPrice, formatPercentage } from '@/utils/formatting';
-import { useLatestStockPrice } from '@/hooks';
+import { useLatestStockPrice, useStockData } from '@/hooks';
 import { useLayoutDensity } from '@/hooks';
 
 interface PortfolioItemProps {
@@ -27,6 +28,9 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
   // Fetch latest stock price for current price and change
   const { data: latestPrice, isLoading } = useLatestStockPrice(item.ticker);
 
+  // Fetch recent stock data for mini chart (last 30 days)
+  const { data: stockHistory } = useStockData(item.ticker, 30);
+
   // Calculate price change percentage
   const priceChange = useMemo(() => {
     if (!latestPrice || !latestPrice.close || !latestPrice.open) {
@@ -36,6 +40,18 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
     const percentage = latestPrice.open !== 0 ? (value / latestPrice.open) : 0;
     return { value, percentage };
   }, [latestPrice]);
+
+  // Prepare chart data
+  const chartData = useMemo(() => {
+    if (!stockHistory || stockHistory.length === 0) return [];
+
+    return stockHistory
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map(item => ({
+        x: new Date(item.date),
+        y: item.close,
+      }));
+  }, [stockHistory]);
 
   const isPositive = priceChange.percentage > 0;
   const isNegative = priceChange.percentage < 0;
@@ -136,12 +152,16 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
               )}
             </View>
 
-            {/* Mini chart placeholder - will be implemented in Phase 3 */}
-            <View style={styles.chartPlaceholder}>
-              <Text style={[styles.chartText, { color: theme.colors.onSurfaceVariant }]}>
-                Chart
-              </Text>
-            </View>
+            {/* Mini chart */}
+            {chartData.length > 0 ? (
+              <MiniChart data={chartData} width={60} height={28} positive={isPositive} />
+            ) : (
+              <View style={styles.chartPlaceholder}>
+                <Text style={[styles.chartText, { color: theme.colors.onSurfaceVariant }]}>
+                  --
+                </Text>
+              </View>
+            )}
           </View>
         </Card.Content>
       </Card>
