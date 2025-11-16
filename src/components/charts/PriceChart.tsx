@@ -61,7 +61,7 @@ export function PriceChart({ data, width: customWidth, height = 220 }: PriceChar
     return { isPositive: percentage > 0, percentage };
   }, [chartData]);
 
-  const chartColor = priceChange.isPositive ? theme.colors.primary : theme.colors.error;
+  const chartColor = priceChange.isPositive ? theme.colors.positive : theme.colors.negative;
 
   // Format X-axis labels
   const formatXAxis = (value: number, index: number) => {

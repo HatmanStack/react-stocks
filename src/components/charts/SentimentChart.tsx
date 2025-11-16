@@ -109,7 +109,7 @@ export function SentimentChart({ data, width: customWidth, height = 220 }: Senti
           y={y(-0.2)}
           width={chartWidth}
           height={y(-1.0) - y(-0.2)}
-          fill={theme.colors.error}
+          fill={theme.colors.negative}
           opacity={0.1}
         />
       </>
