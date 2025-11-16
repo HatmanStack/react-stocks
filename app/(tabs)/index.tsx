@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -24,6 +25,7 @@ import type { SymbolDetails } from '@/types/database.types';
 import { differenceInDays } from 'date-fns';
 
 export default function SearchScreen() {
+  const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
@@ -136,13 +138,13 @@ export default function SearchScreen() {
   );
 
   const renderListHeader = () => (
-    <View style={styles.headerContainer}>
+    <View style={[styles.headerContainer, { backgroundColor: theme.colors.background }]}>
       <DateRangePicker
         startDate={startDate}
         endDate={endDate}
         onDateRangeChange={handleDateRangeChange}
       />
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: theme.colors.surfaceVariant }]} />
     </View>
   );
 
@@ -177,7 +179,7 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <OfflineIndicator />
       <SearchBar onSearchChange={handleSearchChange} />
 
@@ -206,7 +208,7 @@ export default function SearchScreen() {
       )}
 
       {isSyncing && (
-        <View style={styles.syncOverlay}>
+        <View style={[styles.syncOverlay, { backgroundColor: theme.colors.surface }]}>
           <LoadingIndicator message={syncMessage} size="small" />
         </View>
       )}
@@ -217,14 +219,12 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   headerContainer: {
-    backgroundColor: '#fff',
+    // backgroundColor set dynamically via inline styles
   },
   divider: {
     height: 8,
-    backgroundColor: '#F5F5F5',
   },
   emptyContent: {
     flex: 1,
@@ -234,7 +234,6 @@ const styles = StyleSheet.create({
     bottom: 16,
     left: 16,
     right: 16,
-    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 12,
     elevation: 4,

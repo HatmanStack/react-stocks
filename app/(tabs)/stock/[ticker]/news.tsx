@@ -6,6 +6,7 @@
 import React, { useMemo, useCallback } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from 'react-native-paper';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useStockDetail } from '@/contexts/StockDetailContext';
 import { NewsListItem } from '@/components/news/NewsListItem';
@@ -15,6 +16,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import type { NewsDetails } from '@/types/database.types';
 
 export default function NewsScreen() {
+  const theme = useTheme();
   // Get news data from context (already fetched at layout level)
   const { newsData, newsLoading: isLoading, newsError: error } = useStockDetail();
 
@@ -41,7 +43,7 @@ export default function NewsScreen() {
   // Render loading state with skeleton
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
         <FlatList
           data={Array.from({ length: 5 })}
           renderItem={renderSkeletonItem}
@@ -55,7 +57,7 @@ export default function NewsScreen() {
   // Render error state
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <ErrorDisplay
           error={error || 'Failed to load news articles'}
         />
@@ -66,7 +68,7 @@ export default function NewsScreen() {
   // Render empty state
   if (!sortedNewsData || sortedNewsData.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.emptyContainer}>
           <EmptyState
             message="No news articles available for the selected date range"
@@ -84,7 +86,7 @@ export default function NewsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <FlatList
         data={sortedNewsData}
         renderItem={renderNewsItem}
@@ -103,7 +105,6 @@ export default function NewsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   listContent: {
     paddingVertical: 8,

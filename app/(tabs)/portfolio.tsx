@@ -135,7 +135,7 @@ export default function PortfolioScreen() {
   // Show skeleton loaders during initial load
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <OfflineIndicator />
         <FlatList
           data={Array.from({ length: 6 })}
@@ -150,7 +150,7 @@ export default function PortfolioScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <OfflineIndicator />
       <FlatList
         data={portfolio}
@@ -158,6 +158,11 @@ export default function PortfolioScreen() {
         keyExtractor={(item) => item.ticker}
         ListEmptyComponent={renderEmptyState}
         contentContainerStyle={portfolio.length === 0 ? styles.emptyContent : styles.listContent}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={21}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -177,7 +182,6 @@ export default function PortfolioScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   listContent: {
     paddingVertical: 8,
