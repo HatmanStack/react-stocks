@@ -1,5 +1,3 @@
-import React from 'react';
-
 // Mock all SVG components
 export const Svg = 'Svg';
 export const Circle = 'Circle';
@@ -17,7 +15,7 @@ export const RadialGradient = 'RadialGradient';
 export const Stop = 'Stop';
 export const ClipPath = 'ClipPath';
 export const Use = 'Use';
-export const Symbol = 'Symbol';
+export const SvgSymbol = 'SvgSymbol'; // Renamed from Symbol to avoid shadowing global
 export const Image = 'Image';
 export const Ellipse = 'Ellipse';
 
@@ -38,7 +36,7 @@ export default {
   Stop,
   ClipPath,
   Use,
-  Symbol,
+  SvgSymbol,
   Image,
   Ellipse,
 };

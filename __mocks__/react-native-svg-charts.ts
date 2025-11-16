@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const AreaChart = 'AreaChart';
 export const LineChart = 'LineChart';
 export const BarChart = 'BarChart';

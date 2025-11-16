@@ -6,7 +6,7 @@
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Appbar } from 'react-native-paper';
+import { Appbar, useTheme } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
@@ -20,6 +20,7 @@ const MaterialTopTabs = withLayoutContext(Navigator);
 
 export default function StockDetailLayout() {
   const { ticker } = useLocalSearchParams<{ ticker: string }>();
+  const theme = useTheme();
   const { data: symbolInfo, isLoading } = useSymbolDetails(ticker || 'AAPL');
   const { isInPortfolio, addToPortfolio, removeFromPortfolio } = usePortfolioContext();
   const { setSelectedTicker } = useStock();
@@ -81,7 +82,7 @@ export default function StockDetailLayout() {
           <Appbar.Action
             icon={inPortfolio ? 'star' : 'star-outline'}
             onPress={handleTogglePortfolio}
-            color={inPortfolio ? '#FFD700' : '#9E9E9E'}
+            color={inPortfolio ? theme.colors.tertiary : theme.colors.onSurfaceVariant}
             size={28}
           />
         </Appbar.Header>
