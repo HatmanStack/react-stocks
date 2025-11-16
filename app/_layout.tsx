@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { Slot } from 'expo-router';
+import Head from 'expo-router/head';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -95,6 +96,43 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
+      <Head>
+        <title>Stock Tracker - Professional Stock Analysis & Portfolio Management</title>
+        <meta
+          name="description"
+          content="Track stocks, analyze market sentiment, and visualize price trends with our professional stock tracking application. Real-time data, sentiment analysis, and portfolio management."
+        />
+        <meta
+          name="keywords"
+          content="stocks, finance, portfolio, trading, sentiment analysis, stock market, investment, stock tracker"
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+        <meta name="theme-color" content="#121212" />
+
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Stock Tracker - Professional Stock Analysis" />
+        <meta
+          property="og:description"
+          content="Track stocks, analyze sentiment, and manage your portfolio with real-time data and professional charts."
+        />
+        <meta property="og:site_name" content="Stock Tracker" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Stock Tracker - Professional Analysis" />
+        <meta
+          name="twitter:description"
+          content="Professional stock tracking and sentiment analysis platform"
+        />
+
+        {/* PWA Meta Tags */}
+        <meta name="application-name" content="Stock Tracker" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Stock Tracker" />
+      </Head>
+
       <GestureHandlerRootView style={styles.container}>
         <SafeAreaProvider>
           <PaperProvider theme={theme}>
