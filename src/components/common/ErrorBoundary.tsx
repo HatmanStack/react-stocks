@@ -6,8 +6,9 @@
 
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { Button } from 'react-native-paper';
+import { Button, MD3DarkTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
   children: ReactNode;
@@ -59,24 +60,32 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: MD3DarkTheme.colors.background }]}>
           <ScrollView contentContainerStyle={styles.content}>
             <View style={styles.iconContainer}>
-              <Text style={styles.icon}>⚠️</Text>
+              <Ionicons name="alert-circle" size={64} color={MD3DarkTheme.colors.error} />
             </View>
 
-            <Text style={styles.title}>Oops! Something went wrong</Text>
+            <Text style={[styles.title, { color: MD3DarkTheme.colors.onBackground }]}>
+              Oops! Something went wrong
+            </Text>
 
-            <Text style={styles.message}>
+            <Text style={[styles.message, { color: MD3DarkTheme.colors.onSurfaceVariant }]}>
               We're sorry, but something unexpected happened. The app has encountered an error.
             </Text>
 
             {__DEV__ && this.state.error && (
-              <View style={styles.errorDetails}>
-                <Text style={styles.errorTitle}>Error Details (Dev Mode):</Text>
-                <Text style={styles.errorText}>{this.state.error.toString()}</Text>
+              <View style={[styles.errorDetails, { backgroundColor: MD3DarkTheme.colors.errorContainer }]}>
+                <Text style={[styles.errorTitle, { color: MD3DarkTheme.colors.onErrorContainer }]}>
+                  Error Details (Dev Mode):
+                </Text>
+                <Text style={[styles.errorText, { color: MD3DarkTheme.colors.onErrorContainer }]}>
+                  {this.state.error.toString()}
+                </Text>
                 {this.state.errorInfo && (
-                  <Text style={styles.errorStack}>{this.state.errorInfo.componentStack}</Text>
+                  <Text style={[styles.errorStack, { color: MD3DarkTheme.colors.onErrorContainer }]}>
+                    {this.state.errorInfo.componentStack}
+                  </Text>
                 )}
               </View>
             )}
@@ -90,7 +99,7 @@ export class ErrorBoundary extends Component<Props, State> {
               Try Again
             </Button>
 
-            <Text style={styles.helpText}>
+            <Text style={[styles.helpText, { color: MD3DarkTheme.colors.onSurfaceVariant }]}>
               If this problem persists, please try restarting the app.
             </Text>
           </ScrollView>
@@ -105,7 +114,6 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   content: {
     flex: 1,
@@ -116,25 +124,19 @@ const styles = StyleSheet.create({
   iconContainer: {
     marginBottom: 20,
   },
-  icon: {
-    fontSize: 64,
-  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#212121',
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
     fontSize: 16,
-    color: '#757575',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 24,
   },
   errorDetails: {
-    backgroundColor: '#FFEBEE',
     padding: 16,
     borderRadius: 8,
     marginBottom: 24,
@@ -143,18 +145,15 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#C62828',
     marginBottom: 8,
   },
   errorText: {
     fontSize: 12,
-    color: '#C62828',
     marginBottom: 8,
     fontFamily: 'monospace',
   },
   errorStack: {
     fontSize: 10,
-    color: '#D32F2F',
     fontFamily: 'monospace',
   },
   button: {
@@ -166,7 +165,6 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 14,
-    color: '#9E9E9E',
     textAlign: 'center',
   },
 });
