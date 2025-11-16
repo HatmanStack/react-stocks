@@ -93,6 +93,9 @@ export default function StockDetailLayout() {
             tabBarIndicatorStyle: { backgroundColor: '#1976D2' },
             tabBarLabelStyle: { fontSize: 14, fontWeight: '600', textTransform: 'none' },
             tabBarStyle: { backgroundColor: '#fff' },
+            swipeEnabled: true,
+            animationEnabled: true,
+            lazy: true, // Performance optimization
           }}
         >
           <MaterialTopTabs.Screen name="index" options={{ title: 'Price' }} />
