@@ -6,9 +6,10 @@
 
 import React, { Component, ReactNode } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { Button, MD3DarkTheme } from 'react-native-paper';
+import { Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../../theme/theme';
 
 interface Props {
   children: ReactNode;
@@ -60,30 +61,30 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <SafeAreaView style={[styles.container, { backgroundColor: MD3DarkTheme.colors.background }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
           <ScrollView contentContainerStyle={styles.content}>
             <View style={styles.iconContainer}>
-              <Ionicons name="alert-circle" size={64} color={MD3DarkTheme.colors.error} />
+              <Ionicons name="alert-circle" size={64} color={theme.colors.error} />
             </View>
 
-            <Text style={[styles.title, { color: MD3DarkTheme.colors.onBackground }]}>
+            <Text style={[styles.title, { color: theme.colors.onBackground }]}>
               Oops! Something went wrong
             </Text>
 
-            <Text style={[styles.message, { color: MD3DarkTheme.colors.onSurfaceVariant }]}>
+            <Text style={[styles.message, { color: theme.colors.onSurfaceVariant }]}>
               We're sorry, but something unexpected happened. The app has encountered an error.
             </Text>
 
             {__DEV__ && this.state.error && (
-              <View style={[styles.errorDetails, { backgroundColor: MD3DarkTheme.colors.errorContainer }]}>
-                <Text style={[styles.errorTitle, { color: MD3DarkTheme.colors.onErrorContainer }]}>
+              <View style={[styles.errorDetails, { backgroundColor: theme.colors.errorContainer }]}>
+                <Text style={[styles.errorTitle, { color: theme.colors.onErrorContainer }]}>
                   Error Details (Dev Mode):
                 </Text>
-                <Text style={[styles.errorText, { color: MD3DarkTheme.colors.onErrorContainer }]}>
+                <Text style={[styles.errorText, { color: theme.colors.onErrorContainer }]}>
                   {this.state.error.toString()}
                 </Text>
                 {this.state.errorInfo && (
-                  <Text style={[styles.errorStack, { color: MD3DarkTheme.colors.onErrorContainer }]}>
+                  <Text style={[styles.errorStack, { color: theme.colors.onErrorContainer }]}>
                     {this.state.errorInfo.componentStack}
                   </Text>
                 )}
@@ -99,7 +100,7 @@ export class ErrorBoundary extends Component<Props, State> {
               Try Again
             </Button>
 
-            <Text style={[styles.helpText, { color: MD3DarkTheme.colors.onSurfaceVariant }]}>
+            <Text style={[styles.helpText, { color: theme.colors.onSurfaceVariant }]}>
               If this problem persists, please try restarting the app.
             </Text>
           </ScrollView>

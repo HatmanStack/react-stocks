@@ -28,7 +28,7 @@ export function useResponsive(): ResponsiveValues {
     const isTablet = width >= 768 && width < 1024;
     const isDesktop = width >= 1024;
 
-    const breakpoint = isMobile ? 'mobile' : isTablet ? 'tablet' : 'desktop';
+    const breakpoint: 'mobile' | 'tablet' | 'desktop' = isMobile ? 'mobile' : isTablet ? 'tablet' : 'desktop';
 
     return {
       isMobile,
