@@ -6,10 +6,13 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SearchBar } from '@/components/search/SearchBar';
 import { SearchResultItem } from '@/components/search/SearchResultItem';
+import { SearchResultSkeleton } from '@/components/search/SearchResultSkeleton';
 import { DateRangePicker } from '@/components/common/DateRangePicker';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -22,6 +25,7 @@ import type { SymbolDetails } from '@/types/database.types';
 import { differenceInDays } from 'date-fns';
 
 export default function SearchScreen() {
+  const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
@@ -119,21 +123,28 @@ export default function SearchScreen() {
     }
   }, [setSelectedTicker, startDate, endDate, queryClient]);
 
-  const renderSearchResult = useCallback(({ item }: { item: SymbolDetails }) => (
-    <SearchResultItem
-      symbol={item}
-      onPress={() => handleSelectStock(item)}
-    />
-  ), [handleSelectStock]);
+  const renderSearchResult = useCallback(
+    ({ item }: { item: SymbolDetails }) => (
+      <Animated.View entering={FadeIn.duration(200)}>
+        <SearchResultItem symbol={item} onPress={() => handleSelectStock(item)} />
+      </Animated.View>
+    ),
+    [handleSelectStock]
+  );
+
+  const renderSkeletonItem = useCallback(
+    ({ index }: { index: number }) => <SearchResultSkeleton key={`skeleton-${index}`} />,
+    []
+  );
 
   const renderListHeader = () => (
-    <View style={styles.headerContainer}>
+    <View style={[styles.headerContainer, { backgroundColor: theme.colors.background }]}>
       <DateRangePicker
         startDate={startDate}
         endDate={endDate}
         onDateRangeChange={handleDateRangeChange}
       />
-      <View style={styles.divider} />
+      <View style={[styles.divider, { backgroundColor: theme.colors.surfaceVariant }]} />
     </View>
   );
 
@@ -146,10 +157,6 @@ export default function SearchScreen() {
           icon="search-outline"
         />
       );
-    }
-
-    if (isLoading) {
-      return <LoadingIndicator message="Searching..." />;
     }
 
     if (error) {
@@ -172,21 +179,36 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <OfflineIndicator />
       <SearchBar onSearchChange={handleSearchChange} />
 
-      <FlatList
-        data={searchResults}
-        renderItem={renderSearchResult}
-        keyExtractor={(item) => item.ticker}
-        ListHeaderComponent={renderListHeader}
-        ListEmptyComponent={renderEmptyState}
-        contentContainerStyle={searchResults.length === 0 ? styles.emptyContent : undefined}
-      />
+      {/* Show skeleton while searching */}
+      {isLoading && searchQuery.length > 0 ? (
+        <FlatList
+          ListHeaderComponent={renderListHeader}
+          data={Array.from({ length: 8 })}
+          renderItem={renderSkeletonItem}
+          keyExtractor={(_, index) => `skeleton-${index}`}
+        />
+      ) : (
+        <FlatList
+          data={searchResults}
+          renderItem={renderSearchResult}
+          keyExtractor={(item) => item.ticker}
+          ListHeaderComponent={renderListHeader}
+          ListEmptyComponent={renderEmptyState}
+          contentContainerStyle={searchResults.length === 0 ? styles.emptyContent : undefined}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={21}
+        />
+      )}
 
       {isSyncing && (
-        <View style={styles.syncOverlay}>
+        <View style={[styles.syncOverlay, { backgroundColor: theme.colors.surface }]}>
           <LoadingIndicator message={syncMessage} size="small" />
         </View>
       )}
@@ -197,14 +219,12 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   headerContainer: {
-    backgroundColor: '#fff',
+    // backgroundColor set dynamically via inline styles
   },
   divider: {
     height: 8,
-    backgroundColor: '#F5F5F5',
   },
   emptyContent: {
     flex: 1,
@@ -214,7 +234,6 @@ const styles = StyleSheet.create({
     bottom: 16,
     left: 16,
     right: 16,
-    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 12,
     elevation: 4,

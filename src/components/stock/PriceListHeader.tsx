@@ -9,6 +9,7 @@ import { Text, useTheme } from 'react-native-paper';
 
 export const PriceListHeader: React.FC = () => {
   const theme = useTheme();
+  const styles = createStyles(theme);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.elevation.level2 }]}>
@@ -53,12 +54,12 @@ export const PriceListHeader: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 2,
-    borderBottomColor: '#BDBDBD',
+    borderBottomColor: theme.colors.outlineVariant,
   },
   row: {
     flexDirection: 'row',

@@ -6,7 +6,7 @@
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Appbar } from 'react-native-paper';
+import { Appbar, useTheme } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
@@ -20,6 +20,7 @@ const MaterialTopTabs = withLayoutContext(Navigator);
 
 export default function StockDetailLayout() {
   const { ticker } = useLocalSearchParams<{ ticker: string }>();
+  const theme = useTheme();
   const { data: symbolInfo, isLoading } = useSymbolDetails(ticker || 'AAPL');
   const { isInPortfolio, addToPortfolio, removeFromPortfolio } = usePortfolioContext();
   const { setSelectedTicker } = useStock();
@@ -71,15 +72,18 @@ export default function StockDetailLayout() {
     <StockDetailProvider ticker={ticker || 'AAPL'}>
       <View style={styles.container}>
         <OfflineIndicator />
-        <Appbar.Header elevated>
+        <Appbar.Header elevated style={styles.header}>
           <Appbar.Content
             title={ticker}
             subtitle={isLoading ? 'Loading...' : companyName}
+            titleStyle={styles.headerTitle}
+            subtitleStyle={styles.headerSubtitle}
           />
           <Appbar.Action
             icon={inPortfolio ? 'star' : 'star-outline'}
             onPress={handleTogglePortfolio}
-            color={inPortfolio ? '#FFD700' : '#9E9E9E'}
+            color={inPortfolio ? theme.colors.tertiary : theme.colors.onSurfaceVariant}
+            size={28}
           />
         </Appbar.Header>
 
@@ -90,6 +94,9 @@ export default function StockDetailLayout() {
             tabBarIndicatorStyle: { backgroundColor: '#1976D2' },
             tabBarLabelStyle: { fontSize: 14, fontWeight: '600', textTransform: 'none' },
             tabBarStyle: { backgroundColor: '#fff' },
+            swipeEnabled: true,
+            animationEnabled: true,
+            lazy: true, // Performance optimization
           }}
         >
           <MaterialTopTabs.Screen name="index" options={{ title: 'Price' }} />
@@ -105,5 +112,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  header: {
+    height: 72, // More spacious header
+  },
+  headerTitle: {
+    fontSize: 28, // Larger ticker
+    fontWeight: '700',
+  },
+  headerSubtitle: {
+    fontSize: 18, // Larger company name
+    marginTop: 4,
   },
 });

@@ -22,3 +22,15 @@ export { usePortfolio, useIsInPortfolio, usePortfolioCount } from './usePortfoli
 
 // Symbol search hooks
 export { useSymbolSearch, useSymbolDetails, useAllSymbols } from './useSymbolSearch';
+
+// Layout hooks
+export { useLayoutDensity } from './useLayoutDensity';
+export type { LayoutDensity } from './useLayoutDensity';
+
+// Chart data hooks
+export { useChartData, transformPriceData, transformSentimentData, calculatePriceChange } from './useChartData';
+export type { ChartDataPoint, PriceChange } from './useChartData';
+
+// Responsive hooks
+export { useResponsive } from './useResponsive';
+export type { ResponsiveValues } from './useResponsive';

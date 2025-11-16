@@ -25,3 +25,19 @@ jest.mock('./src/database/index', () => {
     resetDatabase: jest.fn(actualDatabase.resetDatabase),
   };
 });
+
+// Mock expo fonts to avoid font loading issues in tests
+jest.mock('expo-font', () => ({
+  loadAsync: jest.fn(() => Promise.resolve()),
+  isLoaded: jest.fn(() => true),
+  isLoading: jest.fn(() => false),
+}));
+
+// Mock React Native Paper fonts
+jest.mock('react-native-paper', () => {
+  const actualPaper = jest.requireActual('react-native-paper');
+  return {
+    ...actualPaper,
+    configureFonts: jest.fn(() => ({})),
+  };
+});

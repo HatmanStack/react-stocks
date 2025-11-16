@@ -1005,6 +1005,64 @@ Phase 1 provides the foundation for:
 
 ---
 
+## Review Feedback (Iteration 1)
+
+### Task 1: Install Victory Native Dependencies
+
+> **Consider:** Did you actually run the `npm install` commands for Victory Native? Use `grep -A 2 -B 2 "victory-native" package.json` to verify the dependency was added.
+>
+> **Think about:** The task requires adding both `victory-native` and `react-native-svg` to package.json. Do you see these dependencies listed when you check?
+>
+> **Reflect:** If you ran the install command but don't see the dependencies in package.json, what might have gone wrong? Did you commit the package.json changes?
+
+### Task 9: Number Formatting Utilities
+
+> **Consider:** Looking at the test file `__tests__/utils/formatting/numberFormatting.test.ts`, what do the tests expect when you call `formatPercentage(-0.0325)`?
+>
+> **Think about:** The test expects `"-3.25%"` but your implementation returns `"-3.03%"`. What does this tell you about how the input value is interpreted?
+>
+> **Reflect:** Should `formatPercentage` expect the value to already be a percentage (e.g., 3.25 means 3.25%), or should it expect a decimal that needs to be multiplied by 100 (e.g., 0.0325 → 3.25%)? Look at how the function is called in `PortfolioItem.tsx` for hints.
+>
+> **Consider:** For very small percentages, the test expects `formatPercentage(0.0001)` to return `"+0.01%"`. With 2 decimal places, would you get this if you just format 0.0001 directly vs. multiplying by 100 first?
+
+### Task 6: Skeleton Component
+
+> **Consider:** TypeScript is reporting: "Type 'string | number' is not assignable to type 'DimensionValue | undefined'". What does React Native's `ViewStyle` type expect for width and height?
+>
+> **Think about:** Check React Native's documentation for `DimensionValue`. Does it accept `string | number` directly, or does it have specific requirements?
+>
+> **Reflect:** Look at the `SkeletonProps` interface. Would explicitly typing `width` and `height` as `DimensionValue` fix the type error?
+
+### Task 10: Update Existing Components to Use MonoText
+
+#### PortfolioItem.tsx
+
+> **Consider:** On line 32 of `PortfolioItem.tsx`, you're calling `formatPrediction()` in the accessibility label. Run `grep -r "formatPrediction" src/` - does this function exist?
+>
+> **Think about:** You have `formatPercentage` available from `@/utils/formatting`. Should you be using that instead?
+>
+> **Reflect:** The TypeScript error says "Cannot find name 'formatPrediction'". What would be the simplest fix?
+
+#### PriceListItem.tsx
+
+> **Consider:** Looking at `src/components/stock/PriceListItem.tsx` lines 24-28, do you see hardcoded color values like `#E8F5E9`, `#FFEBEE`, and `#F5F5F5`?
+>
+> **Think about:** These are light theme colors (light green, light red, light gray). Will these provide good contrast on a dark background (#121212)?
+>
+> **Reflect:** Should you be using theme colors instead? What theme colors would work better for dark mode? (Hint: Consider `theme.colors.surfaceVariant`, or adjusting opacity of positive/negative colors)
+>
+> **Consider:** On lines 32-38, you're using hardcoded text colors `#2E7D32` and `#C62828`. Should these use `theme.colors.positive` and `theme.colors.negative` instead?
+>
+> **Think about:** Line 118 has a hardcoded border color `#E0E0E0`. Does the dark theme have a border color you should use instead?
+
+### Code Quality
+
+> **Consider:** Run the test suite with `npm test`. How many Phase 1 related tests are failing vs. pre-existing failures?
+>
+> **Reflect:** The tests that are failing due to Phase 1 changes need to be addressed. Which failures are from your changes vs. existing issues?
+
+---
+
 **Phase 1 Complete!**
 
 Verify all tasks complete and tests pass before proceeding to **[Phase 2: List Views Modernization](./Phase-2.md)**.
