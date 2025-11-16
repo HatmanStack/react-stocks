@@ -5,9 +5,9 @@
  * Provides subtle scale animation on press for better user feedback
  */
 
-import React from 'react';
-import { Pressable } from 'react-native';
-import { Card, CardProps } from 'react-native-paper';
+import React, { useState } from 'react';
+import { Pressable, Platform } from 'react-native';
+import { Card, CardProps, useTheme } from 'react-native-paper';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -20,9 +20,10 @@ export interface AnimatedCardProps extends Omit<CardProps, 'onPress'> {
 }
 
 /**
- * AnimatedCard provides press feedback animation
+ * AnimatedCard provides press feedback animation and web hover states
  * Scale: 1.0 (rest) → 0.98 (pressed)
  * Duration: 150ms with spring physics
+ * Web: Adds hover state with subtle opacity change and cursor pointer
  */
 export function AnimatedCard({
   onPress,
@@ -30,7 +31,9 @@ export function AnimatedCard({
   style,
   ...props
 }: AnimatedCardProps) {
+  const theme = useTheme();
   const scale = useSharedValue(1);
+  const [isHovered, setIsHovered] = useState(false);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }]
@@ -50,14 +53,35 @@ export function AnimatedCard({
     });
   };
 
+  const handleMouseEnter = () => {
+    if (Platform.OS === 'web') {
+      setIsHovered(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (Platform.OS === 'web') {
+      setIsHovered(false);
+    }
+  };
+
+  // Web-specific hover styles
+  const hoverStyle = Platform.OS === 'web' && isHovered && onPress ? {
+    opacity: 0.92,
+    cursor: 'pointer' as const,
+  } : {};
+
   return (
     <Pressable
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={onPress}
       disabled={!onPress}
+      // @ts-ignore - Web-only props
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      <Animated.View style={[animatedStyle, style]}>
+      <Animated.View style={[animatedStyle, hoverStyle, style]}>
         <Card {...props}>
           {children}
         </Card>

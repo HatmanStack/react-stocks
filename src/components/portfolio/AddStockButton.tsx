@@ -3,8 +3,8 @@
  * Floating action button to add stocks to portfolio
  */
 
-import React from 'react';
-import { StyleSheet, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Pressable, Platform } from 'react-native';
 import { FAB, useTheme } from 'react-native-paper';
 import Animated, {
   useSharedValue,
@@ -19,6 +19,7 @@ interface AddStockButtonProps {
 export function AddStockButton({ onPress }: AddStockButtonProps) {
   const theme = useTheme();
   const scale = useSharedValue(1);
+  const [isHovered, setIsHovered] = useState(false);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }]
@@ -32,12 +33,33 @@ export function AddStockButton({ onPress }: AddStockButtonProps) {
     scale.value = withSpring(1, { damping: 15 });
   };
 
+  const handleMouseEnter = () => {
+    if (Platform.OS === 'web') {
+      setIsHovered(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (Platform.OS === 'web') {
+      setIsHovered(false);
+    }
+  };
+
+  // Web-specific hover styles
+  const hoverStyle = Platform.OS === 'web' && isHovered ? {
+    opacity: 0.9,
+    cursor: 'pointer' as const,
+  } : {};
+
   return (
-    <Animated.View style={[styles.fab, { backgroundColor: theme.colors.primary }, animatedStyle]}>
+    <Animated.View style={[styles.fab, { backgroundColor: theme.colors.primary }, animatedStyle, hoverStyle]}>
       <Pressable
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={onPress}
+        // @ts-ignore - Web-only props
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <FAB
           icon="plus"
