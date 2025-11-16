@@ -17,10 +17,13 @@ export function OfflineIndicator() {
     return null;
   }
 
+  // Use theme colors for proper dark mode support
+  const textColor = theme.colors.onPrimary; // White text on colored background
+
   return (
     <View style={[styles.container, { backgroundColor: theme.custom.colors.warning }]} testID="offline-indicator">
-      <Ionicons name="cloud-offline" size={16} color="#fff" />
-      <Text style={styles.text}>Offline Mode - Using local analysis</Text>
+      <Ionicons name="cloud-offline" size={16} color={textColor} />
+      <Text style={[styles.text, { color: textColor }]}>Offline Mode - Using local analysis</Text>
     </View>
   );
 }
@@ -35,7 +38,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   text: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: '500',
   },
