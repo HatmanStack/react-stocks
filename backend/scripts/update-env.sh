@@ -14,13 +14,13 @@ if [ ! -z "$1" ]; then
   # Use command-line argument if provided
   STACK_NAME="$1"
 elif [ -f "samconfig.toml" ]; then
-  # Parse samconfig.toml for [default.deploy.parameters] stack_name
-  CUSTOM_STACK=$(awk '/^\[default\.deploy\.parameters\]/,/^\[/ {if ($1 == "stack_name") print $3}' samconfig.toml | tr -d '"' | head -n 1)
+  # Parse samconfig.toml for stack_name (try deploy parameters first, then global)
+  CUSTOM_STACK=$(grep -A 20 "^\[default.deploy.parameters\]" samconfig.toml | grep "^stack_name" | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
   if [ ! -z "$CUSTOM_STACK" ]; then
     STACK_NAME="$CUSTOM_STACK"
   else
     # Fallback to [default.global.parameters] stack_name
-    CUSTOM_STACK=$(awk '/^\[default\.global\.parameters\]/,/^\[/ {if ($1 == "stack_name") print $3}' samconfig.toml | tr -d '"' | head -n 1)
+    CUSTOM_STACK=$(grep -A 20 "^\[default.global.parameters\]" samconfig.toml | grep "^stack_name" | head -n 1 | cut -d '=' -f 2 | tr -d ' "')
     STACK_NAME="${CUSTOM_STACK:-react-stocks-backend}"
   fi
 else
