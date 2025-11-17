@@ -26,6 +26,7 @@ export default function NewsScreen() {
     return [...newsData].sort((a, b) => b.articleDate.localeCompare(a.articleDate));
   }, [newsData]);
 
+  // All hooks must be called before any conditional returns
   const renderSkeletonItem = useCallback(
     ({ index }: { index: number }) => <NewsListItemSkeleton key={`skeleton-${index}`} />,
     []
@@ -37,6 +38,11 @@ export default function NewsScreen() {
         <NewsListItem item={item} />
       </Animated.View>
     ),
+    []
+  );
+
+  const keyExtractor = useCallback(
+    (item: NewsDetails, index: number) => item.articleUrl || `${item.ticker}-${item.articleDate}-${index}`,
     []
   );
 
@@ -79,11 +85,6 @@ export default function NewsScreen() {
       </SafeAreaView>
     );
   }
-
-  const keyExtractor = useCallback(
-    (item: NewsDetails, index: number) => item.articleUrl || `${item.ticker}-${item.articleDate}-${index}`,
-    []
-  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
