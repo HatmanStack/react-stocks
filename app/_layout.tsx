@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { Slot } from 'expo-router';
 import Head from 'expo-router/head';
-import { PaperProvider } from 'react-native-paper';
+import { PaperProvider, Portal } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -136,14 +136,16 @@ export default function RootLayout() {
       <GestureHandlerRootView style={styles.container}>
         <SafeAreaProvider>
           <PaperProvider theme={theme}>
-            <QueryClientProvider client={queryClient}>
-              <StockProvider>
-                <PortfolioProvider>
-                  <Slot />
-                  <StatusBar style="light" />
-                </PortfolioProvider>
-              </StockProvider>
-            </QueryClientProvider>
+            <Portal.Host>
+              <QueryClientProvider client={queryClient}>
+                <StockProvider>
+                  <PortfolioProvider>
+                    <Slot />
+                    <StatusBar style="light" />
+                  </PortfolioProvider>
+                </StockProvider>
+              </QueryClientProvider>
+            </Portal.Host>
           </PaperProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
