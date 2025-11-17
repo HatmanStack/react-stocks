@@ -22,7 +22,7 @@ AWS Lambda backend proxying Tiingo and Polygon APIs with intelligent DynamoDB ca
 * 🔒 **Security First** - API keys encrypted in Lambda environment, never exposed to frontend
 * ⚡ **High Performance** - <15s sentiment processing, sub-second cache hits
 * 📊 **Stock Data** - Real-time OHLCV prices + company metadata via Tiingo
-* 📰 **News Feed** - Financial news articles with deduplication via Polygon
+* 📰 **News Feed** - Financial news articles with deduplication via Finnhub
 * 🧠 **Sentiment Analysis** - Asynchronous Lambda-based sentiment processing with job tracking
 * 💰 **Cost Optimized** - ~$9-12/month for 100 users with 80% cache hit rate
 * 📈 **Monitoring** - CloudWatch metrics, X-Ray tracing, custom dashboards
@@ -51,7 +51,7 @@ npm run deploy         # Subsequent deploys
 | Endpoint | Method | Description | Cache TTL |
 |----------|--------|-------------|-----------|
 | `/stocks` | GET | Stock prices & metadata (Tiingo proxy) | 7 days |
-| `/news` | GET | Financial news articles (Polygon proxy) | 30 days |
+| `/news` | GET | Financial news articles (Finnhub proxy) | 30 days |
 | `/sentiment` | POST | Start sentiment analysis job | - |
 | `/sentiment/job/{jobId}` | GET | Check job status | - |
 | `/sentiment` | GET | Get sentiment results | 90 days |
@@ -76,7 +76,7 @@ Body: {"ticker":"AAPL","startDate":"2025-01-01","endDate":"2025-01-15"}
 * **Runtime:** Node.js 20.x, TypeScript 5
 * **Infrastructure:** AWS Lambda + API Gateway HTTP API + DynamoDB
 * **Deployment:** AWS SAM (Infrastructure as Code)
-* **APIs:** Tiingo (stocks), Polygon (news)
+* **APIs:** Tiingo (stocks), Finnhub (news)
 * **Monitoring:** CloudWatch Logs, X-Ray tracing
 * **Testing:** Jest (>80% coverage), integration tests
 
@@ -132,7 +132,7 @@ npm run create-dashboard   # Create CloudWatch dashboard
 - [ ] Tests pass (`npm test`)
 - [ ] TypeScript compiles (`npm run type-check`)
 - [ ] AWS credentials configured
-- [ ] Tiingo + Polygon API keys ready
+- [ ] Tiingo + Finnhub API keys ready
 - [ ] **CORS configured** (update `AllowedOrigins` in template.yaml)
 
 **Deploy:**
@@ -169,7 +169,7 @@ sam deploy --parameter-overrides AllowedOrigins="https://prod.com,https://stagin
 | Issue | Fix |
 |-------|-----|
 | "Unable to upload artifact" | `sam deploy --guided --resolve-s3` |
-| "API key not configured" | `sam deploy --parameter-overrides TiingoApiKey="key" PolygonApiKey="key"` |
+| "API key not configured" | `sam deploy --parameter-overrides TiingoApiKey="key" FinnhubApiKey="key"` |
 | Permission errors | Verify IAM permissions: `aws sts get-caller-identity` |
 
 ### Runtime
