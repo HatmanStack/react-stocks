@@ -20,7 +20,6 @@ interface AddStockModalProps {
 }
 
 export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
-  console.log('[AddStockModal] Rendered with visible:', visible);
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const { addToPortfolio, isInPortfolio } = usePortfolioContext();
@@ -115,8 +114,6 @@ export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
       />
     );
   };
-
-  console.log('[AddStockModal] Rendering Portal with Modal visible:', visible);
 
   return (
     <Portal>

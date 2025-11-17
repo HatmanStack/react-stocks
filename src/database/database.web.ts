@@ -96,13 +96,39 @@ class WebDatabase {
   }
 
   /**
+   * Synchronous save - bypasses debouncing and requestIdleCallback
+   * Used during page unload to ensure data is saved immediately
+   */
+  private performSaveSync(): void {
+    try {
+      const dataString = JSON.stringify(this.data);
+      const sizeKB = (dataString.length / 1024).toFixed(1);
+
+      // Immediately save to localStorage (synchronous)
+      localStorage.setItem(this.storageKey, dataString);
+      console.log(`[WebDB] ✓ Saved ${sizeKB} KB (sync)`);
+      this.pendingSave = false;
+    } catch (error) {
+      console.error('[WebDB] Failed to save data (sync):', error);
+      console.error('[WebDB] Error details:', {
+        name: (error as Error).name,
+        message: (error as Error).message,
+        dataSize: JSON.stringify(this.data).length,
+        storageKey: this.storageKey
+      });
+      this.pendingSave = false;
+    }
+  }
+
+  /**
    * Force immediate save (called when user leaves page)
    */
   public flushSave(): void {
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
     }
-    this.performSave();
+    this.performSaveSync();
   }
 
   async runAsync(sql: string, params?: any[]): Promise<any> {
