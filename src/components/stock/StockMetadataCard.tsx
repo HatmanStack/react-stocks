@@ -41,28 +41,32 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
 
   return (
     <Card style={styles.card}>
-      <Card.Content>
-        <View style={styles.header}>
-          <Text variant="headlineSmall" style={styles.ticker}>
-            {symbol.ticker}
-          </Text>
-          <Text variant="bodyMedium" style={[styles.exchange, { color: theme.colors.secondary }]}>
-            {symbol.exchangeCode}
+      <Card.Content style={styles.content}>
+        <View style={styles.leftSection}>
+          <View style={styles.header}>
+            <Text variant="headlineSmall" style={styles.ticker}>
+              {symbol.ticker}
+            </Text>
+            <Text variant="bodyMedium" style={[styles.exchange, { color: theme.colors.secondary }]}>
+              {symbol.exchangeCode}
+            </Text>
+          </View>
+
+          <Text variant="titleMedium" style={styles.name}>
+            {symbol.name}
           </Text>
         </View>
 
-        <Text variant="titleMedium" style={styles.name}>
-          {symbol.name}
-        </Text>
-
         {symbol.longDescription && (
-          <Text
-            variant="bodyMedium"
-            style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
-            numberOfLines={3}
-          >
-            {symbol.longDescription}
-          </Text>
+          <View style={styles.rightSection}>
+            <Text
+              variant="bodySmall"
+              style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
+              numberOfLines={4}
+            >
+              {symbol.longDescription}
+            </Text>
+          </View>
         )}
       </Card.Content>
     </Card>
@@ -71,28 +75,40 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    margin: 16, // More spacious margins
-    marginBottom: 0,
+    marginHorizontal: 16,
+    marginVertical: 8,
+  },
+  content: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  leftSection: {
+    flex: 1,
+    minWidth: 140,
+  },
+  rightSection: {
+    flex: 2,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12, // More spacing
+    marginBottom: 8,
   },
   ticker: {
     fontWeight: 'bold',
-    marginRight: 12,
-    fontSize: 24, // Larger ticker
+    marginRight: 8,
+    fontSize: 20,
   },
   exchange: {
-    fontSize: 14, // Slightly larger exchange
+    fontSize: 12,
     textTransform: 'uppercase',
   },
   name: {
-    marginBottom: 12, // More spacing
-    fontSize: 18, // Larger company name
+    fontSize: 14,
+    fontWeight: '600',
   },
   description: {
-    lineHeight: 24, // More generous line height
+    lineHeight: 18,
+    fontSize: 13,
   },
 });

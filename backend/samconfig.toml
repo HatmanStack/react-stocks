@@ -16,7 +16,7 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
-parameter_overrides = "TiingoApiKey=\"YOUR_TIINGO_KEY_HERE\" FinnhubApiKey=\"YOUR_FINNHUB_KEY_HERE\" AllowedOrigins=\"*\""
+parameter_overrides = "AllowedOrigins=\"*\""
 stack_name = "react-stocks-test-1"
 s3_prefix = "react-stocks-test-1"
 image_repositories = []
