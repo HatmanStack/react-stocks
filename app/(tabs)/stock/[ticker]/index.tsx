@@ -151,10 +151,10 @@ export default function PriceScreen() {
     );
   }
 
-  // Mobile layout: chart on top, then two-column (prices left, metadata right)
+  // Mobile layout: chart on top, metadata on right, prices below/left
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      <View style={styles.mobileLayout}>
+      <ScrollView style={styles.mobileLayout}>
         {/* Price Chart - Full Width */}
         <View style={styles.chartContainer}>
           {isPriceLoading ? (
@@ -169,26 +169,17 @@ export default function PriceScreen() {
           {/* Left: Price List */}
           <View style={styles.priceColumn}>
             <PriceListHeader />
-            <FlatList
-              data={sortedStockData}
-              renderItem={renderItem}
-              keyExtractor={keyExtractor}
-              scrollEnabled={true}
-              nestedScrollEnabled={true}
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={15}
-              updateCellsBatchingPeriod={50}
-              initialNumToRender={15}
-              windowSize={21}
-            />
+            {sortedStockData.map((item) => (
+              <PriceListItem key={keyExtractor(item)} item={item} />
+            ))}
           </View>
 
-          {/* Right: Metadata Card */}
+          {/* Right: Metadata Card (sticky to top of this row) */}
           <View style={styles.metadataColumn}>
             <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

@@ -5,7 +5,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Appbar, useTheme } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
@@ -20,6 +20,7 @@ const MaterialTopTabs = withLayoutContext(Navigator);
 
 export default function StockDetailLayout() {
   const { ticker } = useLocalSearchParams<{ ticker: string }>();
+  const navigation = useNavigation();
   const theme = useTheme();
   const { data: symbolInfo, isLoading } = useSymbolDetails(ticker || 'AAPL');
   const { isInPortfolio, addToPortfolio, removeFromPortfolio } = usePortfolioContext();
@@ -27,12 +28,20 @@ export default function StockDetailLayout() {
 
   const inPortfolio = isInPortfolio(ticker || 'AAPL');
 
-  // Update selected ticker when screen loads
+  // Update selected ticker and parent tab title when screen loads
   useEffect(() => {
     if (ticker) {
       setSelectedTicker(ticker);
+      // Update parent tab bar title
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({
+          tabBarLabel: ticker.toUpperCase(),
+          title: ticker.toUpperCase(),
+        });
+      }
     }
-  }, [ticker, setSelectedTicker]);
+  }, [ticker, setSelectedTicker, navigation]);
 
   const handleTogglePortfolio = useCallback(async () => {
     if (!ticker) return;
