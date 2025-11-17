@@ -3,16 +3,29 @@
  * Bottom tab navigator
  */
 
-import { Tabs } from 'expo-router';
+import { Tabs, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from 'react-native-paper';
+import { useStock } from '@/contexts/StockContext';
 
 export default function TabLayout() {
+  const theme = useTheme();
+  const { selectedTicker } = useStock();
+  const segments = useSegments();
+
+  // Check if we're currently on a stock route
+  const isOnStockRoute = segments.includes('stock');
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#1976D2',
-        tabBarInactiveTintColor: '#9E9E9E',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.surfaceVariant,
+        },
       }}
     >
       <Tabs.Screen
@@ -31,7 +44,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stock"
         options={{
-          href: null, // Hide from tab bar - accessed via navigation only
+          title: selectedTicker || '[ticker]',
+          href: isOnStockRoute ? undefined : null, // Show only when on stock route
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? 'stats-chart' : 'stats-chart-outline'}
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
