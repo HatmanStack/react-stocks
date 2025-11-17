@@ -41,32 +41,28 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
 
   return (
     <Card style={styles.card}>
-      <Card.Content style={styles.content}>
-        <View style={styles.leftSection}>
-          <View style={styles.header}>
-            <Text variant="headlineSmall" style={styles.ticker}>
-              {symbol.ticker}
-            </Text>
-            <Text variant="bodyMedium" style={[styles.exchange, { color: theme.colors.secondary }]}>
-              {symbol.exchangeCode}
-            </Text>
-          </View>
-
-          <Text variant="titleMedium" style={styles.name}>
-            {symbol.name}
+      <Card.Content>
+        <View style={styles.header}>
+          <Text variant="headlineSmall" style={styles.ticker}>
+            {symbol.ticker}
+          </Text>
+          <Text variant="bodyMedium" style={[styles.exchange, { color: theme.colors.secondary }]}>
+            {symbol.exchangeCode}
           </Text>
         </View>
 
+        <Text variant="titleMedium" style={styles.name}>
+          {symbol.name}
+        </Text>
+
         {symbol.longDescription && (
-          <View style={styles.rightSection}>
-            <Text
-              variant="bodySmall"
-              style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
-              numberOfLines={4}
-            >
-              {symbol.longDescription}
-            </Text>
-          </View>
+          <Text
+            variant="bodyMedium"
+            style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
+            numberOfLines={4}
+          >
+            {symbol.longDescription}
+          </Text>
         )}
       </Card.Content>
     </Card>
@@ -75,19 +71,7 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
-    marginVertical: 8,
-  },
-  content: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  leftSection: {
-    flex: 1,
-    minWidth: 140,
-  },
-  rightSection: {
-    flex: 2,
+    margin: 12,
   },
   header: {
     flexDirection: 'row',
@@ -96,19 +80,19 @@ const styles = StyleSheet.create({
   },
   ticker: {
     fontWeight: 'bold',
-    marginRight: 8,
-    fontSize: 20,
+    marginRight: 12,
+    fontSize: 22,
   },
   exchange: {
-    fontSize: 12,
+    fontSize: 13,
     textTransform: 'uppercase',
   },
   name: {
-    fontSize: 14,
+    marginBottom: 8,
+    fontSize: 16,
     fontWeight: '600',
   },
   description: {
-    lineHeight: 18,
-    fontSize: 13,
+    lineHeight: 20,
   },
 });
