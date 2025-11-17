@@ -25,8 +25,6 @@ export const API_ENDPOINTS = {
   // Note: Frontend no longer calls these directly (Lambda backend proxies)
   /** @deprecated Direct API calls moved to Lambda backend. Not used in frontend. */
   TIINGO_BASE: 'https://api.tiingo.com',
-  /** @deprecated Polygon replaced by Finnhub. Backend uses Finnhub for news. */
-  POLYGON_BASE: 'https://api.polygon.io',
 } as const;
 
 /**
@@ -43,8 +41,6 @@ export const API_TIMEOUTS = {
   // Legacy timeouts (deprecated, kept for rollback)
   /** @deprecated Use BACKEND timeout */
   TIINGO: 10000, // 10s
-  /** @deprecated Use BACKEND timeout */
-  POLYGON: 10000, // 10s
 } as const;
 
 /**
@@ -54,8 +50,6 @@ export const API_TIMEOUTS = {
  * Frontend doesn't need to implement rate limiting for these APIs.
  */
 export const API_RATE_LIMITS = {
-  /** @deprecated Polygon replaced by Finnhub. Backend handles rate limiting. */
-  POLYGON_FREE_TIER: 5, // 5 requests per minute
   /** @deprecated Backend handles Tiingo rate limiting */
   TIINGO_FREE_TIER: 500, // 500 requests per hour
 } as const;
@@ -63,7 +57,7 @@ export const API_RATE_LIMITS = {
 /**
  * Migration Status Notes
  *
- * Phase 1 (Complete): Lambda backend deployed with Tiingo/Finnhub proxying (Polygon deprecated)
+ * Phase 1 (Complete): Lambda backend deployed with Tiingo/Finnhub proxying
  * Phase 2 (Complete): Browser-based sentiment analysis implemented
  * Phase 3 (Complete): Browser-based prediction model implemented
  * Phase 4 (In Progress): Frontend services migrated to use backend

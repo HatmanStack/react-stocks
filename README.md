@@ -59,7 +59,7 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 * **State Management:** React Context + TanStack Query 5.90.7
 * **Database:** Expo SQLite 16.0.9 (native) / localStorage (web)
 * **Backend:** AWS Lambda (Node.js 20.x) + API Gateway + DynamoDB
-* **APIs:** Tiingo & Polygon.io (proxied through Lambda)
+* **APIs:** Tiingo & Finnhub (proxied through Lambda)
 * **ML:** Browser-based sentiment analysis + logistic regression predictions
 * **Testing:** Jest 30.2.0 + React Native Testing Library (618 tests, 94% pass rate)
 
