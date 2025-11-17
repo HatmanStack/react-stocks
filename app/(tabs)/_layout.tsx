@@ -3,22 +3,12 @@
  * Bottom tab navigator
  */
 
-import { Tabs, useSegments } from 'expo-router';
+import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from 'react-native-paper';
-import { useStock } from '@/contexts/StockContext';
 
 export default function TabLayout() {
   const theme = useTheme();
-  const { selectedTicker } = useStock();
-  const segments = useSegments();
-
-  // Check if we're currently on a stock route
-  const isOnStockRoute = segments.includes('stock');
-
-  // Get ticker from URL segments if on stock route
-  const tickerFromRoute = isOnStockRoute ? segments[segments.indexOf('stock') + 1] : null;
-  const displayTicker = tickerFromRoute || selectedTicker || '[ticker]';
 
   return (
     <Tabs
@@ -47,16 +37,22 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="stock"
-        options={{
-          title: displayTicker,
-          href: isOnStockRoute ? undefined : null, // Show only when on stock route
-          tabBarIcon: ({ focused, color, size }) => (
-            <Ionicons
-              name={focused ? 'stats-chart' : 'stats-chart-outline'}
-              size={size}
-              color={color}
-            />
-          ),
+        options={({ route }) => {
+          // Extract ticker from route params
+          const params = route.params as { ticker?: string } | undefined;
+          const ticker = params?.ticker;
+
+          return {
+            title: ticker?.toUpperCase() || '[ticker]',
+            href: ticker ? undefined : null, // Show only when ticker is present
+            tabBarIcon: ({ focused, color, size }) => (
+              <Ionicons
+                name={focused ? 'stats-chart' : 'stats-chart-outline'}
+                size={size}
+                color={color}
+              />
+            ),
+          };
         }}
       />
       <Tabs.Screen
