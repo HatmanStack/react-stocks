@@ -151,36 +151,44 @@ export default function PriceScreen() {
     );
   }
 
-  // Mobile layout: single column with chart first, then metadata
+  // Mobile layout: chart on top, then two-column (prices left, metadata right)
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      <FlatList
-        data={sortedStockData}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        ListHeaderComponent={() => (
-          <View>
-            {/* Price Chart */}
-            <View style={styles.chartContainer}>
-              {isPriceLoading ? (
-                <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
-              ) : sortedStockData && sortedStockData.length > 0 ? (
-                <PriceChart data={sortedStockData} />
-              ) : null}
-            </View>
+      <View style={styles.mobileLayout}>
+        {/* Price Chart - Full Width */}
+        <View style={styles.chartContainer}>
+          {isPriceLoading ? (
+            <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
+          ) : sortedStockData && sortedStockData.length > 0 ? (
+            <PriceChart data={sortedStockData} />
+          ) : null}
+        </View>
 
-            <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
-
+        {/* Two-column layout: Prices (left) and Metadata (right) */}
+        <View style={styles.contentRow}>
+          {/* Left: Price List */}
+          <View style={styles.priceColumn}>
             <PriceListHeader />
+            <FlatList
+              data={sortedStockData}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              scrollEnabled={true}
+              nestedScrollEnabled={true}
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={15}
+              updateCellsBatchingPeriod={50}
+              initialNumToRender={15}
+              windowSize={21}
+            />
           </View>
-        )}
-        stickyHeaderIndices={[0]}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={15}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={15}
-        windowSize={21}
-      />
+
+          {/* Right: Metadata Card */}
+          <View style={styles.metadataColumn}>
+            <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
@@ -201,6 +209,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  // Mobile layout with chart + two-column
+  mobileLayout: {
+    flex: 1,
+  },
+  contentRow: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  priceColumn: {
+    flex: 6,
+  },
+  metadataColumn: {
+    flex: 4,
   },
   // Desktop responsive layout
   desktopLayout: {
