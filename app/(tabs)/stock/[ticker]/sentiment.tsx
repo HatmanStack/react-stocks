@@ -6,6 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTheme } from 'react-native-paper';
 import { useStockDetail } from '@/contexts/StockDetailContext';
 import { SentimentToggle } from '@/components/sentiment/SentimentToggle';
 import { SentimentChart } from '@/components/charts/SentimentChart';
@@ -18,6 +19,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import type { CombinedWordDetails, WordCountDetails } from '@/types/database.types';
 
 export default function SentimentScreen() {
+  const theme = useTheme();
   const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>('aggregate');
 
   // Get sentiment data from context (already fetched at layout level)
@@ -130,7 +132,7 @@ export default function SentimentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <SentimentToggle value={viewMode} onValueChange={setViewMode} />
       {renderContent()}
     </SafeAreaView>
@@ -140,7 +142,6 @@ export default function SentimentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   chartContainer: {
     paddingHorizontal: 16,

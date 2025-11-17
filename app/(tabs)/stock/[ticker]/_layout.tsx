@@ -70,7 +70,7 @@ export default function StockDetailLayout() {
 
   return (
     <StockDetailProvider ticker={ticker || 'AAPL'}>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <OfflineIndicator />
         <Appbar.Header elevated style={styles.header}>
           <Appbar.Content
@@ -89,11 +89,11 @@ export default function StockDetailLayout() {
 
         <MaterialTopTabs
           screenOptions={{
-            tabBarActiveTintColor: '#1976D2',
-            tabBarInactiveTintColor: '#666',
-            tabBarIndicatorStyle: { backgroundColor: '#1976D2' },
+            tabBarActiveTintColor: theme.colors.primary,
+            tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+            tabBarIndicatorStyle: { backgroundColor: theme.colors.primary },
             tabBarLabelStyle: { fontSize: 14, fontWeight: '600', textTransform: 'none' },
-            tabBarStyle: { backgroundColor: '#fff' },
+            tabBarStyle: { backgroundColor: theme.colors.surface },
             swipeEnabled: true,
             animationEnabled: true,
             lazy: true, // Performance optimization
@@ -111,7 +111,6 @@ export default function StockDetailLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   header: {
     height: 72, // More spacious header
