@@ -151,7 +151,7 @@ export default function PriceScreen() {
     );
   }
 
-  // Mobile layout: single column (original behavior)
+  // Mobile layout: single column with chart first, then metadata
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <FlatList
@@ -160,8 +160,6 @@ export default function PriceScreen() {
         keyExtractor={keyExtractor}
         ListHeaderComponent={() => (
           <View>
-            <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
-
             {/* Price Chart */}
             <View style={styles.chartContainer}>
               {isPriceLoading ? (
@@ -170,6 +168,8 @@ export default function PriceScreen() {
                 <PriceChart data={sortedStockData} />
               ) : null}
             </View>
+
+            <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
 
             <PriceListHeader />
           </View>
