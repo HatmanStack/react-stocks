@@ -37,22 +37,16 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="stock"
-        options={({ route }) => {
-          // Extract ticker from route params
-          const params = route.params as { ticker?: string } | undefined;
-          const ticker = params?.ticker;
-
-          return {
-            title: ticker?.toUpperCase() || '[ticker]',
-            href: ticker ? undefined : null, // Show only when ticker is present
-            tabBarIcon: ({ focused, color, size }) => (
-              <Ionicons
-                name={focused ? 'stats-chart' : 'stats-chart-outline'}
-                size={size}
-                color={color}
-              />
-            ),
-          };
+        options={{
+          title: '[ticker]',
+          href: null, // Hidden from tab bar by default
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? 'stats-chart' : 'stats-chart-outline'}
+              size={size}
+              color={color}
+            />
+          ),
         }}
       />
       <Tabs.Screen
