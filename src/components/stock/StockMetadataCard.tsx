@@ -3,8 +3,8 @@
  * Displays company information at the top of the Price screen
  */
 
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, useTheme } from 'react-native-paper';
 import type { SymbolDetails } from '@/types/database.types';
 
@@ -18,6 +18,7 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
   isLoading,
 }) => {
   const theme = useTheme();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if (isLoading) {
     return (
@@ -56,13 +57,23 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
         </Text>
 
         {symbol.longDescription && (
-          <Text
-            variant="bodyMedium"
-            style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
-            numberOfLines={4}
-          >
-            {symbol.longDescription}
-          </Text>
+          <View>
+            <Text
+              variant="bodyMedium"
+              style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
+              numberOfLines={isExpanded ? undefined : 4}
+            >
+              {symbol.longDescription}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setIsExpanded(!isExpanded)}
+              style={styles.moreButton}
+            >
+              <Text variant="bodySmall" style={[styles.moreText, { color: theme.colors.primary }]}>
+                {isExpanded ? 'Show less' : 'Show more'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </Card.Content>
     </Card>
@@ -94,5 +105,12 @@ const styles = StyleSheet.create({
   },
   description: {
     lineHeight: 20,
+  },
+  moreButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  moreText: {
+    fontWeight: '600',
   },
 });

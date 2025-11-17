@@ -61,7 +61,9 @@ export default function PortfolioScreen() {
   }, [removeFromPortfolio]);
 
   const handleAddStock = useCallback(() => {
+    console.log('[Portfolio] Add stock button pressed');
     setModalVisible(true);
+    console.log('[Portfolio] Modal visibility set to true');
   }, []);
 
   const handleCloseModal = useCallback(() => {

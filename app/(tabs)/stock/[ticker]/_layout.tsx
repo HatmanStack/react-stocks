@@ -28,18 +28,15 @@ export default function StockDetailLayout() {
 
   const inPortfolio = isInPortfolio(ticker || 'AAPL');
 
-  // Update selected ticker and parent tab title when screen loads
+  // Update selected ticker and bottom tab title when screen loads
   useEffect(() => {
     if (ticker) {
       setSelectedTicker(ticker);
-      // Update parent tab bar title
-      const parent = navigation.getParent();
-      if (parent) {
-        parent.setOptions({
-          tabBarLabel: ticker.toUpperCase(),
-          title: ticker.toUpperCase(),
-        });
-      }
+      // Update how this screen appears in the bottom tab bar
+      navigation.setOptions({
+        tabBarLabel: ticker.toUpperCase(),
+        title: ticker.toUpperCase(),
+      });
     }
   }, [ticker, setSelectedTicker, navigation]);
 

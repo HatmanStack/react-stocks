@@ -26,6 +26,8 @@ export default function PriceScreen() {
   const theme = useTheme();
   const { isDesktop, isTablet } = useResponsive();
 
+  console.log('[PriceScreen] Layout type - isDesktop:', isDesktop, 'isTablet:', isTablet);
+
   // Get stock data from context (already fetched at layout level)
   const { stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
 
@@ -83,22 +85,24 @@ export default function PriceScreen() {
 
   const keyExtractor = (item: StockDetails) => `${item.ticker}-${item.date}`;
 
-  // Desktop layout: two-column with chart on left (70%) and metadata on right (30%)
+  // Desktop layout: chart full width on top, then two-column below
   if (isDesktop) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
         <ScrollView>
-          <View style={styles.desktopLayout}>
-            {/* Left column: Chart and price list */}
-            <View style={styles.desktopLeftColumn}>
-              <View style={styles.chartContainer}>
-                {isPriceLoading ? (
-                  <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
-                ) : sortedStockData && sortedStockData.length > 0 ? (
-                  <PriceChart data={sortedStockData} />
-                ) : null}
-              </View>
+          {/* Chart - Full Width */}
+          <View style={styles.chartContainer}>
+            {isPriceLoading ? (
+              <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
+            ) : sortedStockData && sortedStockData.length > 0 ? (
+              <PriceChart data={sortedStockData} />
+            ) : null}
+          </View>
 
+          {/* Two-column layout: Prices (left) and Metadata (right) */}
+          <View style={styles.desktopLayout}>
+            {/* Left column: Price list */}
+            <View style={styles.desktopLeftColumn}>
               <PriceListHeader />
               {sortedStockData.map((item) => (
                 <PriceListItem key={keyExtractor(item)} item={item} />
@@ -154,9 +158,19 @@ export default function PriceScreen() {
   // Mobile layout: chart on top, metadata on right, prices below/left
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      <ScrollView style={styles.mobileLayout}>
+      <ScrollView
+        style={styles.mobileLayout}
+        onLayout={(e) => {
+          console.log('[PriceScreen] ScrollView layout:', e.nativeEvent.layout);
+        }}
+      >
         {/* Price Chart - Full Width */}
-        <View style={styles.chartContainer}>
+        <View
+          style={styles.chartContainer}
+          onLayout={(e) => {
+            console.log('[PriceScreen] Chart container layout:', e.nativeEvent.layout);
+          }}
+        >
           {isPriceLoading ? (
             <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
           ) : sortedStockData && sortedStockData.length > 0 ? (
@@ -165,9 +179,19 @@ export default function PriceScreen() {
         </View>
 
         {/* Two-column layout: Prices (left) and Metadata (right) */}
-        <View style={styles.contentRow}>
+        <View
+          style={styles.contentRow}
+          onLayout={(e) => {
+            console.log('[PriceScreen] ContentRow layout:', e.nativeEvent.layout);
+          }}
+        >
           {/* Left: Price List */}
-          <View style={styles.priceColumn}>
+          <View
+            style={styles.priceColumn}
+            onLayout={(e) => {
+              console.log('[PriceScreen] PriceColumn layout:', e.nativeEvent.layout);
+            }}
+          >
             <PriceListHeader />
             {sortedStockData.map((item) => (
               <PriceListItem key={keyExtractor(item)} item={item} />
@@ -175,7 +199,12 @@ export default function PriceScreen() {
           </View>
 
           {/* Right: Metadata Card (sticky to top of this row) */}
-          <View style={styles.metadataColumn}>
+          <View
+            style={styles.metadataColumn}
+            onLayout={(e) => {
+              console.log('[PriceScreen] MetadataColumn layout:', e.nativeEvent.layout);
+            }}
+          >
             <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
           </View>
         </View>
@@ -206,26 +235,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentRow: {
-    flex: 1,
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'flex-start',
+    paddingHorizontal: 8,
   },
   priceColumn: {
-    flex: 6,
+    width: '60%',
   },
   metadataColumn: {
-    flex: 4,
+    width: '40%',
+    paddingLeft: 8,
   },
   // Desktop responsive layout
   desktopLayout: {
     flexDirection: 'row',
     padding: 20,
-    gap: 20,
   },
   desktopLeftColumn: {
     flex: 7,
+    paddingRight: 10,
+    overflow: 'hidden',
   },
   desktopRightColumn: {
     flex: 3,
+    paddingLeft: 10,
+    overflow: 'hidden',
   },
 });
