@@ -24,7 +24,6 @@ import { PortfolioProvider } from '../src/contexts/PortfolioContext';
 // Theme
 import { theme } from '../src/theme/theme';
 import { colors } from '../src/theme/colors';
-import '../src/types/theme'; // Import theme type augmentation
 
 // Error Boundary
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
