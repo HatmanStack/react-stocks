@@ -128,36 +128,43 @@ export async function syncAllData(
     });
 
     const [stockResult, newsResult] = await Promise.allSettled([
-      syncStockData(ticker, startDate, endDate).catch(error => {
-        const errorMsg = `Stock sync failed: ${error}`;
-        console.error(`[SyncOrchestrator] ${errorMsg}`);
-        result.errors.push(errorMsg);
-        return 0;
-      }),
-      syncNewsData(ticker, startDate, endDate).catch(error => {
-        const errorMsg = `News sync failed: ${error}`;
-        console.error(`[SyncOrchestrator] ${errorMsg}`);
-        result.errors.push(errorMsg);
-        return 0;
-      }),
+      syncStockData(ticker, startDate, endDate),
+      syncNewsData(ticker, startDate, endDate),
     ]);
 
-    // Extract results
+    // Extract results and handle errors
     if (stockResult.status === 'fulfilled') {
       result.stockRecords = stockResult.value;
       console.log(`[SyncOrchestrator] Stock sync complete: ${result.stockRecords} records`);
+    } else {
+      const errorMsg = `Stock sync failed: ${stockResult.reason}`;
+      console.error(`[SyncOrchestrator] ${errorMsg}`);
+      result.errors.push(errorMsg);
     }
 
     if (newsResult.status === 'fulfilled') {
       result.newsArticles = newsResult.value;
       console.log(`[SyncOrchestrator] News sync complete: ${result.newsArticles} articles`);
+    } else {
+      const errorMsg = `News sync failed: ${newsResult.reason}`;
+      console.error(`[SyncOrchestrator] ${errorMsg}`);
+      result.errors.push(errorMsg);
     }
+
+    // Build progress message based on what succeeded
+    const dataTypes: string[] = [];
+    if (stockResult.status === 'fulfilled') dataTypes.push('price');
+    if (newsResult.status === 'fulfilled') dataTypes.push('news');
+
+    const message = dataTypes.length > 0
+      ? `${dataTypes.join(' and ')} data ready for ${ticker}`
+      : `Failed to fetch data for ${ticker}`;
 
     onProgress?.({
       step: 'data-ready',
       progress: 1.5,
       total: 3,
-      message: `Price and news data ready for ${ticker}`,
+      message,
     });
 
     // Step 3: Trigger sentiment analysis (Lambda or local) - this can be async
