@@ -5,7 +5,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
-import { Modal, Portal, Appbar, Searchbar } from 'react-native-paper';
+import { Modal, Portal, Appbar, Searchbar, useTheme } from 'react-native-paper';
 import { SearchResultItem } from '@/components/search/SearchResultItem';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -20,6 +20,7 @@ interface AddStockModalProps {
 }
 
 export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
+  const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const { addToPortfolio, isInPortfolio } = usePortfolioContext();
 
@@ -119,21 +120,21 @@ export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
       <Modal
         visible={visible}
         onDismiss={handleClose}
-        contentContainerStyle={styles.modal}
+        contentContainerStyle={[styles.modal, { backgroundColor: theme.colors.surface }]}
       >
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
           <Appbar.Header elevated>
             <Appbar.Content title="Add Stock to Portfolio" />
             <Appbar.Action icon="close" onPress={handleClose} />
           </Appbar.Header>
 
-          <View style={styles.searchContainer}>
+          <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface }]}>
             <Searchbar
               placeholder="Search ticker or company name"
               onChangeText={handleSearchChange}
               value={searchQuery}
               autoFocus
-              style={styles.searchBar}
+              style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}
             />
           </View>
 
@@ -156,21 +157,17 @@ const styles = StyleSheet.create({
   modal: {
     margin: 20,
     maxHeight: '80%',
-    backgroundColor: '#fff',
     borderRadius: 8,
     overflow: 'hidden',
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   searchContainer: {
     padding: 12,
-    backgroundColor: '#fff',
   },
   searchBar: {
     elevation: 0,
-    backgroundColor: '#F5F5F5',
   },
   listContent: {
     paddingBottom: 16,

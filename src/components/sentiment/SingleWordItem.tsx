@@ -20,11 +20,11 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
   const getSentimentColor = (sentiment: string): string => {
     switch (sentiment) {
       case 'POS':
-        return '#4CAF50'; // Green
+        return theme.colors.positive;
       case 'NEG':
-        return '#F44336'; // Red
+        return theme.colors.negative;
       default:
-        return '#9E9E9E'; // Gray
+        return theme.colors.neutral;
     }
   };
 
@@ -48,7 +48,7 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
           <Chip
             mode="flat"
             style={[styles.sentimentChip, { backgroundColor: sentimentColor }]}
-            textStyle={styles.sentimentText}
+            textStyle={[styles.sentimentText, { color: theme.colors.surface }]}
           >
             {item.sentiment}
           </Chip>
@@ -64,27 +64,27 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
         </Text>
 
         {/* Word Counts and Score */}
-        <View style={styles.metrics}>
+        <View style={[styles.metrics, { borderTopColor: theme.colors.surfaceVariant }]}>
           <View style={styles.metric}>
-            <Text variant="labelSmall" style={styles.metricLabel}>
+            <Text variant="labelSmall" style={[styles.metricLabel, { color: theme.colors.onSurfaceVariant }]}>
               Positive
             </Text>
-            <Text variant="bodyLarge" style={[styles.metricValue, { color: '#4CAF50' }]}>
+            <Text variant="bodyLarge" style={[styles.metricValue, { color: theme.colors.positive }]}>
               {item.positive}
             </Text>
           </View>
 
           <View style={styles.metric}>
-            <Text variant="labelSmall" style={styles.metricLabel}>
+            <Text variant="labelSmall" style={[styles.metricLabel, { color: theme.colors.onSurfaceVariant }]}>
               Negative
             </Text>
-            <Text variant="bodyLarge" style={[styles.metricValue, { color: '#F44336' }]}>
+            <Text variant="bodyLarge" style={[styles.metricValue, { color: theme.colors.negative }]}>
               {item.negative}
             </Text>
           </View>
 
           <View style={styles.metric}>
-            <Text variant="labelSmall" style={styles.metricLabel}>
+            <Text variant="labelSmall" style={[styles.metricLabel, { color: theme.colors.onSurfaceVariant }]}>
               Score
             </Text>
             <Text variant="bodyLarge" style={[styles.metricValue, { color: sentimentColor }]}>
@@ -114,7 +114,6 @@ const styles = StyleSheet.create({
     height: 28,
   },
   sentimentText: {
-    color: '#fff',
     fontWeight: 'bold',
     fontSize: 12,
   },
@@ -127,13 +126,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
   },
   metric: {
     alignItems: 'center',
   },
   metricLabel: {
-    color: '#757575',
     marginBottom: 4,
   },
   metricValue: {

@@ -6,7 +6,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Text } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 
 interface SuccessFeedbackProps {
   message?: string;
@@ -15,6 +15,7 @@ interface SuccessFeedbackProps {
 }
 
 export function SuccessFeedback({ message, visible, onComplete }: SuccessFeedbackProps) {
+  const theme = useTheme();
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -66,15 +67,18 @@ export function SuccessFeedback({ message, visible, onComplete }: SuccessFeedbac
         style={[
           styles.container,
           {
+            backgroundColor: theme.colors.surface,
             transform: [{ scale: scaleAnim }],
             opacity: opacityAnim,
           },
         ]}
       >
         <View style={styles.iconContainer}>
-          <Ionicons name="checkmark-circle" size={64} color="#4CAF50" />
+          <Ionicons name="checkmark-circle" size={64} color={theme.colors.primary} />
         </View>
-        {message && <Text style={styles.message}>{message}</Text>}
+        {message && (
+          <Text style={[styles.message, { color: theme.colors.onSurface }]}>{message}</Text>
+        )}
       </Animated.View>
     </View>
   );
@@ -89,7 +93,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   container: {
-    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
@@ -106,7 +109,6 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212121',
     textAlign: 'center',
   },
 });

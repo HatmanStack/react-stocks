@@ -6,7 +6,7 @@
 
 import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { Button, Text, useTheme } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import { format } from 'date-fns';
 
@@ -21,6 +21,7 @@ export function DateRangePicker({
   endDate,
   onDateRangeChange,
 }: DateRangePickerProps) {
+  const theme = useTheme();
   const [visible, setVisible] = useState(false);
 
   const onDismiss = () => {
@@ -48,26 +49,26 @@ export function DateRangePicker({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <View style={styles.row}>
         <View style={styles.dateSection}>
-          <Text variant="labelMedium" style={styles.label}>
+          <Text variant="labelMedium" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
             Start Date
           </Text>
-          <Text variant="bodyMedium" style={styles.dateText}>
+          <Text variant="bodyMedium" style={[styles.dateText, { color: theme.colors.onSurface }]}>
             {formatDisplayDate(startDate)}
           </Text>
         </View>
 
-        <Text variant="bodyLarge" style={styles.separator}>
+        <Text variant="bodyLarge" style={[styles.separator, { color: theme.colors.primary }]}>
           →
         </Text>
 
         <View style={styles.dateSection}>
-          <Text variant="labelMedium" style={styles.label}>
+          <Text variant="labelMedium" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
             End Date
           </Text>
-          <Text variant="bodyMedium" style={styles.dateText}>
+          <Text variant="bodyMedium" style={[styles.dateText, { color: theme.colors.onSurface }]}>
             {formatDisplayDate(endDate)}
           </Text>
         </View>
@@ -97,7 +98,6 @@ export function DateRangePicker({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
     padding: 16,
     gap: 12,
   },
@@ -111,16 +111,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    color: '#757575',
     marginBottom: 4,
   },
   dateText: {
-    color: '#212121',
     fontWeight: '600',
   },
   separator: {
     marginHorizontal: 8,
-    color: '#1976D2',
   },
   button: {
     marginTop: 4,
