@@ -16,6 +16,10 @@ export default function TabLayout() {
   // Check if we're currently on a stock route
   const isOnStockRoute = segments.includes('stock');
 
+  // Get ticker from URL segments if on stock route
+  const tickerFromRoute = isOnStockRoute ? segments[segments.indexOf('stock') + 1] : null;
+  const displayTicker = tickerFromRoute || selectedTicker || '[ticker]';
+
   return (
     <Tabs
       screenOptions={{
@@ -44,7 +48,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="stock"
         options={{
-          title: selectedTicker || '[ticker]',
+          title: displayTicker,
           href: isOnStockRoute ? undefined : null, // Show only when on stock route
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons
