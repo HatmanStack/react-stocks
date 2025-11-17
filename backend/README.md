@@ -172,12 +172,79 @@ aws cloudwatch put-metric-alarm \
 - [ ] DynamoDB throttling = 0
 - [ ] Cache hit rate >70%
 
+### CORS Security (Production)
+
+**⚠️ IMPORTANT**: Default CORS allows requests from any origin (`*`) for development. **Always restrict CORS in production.**
+
+**Single domain:**
+```bash
+sam deploy --parameter-overrides AllowedOrigins="https://your-domain.com"
+```
+
+**Multiple domains:**
+```bash
+sam deploy --parameter-overrides AllowedOrigins="https://prod.com,https://staging.com"
+```
+
+Update `template.yaml` for permanent changes:
+```yaml
+Parameters:
+  AllowedOrigins:
+    Type: String
+    Default: "https://your-production-domain.com"
+```
+
 ## Troubleshooting
 
-**Lambda cold starts >1s**: Already at 1024MB memory, consider provisioned concurrency
-**Cache hit rate <50%**: Run `npm run warm-cache`, check TTL settings
-**DynamoDB throttling**: Using pay-per-request (auto-scales), check for hot partitions
-**High costs**: Verify cache hit rate >70%, review TTL settings, check for duplicate writes
+### Deployment Issues
+
+**"Unable to upload artifact"**
+- **Cause**: SAM cannot create/access S3 bucket
+- **Fix**: `sam deploy --guided --resolve-s3`
+
+**"TIINGO_API_KEY not configured"**
+- **Cause**: API keys not set during deployment
+- **Fix**:
+  ```bash
+  sam deploy --parameter-overrides \
+    TiingoApiKey="your-key" \
+    PolygonApiKey="your-key"
+  ```
+
+**Deployment fails with permission errors**
+- **Cause**: AWS credentials lack CloudFormation/Lambda/API Gateway permissions
+- **Fix**: Verify IAM permissions with `aws sts get-caller-identity`
+
+### Runtime Issues
+
+**CORS errors in browser**
+- **Cause**: Frontend domain not allowed
+- **Fix**: Update `AllowedOrigins` parameter (see Production Checklist)
+
+**Function timing out**
+- **Cause**: Lambda timeout too short (default 30s)
+- **Fix**: Increase timeout in `template.yaml`:
+  ```yaml
+  Globals:
+    Function:
+      Timeout: 60
+  ```
+
+**Lambda cold starts >1s**
+- **Cause**: Initial invocation after idle period
+- **Fix**: Already at 1024MB memory, consider provisioned concurrency
+
+**Cache hit rate <50%**
+- **Cause**: Cache not warmed or TTL expired
+- **Fix**: Run `npm run warm-cache`, check TTL settings
+
+**DynamoDB throttling**
+- **Cause**: Hot partition or excessive writes
+- **Fix**: Using pay-per-request (auto-scales), review access patterns
+
+**High costs**
+- **Cause**: Low cache hit rate or duplicate writes
+- **Fix**: Verify cache hit rate >70%, review TTL settings
 
 ## Rollback
 
