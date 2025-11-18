@@ -21,17 +21,17 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
   const getSentimentColor = (sentiment: string): string => {
     switch (sentiment) {
       case 'POS':
-        return '#4CAF50'; // Green
+        return theme.colors.positive;
       case 'NEG':
-        return '#F44336'; // Red
+        return theme.colors.negative;
       default:
-        return '#9E9E9E'; // Gray
+        return theme.colors.neutral;
     }
   };
 
   // Get prediction color
   const getPredictionColor = (value: number): string => {
-    return value >= 0 ? '#4CAF50' : '#F44336';
+    return value >= 0 ? theme.colors.positive : theme.colors.negative;
   };
 
   const sentimentColor = getSentimentColor(item.sentiment);
@@ -47,19 +47,19 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
           <Chip
             mode="flat"
             style={[styles.sentimentChip, { backgroundColor: sentimentColor }]}
-            textStyle={styles.sentimentText}
+            textStyle={[styles.sentimentText, { color: theme.colors.surface }]}
           >
             {item.sentiment}
           </Chip>
         </View>
 
         {/* Word Counts */}
-        <View style={styles.wordCounts}>
+        <View style={[styles.wordCounts, { backgroundColor: theme.colors.surfaceVariant }]}>
           <View style={styles.wordCount}>
             <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
               Positive Words
             </Text>
-            <Text variant="titleLarge" style={{ color: '#4CAF50' }}>
+            <Text variant="titleLarge" style={{ color: theme.colors.positive }}>
               {item.positive}
             </Text>
           </View>
@@ -68,7 +68,7 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
             <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
               Negative Words
             </Text>
-            <Text variant="titleLarge" style={{ color: '#F44336' }}>
+            <Text variant="titleLarge" style={{ color: theme.colors.negative }}>
               {item.negative}
             </Text>
           </View>
@@ -151,7 +151,6 @@ const styles = StyleSheet.create({
     height: 28,
   },
   sentimentText: {
-    color: '#fff',
     fontWeight: 'bold',
     fontSize: 12,
   },
@@ -160,7 +159,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginBottom: 16,
     paddingVertical: 12,
-    backgroundColor: '#F5F5F5',
     borderRadius: 8,
   },
   wordCount: {

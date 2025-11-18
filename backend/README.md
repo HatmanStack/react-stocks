@@ -1,10 +1,35 @@
-# React Stocks Backend
+<div align="center">
 
-AWS Lambda backend proxying Tiingo (stock prices) and Polygon (news) APIs with DynamoDB caching.
+# Stock Insights Backend
 
-**Stack**: Node.js 20 | TypeScript 5 | Lambda + API Gateway + DynamoDB | AWS SAM
+[![AWS Lambda](https://img.shields.io/badge/AWS%20Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/)
+[![DynamoDB](https://img.shields.io/badge/DynamoDB-4053D6?style=for-the-badge&logo=amazondynamodb&logoColor=white)](https://aws.amazon.com/dynamodb/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
-## Quick Start
+**Serverless backend for stock data and sentiment analysis.**
+
+AWS Lambda backend proxying Tiingo and Finnhub APIs with intelligent DynamoDB caching for optimal performance and cost efficiency.
+
+---
+
+</div>
+
+## ✨ Features
+
+* 🚀 **Serverless Architecture** - Auto-scaling Lambda + HTTP API Gateway for cost-effective API proxy
+* 💾 **Smart Caching** - DynamoDB with TTL (7d stocks, 30d news, 90d sentiment) for >80% hit rate
+* 🔒 **Security First** - API keys encrypted in Lambda environment, never exposed to frontend
+* ⚡ **High Performance** - <15s sentiment processing, sub-second cache hits
+* 📊 **Stock Data** - Real-time OHLCV prices + company metadata via Tiingo
+* 📰 **News Feed** - Financial news articles with deduplication via Finnhub
+* 🧠 **Sentiment Analysis** - Asynchronous Lambda-based sentiment processing with job tracking
+* 💰 **Cost Optimized** - ~$9-12/month for 100 users with 80% cache hit rate
+* 📈 **Monitoring** - CloudWatch metrics, X-Ray tracing, custom dashboards
+
+---
+
+## 🚀 Quick Start
 
 ```bash
 # Prerequisites
@@ -16,209 +41,164 @@ npm install
 npm run deploy:guided  # First time - prompts for API keys
 npm run deploy         # Subsequent deploys
 
-# Note API Gateway URL from outputs - auto-updates ../env
+# API Gateway URL auto-updates frontend .env
 ```
 
-## API Endpoints
+---
 
-### GET /stocks
-**Params**: `ticker`, `startDate`, `endDate`, `type` (prices|metadata)
-**Cache**: 7 days, >80% hit rate required
-**Example**: `/stocks?ticker=AAPL&startDate=2025-01-01&type=prices`
+## 📡 API Endpoints
 
-### GET /news
-**Params**: `ticker`, `from`, `to`
-**Cache**: 30 days, deduped by URL hash
-**Example**: `/news?ticker=AAPL&from=2025-01-01&to=2025-01-30`
+| Endpoint | Method | Description | Cache TTL |
+|----------|--------|-------------|-----------|
+| `/stocks` | GET | Stock prices & metadata (Tiingo proxy) | 7 days |
+| `/news` | GET | Financial news articles (Finnhub proxy) | 30 days |
+| `/sentiment` | POST | Start sentiment analysis job | - |
+| `/sentiment/job/{jobId}` | GET | Check job status | - |
+| `/sentiment` | GET | Get sentiment results | 90 days |
 
-### POST /sentiment
-**Body**: `{"ticker":"AAPL","startDate":"2025-01-01","endDate":"2025-01-15"}`
-**Returns**: `jobId` for async processing
-**Cache**: 90 days
-
-### GET /sentiment/job/{jobId}
-**Returns**: Job status (PENDING | IN_PROGRESS | COMPLETED | FAILED)
-
-### GET /sentiment
-**Params**: `ticker`, `startDate`, `endDate`
-**Returns**: Cached sentiment results
-
-## DynamoDB Tables
-
-| Table | TTL | Purpose |
-|-------|-----|---------|
-| StocksCache | 7d | Price data (OHLCV) |
-| NewsCache | 30d | Articles (deduped) |
-| SentimentCache | 90d | Sentiment scores |
-| SentimentJobs | 24h | Job tracking |
-
-**Billing**: Pay-per-request (auto-scales)
-**Cost**: ~$9-12/month for 100 users (see Cost Optimization)
-
-## Development
-
+**Example requests:**
 ```bash
-# Build & Test
-npm run build
-npm test
-npm run test:coverage  # Target: >80%
+# Stock data
+GET /stocks?ticker=AAPL&startDate=2025-01-01&type=prices
 
-# Local API
-sam build
-sam local start-api
-curl "http://localhost:3000/stocks?ticker=AAPL&startDate=2024-01-01&type=metadata"
+# News articles
+GET /news?ticker=AAPL&from=2025-01-01&to=2025-01-30
 
-# Integration Tests (requires deployed backend)
-export API_GATEWAY_URL="https://your-url.execute-api.us-east-1.amazonaws.com"
-npm run test:integration
+# Sentiment analysis
+POST /sentiment
+Body: {"ticker":"AAPL","startDate":"2025-01-01","endDate":"2025-01-15"}
 ```
 
-## Deployment
+---
 
-### First Time
+## 💻 Tech Stack
+
+* **Runtime:** Node.js 20.x, TypeScript 5
+* **Infrastructure:** AWS Lambda + API Gateway HTTP API + DynamoDB
+* **Deployment:** AWS SAM (Infrastructure as Code)
+* **APIs:** Tiingo (stocks), Finnhub (news)
+* **Monitoring:** CloudWatch Logs, X-Ray tracing
+* **Testing:** Jest (>80% coverage), integration tests
+
+---
+
+## 🔧 Available Scripts
+
 ```bash
-sam build
-sam deploy --guided
-# Enter: Stack name, region, API keys
-# Save config: Y
-# Output: ReactStocksApiUrl (auto-updates frontend .env)
+# Deployment
+npm run deploy:guided      # First-time deployment with prompts
+npm run deploy             # Build + deploy + update frontend .env
+npm run validate           # Check AWS prerequisites
+npm run update-env         # Manually update frontend .env with API URL
+
+# Development
+npm run build              # Compile TypeScript
+npm test                   # Run unit tests
+npm run test:coverage      # Coverage report (target: >80%)
+npm run test:integration   # Integration tests (requires deployed backend)
+sam local start-api        # Run Lambda locally
+
+# Monitoring
+npm run logs               # View Lambda CloudWatch logs
+npm run warm-cache         # Pre-populate DynamoDB cache
+npm run create-dashboard   # Create CloudWatch dashboard
 ```
 
-### Subsequent
+---
+
+## 💰 Cost Estimate
+
+**Target:** <$20/month for 100 users ✅
+**Projected:** $9-12/month
+
+| Service | Monthly Cost | Notes |
+|---------|--------------|-------|
+| DynamoDB | ~$9 | 80% cache hit rate, pay-per-request |
+| Lambda | ~$0 | Free tier covers most usage |
+| API Gateway | ~$1 | HTTP API (cheaper than REST) |
+| CloudWatch | ~$1 | Logs + custom metrics |
+
+**Cost optimization:**
+- Cache TTL: 7d (stocks), 30d (news), 90d (sentiment)
+- Target >80% cache hit rate
+- Pay-per-request billing (auto-scales, no idle costs)
+- Use `npm run warm-cache` to reduce cold starts
+
+---
+
+## 🔐 Production Checklist
+
+**Pre-Deploy:**
+- [ ] Tests pass (`npm test`)
+- [ ] TypeScript compiles (`npm run type-check`)
+- [ ] AWS credentials configured
+- [ ] Tiingo + Finnhub API keys ready
+- [ ] **CORS configured** (update `AllowedOrigins` in template.yaml)
+
+**Deploy:**
 ```bash
-npm run deploy  # Builds, deploys, updates .env
-```
-
-### Update Frontend Manually
-```bash
-npm run update-env [stack-name]
-```
-
-## Post-Deployment
-
-```bash
-# Verify
-curl "https://your-api.execute-api.us-east-1.amazonaws.com/stocks?ticker=AAPL&startDate=2025-01-01&type=prices"
-
-# Warm cache (reduces cold starts)
+sam build && sam deploy
 npm run warm-cache
-
-# Create CloudWatch dashboard
 npm run create-dashboard
-
-# View logs
-npm run logs
 ```
 
-## Cost Optimization
-
-**Target**: <$20/month for 100 users ✅
-
-**Projected**: $9-12/month
-- DynamoDB: ~$0.30/day (80% cache hit rate)
-- Lambda: Minimal (free tier covers most)
-- Storage: ~80MB (well under 25GB free tier)
-
-**Monitor**:
-```bash
-# View costs
-aws ce get-cost-and-usage \
-  --time-period Start=$(date -d '30 days ago' +%Y-%m-%d),End=$(date +%Y-%m-%d) \
-  --granularity MONTHLY \
-  --metrics BlendedCost \
-  --filter '{"Dimensions":{"Key":"SERVICE","Values":["Amazon DynamoDB"]}}'
-
-# Set billing alarm
-aws cloudwatch put-metric-alarm \
-  --alarm-name DynamoDBCostAlert \
-  --metric-name EstimatedCharges \
-  --namespace AWS/Billing \
-  --statistic Maximum \
-  --period 86400 \
-  --threshold 25 \
-  --comparison-operator GreaterThanThreshold
-```
-
-**If costs exceed $20/month**:
-1. Check cache hit rate (CloudWatch dashboard)
-2. Run `npm run warm-cache`
-3. Verify TTL working: `aws dynamodb describe-table --table-name react-stocks-StocksCache`
-
-## Production Checklist
-
-**Pre-Deploy**:
-- [ ] Tests pass: `npm test`
-- [ ] TypeScript clean: `npm run type-check`
-- [ ] AWS credentials valid: `aws sts get-caller-identity`
-- [ ] API keys ready
-
-**Deploy**:
-- [ ] `sam build && sam deploy`
-- [ ] Note API Gateway URL
-- [ ] Run `npm run warm-cache`
-- [ ] Create dashboard: `npm run create-dashboard`
-
-**Verify**:
-- [ ] Test /stocks endpoint
-- [ ] Test /news endpoint
-- [ ] Test /sentiment POST → GET flow
-- [ ] Cache hit rate >70% (CloudWatch)
-- [ ] No Lambda errors (CloudWatch Logs)
-- [ ] Frontend .env updated with EXPO_PUBLIC_BACKEND_URL
-
-**Monitor** (First 24h):
-- [ ] Lambda errors = 0
-- [ ] API Gateway 5XX = 0
-- [ ] DynamoDB throttling = 0
+**Verify:**
+- [ ] All API endpoints respond
 - [ ] Cache hit rate >70%
+- [ ] No Lambda errors
+- [ ] Frontend `.env` updated
 
-## Troubleshooting
+### CORS Security
 
-**Lambda cold starts >1s**: Already at 1024MB memory, consider provisioned concurrency
-**Cache hit rate <50%**: Run `npm run warm-cache`, check TTL settings
-**DynamoDB throttling**: Using pay-per-request (auto-scales), check for hot partitions
-**High costs**: Verify cache hit rate >70%, review TTL settings, check for duplicate writes
+⚠️ **IMPORTANT:** Default allows `*` (all origins). **Always restrict in production:**
 
-## Rollback
-
-**Feature flag** (fastest):
 ```bash
-# Frontend .env
+# Single domain
+sam deploy --parameter-overrides AllowedOrigins="https://your-domain.com"
+
+# Multiple domains
+sam deploy --parameter-overrides AllowedOrigins="https://prod.com,https://staging.com"
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Deployment
+
+| Issue | Fix |
+|-------|-----|
+| "Unable to upload artifact" | `sam deploy --guided --resolve-s3` |
+| "API key not configured" | `sam deploy --parameter-overrides TiingoApiKey="key" FinnhubApiKey="key"` |
+| Permission errors | Verify IAM permissions: `aws sts get-caller-identity` |
+
+### Runtime
+
+| Issue | Fix |
+|-------|-----|
+| CORS errors | Update `AllowedOrigins` parameter (see Production Checklist) |
+| Function timeout | Increase `Timeout` in `template.yaml` (default: 30s) |
+| Cold starts >1s | Run `npm run warm-cache` or enable provisioned concurrency |
+| Cache hit <50% | Run `npm run warm-cache`, verify TTL settings |
+| High costs | Check cache hit rate >70%, review access patterns |
+
+---
+
+## 🔄 Rollback
+
+**Quick rollback** (frontend feature flag):
+```bash
+# .env
 EXPO_PUBLIC_USE_LAMBDA_SENTIMENT=false
 ```
 
-**Full backend**:
+**Full backend rollback:**
 ```bash
-sam deploy --guided  # Deploy previous version
+sam deploy --guided  # Deploy previous SAM template
 ```
 
-## Scripts Reference
+---
 
-| Command | Description |
-|---------|-------------|
-| `npm run deploy` | Build + deploy + update frontend .env |
-| `npm run deploy:guided` | Guided deployment (first time) |
-| `npm run validate` | Check AWS prerequisites |
-| `npm run warm-cache` | Pre-populate cache |
-| `npm run create-dashboard` | CloudWatch dashboard |
-| `npm run logs` | View Lambda logs |
-| `npm run update-env [stack]` | Update frontend .env |
-| `npm test` | Run tests |
-| `npm run test:integration` | Integration tests (requires deployed backend) |
+## 📜 License
 
-## Environment Variables
-
-Set via SAM parameters during `deploy --guided`:
-- `TIINGO_API_KEY` - Stock prices
-- `FINNHUB_API_KEY` - News (deprecated, use Polygon)
-- `POLYGON_API_KEY` - News articles
-
-DynamoDB tables auto-configured by SAM.
-
-## Security
-
-- API keys encrypted in Lambda environment
-- CORS enabled for frontend
-- Input validation on all routes
-- IAM: CloudWatch Logs + DynamoDB (scoped to tables)
-- TTL auto-deletes stale data
+This project is licensed under the terms of the MIT License.

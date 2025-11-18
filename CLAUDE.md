@@ -59,7 +59,7 @@ EXPO_PUBLIC_BROWSER_PREDICTION=false     # Use browser-based prediction (test fi
 2. Frontend `.env` is auto-updated with API Gateway URL
 3. Optionally enable browser-based ML via feature flags in `.env`
 
-**⚠️ Security**: API keys for Tiingo and Polygon are **never** stored in frontend code. They are configured as Lambda environment variables during backend deployment.
+**⚠️ Security**: API keys for Tiingo and Finnhub are **never** stored in frontend code. They are configured as Lambda environment variables during backend deployment.
 
 ## Architecture Overview
 
@@ -197,11 +197,11 @@ Each step:
 - **Endpoints**:
   - `/stocks?ticker={TICKER}&startDate={DATE}&type=prices` - Stock price data (proxies Tiingo)
   - `/stocks?ticker={TICKER}&type=metadata` - Company metadata (proxies Tiingo)
-  - `/news?ticker={TICKER}&limit={N}` - News articles (proxies Polygon, handles pagination)
-- **Security**: API keys for Tiingo/Polygon stored in Lambda environment variables (not in frontend)
+  - `/news?ticker={TICKER}&limit={N}` - News articles (proxies Finnhub, handles pagination)
+- **Security**: API keys for Tiingo/Finnhub stored in Lambda environment variables (not in frontend)
 - **Rate limiting**: Handled by Lambda backend
 - **Timeout**: 30s (backend handles retries)
-- **Implementation**: `src/services/api/tiingo.service.ts`, `src/services/api/polygon.service.ts`
+- **Implementation**: `src/services/api/tiingo.service.ts`, `src/services/api/finnhub.service.ts`
 - **Backend source**: `backend/` directory (AWS SAM template)
 
 ### Sentiment Analysis (Lambda-based - Primary)
@@ -281,7 +281,7 @@ npm test -- --testPathIgnorePatterns=integration
 
 ### Mocking Patterns
 
-- **Service mocks**: `src/services/__mocks__/polygon.mock.ts` (mock API responses)
+- **Service mocks**: `src/services/__mocks__/finnhub.mock.ts` (mock API responses)
 - **Module mocks**: `__mocks__/expo-sqlite.ts` (mock native modules)
 - **Test data**: Use factories in `src/utils/mockData/` for consistent test fixtures
 

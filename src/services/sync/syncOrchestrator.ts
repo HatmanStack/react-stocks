@@ -119,43 +119,55 @@ export async function syncAllData(
     const endDate = formatDateForDB(new Date());
     const startDate = formatDateForDB(subDays(new Date(), days));
 
-    // Step 1: Sync stock prices
+    // Run stock and news sync in parallel (fastest operations first)
     onProgress?.({
-      step: 'stock',
+      step: 'fetching',
       progress: 0,
       total: 3,
-      message: `Fetching stock prices for ${ticker}...`,
+      message: `Fetching data for ${ticker}...`,
     });
 
-    try {
-      result.stockRecords = await syncStockData(ticker, startDate, endDate);
+    const [stockResult, newsResult] = await Promise.allSettled([
+      syncStockData(ticker, startDate, endDate),
+      syncNewsData(ticker, startDate, endDate),
+    ]);
+
+    // Extract results and handle errors
+    if (stockResult.status === 'fulfilled') {
+      result.stockRecords = stockResult.value;
       console.log(`[SyncOrchestrator] Stock sync complete: ${result.stockRecords} records`);
-    } catch (error) {
-      const errorMsg = `Stock sync failed: ${error}`;
+    } else {
+      const errorMsg = `Stock sync failed: ${stockResult.reason}`;
       console.error(`[SyncOrchestrator] ${errorMsg}`);
       result.errors.push(errorMsg);
-      // Continue with other steps even if stock sync fails
     }
 
-    // Step 2: Sync news articles
+    if (newsResult.status === 'fulfilled') {
+      result.newsArticles = newsResult.value;
+      console.log(`[SyncOrchestrator] News sync complete: ${result.newsArticles} articles`);
+    } else {
+      const errorMsg = `News sync failed: ${newsResult.reason}`;
+      console.error(`[SyncOrchestrator] ${errorMsg}`);
+      result.errors.push(errorMsg);
+    }
+
+    // Build progress message based on what succeeded
+    const dataTypes: string[] = [];
+    if (stockResult.status === 'fulfilled') dataTypes.push('price');
+    if (newsResult.status === 'fulfilled') dataTypes.push('news');
+
+    const message = dataTypes.length > 0
+      ? `${dataTypes.join(' and ')} data ready for ${ticker}`
+      : `Failed to fetch data for ${ticker}`;
+
     onProgress?.({
-      step: 'news',
-      progress: 1,
+      step: 'data-ready',
+      progress: 1.5,
       total: 3,
-      message: `Fetching news articles for ${ticker}...`,
+      message,
     });
 
-    try {
-      result.newsArticles = await syncNewsData(ticker, startDate, endDate);
-      console.log(`[SyncOrchestrator] News sync complete: ${result.newsArticles} articles`);
-    } catch (error) {
-      const errorMsg = `News sync failed: ${error}`;
-      console.error(`[SyncOrchestrator] ${errorMsg}`);
-      result.errors.push(errorMsg);
-      // Continue to sentiment analysis even if news sync fails
-    }
-
-    // Step 3: Trigger sentiment analysis (Lambda or local)
+    // Step 3: Trigger sentiment analysis (Lambda or local) - this can be async
     onProgress?.({
       step: 'sentiment',
       progress: 2,

@@ -51,6 +51,7 @@
     "react-native-svg-charts": "^5.4.0",
     "react-native-tab-view": "^4.2.0",
     "react-native-web": "^0.21.0",
+    "react-native-worklets": "^0.6.1",
     "sentiment": "^5.0.2",
     "xml2js": "^0.6.2"
   },

@@ -16,10 +16,9 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
-region = "us-west-2"
 parameter_overrides = "AllowedOrigins=\"*\""
-stack_name = "react-stocks-test"
-s3_prefix = "react-stocks-test"
+stack_name = "react-stocks-test-1"
+s3_prefix = "react-stocks-test-1"
 image_repositories = []
 
 [default.package.parameters]

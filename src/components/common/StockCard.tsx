@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Card } from 'react-native-paper';
+import { Card, useTheme } from 'react-native-paper';
 import type { StockDetails } from '@/types/database.types';
 import { formatCurrency, formatVolume } from '@/utils/formatting/numberFormatting';
 import { formatShortDate } from '@/utils/formatting/dateFormatting';
@@ -16,15 +16,19 @@ interface StockCardProps {
 }
 
 export function StockCard({ stock, onPress }: StockCardProps) {
+  const theme = useTheme();
+
   // Determine if stock went up or down
   const isPositive = stock.close >= stock.open;
-  const changeColor = isPositive ? '#4CAF50' : '#F44336';
+  const changeColor = isPositive ? theme.colors.positive : theme.colors.negative;
 
   return (
     <Card style={styles.card} onPress={onPress}>
       <Card.Content>
         <View style={styles.header}>
-          <Text style={styles.date}>{formatShortDate(stock.date)}</Text>
+          <Text style={[styles.date, { color: theme.colors.onSurface }]}>
+            {formatShortDate(stock.date)}
+          </Text>
           <Text style={[styles.change, { color: changeColor }]}>
             {isPositive ? '▲' : '▼'}
           </Text>
@@ -32,12 +36,14 @@ export function StockCard({ stock, onPress }: StockCardProps) {
 
         <View style={styles.priceContainer}>
           <View style={styles.priceRow}>
-            <Text style={styles.label}>Open:</Text>
-            <Text style={styles.value}>{formatCurrency(stock.open)}</Text>
+            <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Open:</Text>
+            <Text style={[styles.value, { color: theme.colors.onSurface }]}>
+              {formatCurrency(stock.open)}
+            </Text>
           </View>
 
           <View style={styles.priceRow}>
-            <Text style={styles.label}>Close:</Text>
+            <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Close:</Text>
             <Text style={[styles.value, { color: changeColor }]}>
               {formatCurrency(stock.close)}
             </Text>
@@ -46,19 +52,25 @@ export function StockCard({ stock, onPress }: StockCardProps) {
 
         <View style={styles.priceContainer}>
           <View style={styles.priceRow}>
-            <Text style={styles.label}>High:</Text>
-            <Text style={styles.value}>{formatCurrency(stock.high)}</Text>
+            <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>High:</Text>
+            <Text style={[styles.value, { color: theme.colors.onSurface }]}>
+              {formatCurrency(stock.high)}
+            </Text>
           </View>
 
           <View style={styles.priceRow}>
-            <Text style={styles.label}>Low:</Text>
-            <Text style={styles.value}>{formatCurrency(stock.low)}</Text>
+            <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Low:</Text>
+            <Text style={[styles.value, { color: theme.colors.onSurface }]}>
+              {formatCurrency(stock.low)}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.volumeContainer}>
-          <Text style={styles.label}>Volume:</Text>
-          <Text style={styles.value}>{formatVolume(stock.volume)}</Text>
+        <View style={[styles.volumeContainer, { borderTopColor: theme.colors.surfaceVariant }]}>
+          <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Volume:</Text>
+          <Text style={[styles.value, { color: theme.colors.onSurface }]}>
+            {formatVolume(stock.volume)}
+          </Text>
         </View>
       </Card.Content>
     </Card>
@@ -79,7 +91,6 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212121',
   },
   change: {
     fontSize: 18,
@@ -98,12 +109,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#757575',
   },
   value: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#212121',
   },
   volumeContainer: {
     flexDirection: 'row',
@@ -111,6 +120,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
   },
 });

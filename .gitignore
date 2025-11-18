@@ -12,3 +12,4 @@ backend/.aws-sam/
 docs-data/
 backend/samconfig.toml
 
+*.swp
