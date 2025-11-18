@@ -1,15 +1,19 @@
 <div align="center">
 
-# Stock Insights
+# Stock Insights - React Native
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![React Native](https://img.shields.io/badge/React%20Native-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Expo](https://img.shields.io/badge/Expo-000020?logo=expo&logoColor=white)](https://expo.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React Native](https://img.shields.io/badge/React%20Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
+[![Expo](https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![AWS Lambda](https://img.shields.io/badge/AWS%20Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/)
 
-A comprehensive cross-platform stock tracking application built with React Native and Expo. Monitor stock prices, read latest news, and analyze market sentiment with AI-powered insights. Track your portfolio with detailed analytics and historical data.
+**Professional stock tracking and sentiment analysis for everyone.**
 
-[Features](#-features) • [Tech Stack](#-tech-stack) • [Getting Started](#-getting-started) • [Architecture](#-architecture)
+A cross-platform application that lets you monitor real-time stock prices, analyze market sentiment, and track your portfolio with AI-powered insights.
+
+---
+
+<!-- ![Stock Insights Banner](assets/banner.png) -->
 
 ---
 
@@ -17,52 +21,47 @@ A comprehensive cross-platform stock tracking application built with React Nativ
 
 ## ✨ Features
 
-* **Real-Time Stock Data:** Access historical OHLCV price data with customizable date ranges.
-* **Market Sentiment Analysis:** Browser-based sentiment analysis with financial lexicon (instant, offline-capable).
-* **Latest News:** Stay informed with real-time news articles from major financial sources.
-* **Portfolio Management:** Track your favorite stocks with a personalized watchlist.
-* **Cross-Platform:** Single codebase runs on iOS, Android, and Web seamlessly.
-* **Offline-First:** Local database caching + browser-based ML works without network.
-* **Material Design:** Beautiful, responsive UI with React Native Paper components.
-* **Smart Sync:** Automatic data synchronization with progress tracking and error handling.
-* **Dual Database:** SQLite for native apps, localStorage for web - transparent platform abstraction.
-* **ML Predictions:** Browser-based stock predictions (next day, week, month) using logistic regression.
-* **Secure Backend:** AWS Lambda backend protects API keys, no client-side exposure.
+* 📈 **Real-Time Stock Data** - Historical OHLCV price data with customizable date ranges
+* 🧠 **Market Sentiment Analysis** - Browser-based sentiment with financial lexicon (instant, offline)
+* 📰 **Latest News** - Real-time news articles from major financial sources
+* 💼 **Portfolio Management** - Track your favorite stocks with personalized watchlist
+* 🌐 **Cross-Platform** - Single codebase runs on iOS, Android, and Web seamlessly
+* 📴 **Offline-First** - Local database caching + browser-based ML works without network
+* 🎨 **Material Design** - Beautiful, responsive UI with React Native Paper components
+* 🔄 **Smart Sync** - Automatic data synchronization with progress tracking
+* 🗄️ **Dual Database** - SQLite for native, localStorage for web - transparent abstraction
+* 🎯 **ML Predictions** - Browser-based predictions (next day, week, month) using logistic regression
+* 🔒 **Secure Backend** - AWS Lambda backend protects API keys, no client-side exposure
+
+---
+
+## 🔧 Recent Improvements
+
+### v2.0.0 - Backend Migration & ML Implementation
+- **AWS Lambda Backend**: Secure API proxy for stock/news data with DynamoDB caching
+  - Eliminates client-side API key exposure
+  - 7-30 day cache TTL for >80% hit rate
+  - Auto-updates frontend `.env` on deployment
+- **Browser-Based ML**: Replaced Python microservices with JavaScript implementations
+  - Sentiment analysis: <100ms per article (vs ~1000ms API call)
+  - Stock predictions: <50ms per prediction with scikit-learn numerical match
+  - Full offline capability
+- **Testing & Security**: 618 tests (94% pass rate), comprehensive security audit
+- **Production Ready**: SAM deployment templates, CloudWatch monitoring, cost optimization (<$20/month)
 
 ---
 
 ## 💻 Tech Stack
 
-### Frontend
-* **Framework:** [React Native](https://reactnative.dev/) 0.81.5
-* **Platform:** [Expo](https://expo.dev/) ~54.0.23
-* **Language:** [TypeScript](https://www.typescriptlang.org/) 5.9.2
-* **Navigation:** [Expo Router](https://docs.expo.dev/router/introduction/) ~6.0.14 (File-based routing)
-* **UI Library:** [React Native Paper](https://reactnativepaper.com/) 5.14.5 (Material Design)
-
-### State & Data
-* **Data Fetching:** [TanStack Query](https://tanstack.com/query) (React Query) 5.90.7
-* **State Management:** React Context API
-* **Native Database:** [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/) 16.0.9
-* **Web Storage:** localStorage (custom SQL-like interface)
-* **Networking:** [Axios](https://axios-http.com/) 1.13.2
-
-### Backend & APIs
-* **Backend:** AWS Lambda (Node.js 20.x) + API Gateway HTTP API
-* **Stock Data:** [Tiingo](https://www.tiingo.com/) & [Polygon.io](https://polygon.io/) (proxied through Lambda)
-* **Sentiment Analysis:** Browser-based JavaScript analyzer with financial lexicon
-* **Price Predictions:** Browser-based logistic regression model (ported from scikit-learn)
-
-### Machine Learning
-* **Sentiment Library:** [sentiment](https://www.npmjs.com/package/sentiment) 5.0.2
-* **Math Operations:** [mathjs](https://mathjs.org/) 14.0.3
-* **Performance:** <100ms sentiment analysis, <50ms predictions
-
-### Testing & Quality
-* **Testing:** [Jest](https://jestjs.io/) ~30.2.0 & [React Native Testing Library](https://callstack.github.io/react-native-testing-library/)
-* **Coverage:** 618 tests passing (94%), 85%+ coverage on critical paths
-* **Linting:** [ESLint](https://eslint.org/) with Expo config
-* **Formatting:** [Prettier](https://prettier.io/) 3.6.2
+* **Core:** React Native 0.81.5, Expo ~54.0.23, TypeScript 5.9.2
+* **Navigation:** Expo Router ~6.0.14 (file-based routing)
+* **UI:** React Native Paper 5.14.5 (Material Design 3)
+* **State Management:** React Context + TanStack Query 5.90.7
+* **Database:** Expo SQLite 16.0.9 (native) / localStorage (web)
+* **Backend:** AWS Lambda (Node.js 20.x) + API Gateway + DynamoDB
+* **APIs:** Tiingo & Finnhub (proxied through Lambda)
+* **ML:** Browser-based sentiment analysis + logistic regression predictions
+* **Testing:** Jest 30.2.0 + React Native Testing Library (618 tests, 94% pass rate)
 
 ---
 
@@ -70,9 +69,10 @@ A comprehensive cross-platform stock tracking application built with React Nativ
 
 ### Prerequisites
 
-* [Node.js](https://nodejs.org/) v20.x or higher (v24 LTS recommended)
-* npm (comes with Node.js)
-* [Expo Go](https://expo.dev/go) app on your iOS or Android device (for testing)
+* [Node.js](https://nodejs.org/) v20+ (v24 LTS recommended)
+* npm (included with Node.js)
+* [Expo Go](https://expo.dev/go) app (for mobile testing)
+* AWS CLI v2+ and SAM CLI v1.70.0+ (for backend deployment)
 
 ### Installation & Running
 
@@ -84,239 +84,77 @@ A comprehensive cross-platform stock tracking application built with React Nativ
 
 2.  **Install dependencies:**
     ```bash
-    npm install
+    npm install --legacy-peer-deps
     ```
 
-3.  **Run the development server:**
-    ```bash
-    # Start the Expo dev server
-    npm start
-
-    # Or run directly on a specific platform
-    npm run android  # Android emulator/device
-    npm run ios      # iOS simulator
-    npm run web      # Web browser
-    ```
-
-4.  **Deploy backend (auto-configures frontend .env):**
+3.  **Deploy backend (auto-configures .env):**
     ```bash
     cd backend
     npm install
-    npm run deploy:guided
+    npm run deploy:guided  # Enter API keys when prompted
+    # Returns to root directory and auto-updates .env
     ```
 
-    This will:
-    - Deploy the Lambda backend to AWS
-    - Auto-create `.env` from `.env.example` (if needed)
-    - Auto-update `EXPO_PUBLIC_BACKEND_URL` with the API Gateway URL
-
-    See `backend/DEPLOYMENT.md` for detailed deployment instructions.
+4.  **Start the app:**
+    ```bash
+    npm start              # Expo dev server
+    npm run android        # Android emulator/device
+    npm run ios            # iOS simulator
+    npm run web            # Web browser
+    ```
 
 5.  **Open the app:**
-    * Scan the QR code from the terminal using **Expo Go**.
-    * Or, press `a` for Android / `i` for iOS / `w` for Web in the terminal.
+    * Scan QR code with **Expo Go** app
+    * Or press `a` (Android) / `i` (iOS) / `w` (Web) in terminal
 
-### Environment Setup
+---
 
-This app requires a backend Lambda API for fetching stock and news data. The backend deployment process is documented in `backend/DEPLOYMENT.md`.
-
-**Required Environment Variables:**
-* `EXPO_PUBLIC_BACKEND_URL` - AWS Lambda API Gateway endpoint URL (auto-configured)
-* `EXPO_PUBLIC_USE_LAMBDA_SENTIMENT` - Use Lambda sentiment analysis (default: true)
-* `EXPO_PUBLIC_BROWSER_SENTIMENT` - Browser fallback for sentiment (default: false)
-* `EXPO_PUBLIC_BROWSER_PREDICTION` - Browser-based predictions (default: false)
-
-**Automated Setup:**
-```bash
-cd backend
-npm run deploy:guided  # Deploys backend + auto-updates frontend .env
-```
-
-**Manual .env Update:**
-```bash
-cd backend
-npm run update-env  # Re-syncs .env with deployed API URL
-```
-
-**⚠️ Security Note:** API keys for Tiingo and Polygon are stored in the backend Lambda environment variables, NOT in the frontend code. Never commit API keys to version control.
-
-### Development Commands
+## Available Scripts
 
 ```bash
+# Development
+npm start                  # Start Expo dev server
+npm run android            # Run on Android
+npm run ios                # Run on iOS
+npm run web                # Run on Web
+
 # Testing
-npm test                  # Run all tests once
-npm run test:watch        # Run tests in watch mode (TDD)
-npm run test:coverage     # Generate coverage report
+npm test                   # Run all tests
+npm run test:watch         # Watch mode for TDD
+npm run test:coverage      # Generate coverage report
 
 # Code Quality
-npm run type-check        # TypeScript compilation check
-npm run lint              # Run ESLint
-npm run lint:fix          # Auto-fix ESLint issues
-npm run format            # Format code with Prettier
+npm run type-check         # TypeScript compilation check
+npm run lint               # Run ESLint
+npm run lint:fix           # Auto-fix ESLint issues
+npm run format             # Format with Prettier
+
+# Backend
+cd backend
+npm run deploy:guided      # First-time deployment
+npm run deploy             # Subsequent deployments
+npm run update-env         # Update frontend .env with API URL
+npm run logs               # View Lambda logs
+npm run warm-cache         # Pre-populate DynamoDB cache
 ```
 
 ---
 
 ## 🏗 Architecture
 
-### Overview
+**Layered architecture** with clear separation of concerns:
+- **Presentation:** Expo Router screens + React Native Paper components
+- **State Management:** React Context + TanStack Query cache
+- **Business Logic:** Custom hooks + service layer
+- **Data Access:** Repository pattern with platform abstraction
+- **Storage:** SQLite (native) / localStorage (web)
 
-Stock Insights follows a **layered architecture** with clear separation of concerns:
+**Key patterns:** Repository, Platform Abstraction, Service Layer, Hook Composition
 
-```
-┌─────────────────────────────────────────────┐
-│          Presentation Layer                 │
-│  (Expo Router Screens & Components)         │
-└─────────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────────┐
-│       State Management Layer                │
-│  (React Context + React Query Cache)        │
-└─────────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────────┐
-│        Business Logic Layer                 │
-│      (Custom Hooks & Services)              │
-└─────────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────────┐
-│         Data Access Layer                   │
-│     (Repository Pattern + Sync)             │
-└─────────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────────┐
-│  Storage Layer (Platform Abstraction)       │
-│   Native: SQLite  |  Web: localStorage      │
-└─────────────────────────────────────────────┘
-```
-
-### Key Design Patterns
-
-* **Repository Pattern:** All database operations abstracted through repositories
-* **Platform Abstraction:** Dual database implementation (SQLite/localStorage) with unified interface
-* **Service Layer:** External API calls isolated in dedicated service modules
-* **Hook Composition:** Data fetching and business logic encapsulated in custom hooks
-* **Sync Orchestration:** Coordinated data pipeline for stocks → news → sentiment
-
-### Project Structure
-
-```
-react-stocks/
-├── app/                          # Expo Router (file-based routing)
-│   ├── _layout.tsx              # Root layout with providers
-│   └── (tabs)/                  # Tab navigation group
-│       ├── index.tsx            # Search screen
-│       ├── portfolio.tsx        # Portfolio screen
-│       └── stock/[ticker]/      # Dynamic stock routes
-│           ├── index.tsx        # Price tab
-│           ├── sentiment.tsx    # Sentiment tab
-│           └── news.tsx         # News tab
-├── src/
-│   ├── components/              # Reusable UI components
-│   ├── contexts/                # React Context providers
-│   ├── database/                # Database layer (SQLite + Web)
-│   │   ├── repositories/        # Data access layer
-│   │   ├── database.ts          # Native SQLite
-│   │   ├── database.web.ts      # Web localStorage
-│   │   └── index.ts             # Platform abstraction
-│   ├── hooks/                   # Custom React hooks
-│   ├── services/                # External API services
-│   │   ├── api/                 # API clients
-│   │   └── sync/                # Data synchronization
-│   ├── types/                   # TypeScript definitions
-│   ├── utils/                   # Utility functions
-│   └── theme/                   # Styling & theming
-├── __tests__/                   # Jest tests (mirrors src/)
-└── assets/                      # Static assets
-```
-
-For detailed architecture documentation, see [CLAUDE.md](CLAUDE.md).
-
----
-
-## 🔑 API Keys
-
-This app requires API keys for stock data and sentiment analysis:
-
-1. **Stock Data APIs** (choose one):
-   * [Tiingo](https://www.tiingo.com/) - Free tier: 500 requests/hour
-   * [Polygon.io](https://polygon.io/) - Free tier: 5 requests/minute
-
-2. **Sentiment Analysis:**
-   * Uses Google Cloud Run microservice (endpoint included)
-   * No API key required (public endpoint)
-
-Configure API keys in your environment or service configuration files.
-
----
-
-## 🧪 Testing
-
-The app includes comprehensive test coverage:
-
-* **Unit Tests:** Repository, service, and utility functions
-* **Integration Tests:** Complete data flow and sync pipeline
-* **Component Tests:** React Native Testing Library for UI
-
-```bash
-# Run all tests
-npm test
-
-# Watch mode for development
-npm run test:watch
-
-# Coverage report
-npm run test:coverage
-```
-
----
-
-## 📱 Platform Support
-
-| Platform | Status | Database | Notes |
-|----------|--------|----------|-------|
-| iOS      | ✅     | SQLite   | Supports iOS 13+ |
-| Android  | ✅     | SQLite   | Supports Android 6.0+ |
-| Web      | ✅     | localStorage | Full feature parity |
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-Please ensure:
-* All tests pass (`npm test`)
-* Code follows style guidelines (`npm run lint`)
-* TypeScript compiles without errors (`npm run type-check`)
+See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 
 ---
 
 ## 📜 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-* Stock data provided by [Tiingo](https://www.tiingo.com/) and [Polygon.io](https://polygon.io/)
-* Sentiment analysis powered by [FinBERT](https://github.com/ProsusAI/finBERT)
-* UI components from [React Native Paper](https://reactnativepaper.com/)
-* Built with [Expo](https://expo.dev/) and [React Native](https://reactnative.dev/)
-
----
-
-<div align="center">
-
-**[⬆ back to top](#stock-insights)**
-
-Made with ❤️ using React Native & Expo
-
-</div>
+This project is licensed under the terms of the MIT License.

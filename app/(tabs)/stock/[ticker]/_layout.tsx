@@ -5,7 +5,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { Appbar, useTheme } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
@@ -20,6 +20,7 @@ const MaterialTopTabs = withLayoutContext(Navigator);
 
 export default function StockDetailLayout() {
   const { ticker } = useLocalSearchParams<{ ticker: string }>();
+  const navigation = useNavigation();
   const theme = useTheme();
   const { data: symbolInfo, isLoading } = useSymbolDetails(ticker || 'AAPL');
   const { isInPortfolio, addToPortfolio, removeFromPortfolio } = usePortfolioContext();
@@ -27,12 +28,17 @@ export default function StockDetailLayout() {
 
   const inPortfolio = isInPortfolio(ticker || 'AAPL');
 
-  // Update selected ticker when screen loads
+  // Update selected ticker and bottom tab title when screen loads
   useEffect(() => {
     if (ticker) {
       setSelectedTicker(ticker);
+      // Update how this screen appears in the bottom tab bar
+      navigation.setOptions({
+        tabBarLabel: ticker.toUpperCase(),
+        title: ticker.toUpperCase(),
+      });
     }
-  }, [ticker, setSelectedTicker]);
+  }, [ticker, setSelectedTicker, navigation]);
 
   const handleTogglePortfolio = useCallback(async () => {
     if (!ticker) return;
@@ -70,7 +76,7 @@ export default function StockDetailLayout() {
 
   return (
     <StockDetailProvider ticker={ticker || 'AAPL'}>
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <OfflineIndicator />
         <Appbar.Header elevated style={styles.header}>
           <Appbar.Content
@@ -89,11 +95,11 @@ export default function StockDetailLayout() {
 
         <MaterialTopTabs
           screenOptions={{
-            tabBarActiveTintColor: '#1976D2',
-            tabBarInactiveTintColor: '#666',
-            tabBarIndicatorStyle: { backgroundColor: '#1976D2' },
+            tabBarActiveTintColor: theme.colors.primary,
+            tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+            tabBarIndicatorStyle: { backgroundColor: theme.colors.primary },
             tabBarLabelStyle: { fontSize: 14, fontWeight: '600', textTransform: 'none' },
-            tabBarStyle: { backgroundColor: '#fff' },
+            tabBarStyle: { backgroundColor: theme.colors.surface },
             swipeEnabled: true,
             animationEnabled: true,
             lazy: true, // Performance optimization
@@ -111,7 +117,6 @@ export default function StockDetailLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   header: {
     height: 72, // More spacious header

@@ -141,18 +141,18 @@ else
   echo "  Get key: https://api.tiingo.com"
 fi
 
-read -p "Do you have a valid Polygon API key? (y/n): " POLYGON_RESPONSE
-if [[ "$POLYGON_RESPONSE" =~ ^[Yy]$ ]]; then
-  print_check "Polygon API Key" "pass" "User confirmed"
+read -p "Do you have a valid Finnhub API key? (y/n): " FINNHUB_RESPONSE
+if [[ "$FINNHUB_RESPONSE" =~ ^[Yy]$ ]]; then
+  print_check "Finnhub API Key" "pass" "User confirmed"
 else
-  print_check "Polygon API Key" "fail"
-  echo "  Get key: https://polygon.io"
+  print_check "Finnhub API Key" "fail"
+  echo "  Get key: https://finnhub.io"
 fi
 
 echo ""
 echo "=========================================="
 
-if [ "$ALL_CHECKS_PASSED" = true ] && [[ "$TIINGO_RESPONSE" =~ ^[Yy]$ ]] && [[ "$POLYGON_RESPONSE" =~ ^[Yy]$ ]]; then
+if [ "$ALL_CHECKS_PASSED" = true ] && [[ "$TIINGO_RESPONSE" =~ ^[Yy]$ ]] && [[ "$FINNHUB_RESPONSE" =~ ^[Yy]$ ]]; then
   echo -e "${GREEN}✓ All prerequisites met!${NC}"
   echo "You're ready to proceed with Phase 1 implementation."
   echo ""

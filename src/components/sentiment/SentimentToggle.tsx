@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { SegmentedButtons } from 'react-native-paper';
+import { SegmentedButtons, useTheme } from 'react-native-paper';
 
 interface SentimentToggleProps {
   value: 'aggregate' | 'individual';
@@ -16,8 +16,10 @@ export const SentimentToggle: React.FC<SentimentToggleProps> = ({
   value,
   onValueChange,
 }) => {
+  const theme = useTheme();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <SegmentedButtons
         value={value}
         onValueChange={(val) => onValueChange(val as 'aggregate' | 'individual')}
@@ -41,6 +43,5 @@ export const SentimentToggle: React.FC<SentimentToggleProps> = ({
 const styles = StyleSheet.create({
   container: {
     padding: 12,
-    backgroundColor: '#fff',
   },
 });

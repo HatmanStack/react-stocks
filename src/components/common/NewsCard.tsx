@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet, Linking } from 'react-native';
-import { Card } from 'react-native-paper';
+import { Card, useTheme } from 'react-native-paper';
 import type { NewsDetails } from '@/types/database.types';
 import { formatNewsDate } from '@/utils/formatting/dateFormatting';
 
@@ -14,6 +14,8 @@ interface NewsCardProps {
 }
 
 export function NewsCard({ article }: NewsCardProps) {
+  const theme = useTheme();
+
   const handlePress = () => {
     if (article.articleUrl) {
       Linking.openURL(article.articleUrl).catch((error) => {
@@ -25,17 +27,21 @@ export function NewsCard({ article }: NewsCardProps) {
   return (
     <Card style={styles.card} onPress={handlePress}>
       <Card.Content>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, { color: theme.colors.onSurface }]} numberOfLines={2}>
           {article.title}
         </Text>
 
         <View style={styles.metaContainer}>
-          <Text style={styles.publisher}>{article.publisher}</Text>
-          <Text style={styles.date}>{formatNewsDate(article.date)}</Text>
+          <Text style={[styles.publisher, { color: theme.colors.primary }]}>
+            {article.publisher}
+          </Text>
+          <Text style={[styles.date, { color: theme.colors.onSurfaceVariant }]}>
+            {formatNewsDate(article.date)}
+          </Text>
         </View>
 
         {article.articleDescription && (
-          <Text style={styles.description} numberOfLines={3}>
+          <Text style={[styles.description, { color: theme.colors.onSurfaceVariant }]} numberOfLines={3}>
             {article.articleDescription}
           </Text>
         )}
@@ -52,7 +58,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#212121',
     marginBottom: 8,
   },
   metaContainer: {
@@ -63,16 +68,13 @@ const styles = StyleSheet.create({
   },
   publisher: {
     fontSize: 14,
-    color: '#1976D2',
     fontWeight: '500',
   },
   date: {
     fontSize: 12,
-    color: '#9E9E9E',
   },
   description: {
     fontSize: 14,
-    color: '#757575',
     lineHeight: 20,
   },
 });

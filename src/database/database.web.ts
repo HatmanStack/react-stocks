@@ -17,6 +17,8 @@ interface StorageData {
 class WebDatabase {
   private storageKey = `${DB_NAME}_data`;
   private data: StorageData;
+  private saveTimeout: NodeJS.Timeout | null = null;
+  private pendingSave = false;
 
   constructor() {
     this.data = this.loadData();
@@ -42,17 +44,44 @@ class WebDatabase {
     };
   }
 
+  /**
+   * Batched save using requestIdleCallback to avoid blocking the main thread
+   * Debounced to 100ms to batch multiple writes together
+   */
   private saveData(): void {
+    if (this.pendingSave) return;
+
+    this.pendingSave = true;
+
+    // Clear existing timeout
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+    }
+
+    // Debounce saves - batch multiple writes
+    this.saveTimeout = setTimeout(() => {
+      this.performSave();
+    }, 100);
+  }
+
+  private performSave(): void {
     try {
       const dataString = JSON.stringify(this.data);
-      localStorage.setItem(this.storageKey, dataString);
+      const sizeKB = (dataString.length / 1024).toFixed(1);
 
-      // Debug: verify it was saved
-      const saved = localStorage.getItem(this.storageKey);
-      if (!saved) {
-        console.error('[WebDB] CRITICAL: Data did not save to localStorage!');
+      console.log(`[WebDB] Saving ${sizeKB} KB to localStorage...`);
+
+      // Use requestIdleCallback if available, otherwise fallback to immediate save
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          localStorage.setItem(this.storageKey, dataString);
+          console.log(`[WebDB] ✓ Saved ${sizeKB} KB (idle callback)`);
+          this.pendingSave = false;
+        }, { timeout: 1000 }); // Force save after 1s if browser is busy
       } else {
-        console.log('[WebDB] ✓ Saved', (dataString.length / 1024).toFixed(1), 'KB');
+        localStorage.setItem(this.storageKey, dataString);
+        console.log(`[WebDB] ✓ Saved ${sizeKB} KB`);
+        this.pendingSave = false;
       }
     } catch (error) {
       console.error('[WebDB] Failed to save data:', error);
@@ -62,7 +91,44 @@ class WebDatabase {
         dataSize: JSON.stringify(this.data).length,
         storageKey: this.storageKey
       });
+      this.pendingSave = false;
     }
+  }
+
+  /**
+   * Synchronous save - bypasses debouncing and requestIdleCallback
+   * Used during page unload to ensure data is saved immediately
+   */
+  private performSaveSync(): void {
+    try {
+      const dataString = JSON.stringify(this.data);
+      const sizeKB = (dataString.length / 1024).toFixed(1);
+
+      // Immediately save to localStorage (synchronous)
+      localStorage.setItem(this.storageKey, dataString);
+      console.log(`[WebDB] ✓ Saved ${sizeKB} KB (sync)`);
+      this.pendingSave = false;
+    } catch (error) {
+      console.error('[WebDB] Failed to save data (sync):', error);
+      console.error('[WebDB] Error details:', {
+        name: (error as Error).name,
+        message: (error as Error).message,
+        dataSize: JSON.stringify(this.data).length,
+        storageKey: this.storageKey
+      });
+      this.pendingSave = false;
+    }
+  }
+
+  /**
+   * Force immediate save (called when user leaves page)
+   */
+  public flushSave(): void {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+    this.performSaveSync();
   }
 
   async runAsync(sql: string, params?: any[]): Promise<any> {
@@ -409,6 +475,24 @@ let webDatabase: WebDatabase | null = null;
 
 export async function initializeDatabase(): Promise<void> {
   webDatabase = new WebDatabase();
+
+  // Flush saves when user navigates away or closes page
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', () => {
+      if (webDatabase) {
+        console.log('[WebDB] Page unload - flushing pending saves');
+        webDatabase.flushSave();
+      }
+    });
+
+    // Also flush on visibility change (tab switching)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && webDatabase) {
+        console.log('[WebDB] Tab hidden - flushing pending saves');
+        webDatabase.flushSave();
+      }
+    });
+  }
 }
 
 export function getDatabase(): WebDatabase {
@@ -419,6 +503,9 @@ export function getDatabase(): WebDatabase {
 }
 
 export async function closeDatabase(): Promise<void> {
+  if (webDatabase) {
+    webDatabase.flushSave();
+  }
   webDatabase = null;
 }
 

@@ -3,8 +3,8 @@
  * Displays company information at the top of the Price screen
  */
 
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, useTheme } from 'react-native-paper';
 import type { SymbolDetails } from '@/types/database.types';
 
@@ -18,6 +18,7 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
   isLoading,
 }) => {
   const theme = useTheme();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if (isLoading) {
     return (
@@ -56,13 +57,23 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
         </Text>
 
         {symbol.longDescription && (
-          <Text
-            variant="bodyMedium"
-            style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
-            numberOfLines={3}
-          >
-            {symbol.longDescription}
-          </Text>
+          <View>
+            <Text
+              variant="bodyMedium"
+              style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
+              numberOfLines={isExpanded ? undefined : 4}
+            >
+              {symbol.longDescription}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setIsExpanded(!isExpanded)}
+              style={styles.moreButton}
+            >
+              <Text variant="bodySmall" style={[styles.moreText, { color: theme.colors.primary }]}>
+                {isExpanded ? 'Show less' : 'Show more'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </Card.Content>
     </Card>
@@ -71,28 +82,35 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    margin: 16, // More spacious margins
-    marginBottom: 0,
+    margin: 12,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12, // More spacing
+    marginBottom: 8,
   },
   ticker: {
     fontWeight: 'bold',
     marginRight: 12,
-    fontSize: 24, // Larger ticker
+    fontSize: 22,
   },
   exchange: {
-    fontSize: 14, // Slightly larger exchange
+    fontSize: 13,
     textTransform: 'uppercase',
   },
   name: {
-    marginBottom: 12, // More spacing
-    fontSize: 18, // Larger company name
+    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: '600',
   },
   description: {
-    lineHeight: 24, // More generous line height
+    lineHeight: 20,
+  },
+  moreButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  moreText: {
+    fontWeight: '600',
   },
 });

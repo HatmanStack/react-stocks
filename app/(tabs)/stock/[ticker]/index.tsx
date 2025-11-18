@@ -83,22 +83,24 @@ export default function PriceScreen() {
 
   const keyExtractor = (item: StockDetails) => `${item.ticker}-${item.date}`;
 
-  // Desktop layout: two-column with chart on left (70%) and metadata on right (30%)
+  // Desktop layout: chart full width on top, then two-column below
   if (isDesktop) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
         <ScrollView>
-          <View style={styles.desktopLayout}>
-            {/* Left column: Chart and price list */}
-            <View style={styles.desktopLeftColumn}>
-              <View style={styles.chartContainer}>
-                {isPriceLoading ? (
-                  <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
-                ) : sortedStockData && sortedStockData.length > 0 ? (
-                  <PriceChart data={sortedStockData} />
-                ) : null}
-              </View>
+          {/* Chart - Full Width */}
+          <View style={styles.chartContainer}>
+            {isPriceLoading ? (
+              <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
+            ) : sortedStockData && sortedStockData.length > 0 ? (
+              <PriceChart data={sortedStockData} />
+            ) : null}
+          </View>
 
+          {/* Two-column layout: Prices (left) and Metadata (right) */}
+          <View style={styles.desktopLayout}>
+            {/* Left column: Price list */}
+            <View style={styles.desktopLeftColumn}>
               <PriceListHeader />
               {sortedStockData.map((item) => (
                 <PriceListItem key={keyExtractor(item)} item={item} />
@@ -151,36 +153,35 @@ export default function PriceScreen() {
     );
   }
 
-  // Mobile layout: single column (original behavior)
+  // Mobile layout: chart on top, metadata on right, prices below/left
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      <FlatList
-        data={sortedStockData}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        ListHeaderComponent={() => (
-          <View>
-            <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+      <ScrollView style={styles.mobileLayout}>
+        {/* Price Chart - Full Width */}
+        <View style={styles.chartContainer}>
+          {isPriceLoading ? (
+            <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
+          ) : sortedStockData && sortedStockData.length > 0 ? (
+            <PriceChart data={sortedStockData} />
+          ) : null}
+        </View>
 
-            {/* Price Chart */}
-            <View style={styles.chartContainer}>
-              {isPriceLoading ? (
-                <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
-              ) : sortedStockData && sortedStockData.length > 0 ? (
-                <PriceChart data={sortedStockData} />
-              ) : null}
-            </View>
-
+        {/* Two-column layout: Prices (left) and Metadata (right) */}
+        <View style={styles.contentRow}>
+          {/* Left: Price List */}
+          <View style={styles.priceColumn}>
             <PriceListHeader />
+            {sortedStockData.map((item) => (
+              <PriceListItem key={keyExtractor(item)} item={item} />
+            ))}
           </View>
-        )}
-        stickyHeaderIndices={[0]}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={15}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={15}
-        windowSize={21}
-      />
+
+          {/* Right: Metadata Card (sticky to top of this row) */}
+          <View style={styles.metadataColumn}>
+            <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -202,16 +203,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  // Mobile layout with chart + two-column
+  mobileLayout: {
+    flex: 1,
+  },
+  contentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 8,
+  },
+  priceColumn: {
+    width: '60%',
+  },
+  metadataColumn: {
+    width: '40%',
+    paddingLeft: 8,
+  },
   // Desktop responsive layout
   desktopLayout: {
     flexDirection: 'row',
     padding: 20,
-    gap: 20,
   },
   desktopLeftColumn: {
     flex: 7,
+    paddingRight: 10,
+    overflow: 'hidden',
   },
   desktopRightColumn: {
     flex: 3,
+    paddingLeft: 10,
+    overflow: 'hidden',
   },
 });

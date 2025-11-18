@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { ActivityIndicator, Text, ProgressBar } from 'react-native-paper';
+import { ActivityIndicator, Text, ProgressBar, useTheme } from 'react-native-paper';
 import type { SentimentJobStatus } from '@/services/api/lambdaSentiment.service';
 
 export interface SentimentLoadingStateProps {
@@ -34,6 +34,8 @@ export function SentimentLoadingState({
   progress,
   message,
 }: SentimentLoadingStateProps) {
+  const theme = useTheme();
+
   // Determine status message
   const getStatusMessage = (): string => {
     if (message) return message;
@@ -69,33 +71,33 @@ export function SentimentLoadingState({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ActivityIndicator
         size="large"
-        color="#007AFF"
+        color={theme.colors.primary}
         style={styles.spinner}
         testID="sentiment-loading-spinner"
       />
 
-      <Text style={styles.title} variant="titleMedium">
+      <Text style={[styles.title, { color: theme.colors.onBackground }]} variant="titleMedium">
         Analyzing Sentiment
       </Text>
 
-      <Text style={styles.subtitle} variant="bodyMedium">
+      <Text style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]} variant="bodyMedium">
         {getStatusMessage()}
       </Text>
 
       {jobStatus?.status === 'IN_PROGRESS' && progress !== undefined && (
         <ProgressBar
           progress={getProgress()}
-          color="#007AFF"
+          color={theme.colors.primary}
           style={styles.progressBar}
           testID="sentiment-progress-bar"
         />
       )}
 
       {jobStatus?.jobId && (
-        <Text style={styles.jobId} variant="bodySmall">
+        <Text style={[styles.jobId, { color: theme.colors.onSurfaceVariant }]} variant="bodySmall">
           Job ID: {jobStatus.jobId}
         </Text>
       )}
@@ -109,7 +111,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
-    backgroundColor: '#fff',
   },
   spinner: {
     marginBottom: 24,
@@ -118,10 +119,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
     textAlign: 'center',
-    color: '#000',
   },
   subtitle: {
-    color: '#666',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -133,7 +132,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   jobId: {
-    color: '#999',
     marginTop: 16,
     fontSize: 11,
     fontFamily: 'monospace',

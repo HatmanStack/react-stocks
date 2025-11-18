@@ -71,13 +71,13 @@ echo "======================================"
 echo "API Keys Check"
 echo "======================================"
 read -p "Do you have your Tiingo API key ready? (y/n): " TIINGO_READY
-read -p "Do you have your Polygon API key ready? (y/n): " POLYGON_READY
+read -p "Do you have your Finnhub API key ready? (y/n): " FINNHUB_READY
 echo ""
 
-if [[ ! "$TIINGO_READY" =~ ^[Yy]$ ]] || [[ ! "$POLYGON_READY" =~ ^[Yy]$ ]]; then
+if [[ ! "$TIINGO_READY" =~ ^[Yy]$ ]] || [[ ! "$FINNHUB_READY" =~ ^[Yy]$ ]]; then
   echo "⚠ API keys not ready"
   echo "  Tiingo: https://api.tiingo.com"
-  echo "  Polygon: https://polygon.io"
+  echo "  Finnhub: https://finnhub.io"
   ALL_CHECKS_PASSED=false
 fi
 
