@@ -14,14 +14,12 @@ import * as SymbolRepository from '@/database/repositories/symbol.repository';
 import * as StockRepository from '@/database/repositories/stock.repository';
 import * as NewsRepository from '@/database/repositories/news.repository';
 import * as PortfolioRepository from '@/database/repositories/portfolio.repository';
-import { syncOrchestrator } from '@/services/sync/syncOrchestrator';
+import { syncStockData } from '@/services/sync/syncOrchestrator';
 import { getSentimentAnalyzer } from '@/ml/sentiment/analyzer';
-import { generatePrediction } from '@/ml/prediction/prediction.service';
 import type { SymbolDetails, StockDetails, NewsDetails } from '@/types/database.types';
 
 // Mock external API calls
 jest.mock('@/services/api/tiingo.service');
-jest.mock('@/services/api/polygon.service');
 jest.mock('@/database');
 
 describe('E2E: Complete User Flow', () => {

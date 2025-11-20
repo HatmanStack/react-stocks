@@ -11,27 +11,20 @@
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import axios from 'axios';
+import { getDistilFinBERTSentiment, getDistilFinBERTHealth } from '../distilFinBERT.service';
 
-// Mock axios at the module level for ESM
-const mockAxiosPost = jest.fn() as jest.MockedFunction<typeof axios.post>;
-const mockAxiosGet = jest.fn() as jest.MockedFunction<typeof axios.get>;
-
-// Replace axios methods with mocks
-(axios as any).post = mockAxiosPost;
-(axios as any).get = mockAxiosGet;
-
-// Import after mocking
-const { getDistilFinBERTSentiment, getDistilFinBERTHealth } = await import(
-  '../distilFinBERT.service.js'
-);
+// Mock axios module
+jest.mock('axios');
+const mockAxiosPost = axios.post as jest.MockedFunction<typeof axios.post>;
+const mockAxiosGet = axios.get as jest.MockedFunction<typeof axios.get>;
 
 describe('DistilFinBERT Service', () => {
   // Store original env
   const originalEnv = process.env;
 
   beforeEach(() => {
-    mockAxiosPost.mockClear();
-    mockAxiosGet.mockClear();
+    // Reset all mocks
+    jest.clearAllMocks();
     jest.useFakeTimers();
 
     // Set test environment
@@ -79,14 +72,10 @@ describe('DistilFinBERT Service', () => {
     it('should return null if API URL not configured', async () => {
       delete process.env.DISTILFINBERT_API_URL;
 
-      // Need to re-import to pick up new env
-      const { getDistilFinBERTSentiment: getFunc } = await import(
-        '../distilFinBERT.service.js?t=' + Date.now()
-      );
-
-      const result = await getFunc('Test text');
+      const result = await getDistilFinBERTSentiment('Test text');
 
       expect(result).toBeNull();
+      expect(mockAxiosPost).not.toHaveBeenCalled();
     });
 
     it('should return null for empty text', async () => {
@@ -322,14 +311,10 @@ describe('DistilFinBERT Service', () => {
     it('should return null if API URL not configured', async () => {
       delete process.env.DISTILFINBERT_API_URL;
 
-      // Need to re-import to pick up new env
-      const { getDistilFinBERTHealth: getHealth } = await import(
-        '../distilFinBERT.service.js?t=' + Date.now()
-      );
-
-      const result = await getHealth();
+      const result = await getDistilFinBERTHealth();
 
       expect(result).toBeNull();
+      expect(mockAxiosGet).not.toHaveBeenCalled();
     });
 
     it('should return null on health check failure', async () => {

@@ -11,11 +11,20 @@ import axios, { AxiosError } from 'axios';
 
 /**
  * DistilFinBERT API configuration
+ *
+ * Note: API URL is read at runtime from process.env to support testing
  */
-const DISTILFINBERT_API_URL = process.env.DISTILFINBERT_API_URL;
 const TIMEOUT_MS = 5000; // 5 second timeout per request
 const MAX_RETRIES = 3; // Retry up to 3 times
 const INITIAL_RETRY_DELAY_MS = 1000; // Start with 1 second delay
+
+/**
+ * Get DistilFinBERT API URL from environment
+ * @returns API URL or undefined if not configured
+ */
+function getApiUrl(): string | undefined {
+  return process.env.DISTILFINBERT_API_URL;
+}
 
 /**
  * DistilFinBERT API response structure
@@ -60,8 +69,9 @@ interface DistilFinBERTResponse {
 export async function getDistilFinBERTSentiment(
   text: string
 ): Promise<number | null> {
-  // Validate configuration
-  if (!DISTILFINBERT_API_URL) {
+  // Validate configuration (read at runtime for testability)
+  const apiUrl = getApiUrl();
+  if (!apiUrl) {
     console.warn(
       '[DistilFinBERTService] DISTILFINBERT_API_URL not configured, skipping DistilFinBERT analysis'
     );
@@ -90,12 +100,12 @@ export async function getDistilFinBERTSentiment(
       console.log('[DistilFinBERTService] Calling DistilFinBERT API', {
         attempt,
         textLength: text.length,
-        url: DISTILFINBERT_API_URL,
+        url: apiUrl,
       });
 
       // Make HTTP request
       const response = await axios.post<DistilFinBERTResponse>(
-        `${DISTILFINBERT_API_URL}/sentiment`,
+        `${apiUrl}/sentiment`,
         { text },
         {
           timeout: TIMEOUT_MS,
@@ -196,28 +206,33 @@ export async function getDistilFinBERTSentiment(
  * @returns true if error is retryable, false otherwise
  */
 function shouldRetryError(error: unknown): boolean {
-  if (!(error instanceof AxiosError)) {
+  // Check if it's an AxiosError (either instance or has isAxiosError property for test mocks)
+  const isAxiosError = error instanceof AxiosError || (error as any)?.isAxiosError === true;
+
+  if (!isAxiosError) {
     // Unknown error type - don't retry
     return false;
   }
 
+  const axiosError = error as AxiosError;
+
   // Network error (no response received)
-  if (!error.response) {
+  if (!axiosError.response) {
     return true;
   }
 
   // Timeout errors
-  if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+  if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {
     return true;
   }
 
   // Server errors (5xx) - retry
-  if (error.response.status >= 500) {
+  if (axiosError.response.status >= 500) {
     return true;
   }
 
   // Client errors (4xx) - don't retry (won't succeed)
-  if (error.response.status >= 400 && error.response.status < 500) {
+  if (axiosError.response.status >= 400 && axiosError.response.status < 500) {
     return false;
   }
 
@@ -245,12 +260,13 @@ export async function getDistilFinBERTHealth(): Promise<{
   status: string;
   model_loaded: boolean;
 } | null> {
-  if (!DISTILFINBERT_API_URL) {
+  const apiUrl = getApiUrl();
+  if (!apiUrl) {
     return null;
   }
 
   try {
-    const response = await axios.get(`${DISTILFINBERT_API_URL}/health`, {
+    const response = await axios.get(`${apiUrl}/health`, {
       timeout: 3000,
     });
 
