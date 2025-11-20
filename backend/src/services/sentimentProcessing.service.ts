@@ -265,14 +265,14 @@ async function analyzeArticles(
         // Default to GENERAL on classification failure
         return {
           articleHash: item.articleHash,
-          eventType: 'GENERAL',
+          eventType: 'GENERAL' as EventType,
         };
       }
     })
   );
 
   // Create map of articleHash -> eventType
-  const eventTypeMap = new Map<string, string>();
+  const eventTypeMap = new Map<string, EventType>();
   articleClassifications.forEach((result) => {
     if (result.status === 'fulfilled') {
       eventTypeMap.set(result.value.articleHash, result.value.eventType);
