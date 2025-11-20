@@ -1,7 +1,10 @@
 /**
  * SentimentCache Repository
  *
- * Provides CRUD operations for sentiment analysis results in DynamoDB cache
+ * Provides CRUD operations for sentiment analysis results in DynamoDB cache.
+ * Uses three-signal sentiment architecture (event type, aspect score, DistilFinBERT score).
+ *
+ * @see types/sentiment.types.ts for complete schema documentation
  */
 
 import {
@@ -11,55 +14,12 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { dynamoDb, batchPutItems } from '../utils/dynamodb.util.js';
 import { calculateTTL } from '../utils/cache.util.js';
+import type { SentimentCacheItem } from '../types/sentiment.types.js';
 
 const TABLE_NAME = process.env.SENTIMENT_CACHE_TABLE || 'SentimentCache';
 
-/**
- * Sentiment data interface
- */
-export interface SentimentData {
-  positive: number;
-  negative: number;
-  sentimentScore: number;
-  classification: 'POS' | 'NEG' | 'NEUT';
-}
-
-/**
- * Sentiment cache item interface
- *
- * Schema evolution:
- * - Phase 1: Added eventType
- * - Phase 2: Added aspectScore and aspectBreakdown
- * - Phase 3: Added distilFinBERTScore and modelVersion
- *
- * All new fields are optional for backward compatibility with existing cache items.
- */
-export interface SentimentCacheItem {
-  ticker: string;
-  articleHash: string;
-  sentiment: SentimentData;
-  analyzedAt: number;
-  ttl: number;
-
-  // Phase 1: Event classification
-  eventType?: string; // 'EARNINGS' | 'M&A' | 'GUIDANCE' | 'ANALYST_RATING' | 'PRODUCT_LAUNCH' | 'GENERAL'
-
-  // Phase 2: Aspect-based analysis
-  aspectScore?: number; // -1 to +1, weighted aggregate of aspect sentiments
-  aspectBreakdown?: {
-    // Individual aspect scores (only present if detected)
-    REVENUE?: number;
-    EARNINGS?: number;
-    GUIDANCE?: number;
-    MARGINS?: number;
-    GROWTH?: number;
-    DEBT?: number;
-  };
-
-  // Phase 3: DistilFinBERT integration
-  distilFinBERTScore?: number; // -1 to +1, only present for material events
-  modelVersion?: string; // Track which DistilFinBERT model version was used
-}
+// Re-export types for convenience
+export type { SentimentCacheItem, SentimentData } from '../types/sentiment.types.js';
 
 /**
  * Get sentiment analysis for a specific ticker and article hash
