@@ -74,7 +74,7 @@ describe('Preprocessing', () => {
   });
 
   describe('buildFeatureMatrix', () => {
-    it('should build 8-feature matrix correctly', () => {
+    it('should build 14-feature matrix with new signals', () => {
       const input: PredictionInput = {
         ticker: 'TEST',
         close: [150.0, 152.0],
@@ -82,42 +82,52 @@ describe('Preprocessing', () => {
         positive: [5, 3],
         negative: [2, 4],
         sentiment: ['POS', 'NEG'],
+        eventType: ['EARNINGS', 'M&A'],
+        aspectScore: [0.5, -0.3],
+        finBERTScore: [0.7, -0.2],
       };
 
       const features = buildFeatureMatrix(input);
 
       expect(features).toEqual([
-        [150.0, 100000000, 5, 2, 1, 0, 0, 0], // POS
-        [152.0, 95000000, 3, 4, 0, 1, 0, 0], // NEG
+        [150.0, 100000000, 5, 2, 1, 0, 0, 0, 0, 0, 0.5, 0.7], // EARNINGS
+        [152.0, 95000000, 3, 4, 0, 1, 0, 0, 0, 0, -0.3, -0.2], // M&A
       ]);
     });
 
-    it('should handle neutral sentiment', () => {
+    it('should default to GENERAL event type if not provided', () => {
       const input: PredictionInput = {
         ticker: 'TEST',
         close: [150.0],
         volume: [100000000],
         positive: [5],
         negative: [2],
-        sentiment: ['NEUT'],
+        sentiment: ['POS'],
+        // No eventType provided - should default to GENERAL
       };
 
       const features = buildFeatureMatrix(input);
-      expect(features).toEqual([[150.0, 100000000, 5, 2, 0, 0, 1, 0]]);
+      expect(features).toEqual([
+        [150.0, 100000000, 5, 2, 0, 0, 0, 0, 0, 1, 0, 0], // GENERAL (last event type)
+      ]);
     });
 
-    it('should handle unknown sentiment', () => {
+    it('should default aspect and finBERT scores to 0 if not provided', () => {
       const input: PredictionInput = {
         ticker: 'TEST',
         close: [150.0],
         volume: [100000000],
         positive: [5],
         negative: [2],
-        sentiment: ['INVALID'],
+        sentiment: ['POS'],
+        eventType: ['EARNINGS'],
+        // No aspectScore or finBERTScore provided - should default to 0
       };
 
       const features = buildFeatureMatrix(input);
-      expect(features).toEqual([[150.0, 100000000, 5, 2, 0, 0, 0, 1]]);
+      expect(features).toEqual([
+        [150.0, 100000000, 5, 2, 1, 0, 0, 0, 0, 0, 0, 0], // EARNINGS with zeros
+      ]);
     });
 
     it('should produce matrix with correct dimensions', () => {
@@ -128,12 +138,15 @@ describe('Preprocessing', () => {
         positive: [5, 3, 7, 4, 6],
         negative: [2, 4, 1, 3, 2],
         sentiment: ['POS', 'NEG', 'POS', 'NEUT', 'POS'],
+        eventType: ['EARNINGS', 'M&A', 'GENERAL', 'GUIDANCE', 'ANALYST_RATING'],
+        aspectScore: [0.5, -0.3, 0, 0.2, 0.8],
+        finBERTScore: [0.7, -0.2, 0.1, 0.4, 0.9],
       };
 
       const features = buildFeatureMatrix(input);
 
       expect(features.length).toBe(5); // 5 rows
-      expect(features[0].length).toBe(8); // 8 features
+      expect(features[0].length).toBe(12); // 12 features (Phase 4 update)
     });
 
     it('should throw error on inconsistent lengths', () => {
@@ -163,7 +176,7 @@ describe('Preprocessing', () => {
       expect(features).toEqual([]);
     });
 
-    it('should match reference data from AAPL sample', () => {
+    it('should match reference data from AAPL sample with defaults', () => {
       const input: PredictionInput = {
         ticker: 'AAPL',
         close: [150.0, 152.0, 151.5, 153.0, 152.5],
@@ -171,16 +184,18 @@ describe('Preprocessing', () => {
         positive: [5, 3, 7, 4, 6],
         negative: [2, 4, 1, 3, 2],
         sentiment: ['POS', 'NEG', 'POS', 'NEUT', 'POS'],
+        // No eventType/aspectScore/finBERTScore - will default to GENERAL and zeros
       };
 
       const features = buildFeatureMatrix(input);
 
-      // Verify structure matches scaler-reference.json expectations
-      expect(features[0]).toEqual([150.0, 100000000, 5, 2, 1, 0, 0, 0]);
-      expect(features[1]).toEqual([152.0, 95000000, 3, 4, 0, 1, 0, 0]);
-      expect(features[2]).toEqual([151.5, 98000000, 7, 1, 1, 0, 0, 0]);
-      expect(features[3]).toEqual([153.0, 102000000, 4, 3, 0, 0, 1, 0]);
-      expect(features[4]).toEqual([152.5, 97000000, 6, 2, 1, 0, 0, 0]);
+      // Verify structure: [close, volume, pos, neg, ...eventType(6), aspect, finbert]
+      // Default eventType is GENERAL = [0,0,0,0,0,1], aspect=0, finbert=0
+      expect(features[0]).toEqual([150.0, 100000000, 5, 2, 0, 0, 0, 0, 0, 1, 0, 0]);
+      expect(features[1]).toEqual([152.0, 95000000, 3, 4, 0, 0, 0, 0, 0, 1, 0, 0]);
+      expect(features[2]).toEqual([151.5, 98000000, 7, 1, 0, 0, 0, 0, 0, 1, 0, 0]);
+      expect(features[3]).toEqual([153.0, 102000000, 4, 3, 0, 0, 0, 0, 0, 1, 0, 0]);
+      expect(features[4]).toEqual([152.5, 97000000, 6, 2, 0, 0, 0, 0, 0, 1, 0, 0]);
     });
   });
 
@@ -277,8 +292,8 @@ describe('Preprocessing', () => {
   describe('validateFeatureMatrix', () => {
     it('should pass for valid feature matrix', () => {
       const X = [
-        [1, 2, 3, 4, 5, 6, 7, 8],
-        [1, 2, 3, 4, 5, 6, 7, 8],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
       ];
 
       expect(() => validateFeatureMatrix(X)).not.toThrow();
@@ -291,12 +306,12 @@ describe('Preprocessing', () => {
     it('should throw error for wrong feature count', () => {
       const X = [[1, 2, 3]]; // Only 3 features
 
-      expect(() => validateFeatureMatrix(X)).toThrow('Expected 8 features');
+      expect(() => validateFeatureMatrix(X)).toThrow('Expected 12 features'); // Updated to 12
     });
 
     it('should throw error for inconsistent feature count', () => {
       const X = [
-        [1, 2, 3, 4, 5, 6, 7, 8],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         [1, 2, 3], // Wrong length
       ];
 
@@ -305,7 +320,7 @@ describe('Preprocessing', () => {
 
     it('should throw error for non-finite values', () => {
       const X = [
-        [1, 2, 3, NaN, 5, 6, 7, 8],
+        [1, 2, 3, NaN, 5, 6, 7, 8, 9, 10, 11, 12],
       ];
 
       expect(() => validateFeatureMatrix(X)).toThrow('Non-finite value');
@@ -338,19 +353,23 @@ describe('Preprocessing', () => {
 
   describe('Constants', () => {
     it('should have correct feature count', () => {
-      expect(FEATURE_COUNT).toBe(8);
+      expect(FEATURE_COUNT).toBe(12); // Phase 4: Updated from 8 to 12
     });
 
     it('should have correct feature names', () => {
       expect(FEATURE_NAMES).toEqual([
         'close',
         'volume',
-        'positive',
-        'negative',
-        'is_pos',
-        'is_neg',
-        'is_neut',
-        'is_unknown',
+        'positive', // deprecated
+        'negative', // deprecated
+        'event_earnings',
+        'event_ma',
+        'event_product',
+        'event_analyst',
+        'event_guidance',
+        'event_general',
+        'aspect_score',
+        'finbert_score',
       ]);
     });
 

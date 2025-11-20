@@ -4,6 +4,21 @@
  */
 
 /**
+ * Event type categories for financial news classification (Phase 4)
+ *
+ * Used in multi-signal sentiment analysis to categorize news articles.
+ * Material events (EARNINGS, M&A, GUIDANCE, ANALYST_RATING) receive
+ * sophisticated DistilFinBERT analysis.
+ */
+export type EventType =
+  | 'EARNINGS'
+  | 'M&A'
+  | 'PRODUCT_LAUNCH'
+  | 'ANALYST_RATING'
+  | 'GUIDANCE'
+  | 'GENERAL';
+
+/**
  * StockDetails - Historical stock price data (OHLCV)
  * Maps to: stock_details table
  * Android: StockDetails.java
