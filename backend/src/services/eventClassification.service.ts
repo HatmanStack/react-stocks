@@ -17,6 +17,7 @@ import {
   scoreEvent,
   isValidText,
 } from '../ml/events/matcher.js';
+import { logMetric, logMetrics, MetricUnit } from '../utils/metrics.util.js';
 
 /**
  * Weight for headline vs summary in classification
@@ -33,6 +34,99 @@ const SUMMARY_WEIGHT = 1.0;
  * Articles with all scores below this threshold are classified as GENERAL.
  */
 const MIN_CONFIDENCE_THRESHOLD = 0.3;
+
+/**
+ * Classification metrics tracker
+ * Tracks metrics for periodic logging and monitoring
+ */
+interface ClassificationMetrics {
+  totalProcessed: number;
+  eventTypeCounts: Record<EventType, number>;
+  confidenceSum: number;
+  durationSum: number;
+  multiEventConflicts: number;
+  lowConfidenceCount: number;
+}
+
+let metrics: ClassificationMetrics = {
+  totalProcessed: 0,
+  eventTypeCounts: {
+    EARNINGS: 0,
+    'M&A': 0,
+    PRODUCT_LAUNCH: 0,
+    ANALYST_RATING: 0,
+    GUIDANCE: 0,
+    GENERAL: 0,
+  },
+  confidenceSum: 0,
+  durationSum: 0,
+  multiEventConflicts: 0,
+  lowConfidenceCount: 0,
+};
+
+/**
+ * Reset metrics (for testing or periodic resets)
+ */
+export function resetMetrics(): void {
+  metrics = {
+    totalProcessed: 0,
+    eventTypeCounts: {
+      EARNINGS: 0,
+      'M&A': 0,
+      PRODUCT_LAUNCH: 0,
+      ANALYST_RATING: 0,
+      GUIDANCE: 0,
+      GENERAL: 0,
+    },
+    confidenceSum: 0,
+    durationSum: 0,
+    multiEventConflicts: 0,
+    lowConfidenceCount: 0,
+  };
+}
+
+/**
+ * Log metrics summary to CloudWatch
+ */
+function logMetricsSummary(): void {
+  if (metrics.totalProcessed === 0) {
+    return;
+  }
+
+  const avgConfidence = metrics.confidenceSum / metrics.totalProcessed;
+  const avgDuration = metrics.durationSum / metrics.totalProcessed;
+
+  // Log aggregate metrics
+  logMetrics(
+    [
+      { name: 'EventClassificationCount', value: metrics.totalProcessed, unit: MetricUnit.Count },
+      { name: 'AvgConfidence', value: avgConfidence, unit: MetricUnit.None },
+      { name: 'AvgDurationMs', value: avgDuration, unit: MetricUnit.Milliseconds },
+      { name: 'MultiEventConflicts', value: metrics.multiEventConflicts, unit: MetricUnit.Count },
+      { name: 'LowConfidenceCount', value: metrics.lowConfidenceCount, unit: MetricUnit.Count },
+    ],
+    { Service: 'EventClassification' }
+  );
+
+  // Log event type distribution
+  Object.entries(metrics.eventTypeCounts).forEach(([eventType, count]) => {
+    if (count > 0) {
+      logMetric('EventTypeCount', count, MetricUnit.Count, {
+        Service: 'EventClassification',
+        EventType: eventType,
+      });
+    }
+  });
+
+  console.log('[EventClassificationService] Metrics summary:', {
+    totalProcessed: metrics.totalProcessed,
+    avgConfidence: avgConfidence.toFixed(3),
+    avgDuration: `${avgDuration.toFixed(2)}ms`,
+    multiEventConflicts: metrics.multiEventConflicts,
+    lowConfidenceCount: metrics.lowConfidenceCount,
+    eventTypeCounts: metrics.eventTypeCounts,
+  });
+}
 
 /**
  * Classify a news article into an event type
@@ -60,6 +154,8 @@ const MIN_CONFIDENCE_THRESHOLD = 0.3;
 export async function classifyEvent(
   article: NewsArticle
 ): Promise<EventClassificationResult> {
+  const startTime = Date.now();
+
   try {
     // Preprocess article text
     const { combinedText, headlineText, summaryText } =
@@ -84,11 +180,16 @@ export async function classifyEvent(
     // Resolve to single event type
     const result = resolveEventType(scores);
 
+    // Track metrics
+    const duration = Date.now() - startTime;
+    trackClassificationMetrics(result, scores, duration);
+
     // Log classification for monitoring
     console.log('[EventClassificationService] Classified article:', {
       title: article.title?.substring(0, 50),
       eventType: result.eventType,
       confidence: result.confidence.toFixed(2),
+      durationMs: duration.toFixed(2),
       topScores: Object.entries(scores)
         .sort(([, a], [, b]) => b.score - a.score)
         .slice(0, 3)
@@ -109,6 +210,51 @@ export async function classifyEvent(
       matchedKeywords: [],
     };
   }
+}
+
+/**
+ * Track classification metrics for monitoring
+ */
+function trackClassificationMetrics(
+  result: EventClassificationResult,
+  scores: Record<EventType, { score: number; matchedKeywords: Set<string> }>,
+  duration: number
+): void {
+  // Update metrics
+  metrics.totalProcessed++;
+  metrics.eventTypeCounts[result.eventType]++;
+  metrics.confidenceSum += result.confidence;
+  metrics.durationSum += duration;
+
+  // Track low confidence classifications
+  if (result.confidence < MIN_CONFIDENCE_THRESHOLD) {
+    metrics.lowConfidenceCount++;
+  }
+
+  // Track multi-event conflicts
+  const candidateEvents = Object.values(scores).filter(
+    (s) => s.score >= MIN_CONFIDENCE_THRESHOLD
+  );
+  if (candidateEvents.length > 1) {
+    metrics.multiEventConflicts++;
+  }
+
+  // Log summary every 100 classifications
+  if (metrics.totalProcessed % 100 === 0) {
+    logMetricsSummary();
+  }
+
+  // Log individual classification metrics
+  logMetrics(
+    [
+      { name: 'ClassificationDuration', value: duration, unit: MetricUnit.Milliseconds },
+      { name: 'ClassificationConfidence', value: result.confidence, unit: MetricUnit.None },
+    ],
+    {
+      Service: 'EventClassification',
+      EventType: result.eventType,
+    }
+  );
 }
 
 /**
