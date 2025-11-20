@@ -38,7 +38,11 @@ export function normalizeText(text: string): string {
   return (
     text
       .toLowerCase()
-      // Remove currency symbols and special chars, keep alphanumeric, spaces, hyphens
+      // Remove apostrophes (Apple's → apples)
+      .replace(/'/g, '')
+      // Remove periods and commas in numbers ($1.25 → 125, $1,000 → 1000)
+      .replace(/(\d+)[.,](\d+)/g, '$1$2')
+      // Remove remaining special chars, keep alphanumeric, spaces, hyphens
       .replace(/[^\w\s-]/g, ' ')
       // Normalize whitespace
       .replace(/\s+/g, ' ')

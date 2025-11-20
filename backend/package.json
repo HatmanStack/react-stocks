@@ -16,7 +16,6 @@
     "warm-cache": "tsx scripts/warm-cache.ts",
     "create-dashboard": "./scripts/create-dashboard.sh",
     "deploy": "./scripts/deploy.sh",
-    "deploy:guided": "./scripts/deploy.sh --guided",
     "validate": "./scripts/validate.sh",
     "logs": "./scripts/logs.sh",
     "update-env": "./scripts/update-env.sh"
