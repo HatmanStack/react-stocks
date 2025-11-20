@@ -33,6 +33,8 @@ export interface SentimentCacheItem {
   sentiment: SentimentData;
   analyzedAt: number;
   ttl: number;
+  // NEW: Event classification (Phase 1)
+  eventType?: string; // Optional for backward compatibility
 }
 
 /**

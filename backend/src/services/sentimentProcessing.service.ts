@@ -13,6 +13,7 @@ import * as NewsCacheRepository from '../repositories/newsCache.repository.js';
 import * as SentimentCacheRepository from '../repositories/sentimentCache.repository.js';
 import { analyzeSentimentBatch, analyzeSentiment } from '../ml/sentiment/analyzer.js';
 import { aggregateDailySentiment, type DailySentiment } from '../utils/sentiment.util.js';
+import { classifyEvent } from './eventClassification.service.js';
 import type {
   NewsCacheItem,
   SentimentCacheItem,
@@ -224,10 +225,13 @@ async function partitionArticlesByCache(
 /**
  * Analyze articles and return sentiment cache items
  *
+ * NEW (Phase 1): Includes event classification before sentiment analysis
+ *
  * Uses hybrid error handling:
- * 1. Try batch analysis
- * 2. If batch fails, retry once
- * 3. If still fails, analyze articles individually to get partial success
+ * 1. Classify events for all articles
+ * 2. Try batch sentiment analysis
+ * 3. If batch fails, retry once
+ * 4. If still fails, analyze articles individually to get partial success
  *
  * @returns Successful cache items (may be partial if some articles failed)
  */
@@ -238,6 +242,49 @@ async function analyzeArticles(
   if (articles.length === 0) {
     return [];
   }
+
+  // NEW (Phase 1): Classify events for all articles first
+  const articleClassifications = await Promise.allSettled(
+    articles.map(async (item) => {
+      try {
+        const classification = await classifyEvent(item.article);
+        return {
+          articleHash: item.articleHash,
+          eventType: classification.eventType,
+        };
+      } catch (error) {
+        console.error('[SentimentProcessingService] Event classification failed:', {
+          ticker,
+          articleHash: item.articleHash,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Default to GENERAL on classification failure
+        return {
+          articleHash: item.articleHash,
+          eventType: 'GENERAL',
+        };
+      }
+    })
+  );
+
+  // Create map of articleHash -> eventType
+  const eventTypeMap = new Map<string, string>();
+  articleClassifications.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      eventTypeMap.set(result.value.articleHash, result.value.eventType);
+    }
+  });
+
+  // Log event type distribution
+  const eventTypeCounts: Record<string, number> = {};
+  eventTypeMap.forEach((eventType) => {
+    eventTypeCounts[eventType] = (eventTypeCounts[eventType] || 0) + 1;
+  });
+  console.log('[SentimentProcessingService] Event type distribution:', {
+    ticker,
+    totalArticles: articles.length,
+    eventTypes: eventTypeCounts,
+  });
 
   // Prepare articles for batch analysis
   const articlesForAnalysis = articles.map((item) => ({
@@ -250,7 +297,7 @@ async function analyzeArticles(
     try {
       const sentimentResults = await analyzeSentimentBatch(articlesForAnalysis);
 
-      // Convert to cache format
+      // Convert to cache format (with event types)
       const cacheItems: Omit<SentimentCacheItem, 'ttl'>[] = sentimentResults.map(
         (result) => ({
           ticker,
@@ -262,6 +309,8 @@ async function analyzeArticles(
             classification: result.classification,
           },
           analyzedAt: Date.now(),
+          // NEW (Phase 1): Include event type
+          eventType: eventTypeMap.get(result.articleHash) || 'GENERAL',
         })
       );
 
@@ -300,6 +349,8 @@ async function analyzeArticles(
           classification: sentimentResult.classification,
         },
         analyzedAt: Date.now(),
+        // NEW (Phase 1): Include event type
+        eventType: eventTypeMap.get(sentimentResult.articleHash) || 'GENERAL',
       } as Omit<SentimentCacheItem, 'ttl'>;
     })
   );
