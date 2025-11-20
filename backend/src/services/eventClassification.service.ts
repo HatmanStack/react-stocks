@@ -32,8 +32,11 @@ const SUMMARY_WEIGHT = 1.0;
  * Minimum confidence threshold for classification
  *
  * Articles with all scores below this threshold are classified as GENERAL.
+ *
+ * Set to 0.2 to account for normalized scoring after keyword optimization.
+ * Clear event matches typically score 0.2-0.6 after normalization.
  */
-const MIN_CONFIDENCE_THRESHOLD = 0.3;
+const MIN_CONFIDENCE_THRESHOLD = 0.2;
 
 /**
  * Classification metrics tracker

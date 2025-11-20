@@ -22,7 +22,7 @@ describe('Event Classification Service', () => {
       const result = await classifyEvent(article);
 
       expect(result.eventType).toBe('EARNINGS');
-      expect(result.confidence).toBeGreaterThan(0.3); // Above threshold
+      expect(result.confidence).toBeGreaterThan(0.2); // Above threshold
       expect(result.matchedKeywords.length).toBeGreaterThan(0);
     });
 
@@ -37,10 +37,8 @@ describe('Event Classification Service', () => {
 
       const result = await classifyEvent(article);
 
-      expect(['M&A', 'GENERAL']).toContain(result.eventType); // May be GENERAL if score too low
-      if (result.eventType === 'M&A') {
-        expect(result.confidence).toBeGreaterThan(0.3);
-      }
+      expect(result.eventType).toBe('M&A');
+      expect(result.confidence).toBeGreaterThan(0.2); // Above threshold
     });
 
     it('should classify product launch article', async () => {
@@ -55,7 +53,7 @@ describe('Event Classification Service', () => {
       const result = await classifyEvent(article);
 
       expect(result.eventType).toBe('PRODUCT_LAUNCH');
-      expect(result.confidence).toBeGreaterThan(0.3); // Above threshold
+      expect(result.confidence).toBeGreaterThan(0.2); // Above threshold
     });
 
     it('should classify analyst rating article', async () => {
@@ -70,7 +68,7 @@ describe('Event Classification Service', () => {
       const result = await classifyEvent(article);
 
       expect(result.eventType).toBe('ANALYST_RATING');
-      expect(result.confidence).toBeGreaterThan(0.3); // Above threshold
+      expect(result.confidence).toBeGreaterThan(0.2); // Above threshold
     });
 
     it('should classify guidance article', async () => {
@@ -85,7 +83,7 @@ describe('Event Classification Service', () => {
       const result = await classifyEvent(article);
 
       expect(result.eventType).toBe('GUIDANCE');
-      expect(result.confidence).toBeGreaterThan(0.3); // Above threshold
+      expect(result.confidence).toBeGreaterThan(0.2); // Above threshold
     });
   });
 
