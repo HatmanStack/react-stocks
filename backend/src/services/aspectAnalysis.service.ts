@@ -16,6 +16,7 @@ import {
   AspectBreakdown,
   AspectDetectionResult,
 } from '../types/aspect.types';
+import { EventType } from '../types/event.types';
 
 /**
  * Article input for aspect analysis
@@ -24,6 +25,42 @@ export interface NewsArticle {
   ticker: string;
   headline: string;
   summary: string;
+}
+
+/**
+ * Mapping of event types to relevant aspects for analysis.
+ * Only analyzes aspects that are material to each event type.
+ *
+ * @remarks
+ * - EARNINGS: All aspects relevant (comprehensive financial view)
+ * - M&A: Focus on debt and revenue (financial health for deals)
+ * - GUIDANCE: Forward-looking metrics (revenue, earnings, margins)
+ * - ANALYST_RATING: All aspects (ratings consider full picture)
+ * - PRODUCT_LAUNCH: Revenue and growth (product impact metrics)
+ * - GENERAL: All aspects (unknown relevance)
+ */
+const EVENT_ASPECT_MAPPING: Record<EventType, AspectType[]> = {
+  EARNINGS: ['REVENUE', 'EARNINGS', 'GUIDANCE', 'MARGINS', 'GROWTH', 'DEBT'],
+  'M&A': ['DEBT', 'REVENUE'],
+  GUIDANCE: ['REVENUE', 'EARNINGS', 'MARGINS'],
+  ANALYST_RATING: ['REVENUE', 'EARNINGS', 'GUIDANCE', 'MARGINS', 'GROWTH', 'DEBT'],
+  PRODUCT_LAUNCH: ['REVENUE', 'GROWTH'],
+  GENERAL: ['REVENUE', 'EARNINGS', 'GUIDANCE', 'MARGINS', 'GROWTH', 'DEBT'],
+};
+
+/**
+ * Gets the list of relevant aspects to analyze for a given event type.
+ *
+ * @param eventType - The event type classification
+ * @returns Array of aspect types to analyze
+ */
+export function getRelevantAspects(eventType?: EventType): AspectType[] {
+  if (!eventType) {
+    // No event type provided, analyze all aspects
+    return ['REVENUE', 'EARNINGS', 'GUIDANCE', 'MARGINS', 'GROWTH', 'DEBT'];
+  }
+
+  return EVENT_ASPECT_MAPPING[eventType] || EVENT_ASPECT_MAPPING.GENERAL;
 }
 
 /**
@@ -41,7 +78,7 @@ export interface NewsArticle {
  *   summary: 'Apple reported EPS of $1.30 vs $1.20 expected...'
  * };
  *
- * const result = await analyzeAspects(article);
+ * const result = await analyzeAspects(article, 'EARNINGS');
  * // {
  * //   overallScore: 0.25,
  * //   breakdown: { EARNINGS: 0.7, REVENUE: -0.3 },
@@ -51,20 +88,21 @@ export interface NewsArticle {
  * ```
  */
 export async function analyzeAspects(
-  article: NewsArticle
+  article: NewsArticle,
+  eventType?: EventType
 ): Promise<AspectAnalysisResult> {
   // Combine headline and summary (weight headline 2x more)
   const headlineText = `${article.headline}. ${article.headline}. `; // Repeat for 2x weight
   const text = headlineText + article.summary;
 
-  // Detect all aspects
-  const allAspects: AspectType[] = ['REVENUE', 'EARNINGS', 'GUIDANCE', 'MARGINS', 'GROWTH', 'DEBT'];
+  // Get relevant aspects for this event type
+  const aspectsToAnalyze = getRelevantAspects(eventType);
 
   const detectedAspects: AspectDetectionResult[] = [];
   const breakdown: AspectBreakdown = {};
 
-  // Process each aspect
-  for (const aspect of allAspects) {
+  // Process each relevant aspect
+  for (const aspect of aspectsToAnalyze) {
     const results = detectAspect(text, aspect);
 
     if (results.length > 0) {
@@ -94,7 +132,8 @@ export async function analyzeAspects(
     };
   }
 
-  // Calculate weighted overall score
+  // Calculate weighted overall score with renormalized weights
+  // When filtering aspects, renormalize weights to sum to 1.0
   let weightedSum = 0;
   let totalWeight = 0;
 
@@ -105,6 +144,7 @@ export async function analyzeAspects(
   });
 
   // Normalize by total weight of detected aspects
+  // This automatically renormalizes when aspects are filtered
   const overallScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
 
   // Calculate overall confidence

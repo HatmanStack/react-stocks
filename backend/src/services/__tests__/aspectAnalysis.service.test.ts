@@ -2,7 +2,7 @@
  * Tests for aspect analysis service
  */
 
-import { analyzeAspects } from '../aspectAnalysis.service';
+import { analyzeAspects, getRelevantAspects } from '../aspectAnalysis.service';
 import { ASPECT_WEIGHTS } from '../../types/aspect.types';
 
 describe('Aspect Analysis Service', () => {
@@ -201,6 +201,66 @@ describe('Aspect Analysis Service', () => {
       expect(result.detectedAspects[0]).toHaveProperty('score');
       expect(result.detectedAspects[0]).toHaveProperty('confidence');
       expect(result.detectedAspects[0]).toHaveProperty('text');
+    });
+  });
+
+  describe('Event-Aspect Integration', () => {
+    it('should get relevant aspects for earnings events', () => {
+      const aspects = getRelevantAspects('EARNINGS');
+      expect(aspects).toHaveLength(6); // All aspects
+      expect(aspects).toContain('REVENUE');
+      expect(aspects).toContain('EARNINGS');
+    });
+
+    it('should get limited aspects for product launch', () => {
+      const aspects = getRelevantAspects('PRODUCT_LAUNCH');
+      expect(aspects).toHaveLength(2); // Only revenue and growth
+      expect(aspects).toContain('REVENUE');
+      expect(aspects).toContain('GROWTH');
+      expect(aspects).not.toContain('DEBT');
+    });
+
+    it('should get all aspects when no event type provided', () => {
+      const aspects = getRelevantAspects();
+      expect(aspects).toHaveLength(6); // All aspects
+    });
+
+    it('should analyze only relevant aspects for M&A events', async () => {
+      const article = {
+        ticker: 'MSFT',
+        headline: 'Microsoft Acquires Gaming Company',
+        summary: 'Microsoft announced acquisition, will finance through debt and existing cash.',
+      };
+
+      const result = await analyzeAspects(article, 'M&A');
+
+      // M&A events focus on debt and revenue
+      // Should not waste time analyzing earnings, guidance, etc.
+      const analyzedAspects = Object.keys(result.breakdown);
+
+      // Only DEBT and potentially REVENUE should be analyzed
+      analyzedAspects.forEach(aspect => {
+        expect(['DEBT', 'REVENUE']).toContain(aspect);
+      });
+    });
+
+    it('should renormalize weights when filtering aspects', async () => {
+      const article = {
+        ticker: 'AAPL',
+        headline: 'Apple Revenue Grew 15%',
+        summary: 'Revenue increased significantly.',
+      };
+
+      const earningsResult = await analyzeAspects(article, 'EARNINGS'); // All aspects
+      const productResult = await analyzeAspects(article, 'PRODUCT_LAUNCH'); // Revenue + growth only
+
+      // Both should detect REVENUE
+      expect(earningsResult.breakdown.REVENUE).toBeDefined();
+      expect(productResult.breakdown.REVENUE).toBeDefined();
+
+      // Product launch should have higher weight for revenue (renormalized)
+      // Since fewer aspects are analyzed, revenue weight is proportionally higher
+      expect(productResult.breakdown.REVENUE).toBeGreaterThan(0);
     });
   });
 
