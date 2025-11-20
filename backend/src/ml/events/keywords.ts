@@ -206,7 +206,6 @@ export const EVENT_KEYWORDS: EventKeywords = {
       'credit suisse',
       'deutsche bank',
       'citigroup',
-      'analyst',
       'firm',
     ],
     negativePatterns: [],
@@ -251,7 +250,6 @@ export const EVENT_KEYWORDS: EventKeywords = {
       'sales',
       'profit',
       'margin',
-      'expects',
       'projected',
     ],
     negativePatterns: [
