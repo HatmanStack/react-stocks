@@ -14,6 +14,8 @@ import * as SentimentCacheRepository from '../repositories/sentimentCache.reposi
 import { analyzeSentimentBatch, analyzeSentiment } from '../ml/sentiment/analyzer.js';
 import { aggregateDailySentiment, type DailySentiment } from '../utils/sentiment.util.js';
 import { classifyEvent } from './eventClassification.service.js';
+import { analyzeAspects } from './aspectAnalysis.service.js';
+import type { EventType } from '../types/event.types.js';
 import type {
   NewsCacheItem,
   SentimentCacheItem,
@@ -286,6 +288,73 @@ async function analyzeArticles(
     eventTypes: eventTypeCounts,
   });
 
+  // NEW (Phase 2): Analyze aspects for all articles
+  const aspectAnalysisStartTime = Date.now();
+  const aspectAnalysisResults = await Promise.allSettled(
+    articles.map(async (item) => {
+      try {
+        const eventType = eventTypeMap.get(item.articleHash) as EventType | undefined;
+        const analysisResult = await analyzeAspects(
+          {
+            ticker,
+            headline: item.article.title || '',
+            summary: item.article.description || '',
+          },
+          eventType
+        );
+
+        return {
+          articleHash: item.articleHash,
+          aspectScore: analysisResult.overallScore,
+          aspectBreakdown: analysisResult.breakdown,
+        };
+      } catch (error) {
+        console.error('[SentimentProcessingService] Aspect analysis failed:', {
+          ticker,
+          articleHash: item.articleHash,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Default to neutral aspect score on failure
+        return {
+          articleHash: item.articleHash,
+          aspectScore: 0,
+          aspectBreakdown: {},
+        };
+      }
+    })
+  );
+
+  // Create map of articleHash -> aspect scores
+  const aspectScoreMap = new Map<string, { score: number; breakdown: any }>();
+  aspectAnalysisResults.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      aspectScoreMap.set(result.value.articleHash, {
+        score: result.value.aspectScore,
+        breakdown: result.value.aspectBreakdown,
+      });
+    }
+  });
+
+  const aspectAnalysisDuration = Date.now() - aspectAnalysisStartTime;
+  const avgAspectAnalysisTime = aspectAnalysisDuration / articles.length;
+
+  // Log performance metrics
+  console.log('[SentimentProcessingService] Aspect analysis performance:', {
+    ticker,
+    totalArticles: articles.length,
+    totalTimeMs: aspectAnalysisDuration,
+    avgTimePerArticleMs: avgAspectAnalysisTime.toFixed(2),
+  });
+
+  // Log warning if aspect analysis is slow
+  if (avgAspectAnalysisTime > 30) {
+    console.warn('[SentimentProcessingService] Aspect analysis slow:', {
+      ticker,
+      avgTimePerArticleMs: avgAspectAnalysisTime.toFixed(2),
+      threshold: 30,
+    });
+  }
+
   // Prepare articles for batch analysis
   const articlesForAnalysis = articles.map((item) => ({
     text: `${item.article.title || ''} ${item.article.description || ''}`.trim(),
@@ -297,21 +366,27 @@ async function analyzeArticles(
     try {
       const sentimentResults = await analyzeSentimentBatch(articlesForAnalysis);
 
-      // Convert to cache format (with event types)
+      // Convert to cache format (with event types and aspect scores)
       const cacheItems: Omit<SentimentCacheItem, 'ttl'>[] = sentimentResults.map(
-        (result) => ({
-          ticker,
-          articleHash: result.articleHash,
-          sentiment: {
-            positive: parseInt(result.sentiment.positive[0]),
-            negative: parseInt(result.sentiment.negative[0]),
-            sentimentScore: result.sentimentScore,
-            classification: result.classification,
-          },
-          analyzedAt: Date.now(),
-          // NEW (Phase 1): Include event type
-          eventType: eventTypeMap.get(result.articleHash) || 'GENERAL',
-        })
+        (result) => {
+          const aspectData = aspectScoreMap.get(result.articleHash);
+          return {
+            ticker,
+            articleHash: result.articleHash,
+            sentiment: {
+              positive: parseInt(result.sentiment.positive[0]),
+              negative: parseInt(result.sentiment.negative[0]),
+              sentimentScore: result.sentimentScore,
+              classification: result.classification,
+            },
+            analyzedAt: Date.now(),
+            // NEW (Phase 1): Include event type
+            eventType: eventTypeMap.get(result.articleHash) || 'GENERAL',
+            // NEW (Phase 2): Include aspect scores
+            aspectScore: aspectData?.score ?? 0,
+            aspectBreakdown: aspectData?.breakdown,
+          };
+        }
       );
 
       return cacheItems;
@@ -338,6 +413,7 @@ async function analyzeArticles(
   const results = await Promise.allSettled(
     articlesForAnalysis.map(async (article) => {
       const sentimentResult = await analyzeSentiment(article.text, article.hash);
+      const aspectData = aspectScoreMap.get(sentimentResult.articleHash);
 
       return {
         ticker,
@@ -351,6 +427,9 @@ async function analyzeArticles(
         analyzedAt: Date.now(),
         // NEW (Phase 1): Include event type
         eventType: eventTypeMap.get(sentimentResult.articleHash) || 'GENERAL',
+        // NEW (Phase 2): Include aspect scores
+        aspectScore: aspectData?.score ?? 0,
+        aspectBreakdown: aspectData?.breakdown,
       } as Omit<SentimentCacheItem, 'ttl'>;
     })
   );
