@@ -26,6 +26,13 @@ export interface SentimentData {
 
 /**
  * Sentiment cache item interface
+ *
+ * Schema evolution:
+ * - Phase 1: Added eventType
+ * - Phase 2: Added aspectScore and aspectBreakdown
+ * - Phase 3: Added distilFinBERTScore and modelVersion
+ *
+ * All new fields are optional for backward compatibility with existing cache items.
  */
 export interface SentimentCacheItem {
   ticker: string;
@@ -33,8 +40,25 @@ export interface SentimentCacheItem {
   sentiment: SentimentData;
   analyzedAt: number;
   ttl: number;
-  // NEW: Event classification (Phase 1)
-  eventType?: string; // Optional for backward compatibility
+
+  // Phase 1: Event classification
+  eventType?: string; // 'EARNINGS' | 'M&A' | 'GUIDANCE' | 'ANALYST_RATING' | 'PRODUCT_LAUNCH' | 'GENERAL'
+
+  // Phase 2: Aspect-based analysis
+  aspectScore?: number; // -1 to +1, weighted aggregate of aspect sentiments
+  aspectBreakdown?: {
+    // Individual aspect scores (only present if detected)
+    REVENUE?: number;
+    EARNINGS?: number;
+    GUIDANCE?: number;
+    MARGINS?: number;
+    GROWTH?: number;
+    DEBT?: number;
+  };
+
+  // Phase 3: DistilFinBERT integration
+  distilFinBERTScore?: number; // -1 to +1, only present for material events
+  modelVersion?: string; // Track which DistilFinBERT model version was used
 }
 
 /**
