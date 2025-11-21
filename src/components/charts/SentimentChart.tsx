@@ -299,7 +299,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
             svg={{
               stroke: chartSeries.series[0].color,
               strokeWidth: 2,
-              opacity: chartSeries.series[0].visible ? 1 : 0,
+              strokeOpacity: chartSeries.series[0].visible ? 1 : 0,
             }}
             yMin={-1}
             yMax={1}

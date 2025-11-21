@@ -83,13 +83,13 @@ export function StockDetailProvider({
     cancelPolling,
   } = useSentimentPolling(ticker, startDate, endDate, {
     enabled: Environment.USE_LAMBDA_SENTIMENT,
-    onComplete: useCallback((data) => {
+    onComplete: useCallback((data: any[]) => {
       console.log('[StockDetailContext] Sentiment analysis complete:', data.length, 'days');
       // Invalidate React Query cache to re-fetch sentiment data
       queryClient.invalidateQueries({ queryKey: ['sentimentData', ticker] });
       queryClient.invalidateQueries({ queryKey: ['articleSentiment', ticker] });
     }, [ticker, queryClient]),
-    onError: useCallback((error) => {
+    onError: useCallback((error: Error) => {
       console.error('[StockDetailContext] Sentiment analysis failed:', error);
     }, []),
   });

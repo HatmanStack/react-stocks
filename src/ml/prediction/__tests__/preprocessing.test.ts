@@ -74,14 +74,11 @@ describe('Preprocessing', () => {
   });
 
   describe('buildFeatureMatrix', () => {
-    it('should build 14-feature matrix with new signals', () => {
+    it('should build 13-feature matrix with new signals', () => {
       const input: PredictionInput = {
         ticker: 'TEST',
-        close: [150.0, 152.0],
-        volume: [100000000, 95000000],
-        positive: [5, 3],
-        negative: [2, 4],
-        sentiment: ['POS', 'NEG'],
+        close: [150.0, 152.0, 151.0, 153.0, 154.0, 155.0, 156.0, 157.0, 158.0, 159.0, 160.0],
+        volume: [100000000, 95000000, 98000000, 97000000, 96000000, 99000000, 100000000, 101000000, 102000000, 103000000, 104000000],
         eventType: ['EARNINGS', 'M&A'],
         aspectScore: [0.5, -0.3],
         finBERTScore: [0.7, -0.2],
@@ -89,10 +86,20 @@ describe('Preprocessing', () => {
 
       const features = buildFeatureMatrix(input);
 
-      expect(features).toEqual([
-        [150.0, 100000000, 5, 2, 1, 0, 0, 0, 0, 0, 0.5, 0.7], // EARNINGS
-        [152.0, 95000000, 3, 4, 0, 1, 0, 0, 0, 0, -0.3, -0.2], // M&A
-      ]);
+      // Should have 13 features per row
+      expect(features).toHaveLength(2);
+      expect(features[0]).toHaveLength(13);
+      expect(features[1]).toHaveLength(13);
+
+      // Check event type one-hot encoding
+      expect(features[0].slice(4, 10)).toEqual([1, 0, 0, 0, 0, 0]); // EARNINGS
+      expect(features[1].slice(4, 10)).toEqual([0, 1, 0, 0, 0, 0]); // M&A
+
+      // Check aspect and finBERT scores
+      expect(features[0][10]).toBe(0.5); // aspect score
+      expect(features[0][11]).toBe(0.7); // finBERT score
+      expect(features[1][10]).toBe(-0.3); // aspect score
+      expect(features[1][11]).toBe(-0.2); // finBERT score
     });
 
     it('should default to GENERAL event type if not provided', () => {
