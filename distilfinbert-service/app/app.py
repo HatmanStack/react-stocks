@@ -208,7 +208,7 @@ async def health_check():
     """
     try:
         model_info = get_model_info()
-        model_loaded = model_info['loaded'] == 'true'
+        model_loaded = model_info['loaded']
 
         return HealthResponse(
             status="healthy",

@@ -190,5 +190,5 @@ def get_model_info() -> Dict[str, str]:
         'cache_dir': MODEL_CACHE_DIR,
         'max_length': str(MAX_TEXT_LENGTH),
         'device': 'cpu',
-        'loaded': str(_model is not None)
+        'loaded': _model is not None
     }

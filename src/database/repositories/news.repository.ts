@@ -17,7 +17,7 @@ export async function findByTicker(ticker: string): Promise<NewsDetails[]> {
   const sql = `SELECT * FROM ${TABLE_NAMES.NEWS_DETAILS} WHERE ticker = ? ORDER BY articleDate DESC`;
 
   try {
-    const results = await (db as any).getAllAsync<NewsDetails>(sql, [ticker]);
+    const results = await db.getAllAsync<NewsDetails>(sql, [ticker]);
     console.log(`[NewsRepository] Found ${results.length} news articles for ${ticker}`);
     if (results.length > 0) {
       console.log(`[NewsRepository] First 3 articles:`, results.slice(0, 3));
@@ -49,7 +49,7 @@ export async function findByTickerAndDateRange(
   `;
 
   try {
-    const results = await (db as any).getAllAsync<NewsDetails>(sql, [ticker, startDate, endDate]);
+    const results = await db.getAllAsync<NewsDetails>(sql, [ticker, startDate, endDate]);
     return results;
   } catch (error) {
     console.error('[NewsRepository] Error finding by ticker and date range:', error);
@@ -120,7 +120,7 @@ export async function existsByUrl(articleUrl: string): Promise<boolean> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.NEWS_DETAILS} WHERE articleUrl = ?`;
 
   try {
-    const result = await (db as any).getFirstAsync<{ count: number }>(sql, [articleUrl]);
+    const result = await db.getFirstAsync<{ count: number }>(sql, [articleUrl]);
     return (result?.count || 0) > 0;
   } catch (error) {
     console.error('[NewsRepository] Error checking existence by URL:', error);
@@ -154,7 +154,7 @@ export async function countByTicker(ticker: string): Promise<number> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.NEWS_DETAILS} WHERE ticker = ?`;
 
   try {
-    const result = await (db as any).getFirstAsync<{ count: number }>(sql, [ticker]);
+    const result = await db.getFirstAsync<{ count: number }>(sql, [ticker]);
     return result?.count || 0;
   } catch (error) {
     console.error('[NewsRepository] Error counting news by ticker:', error);

@@ -17,7 +17,7 @@ export async function findByTicker(ticker: string): Promise<CombinedWordDetails[
   const sql = `SELECT * FROM ${TABLE_NAMES.COMBINED_WORD_DETAILS} WHERE ticker = ? ORDER BY date DESC`;
 
   try {
-    const results = await (db as any).getAllAsync<CombinedWordDetails>(sql, [ticker]);
+    const results = await db.getAllAsync<CombinedWordDetails>(sql, [ticker]);
     return results;
   } catch (error) {
     console.error('[CombinedWordRepository] Error finding by ticker:', error);
@@ -45,7 +45,7 @@ export async function findByTickerAndDateRange(
   `;
 
   try {
-    const results = await (db as any).getAllAsync<CombinedWordDetails>(sql, [ticker, startDate, endDate]);
+    const results = await db.getAllAsync<CombinedWordDetails>(sql, [ticker, startDate, endDate]);
     return results;
   } catch (error) {
     console.error('[CombinedWordRepository] Error finding by ticker and date range:', error);
@@ -63,7 +63,7 @@ export async function findByDate(date: string): Promise<CombinedWordDetails | nu
   const sql = `SELECT * FROM ${TABLE_NAMES.COMBINED_WORD_DETAILS} WHERE date = ?`;
 
   try {
-    const result = await (db as any).getFirstAsync<CombinedWordDetails>(sql, [date]);
+    const result = await db.getFirstAsync<CombinedWordDetails>(sql, [date]);
     return result || null;
   } catch (error) {
     console.error('[CombinedWordRepository] Error finding by date:', error);

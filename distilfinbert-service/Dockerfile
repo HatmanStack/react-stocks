@@ -3,8 +3,8 @@
 # This Dockerfile creates a container image for running DistilFinBERT
 # sentiment analysis as an AWS Lambda function.
 
-# Use AWS Lambda Python 3.9 base image
-FROM public.ecr.aws/lambda/python:3.9
+# Use AWS Lambda Python 3.12 base image
+FROM public.ecr.aws/lambda/python:3.12
 
 # Set environment variables
 ENV MODEL_NAME=ProsusAI/finbert \

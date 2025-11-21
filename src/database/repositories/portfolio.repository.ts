@@ -16,7 +16,7 @@ export async function findAll(): Promise<PortfolioDetails[]> {
   const sql = `SELECT * FROM ${TABLE_NAMES.PORTFOLIO_DETAILS} ORDER BY ticker ASC`;
 
   try {
-    const results = await (db as any).getAllAsync<PortfolioDetails>(sql);
+    const results = await db.getAllAsync<PortfolioDetails>(sql);
     return results;
   } catch (error) {
     console.error('[PortfolioRepository] Error finding all portfolio entries:', error);
@@ -34,7 +34,7 @@ export async function findByTicker(ticker: string): Promise<PortfolioDetails | n
   const sql = `SELECT * FROM ${TABLE_NAMES.PORTFOLIO_DETAILS} WHERE ticker = ?`;
 
   try {
-    const result = await (db as any).getFirstAsync<PortfolioDetails>(sql, [ticker]);
+    const result = await db.getFirstAsync<PortfolioDetails>(sql, [ticker]);
     return result || null;
   } catch (error) {
     console.error('[PortfolioRepository] Error finding by ticker:', error);
@@ -95,7 +95,7 @@ export async function existsByTicker(ticker: string): Promise<boolean> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.PORTFOLIO_DETAILS} WHERE ticker = ?`;
 
   try {
-    const result = await (db as any).getFirstAsync<{ count: number }>(sql, [ticker]);
+    const result = await db.getFirstAsync<{ count: number }>(sql, [ticker]);
     return (result?.count || 0) > 0;
   } catch (error) {
     console.error('[PortfolioRepository] Error checking existence:', error);
@@ -112,7 +112,7 @@ export async function count(): Promise<number> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.PORTFOLIO_DETAILS}`;
 
   try {
-    const result = await (db as any).getFirstAsync<{ count: number }>(sql);
+    const result = await db.getFirstAsync<{ count: number }>(sql);
     return result?.count || 0;
   } catch (error) {
     console.error('[PortfolioRepository] Error counting portfolio entries:', error);

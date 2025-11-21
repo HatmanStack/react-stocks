@@ -18,7 +18,7 @@ export async function findByTicker(ticker: string): Promise<StockDetails[]> {
   const sql = `SELECT * FROM ${TABLE_NAMES.STOCK_DETAILS} WHERE ticker = ? ORDER BY date DESC`;
 
   try {
-    const results = await (db as any).getAllAsync<StockDetails>(sql, [ticker]);
+    const results = await db.getAllAsync<StockDetails>(sql, [ticker]);
     logger.debug(`[StockRepository] Found ${results.length} price records for ${ticker}`);
     if (results.length > 0) {
       logger.debug(`[StockRepository] First 3 records:`, results.slice(0, 3));
@@ -50,7 +50,7 @@ export async function findByTickerAndDateRange(
   `;
 
   try {
-    const results = await (db as any).getAllAsync<StockDetails>(sql, [ticker, startDate, endDate]);
+    const results = await db.getAllAsync<StockDetails>(sql, [ticker, startDate, endDate]);
     return results;
   } catch (error) {
     logger.error('[StockRepository] Error finding by ticker and date range:', error);
@@ -150,7 +150,7 @@ export async function countByTicker(ticker: string): Promise<number> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.STOCK_DETAILS} WHERE ticker = ?`;
 
   try {
-    const result = await (db as any).getFirstAsync<{ count: number }>(sql, [ticker]);
+    const result = await db.getFirstAsync<{ count: number }>(sql, [ticker]);
     return result?.count || 0;
   } catch (error) {
     logger.error('[StockRepository] Error counting by ticker:', error);
@@ -173,7 +173,7 @@ export async function findLatestByTicker(ticker: string): Promise<StockDetails |
   `;
 
   try {
-    const result = await (db as any).getFirstAsync<StockDetails>(sql, [ticker]);
+    const result = await db.getFirstAsync<StockDetails>(sql, [ticker]);
     return result || null;
   } catch (error) {
     logger.error('[StockRepository] Error finding latest by ticker:', error);
