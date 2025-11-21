@@ -21,5 +21,7 @@ module.exports = {
     '^@/database/index$': '<rootDir>/__mocks__/src/database/index.ts',
     'react-native-svg$': '<rootDir>/__mocks__/react-native-svg.ts',
     'react-native-svg-charts$': '<rootDir>/__mocks__/react-native-svg-charts.ts',
+    // Backend ESM support: Strip .js extensions for TypeScript files
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
 };

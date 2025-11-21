@@ -46,14 +46,14 @@ export enum MetricUnit {
 interface EMFMetric {
   _aws: {
     Timestamp: number;
-    CloudWatchMetrics: Array<{
+    CloudWatchMetrics: {
       Namespace: string;
       Dimensions: string[][];
-      Metrics: Array<{
+      Metrics: {
         Name: string;
         Unit: MetricUnit;
-      }>;
-    }>;
+      }[];
+    }[];
   };
   [key: string]: any; // Metric values and dimensions
 }
@@ -127,11 +127,11 @@ export function logMetric(
  * ], { Endpoint: 'stocks', Ticker: 'AAPL' });
  */
 export function logMetrics(
-  metrics: Array<{
+  metrics: {
     name: string;
     value: number;
     unit?: MetricUnit;
-  }>,
+  }[],
   dimensions: Record<string, string> = {}
 ): void {
   const timestamp = Date.now();

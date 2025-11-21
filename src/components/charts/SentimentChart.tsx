@@ -19,7 +19,7 @@ import { transformSentimentData } from '@/hooks/useChartData';
 import type { CombinedWordDetails } from '@/types/database.types';
 
 interface SentimentChartProps {
-  data: Array<{ date: string; sentimentScore: number }> | CombinedWordDetails[];
+  data: { date: string; sentimentScore: number }[] | CombinedWordDetails[];
   width?: number;
   height?: number;
 }
@@ -55,7 +55,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
         .sort();
     }
 
-    return (data as Array<{ date: string; sentimentScore: number }>)
+    return (data as { date: string; sentimentScore: number }[])
       .map(d => d.date)
       .sort();
   }, [data]);
@@ -68,7 +68,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
 
     if (!isCombinedWordDetails) {
       // Simple format - only legacy sentiment
-      const legacyData = (data as Array<{ date: string; sentimentScore: number }>).map(d => d.sentimentScore);
+      const legacyData = (data as { date: string; sentimentScore: number }[]).map(d => d.sentimentScore);
       return {
         series: [
           {

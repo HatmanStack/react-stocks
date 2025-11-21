@@ -354,11 +354,9 @@ function resolveEventType(
   // Find event type with highest score
   let maxScore = 0;
   let maxEventType: EventType = 'GENERAL';
-  const candidateEvents: Array<{ eventType: EventType; score: number }> = [];
+  const candidateEvents: { eventType: EventType; score: number }[] = [];
 
-  for (const [eventType, { score }] of Object.entries(scores) as Array<
-    [EventType, { score: number; matchedKeywords: Set<string> }]
-  >) {
+  for (const [eventType, { score }] of Object.entries(scores) as [EventType, { score: number; matchedKeywords: Set<string> }][]) {
     if (score > maxScore) {
       maxScore = score;
       maxEventType = eventType;

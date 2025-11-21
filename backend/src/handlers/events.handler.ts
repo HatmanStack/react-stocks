@@ -22,7 +22,7 @@ interface EventClassificationRequest {
  * Response body interface
  */
 interface EventClassificationResponse {
-  classifications: Array<EventClassificationResult & { articleUrl: string }>;
+  classifications: (EventClassificationResult & { articleUrl: string })[];
   processingTimeMs: number;
 }
 

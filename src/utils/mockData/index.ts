@@ -3,17 +3,17 @@
  * Also includes helper to populate database with mock data
  */
 
-export * from './stockMock';
-export * from './newsMock';
-export * from './sentimentMock';
-export * from './portfolioMock';
-
 import { generateMockStockPrices, generateMockSymbol } from './stockMock';
 import { generateMockNews } from './newsMock';
 import { generateMockWordCount, generateMockCombinedWordCount } from './sentimentMock';
 import { generateMockPortfolio } from './portfolioMock';
 import { StockRepository, SymbolRepository, NewsRepository, WordCountRepository, CombinedWordRepository, PortfolioRepository } from '@/database/repositories';
 import { getDateRangeFromSelection } from '@/utils/date/dateUtils';
+
+export * from './stockMock';
+export * from './newsMock';
+export * from './sentimentMock';
+export * from './portfolioMock';
 
 /**
  * Populate database with mock data for testing and development

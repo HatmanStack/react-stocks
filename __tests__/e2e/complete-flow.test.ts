@@ -57,7 +57,7 @@ describe('E2E: Complete User Flow', () => {
         name: 'Apple Inc.',
         addedAt: new Date().toISOString(),
       };
-      await PortfolioRepository.insert(portfolioItem);
+      await PortfolioRepository.upsert(portfolioItem);
 
       const portfolio = await PortfolioRepository.findAll();
       expect(portfolio).toHaveLength(1);
@@ -198,7 +198,7 @@ describe('E2E: Complete User Flow', () => {
 
       // Add multiple stocks
       for (const ticker of tickers) {
-        await PortfolioRepository.insert({
+        await PortfolioRepository.upsert({
           ticker,
           name: `${ticker} Inc.`,
           addedAt: new Date().toISOString(),

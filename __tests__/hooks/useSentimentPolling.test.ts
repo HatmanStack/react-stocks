@@ -2,7 +2,7 @@
  * Unit tests for useSentimentPolling hook
  */
 
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useSentimentPolling } from '@/hooks/useSentimentPolling';
 import * as LambdaSentiment from '@/services/api/lambdaSentiment.service';
 
