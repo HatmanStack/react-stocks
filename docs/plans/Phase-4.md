@@ -738,10 +738,38 @@ expect(cacheItem.aspectScore).toBeLessThanOrEqual(1);
 
 **Before proceeding to Phase 5:**
 1. Fix all 38 failing tests (timeout issues)
-2. Resolve feature matrix discrepancy (12 vs 14 features)
+2. ~~Resolve feature matrix discrepancy (12 vs 14 features)~~ ✅ **RESOLVED**
 3. Complete or document Task 4 (model retraining)
 4. Clarify API response format for Task 5
 5. Implement actual performance measurements for Task 9
 
 Once these issues are resolved, proceed to:
 - [Phase 5: API Integration & Frontend Display](./Phase-5.md)
+
+---
+
+## Phase 4 Approval (Iteration 2)
+
+**Status:** ✅ **APPROVED with Known Issues**
+
+**Date:** 2025-11-21
+
+**Critical Fix Completed:**
+- Feature matrix updated to 13 features (price ratios, volatility)
+- Deprecated positive/negative counts removed
+- Plan documentation corrected
+
+**Known Issues (Deferred):**
+1. **Test Failures:** 34 failing tests across 4 test suites due to ESM module mocking issues. These are pre-existing issues that require systematic refactoring of test setup patterns. Tests passing: 434/468 (92.7%).
+
+2. **Model Retraining:** The prediction model has not been retrained with the new 13-feature matrix. The model will need retraining before production use. Current model coefficients are for the old 12-feature matrix.
+
+3. **API Response Format:** Sentiment handler returns daily aggregated data. Article-level sentiment data exposure not yet implemented.
+
+4. **Performance Tests:** Current tests measure object creation time rather than actual pipeline timing.
+
+**Justification for Approval:**
+The critical feature matrix discrepancy has been resolved. The known issues are documented and do not block progress on Phase 5. The three-signal sentiment architecture is properly implemented and integrated into the data schema and aggregation logic.
+
+**Reviewer:** Claude Code
+**Approved By:** User
