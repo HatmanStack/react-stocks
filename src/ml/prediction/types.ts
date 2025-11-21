@@ -7,28 +7,28 @@ import type { EventType } from '../../types/database.types';
 /**
  * Input data for stock price predictions
  *
- * **Schema Evolution (Phase 4):**
- * - Legacy: positive/negative counts, sentiment category (deprecated)
- * - NEW: eventType (categorical), aspectScore (numerical), finBERTScore (numerical)
+ * **Phase 4 Update:**
+ * - Price features: close prices (will be converted to price ratios internally)
+ * - Volume: normalized volume
+ * - Three-signal sentiment: eventType, aspectScore, finBERTScore
+ * - Volatility: calculated from close prices
  *
- * The new three-signal architecture provides richer sentiment analysis for better predictions.
+ * The feature matrix will contain 13 features:
+ * - 3 price ratios (1d, 5d, 10d)
+ * - 1 volume
+ * - 6 event type features (one-hot encoded)
+ * - 1 aspect score
+ * - 1 finBERT score
+ * - 1 volatility
  */
 export interface PredictionInput {
   ticker: string;
 
-  // Price and volume features
-  close: number[];
+  // Price and volume features (will be transformed internally)
+  close: number[]; // Will be converted to price ratios
   volume: number[];
 
-  // Legacy sentiment features (DEPRECATED - will be removed in future)
-  /** @deprecated Use eventType, aspectScore, finBERTScore instead */
-  positive: number[];
-  /** @deprecated Use eventType, aspectScore, finBERTScore instead */
-  negative: number[];
-  /** @deprecated Use eventType instead */
-  sentiment: string[]; // "POS", "NEG", "NEUT", "UNKNOWN"
-
-  // NEW (Phase 4): Three-signal sentiment architecture
+  // Three-signal sentiment architecture
   /**
    * Event type classification for each observation.
    * Will be one-hot encoded into 6 features in the feature matrix.
@@ -45,7 +45,7 @@ export interface PredictionInput {
   /**
    * DistilFinBERT contextual sentiment score for each observation.
    * Range: -1 (very negative) to +1 (very positive)
-   * Fallback to legacy sentimentScore if not available.
+   * Defaults to 0 if not provided.
    */
   finBERTScore?: number[];
 }
