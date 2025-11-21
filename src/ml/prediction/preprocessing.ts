@@ -82,59 +82,105 @@ export function oneHotEncode(sentiment: string[]): number[][] {
 }
 
 /**
+ * Calculate price ratios for different time horizons
+ *
+ * @param close - Array of closing prices
+ * @returns Object with price ratio arrays for 1d, 5d, 10d horizons
+ */
+function calculatePriceRatios(close: number[]): {
+  ratio1d: number[];
+  ratio5d: number[];
+  ratio10d: number[];
+} {
+  const n = close.length;
+  const ratio1d: number[] = [];
+  const ratio5d: number[] = [];
+  const ratio10d: number[] = [];
+
+  for (let i = 0; i < n; i++) {
+    // 1-day ratio: close[i] / close[i-1], or 1.0 if i=0
+    ratio1d.push(i > 0 ? close[i] / close[i - 1] : 1.0);
+
+    // 5-day ratio: close[i] / close[i-5], or 1.0 if i<5
+    ratio5d.push(i >= 5 ? close[i] / close[i - 5] : 1.0);
+
+    // 10-day ratio: close[i] / close[i-10], or 1.0 if i<10
+    ratio10d.push(i >= 10 ? close[i] / close[i - 10] : 1.0);
+  }
+
+  return { ratio1d, ratio5d, ratio10d };
+}
+
+/**
+ * Calculate volatility (rolling standard deviation of returns)
+ *
+ * @param close - Array of closing prices
+ * @param window - Rolling window size (default 10)
+ * @returns Array of volatility values
+ */
+function calculateVolatility(close: number[], window: number = 10): number[] {
+  const n = close.length;
+  const volatility: number[] = [];
+
+  for (let i = 0; i < n; i++) {
+    if (i < window) {
+      // Not enough data for full window, use available data
+      volatility.push(0);
+    } else {
+      // Calculate returns for the window
+      const returns: number[] = [];
+      for (let j = i - window + 1; j <= i; j++) {
+        if (j > 0) {
+          returns.push((close[j] - close[j - 1]) / close[j - 1]);
+        }
+      }
+
+      // Calculate standard deviation of returns
+      const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+      const variance =
+        returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+      volatility.push(Math.sqrt(variance));
+    }
+  }
+
+  return volatility;
+}
+
+/**
  * Build feature matrix from raw prediction inputs
  *
- * **Phase 4 Update:** Creates 12-feature matrix with three-signal sentiment:
- * [close, volume, positive, negative, ...eventType(6), aspectScore, finBERTScore]
+ * **Phase 4 Update:** Creates 13-feature matrix with three-signal sentiment:
+ * [price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, ...eventType(6), aspectScore, finBERTScore, volatility]
  *
- * **Legacy (deprecated):** positive, negative counts maintained for backward compatibility
- * **NEW:** eventType (one-hot, 6 features), aspectScore, finBERTScore
+ * **Removed:** positive, negative counts (deprecated)
+ * **NEW:** Price ratios (3), volatility (1), eventType (6), aspectScore (1), finBERTScore (1)
  *
  * @param input - Raw prediction input data
- * @returns Feature matrix (n_samples × 12)
+ * @returns Feature matrix (n_samples × 13)
  * @throws Error if input arrays have inconsistent lengths
  *
  * @example
  * ```typescript
  * const input = {
- *   close: [150.0, 151.5],
- *   volume: [1000000, 1100000],
- *   positive: [10, 12], // deprecated but required
- *   negative: [2, 3],   // deprecated but required
- *   sentiment: ['POS', 'POS'], // deprecated but required
- *   eventType: ['EARNINGS', 'M&A'],
- *   aspectScore: [0.5, -0.3],
- *   finBERTScore: [0.7, -0.2]
+ *   close: [150.0, 151.5, 152.0],
+ *   volume: [1000000, 1100000, 1050000],
+ *   eventType: ['EARNINGS', 'M&A', 'GENERAL'],
+ *   aspectScore: [0.5, -0.3, 0.1],
+ *   finBERTScore: [0.7, -0.2, 0.0]
  * };
  * const features = buildFeatureMatrix(input);
- * // Returns 2×12 matrix
+ * // Returns 3×13 matrix
  * ```
  */
 export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
-  const {
-    close,
-    volume,
-    positive,
-    negative,
-    sentiment,
-    eventType,
-    aspectScore,
-    finBERTScore,
-  } = input;
+  const { close, volume, eventType, aspectScore, finBERTScore } = input;
 
   // Validate input lengths
   const n = close.length;
-  if (
-    volume.length !== n ||
-    positive.length !== n ||
-    negative.length !== n ||
-    sentiment.length !== n
-  ) {
+  if (volume.length !== n) {
     throw new Error(
       `Preprocessing: Inconsistent input lengths. ` +
-        `close=${close.length}, volume=${volume.length}, ` +
-        `positive=${positive.length}, negative=${negative.length}, ` +
-        `sentiment=${sentiment.length}`
+        `close=${close.length}, volume=${volume.length}`
     );
   }
 
@@ -159,6 +205,12 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
     return [];
   }
 
+  // Calculate price ratios
+  const { ratio1d, ratio5d, ratio10d } = calculatePriceRatios(close);
+
+  // Calculate volatility
+  const volatility = calculateVolatility(close);
+
   // One-hot encode event types (6 features) or use default GENERAL
   const eventOneHot = eventType
     ? oneHotEncodeEventType(eventType)
@@ -172,17 +224,18 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   // Use finBERT scores or fallback to 0
   const finBERTScores = finBERTScore ?? Array(n).fill(0);
 
-  // Build feature matrix (14 features)
+  // Build feature matrix (13 features)
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
     features[i] = [
-      close[i],
-      volume[i],
-      positive[i], // deprecated but maintained
-      negative[i], // deprecated but maintained
+      ratio1d[i], // price ratio 1-day
+      ratio5d[i], // price ratio 5-day
+      ratio10d[i], // price ratio 10-day
+      volume[i], // volume
       ...eventOneHot[i], // 6 event type features
       aspectScores[i], // aspect score
       finBERTScores[i], // finBERT score
+      volatility[i], // volatility
     ];
   }
 
@@ -221,29 +274,33 @@ export function createLabels(close: number[], horizon: number): Labels {
 }
 
 /**
- * Get the number of features in the feature matrix (Phase 4 update: 8 → 12)
+ * Get the number of features in the feature matrix (Phase 4 update: 8 → 13)
  *
  * Breakdown:
- * - 4 base features (close, volume, positive, negative)
+ * - 3 price ratio features (1d, 5d, 10d)
+ * - 1 volume feature
  * - 6 event type features (one-hot encoded)
- * - 2 sentiment features (aspect score, finBERT score)
+ * - 1 aspect score feature
+ * - 1 finBERT score feature
+ * - 1 volatility feature
  */
-export const FEATURE_COUNT = 12;
+export const FEATURE_COUNT = 13;
 
 /**
  * Get feature names in order (Phase 4 update)
  *
  * **Breakdown:**
- * - 2 price/volume features
- * - 2 legacy sentiment features (deprecated)
+ * - 3 price ratio features
+ * - 1 volume feature
  * - 6 event type features (one-hot encoded)
- * - 2 new sentiment features (aspect + finBERT)
+ * - 2 sentiment features (aspect + finBERT)
+ * - 1 volatility feature
  */
 export const FEATURE_NAMES = [
-  'close',
+  'price_ratio_1d',
+  'price_ratio_5d',
+  'price_ratio_10d',
   'volume',
-  'positive', // deprecated
-  'negative', // deprecated
   'event_earnings',
   'event_ma',
   'event_product',
@@ -252,6 +309,7 @@ export const FEATURE_NAMES = [
   'event_general',
   'aspect_score',
   'finbert_score',
+  'volatility',
 ] as const;
 
 /**

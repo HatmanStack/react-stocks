@@ -161,13 +161,15 @@ interface DailySentiment {
 7. Volatility
 8. Sentiment category (POS/NEG/NEUT → 1/0/-1)
 
-**New Features (14 total):**
-1-4. Price features (unchanged)
+**New Features (13 total):**
+1-3. Price ratios (1-day, 5-day, 10-day)
+4. Volume normalized
 5-10. Event type (one-hot encoded: 6 features)
 11. Aspect score (-1 to +1)
-12. DistilFinBERT score (-1 to +1, fallback to sentiment score if missing)
-13. Volatility (unchanged)
-14. (Remove old positive/negative counts)
+12. DistilFinBERT score (-1 to +1, fallback to 0 if missing)
+13. Volatility (rolling standard deviation of returns)
+
+**Removed:** positive/negative word counts (deprecated)
 
 **One-Hot Encoding Example:**
 ```
@@ -630,7 +632,116 @@ expect(cacheItem.aspectScore).toBeLessThanOrEqual(1);
 
 ---
 
+## Review Feedback (Iteration 1)
+
+### Critical Issues - Test Failures
+
+**Test Suite Status:**
+- 4 test suites FAILED (distilFinbert.service.test.ts, sentimentCache.repository.test.ts, sentiment.handler.test.ts, news.handler.cache.test.ts)
+- 38 tests FAILED (all timeouts - exceeded 5000ms)
+- 430 tests PASSED
+
+> **Consider:** Running `npm test` in the backend shows 38 failing tests, all with timeout errors (exceeded 5000ms). What async operations might be hanging indefinitely?
+>
+> **Think about:** The failing tests are in `__tests__/handlers/news.handler.cache.test.ts` and other integration test files. Are the mocks properly configured to resolve promises? Look at lines 335, 367, 395, 421, 454, 490 in news.handler.cache.test.ts - what do these tests have in common?
+>
+> **Reflect:** Mock functions like `mockFetchCompanyNews`, `mockExistsInCache`, and `mockBatchPutArticles` are configured in `beforeEach`. Are all promise-returning functions properly mocked with `mockResolvedValue` or `mockRejectedValue`? Could any unmocked async operations be causing the timeouts?
+
+### Task 3: Feature Matrix Implementation
+
+> **Consider:** The plan at line 164 specifies **14 total features** after removing deprecated positive/negative counts and adding price ratios and volatility. Looking at `src/ml/prediction/preprocessing.ts:231`, what does `FEATURE_COUNT` equal?
+>
+> **Think about:** The plan lists these features (lines 164-170):
+> - Features 1-4: Price ratio 1-day, 5-day, 10-day, volume normalized
+> - Features 5-10: Event type (one-hot encoded: 6 features)
+> - Feature 11: Aspect score
+> - Feature 12: DistilFinBERT score
+> - Feature 13: Volatility
+> - "Remove old positive/negative counts"
+>
+> But `preprocessing.ts:178-186` shows the actual feature matrix includes `positive[i]` and `negative[i]` at indices 2-3. Are these the deprecated features that should have been removed?
+>
+> **Reflect:** The commit message says "update feature matrix to **12 features**" but the plan specifies **14 features**. Which is correct? If 12 is correct, should the plan be updated? If 14 is correct, what 2 features are missing from the implementation?
+>
+> **Consider:** Look at the feature names in `FEATURE_NAMES` (line 242-255). Do you see `price_ratio_1d`, `price_ratio_5d`, `price_ratio_10d`, or `volatility`? What features are present instead?
+
+**RESOLVED (Iteration 2):**
+- Plan corrected: **13 total features** (not 14 - original counting error)
+- Implementation updated: removed deprecated `positive`/`negative` counts, replaced `close` with 3 price ratios, added `volatility`
+- Feature matrix now has 13 features: `[price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, ...eventType(6), aspectScore, finBERTScore, volatility]`
+- `FEATURE_COUNT` updated from 12 to 13
+- `FEATURE_NAMES` updated to match new features
+- `PredictionInput` interface updated to remove deprecated fields
+
+### Task 4: Model Retraining (Missing?)
+
+> **Consider:** The plan dedicates ~18,000 tokens (lines 204-331) to Task 4: "Retrain Prediction Model with New Features." Did this task get completed?
+>
+> **Think about:** The plan specifies creating `scripts/train-prediction-model.py` (line 211). Run `ls scripts/` - do you see this file?
+>
+> **Reflect:** The plan's verification checklist (lines 263-270) includes:
+> - [ ] Training script runs successfully
+> - [ ] Model achieves >55% test accuracy
+> - [ ] Coefficients exported correctly
+> - [ ] JavaScript model updated with new weights
+>
+> Have any of these been verified? How can the prediction model work correctly with 12 features if it was trained on 8 features (or 14 features per the plan)?
+>
+> **Consider:** Looking at `src/ml/prediction/model.ts`, do the model coefficients match the number of features in the feature matrix? If the model wasn't retrained, what predictions is it making?
+
+### Task 5: API Response Format
+
+> **Consider:** The plan (lines 357-411) shows the API response should include **article-level sentiments** with all three signals:
+> ```json
+> {
+>   "sentiments": [{
+>     "articleHash": "abc123",
+>     "eventType": "EARNINGS",
+>     "aspectScore": 0.45,
+>     "distilFinBERTScore": 0.72,
+>     "sentiment": {...}
+>   }]
+> }
+> ```
+>
+> **Think about:** Looking at `src/handlers/sentiment.handler.ts:189-262`, what does `handleSentimentResultsRequest` return? Does it return article-level sentiments or daily aggregated sentiments?
+>
+> **Reflect:** The handler calls `aggregateDailySentiment()` at line 243, which returns `DailySentiment[]` with date-level aggregates, not article-level data. Is this what the plan specified? Review lines 363-378 and 380-398 of the plan.
+>
+> **Consider:** Should there be a separate endpoint or response format that exposes article-level sentiment data with all three signals, or should the daily aggregation be sufficient?
+
+### Task 9: Performance Testing
+
+> **Consider:** The plan (lines 464-602) specifies performance tests that measure **actual timing** with targets like "<500ms per article" and "<2s for 10 articles batch."
+>
+> **Think about:** Looking at `src/__tests__/performance/pipeline-performance.test.ts:70-100`, what does the test actually measure? Is it timing real sentiment processing operations, or is it just creating mock data structures?
+>
+> **Reflect:** The test at line 70 creates a `SentimentCacheItem` object and measures how long it takes to create that object (lines 71, 95). Does this test verify the actual performance of the sentiment processing pipeline, or just the speed of object creation?
+>
+> **Consider:** The plan's test example (lines 539-584) shows calls to `processSentimentForTicker()` with `performance.now()` timing. Should your performance tests actually invoke the real processing functions to measure their execution time?
+
+### Commit Quality
+
+> **Consider:** The commit message for Task 3 says "update feature matrix to **12 features**" but the plan specifies **14 features**. Should commit messages match the specification, or should the specification be updated to match the implementation?
+>
+> **Think about:** When the implementation deviates from the plan (whether intentionally or unintentionally), should there be a commit that updates the plan documentation to reflect the actual decision made?
+
+### General Architecture
+
+> **Consider:** Review `docs/plans/Phase-0.md` for architecture decisions. Does the implementation follow the established patterns and conventions?
+>
+> **Think about:** The three-signal architecture (eventType, aspectScore, distilFinBERTScore) is properly implemented in the types and schema. The daily aggregation correctly combines these signals. Are there any other architectural concerns?
+
+---
+
 ## Next Steps
 
-Proceed to:
+**Before proceeding to Phase 5:**
+1. Fix all 38 failing tests (timeout issues)
+2. Resolve feature matrix discrepancy (12 vs 14 features)
+3. Complete or document Task 4 (model retraining)
+4. Clarify API response format for Task 5
+5. Implement actual performance measurements for Task 9
+
+Once these issues are resolved, proceed to:
 - [Phase 5: API Integration & Frontend Display](./Phase-5.md)
