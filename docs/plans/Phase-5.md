@@ -443,3 +443,152 @@ DistilFinBERT: Advanced AI sentiment (most accurate)
 ## PLAN_COMPLETE
 
 All five phases documented. Implementation can begin with Phase 1.
+
+---
+
+## Review Feedback (Iteration 1)
+
+### Overview
+
+**Status:** Tasks 1-5, 7 completed (6/9 = 67% core tasks). Phase is 80% functional complete per `Phase-5-Status.md`.
+
+**Completed:**
+- ✅ Task 1: API Types updated with EventType, AspectBreakdown, multi-signal fields
+- ✅ Task 2: Database schema migrated (v1→v2), local storage updated
+- ✅ Task 3: UI components display three-signal sentiment
+- ✅ Task 4: Multi-line sentiment chart with interactive legend
+- ✅ Task 5: Prediction services ready for 13-feature input
+- ✅ Task 7: Backward compatibility handled
+
+**Pending:**
+- ⏳ Task 6: Event type filtering (0%)
+- ⏳ Task 8: User documentation (0%)
+- ⏳ Task 9: Performance optimization (0%)
+
+---
+
+### Critical Issues - TypeScript Compilation
+
+**Type Check Failed:** 120+ TypeScript errors
+
+> **Consider:** Running `npm run type-check` shows 120+ TypeScript compilation errors. Can the application be deployed with these type errors?
+>
+> **Think about:** The errors fall into several categories:
+> 1. Missing test data files (`docs/ml-migration/test-data/*.json`)
+> 2. Type mismatches in tests (e.g., `DailySentiment` missing `eventCounts`, `materialEventCount`)
+> 3. Theme type errors (`MD3Colors` missing custom properties like `positive`, `negative`, `neutral`)
+> 4. Repository type errors ("Untyped function calls may not accept type arguments")
+>
+> **Reflect:** Looking at `src/ml/prediction/__tests__/preprocessing.test.ts:82-184`, the tests reference deprecated `positive` and `negative` fields in `PredictionInput`. Did the `PredictionInput` interface get updated to remove these fields (as Task 5 intended), but the tests weren't updated?
+>
+> **Consider:** Examining `src/components/charts/MiniChart.tsx:37`, `PriceChart.tsx:68`, `SentimentChart.tsx:182`, etc., they reference `theme.colors.positive` and `theme.colors.negative`. Does the theme definition in `src/constants/Colors.ts` or similar need custom color properties added to the MD3Colors type?
+
+### Critical Issues - Test Failures
+
+**Test Suite Status:**
+- 29 test suites FAILED
+- 78 tests FAILED
+- 800 tests PASSED (91% pass rate, but failures are blocking)
+
+> **Consider:** The test failures are split between:
+> 1. Backend ESM module resolution issues (deferred from Phase 4)
+> 2. Frontend test failures due to type mismatches
+>
+> **Think about:** Looking at `__tests__/hooks/useSentimentPolling.test.ts:105`, mock data is missing `eventCounts` and `materialEventCount` fields. After updating the `CombinedWordDetails` interface, did all test fixtures get updated with the new required fields?
+>
+> **Reflect:** In `__tests__/integration/sentiment-flow.test.ts:76`, tests reference `repository.findByHash()` which doesn't exist. After schema changes, were repository method signatures updated but test code not updated?
+>
+> **Consider:** Should test fixtures be systematically updated to include Phase 5 fields (`eventCounts`, `avgAspectScore`, `avgFinBERTScore`, `materialEventCount`) with sensible defaults?
+
+### Task 5: Prediction Integration - Incomplete Call Sites
+
+> **Consider:** The `Phase-5-Status.md` document (lines 97-102) notes: "Next Steps for Full Integration: Call sites (sync orchestrator, hooks, or components) need to extract and pass arrays to `getStockPredictions`."
+>
+> **Think about:** Looking at the prediction service signature update in `src/ml/prediction/prediction.service.ts`, it now accepts `eventTypes`, `aspectScores`, and `finBERTScores` as optional parameters. But where are these parameters actually being passed?
+>
+> **Reflect:** Check `src/hooks/usePredictions.ts` or wherever predictions are called. Do these call sites:
+> 1. Extract `eventCounts`, `avgAspectScore`, `avgFinBERTScore` from `CombinedWordDetails`?
+> 2. Parse the `eventCounts` JSON string to determine dominant event per day?
+> 3. Build arrays of `eventTypes`, `aspectScores`, `finBERTScores` for each day?
+> 4. Pass these arrays to `getStockPredictions()`?
+>
+> **Consider:** If call sites aren't passing the new parameters, are predictions still using the old 8-feature model or falling back to defaults? How can users benefit from the three-signal architecture if predictions don't consume it?
+
+### Task 4: Chart Verification
+
+> **Consider:** The chart update is marked complete. Does the chart actually render correctly despite the TypeScript errors?
+>
+> **Think about:** Looking at `src/components/charts/SentimentChart.tsx:302`, there's a type error about `opacity` not existing in `Partial<PathProps>`. Is this blocking chart rendering, or is it a type definition issue that doesn't affect runtime?
+>
+> **Reflect:** The chart uses `avgAspectScore` and `avgFinBERTScore` fields (lines 92, 100). If these fields are `undefined` for old cached data, does the chart handle this gracefully with gaps in the line, or does it crash?
+
+### Minor Issue: Plan Documentation
+
+> **Consider:** The plan (line 10, 252) mentions "14 features" in the prediction model. Phase 4 resolved this to "13 features" (3 price ratios + 1 volume + 6 event types + 1 aspect + 1 finBERT + 1 volatility).
+>
+> **Reflect:** Should Phase 5 plan documentation be updated to reference "13 features" consistently? Lines 10 and 252 need correction.
+
+### Architecture & Code Quality
+
+> **Consider:** The implementation follows the planned structure:
+> - Types updated in `src/types/database.types.ts` ✓
+> - Database migration added (v1→v2) ✓
+> - UI components consume new fields ✓
+> - Chart visualization implemented ✓
+> - Backward compatibility with optional fields ✓
+>
+> **Think about:** The three-signal architecture is properly threaded through the data flow:
+> 1. Backend → Frontend API types (`EventType`, `AspectBreakdown`)
+> 2. Frontend API → Local database (`CombinedWordDetails` with `eventCounts`, `avgAspectScore`, `avgFinBERTScore`)
+> 3. Local database → UI components (cards, charts)
+> 4. Local database → Prediction services (signature ready, call sites incomplete)
+>
+> **Reflect:** The implementation is architecturally sound. The main issues are:
+> - Type definitions not matching implementation (custom theme colors, test fixtures)
+> - Incomplete wiring of predictions to use three-signal data
+> - Test code not updated after schema changes
+
+### Commit Quality
+
+> **Consider:** The Phase 5 commits follow conventional commit format:
+> - `feat(api): add three-signal sentiment types to frontend`
+> - `feat(database): add three-signal sentiment to local storage`
+> - `feat(ui): add three-signal sentiment to daily aggregate display`
+> - `feat(charts): add multi-signal sentiment visualization`
+> - `feat(predictions): integrate three-signal sentiment into prediction services`
+>
+> **Reflect:** Commits are well-structured and descriptive. The `Phase-5-Status.md` document provides excellent transparency about what's completed vs pending.
+
+---
+
+## Next Steps
+
+**Before final approval:**
+1. **Fix TypeScript compilation errors** (blocking)
+   - Add missing test data files or update tests to not require them
+   - Update test fixtures with Phase 5 fields (`eventCounts`, `materialEventCount`)
+   - Add custom theme color properties (`positive`, `negative`, `neutral`) to theme definition
+   - Fix repository type errors
+
+2. **Fix failing tests** (blocking)
+   - Update test mocks to include new `CombinedWordDetails` fields
+   - Fix deprecated method calls (`findByHash`, `insert`)
+   - Update integration test expectations
+
+3. **Complete Task 5 call site wiring** (high priority)
+   - Update prediction call sites to extract and pass three-signal arrays
+   - Test that predictions actually use 13-feature model
+   - Verify prediction accuracy improves with real data
+
+4. **Complete remaining tasks** (lower priority)
+   - Task 6: Event filtering (enhancement)
+   - Task 8: User documentation (polish)
+   - Task 9: Performance optimization (optimization)
+
+5. **Update plan documentation** (minor)
+   - Change "14 features" references to "13 features" (lines 10, 252)
+
+**Recommendation:**
+Phase 5 has strong architectural implementation and 80% functional completion. The core three-signal sentiment flow is working. However, **TypeScript compilation errors and test failures are blocking issues** that must be resolved before production deployment. The prediction integration also needs call site wiring to actually use the three-signal features.
+
+**For approval:** Fix types and tests (items 1-2), complete prediction wiring (item 3), then request re-review.
