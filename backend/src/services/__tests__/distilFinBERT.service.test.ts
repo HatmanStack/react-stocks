@@ -10,13 +10,20 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import axios from 'axios';
 import { getDistilFinBERTSentiment, getDistilFinBERTHealth } from '../distilFinBERT.service';
 
-// Mock axios module
-jest.mock('axios');
-const mockAxiosPost = axios.post as jest.MockedFunction<typeof axios.post>;
-const mockAxiosGet = axios.get as jest.MockedFunction<typeof axios.get>;
+// Mock axios module with ESM-compatible mocking
+const mockAxiosPost = jest.fn<any>();
+const mockAxiosGet = jest.fn<any>();
+
+jest.mock('axios', () => ({
+  default: {
+    post: mockAxiosPost,
+    get: mockAxiosGet,
+  },
+  post: mockAxiosPost,
+  get: mockAxiosGet,
+}));
 
 describe('DistilFinBERT Service', () => {
   // Store original env
