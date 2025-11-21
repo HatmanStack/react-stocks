@@ -242,6 +242,8 @@ describe('Lambda Sentiment Service', () => {
             positiveCount: 45,
             negativeCount: 12,
             sentimentScore: 0.65,
+            avgAspectScore: 0.72,
+            avgFinBERTScore: 0.68,
             eventCounts: {
               EARNINGS: 2,
               'M&A': 0,
@@ -257,6 +259,8 @@ describe('Lambda Sentiment Service', () => {
             positiveCount: 30,
             negativeCount: 25,
             sentimentScore: 0.1,
+            avgAspectScore: 0.15,
+            avgFinBERTScore: 0.12,
             eventCounts: {
               EARNINGS: 0,
               'M&A': 0,

@@ -17,7 +17,7 @@ export async function findByTicker(ticker: string): Promise<WordCountDetails[]> 
   const sql = `SELECT * FROM ${TABLE_NAMES.WORD_COUNT_DETAILS} WHERE ticker = ? ORDER BY date DESC`;
 
   try {
-    const results = await (db as any).getAllAsync<WordCountDetails>(sql, [ticker]);
+    const results = await db.getAllAsync<WordCountDetails>(sql, [ticker]);
     return results;
   } catch (error) {
     console.error('[WordCountRepository] Error finding by ticker:', error);
@@ -36,7 +36,7 @@ export async function findByTickerAndDate(ticker: string, date: string): Promise
   const sql = `SELECT * FROM ${TABLE_NAMES.WORD_COUNT_DETAILS} WHERE ticker = ? AND date = ?`;
 
   try {
-    const results = await (db as any).getAllAsync<WordCountDetails>(sql, [ticker, date]);
+    const results = await db.getAllAsync<WordCountDetails>(sql, [ticker, date]);
     return results;
   } catch (error) {
     console.error('[WordCountRepository] Error finding by ticker and date:', error);
@@ -109,7 +109,7 @@ export async function existsByHash(hash: number): Promise<boolean> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.WORD_COUNT_DETAILS} WHERE hash = ?`;
 
   try {
-    const result = await (db as any).getFirstAsync<{ count: number }>(sql, [hash]);
+    const result = await db.getFirstAsync<{ count: number }>(sql, [hash]);
     return (result?.count || 0) > 0;
   } catch (error) {
     console.error('[WordCountRepository] Error checking existence by hash:', error);

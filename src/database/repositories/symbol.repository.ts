@@ -17,7 +17,7 @@ export async function findByTicker(ticker: string): Promise<SymbolDetails | null
   const sql = `SELECT * FROM ${TABLE_NAMES.SYMBOL_DETAILS} WHERE ticker = ? LIMIT 1`;
 
   try {
-    const result = await (db as any).getFirstAsync<SymbolDetails>(sql, [ticker]);
+    const result = await db.getFirstAsync<SymbolDetails>(sql, [ticker]);
     return result || null;
   } catch (error) {
     console.error('[SymbolRepository] Error finding by ticker:', error);
@@ -34,7 +34,7 @@ export async function findAll(): Promise<SymbolDetails[]> {
   const sql = `SELECT * FROM ${TABLE_NAMES.SYMBOL_DETAILS} ORDER BY ticker ASC`;
 
   try {
-    const results = await (db as any).getAllAsync<SymbolDetails>(sql);
+    const results = await db.getAllAsync<SymbolDetails>(sql);
     return results;
   } catch (error) {
     console.error('[SymbolRepository] Error finding all symbols:', error);
@@ -126,7 +126,7 @@ export async function existsByTicker(ticker: string): Promise<boolean> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.SYMBOL_DETAILS} WHERE ticker = ?`;
 
   try {
-    const result = await (db as any).getFirstAsync<{ count: number }>(sql, [ticker]);
+    const result = await db.getFirstAsync<{ count: number }>(sql, [ticker]);
     return (result?.count || 0) > 0;
   } catch (error) {
     console.error('[SymbolRepository] Error checking existence:', error);

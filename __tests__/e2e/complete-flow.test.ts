@@ -14,8 +14,9 @@ import * as SymbolRepository from '@/database/repositories/symbol.repository';
 import * as StockRepository from '@/database/repositories/stock.repository';
 import * as NewsRepository from '@/database/repositories/news.repository';
 import * as PortfolioRepository from '@/database/repositories/portfolio.repository';
-import { syncStockData } from '@/services/sync/syncOrchestrator';
+import { syncAllData } from '@/services/sync/syncOrchestrator';
 import { getSentimentAnalyzer } from '@/ml/sentiment/analyzer';
+import { getStockPredictions } from '@/ml/prediction/prediction.service';
 import type { SymbolDetails, StockDetails, NewsDetails } from '@/types/database.types';
 
 // Mock external API calls
@@ -111,7 +112,7 @@ describe('E2E: Complete User Flow', () => {
 
       // Step 7: Browser-based ML generates predictions
       // Note: Requires sufficient historical data, this is a simplified test
-      const prediction = await generatePrediction(TEST_TICKER, 30);
+      const prediction = await getStockPredictions(TEST_TICKER);
       expect(prediction).toBeDefined();
       expect(prediction.ticker).toBe(TEST_TICKER);
 
@@ -235,10 +236,10 @@ describe('E2E: Complete User Flow', () => {
 
       // Note: This test verifies the sync orchestrator interface
       // Actual sync would require mocked API responses
-      expect(typeof syncOrchestrator).toBe('function');
+      expect(typeof syncAllData).toBe('function');
 
       // Verify progress callback is optional
-      const callSync = () => syncOrchestrator(TEST_TICKER, 30);
+      const callSync = () => syncAllData(TEST_TICKER, 30);
       expect(callSync).toBeDefined();
     });
   });
