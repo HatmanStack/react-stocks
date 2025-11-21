@@ -31,7 +31,7 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
   const { data: latestPrice, isLoading } = useLatestStockPrice(item.ticker);
 
   // Fetch recent stock data for mini chart (last 30 days)
-  const { data: stockHistory } = useStockData(item.ticker, 30);
+  const { data: stockHistory } = useStockData(item.ticker, { days: 30 });
 
   // Calculate price change percentage
   const priceChange = useMemo(() => {
