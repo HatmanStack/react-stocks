@@ -107,16 +107,17 @@ describe('Preprocessing', () => {
         ticker: 'TEST',
         close: [150.0],
         volume: [100000000],
-        positive: [5],
-        negative: [2],
-        sentiment: ['POS'],
         // No eventType provided - should default to GENERAL
       };
 
       const features = buildFeatureMatrix(input);
-      expect(features).toEqual([
-        [150.0, 100000000, 5, 2, 0, 0, 0, 0, 0, 1, 0, 0], // GENERAL (last event type)
-      ]);
+      expect(features).toHaveLength(1);
+      expect(features[0]).toHaveLength(13);
+      // Check that event type defaults to GENERAL (index 4-9, with 9=1 for GENERAL)
+      expect(features[0].slice(4, 10)).toEqual([0, 0, 0, 0, 0, 1]); // GENERAL
+      // Check that aspect and finBERT default to 0
+      expect(features[0][10]).toBe(0); // aspect score
+      expect(features[0][11]).toBe(0); // finBERT score
     });
 
     it('should default aspect and finBERT scores to 0 if not provided', () => {
@@ -124,17 +125,18 @@ describe('Preprocessing', () => {
         ticker: 'TEST',
         close: [150.0],
         volume: [100000000],
-        positive: [5],
-        negative: [2],
-        sentiment: ['POS'],
         eventType: ['EARNINGS'],
         // No aspectScore or finBERTScore provided - should default to 0
       };
 
       const features = buildFeatureMatrix(input);
-      expect(features).toEqual([
-        [150.0, 100000000, 5, 2, 1, 0, 0, 0, 0, 0, 0, 0], // EARNINGS with zeros
-      ]);
+      expect(features).toHaveLength(1);
+      expect(features[0]).toHaveLength(13);
+      // Check event type is EARNINGS (index 4=1)
+      expect(features[0].slice(4, 10)).toEqual([1, 0, 0, 0, 0, 0]); // EARNINGS
+      // Check that aspect and finBERT default to 0
+      expect(features[0][10]).toBe(0); // aspect score
+      expect(features[0][11]).toBe(0); // finBERT score
     });
 
     it('should produce matrix with correct dimensions', () => {
@@ -142,9 +144,6 @@ describe('Preprocessing', () => {
         ticker: 'TEST',
         close: [150.0, 152.0, 151.5, 153.0, 152.5],
         volume: [100000000, 95000000, 98000000, 102000000, 97000000],
-        positive: [5, 3, 7, 4, 6],
-        negative: [2, 4, 1, 3, 2],
-        sentiment: ['POS', 'NEG', 'POS', 'NEUT', 'POS'],
         eventType: ['EARNINGS', 'M&A', 'GENERAL', 'GUIDANCE', 'ANALYST_RATING'],
         aspectScore: [0.5, -0.3, 0, 0.2, 0.8],
         finBERTScore: [0.7, -0.2, 0.1, 0.4, 0.9],
@@ -153,7 +152,7 @@ describe('Preprocessing', () => {
       const features = buildFeatureMatrix(input);
 
       expect(features.length).toBe(5); // 5 rows
-      expect(features[0].length).toBe(12); // 12 features (Phase 4 update)
+      expect(features[0].length).toBe(13); // 13 features (Phase 5 update)
     });
 
     it('should throw error on inconsistent lengths', () => {
@@ -161,9 +160,6 @@ describe('Preprocessing', () => {
         ticker: 'TEST',
         close: [150.0, 152.0],
         volume: [100000000], // Wrong length
-        positive: [5, 3],
-        negative: [2, 4],
-        sentiment: ['POS', 'NEG'],
       };
 
       expect(() => buildFeatureMatrix(input)).toThrow('Inconsistent input lengths');
@@ -174,9 +170,6 @@ describe('Preprocessing', () => {
         ticker: 'TEST',
         close: [],
         volume: [],
-        positive: [],
-        negative: [],
-        sentiment: [],
       };
 
       const features = buildFeatureMatrix(input);
@@ -188,21 +181,22 @@ describe('Preprocessing', () => {
         ticker: 'AAPL',
         close: [150.0, 152.0, 151.5, 153.0, 152.5],
         volume: [100000000, 95000000, 98000000, 102000000, 97000000],
-        positive: [5, 3, 7, 4, 6],
-        negative: [2, 4, 1, 3, 2],
-        sentiment: ['POS', 'NEG', 'POS', 'NEUT', 'POS'],
         // No eventType/aspectScore/finBERTScore - will default to GENERAL and zeros
       };
 
       const features = buildFeatureMatrix(input);
 
-      // Verify structure: [close, volume, pos, neg, ...eventType(6), aspect, finbert]
-      // Default eventType is GENERAL = [0,0,0,0,0,1], aspect=0, finbert=0
-      expect(features[0]).toEqual([150.0, 100000000, 5, 2, 0, 0, 0, 0, 0, 1, 0, 0]);
-      expect(features[1]).toEqual([152.0, 95000000, 3, 4, 0, 0, 0, 0, 0, 1, 0, 0]);
-      expect(features[2]).toEqual([151.5, 98000000, 7, 1, 0, 0, 0, 0, 0, 1, 0, 0]);
-      expect(features[3]).toEqual([153.0, 102000000, 4, 3, 0, 0, 0, 0, 0, 1, 0, 0]);
-      expect(features[4]).toEqual([152.5, 97000000, 6, 2, 0, 0, 0, 0, 0, 1, 0, 0]);
+      // Verify structure: [price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, ...eventType(6), aspect, finbert, volatility]
+      // With defaults: eventType=GENERAL [0,0,0,0,0,1], aspect=0, finbert=0
+      expect(features).toHaveLength(5);
+      features.forEach((row) => {
+        expect(row).toHaveLength(13);
+        // Check event type defaults to GENERAL (indices 4-9)
+        expect(row.slice(4, 10)).toEqual([0, 0, 0, 0, 0, 1]);
+        // Check aspect and finBERT default to 0
+        expect(row[10]).toBe(0); // aspect score
+        expect(row[11]).toBe(0); // finBERT score
+      });
     });
   });
 
@@ -299,8 +293,8 @@ describe('Preprocessing', () => {
   describe('validateFeatureMatrix', () => {
     it('should pass for valid feature matrix', () => {
       const X = [
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
       ];
 
       expect(() => validateFeatureMatrix(X)).not.toThrow();
@@ -313,12 +307,12 @@ describe('Preprocessing', () => {
     it('should throw error for wrong feature count', () => {
       const X = [[1, 2, 3]]; // Only 3 features
 
-      expect(() => validateFeatureMatrix(X)).toThrow('Expected 12 features'); // Updated to 12
+      expect(() => validateFeatureMatrix(X)).toThrow('Expected 13 features'); // Updated to 13
     });
 
     it('should throw error for inconsistent feature count', () => {
       const X = [
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
         [1, 2, 3], // Wrong length
       ];
 
@@ -327,7 +321,7 @@ describe('Preprocessing', () => {
 
     it('should throw error for non-finite values', () => {
       const X = [
-        [1, 2, 3, NaN, 5, 6, 7, 8, 9, 10, 11, 12],
+        [1, 2, 3, NaN, 5, 6, 7, 8, 9, 10, 11, 12, 13],
       ];
 
       expect(() => validateFeatureMatrix(X)).toThrow('Non-finite value');
@@ -360,15 +354,15 @@ describe('Preprocessing', () => {
 
   describe('Constants', () => {
     it('should have correct feature count', () => {
-      expect(FEATURE_COUNT).toBe(12); // Phase 4: Updated from 8 to 12
+      expect(FEATURE_COUNT).toBe(13); // Phase 5: Updated from 12 to 13
     });
 
     it('should have correct feature names', () => {
       expect(FEATURE_NAMES).toEqual([
-        'close',
+        'price_ratio_1d',
+        'price_ratio_5d',
+        'price_ratio_10d',
         'volume',
-        'positive', // deprecated
-        'negative', // deprecated
         'event_earnings',
         'event_ma',
         'event_product',
@@ -377,6 +371,7 @@ describe('Preprocessing', () => {
         'event_general',
         'aspect_score',
         'finbert_score',
+        'volatility',
       ]);
     });
 

@@ -14,9 +14,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { enGB, registerTranslation } from 'react-native-paper-dates';
 
-// Register date picker locale
-registerTranslation('en', enGB);
-
 // Contexts
 import { StockProvider } from '../src/contexts/StockContext';
 import { PortfolioProvider } from '../src/contexts/PortfolioContext';
@@ -27,6 +24,9 @@ import { colors } from '../src/theme/colors';
 
 // Error Boundary
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
+
+// Register date picker locale
+registerTranslation('en', enGB);
 
 // Create QueryClient instance
 const queryClient = new QueryClient({

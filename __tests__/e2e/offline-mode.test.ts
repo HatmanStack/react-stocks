@@ -129,13 +129,13 @@ describe('E2E: Offline Mode', () => {
   describe('Database Operations Work Offline', () => {
     it('should query portfolio offline', async () => {
       // Add items to portfolio
-      await PortfolioRepository.insert({
+      await PortfolioRepository.upsert({
         ticker: 'AAPL',
         name: 'Apple Inc.',
         addedAt: new Date().toISOString(),
       });
 
-      await PortfolioRepository.insert({
+      await PortfolioRepository.upsert({
         ticker: 'GOOGL',
         name: 'Alphabet Inc.',
         addedAt: new Date().toISOString(),
@@ -242,7 +242,7 @@ describe('E2E: Offline Mode', () => {
 
     it('should handle offline portfolio management', async () => {
       // User can add/remove from portfolio offline
-      await PortfolioRepository.insert({
+      await PortfolioRepository.upsert({
         ticker: 'OFFLINE1',
         name: 'Offline Stock 1',
         addedAt: new Date().toISOString(),
@@ -251,7 +251,7 @@ describe('E2E: Offline Mode', () => {
       let portfolio = await PortfolioRepository.findAll();
       const initialCount = portfolio.length;
 
-      await PortfolioRepository.insert({
+      await PortfolioRepository.upsert({
         ticker: 'OFFLINE2',
         name: 'Offline Stock 2',
         addedAt: new Date().toISOString(),
@@ -330,7 +330,7 @@ describe('E2E: Offline Mode', () => {
       const ticker = 'INTEGRITY';
 
       // Perform multiple operations offline
-      await PortfolioRepository.insert({
+      await PortfolioRepository.upsert({
         ticker,
         name: 'Integrity Test',
         addedAt: new Date().toISOString(),

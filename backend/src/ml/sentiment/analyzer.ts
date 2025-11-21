@@ -283,7 +283,7 @@ export async function analyzeSentiment(
  * @returns Array of article sentiments
  */
 export async function analyzeSentimentBatch(
-  articles: Array<{ text: string; hash: string }>
+  articles: { text: string; hash: string }[]
 ): Promise<ArticleSentiment[]> {
   // Process all articles in parallel
   return Promise.all(
