@@ -35,25 +35,41 @@ export interface UseSentimentDataOptions {
 
 /**
  * Transform Lambda DailySentiment format to local CombinedWordDetails format
- * @param dailySentiment - Sentiment data from Lambda
+ * Maps three-signal sentiment data (eventCounts, avgAspectScore, avgFinBERTScore)
+ *
+ * @param dailySentiment - Sentiment data from Lambda with three-signal architecture
  * @param ticker - Stock ticker symbol
  * @returns Array of CombinedWordDetails for database storage
+ *
+ * @see docs/plans/Phase-5.md Task 2 for transformation rationale
  */
 function transformLambdaToLocal(
   dailySentiment: DailySentiment[],
   ticker: string
 ): CombinedWordDetails[] {
   return dailySentiment.map((day) => ({
+    // Primary keys
     date: day.date,
     ticker,
+
+    // Legacy fields (backward compatibility)
     positive: day.positive,
     negative: day.negative,
     sentimentNumber: day.sentimentScore,
     sentiment: day.classification,
-    nextDay: 0, // Predictions not provided by Lambda
+
+    // Predictions (not provided by Lambda yet)
+    nextDay: 0,
     twoWks: 0,
     oneMnth: 0,
     updateDate: formatDateForDB(new Date()),
+
+    // Phase 5: Three-signal sentiment (NEW)
+    // Store eventCounts as JSON string for SQLite compatibility
+    eventCounts: day.eventCounts ? JSON.stringify(day.eventCounts) : undefined,
+    avgAspectScore: day.avgAspectScore ?? null,
+    avgFinBERTScore: day.avgFinBERTScore ?? null,
+    materialEventCount: day.materialEventCount ?? 0,
   }));
 }
 

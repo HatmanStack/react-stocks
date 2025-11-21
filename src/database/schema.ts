@@ -86,8 +86,32 @@ export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
     twoWks REAL NOT NULL,
     oneMnth REAL NOT NULL,
     updateDate TEXT,
+    eventCounts TEXT,
+    avgAspectScore REAL,
+    avgFinBERTScore REAL,
+    materialEventCount INTEGER DEFAULT 0,
     PRIMARY KEY (ticker, date)
   );
+`;
+
+/**
+ * Migration: Add Phase 5 multi-signal columns to existing tables
+ * Safe to run multiple times (uses IF NOT EXISTS checks)
+ *
+ * @see docs/plans/Phase-5.md Task 2 for migration rationale
+ */
+export const MIGRATE_PHASE_5_COLUMNS = `
+  -- Add eventCounts column (JSON string)
+  ALTER TABLE combined_word_count_details ADD COLUMN eventCounts TEXT;
+
+  -- Add avgAspectScore column (nullable)
+  ALTER TABLE combined_word_count_details ADD COLUMN avgAspectScore REAL;
+
+  -- Add avgFinBERTScore column (nullable)
+  ALTER TABLE combined_word_count_details ADD COLUMN avgFinBERTScore REAL;
+
+  -- Add materialEventCount column (defaults to 0)
+  ALTER TABLE combined_word_count_details ADD COLUMN materialEventCount INTEGER DEFAULT 0;
 `;
 
 export const CREATE_PORTFOLIO_DETAILS_TABLE = `
