@@ -147,12 +147,14 @@ describe('PortfolioItem', () => {
       error: null,
     } as any);
 
-    const { getByText } = render(
+    const { getAllByText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
       { wrapper }
     );
 
-    expect(getByText('--')).toBeTruthy();
+    // Price and chart placeholder both show '--', possibly prediction too
+    const placeholders = getAllByText('--');
+    expect(placeholders.length).toBeGreaterThan(0);
   });
 
   it('calls onPress when tapped', () => {
@@ -228,12 +230,14 @@ describe('PortfolioItem', () => {
       error: null,
     } as any);
 
-    const { getByText } = render(
+    const { getAllByText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
       { wrapper }
     );
 
     // When chartData is empty, component renders '--' as placeholder
-    expect(getByText('--')).toBeTruthy();
+    // We use getAllByText because '--' might appear multiple times (price loading, prediction placeholder)
+    const placeholders = getAllByText('--');
+    expect(placeholders.length).toBeGreaterThan(0);
   });
 });

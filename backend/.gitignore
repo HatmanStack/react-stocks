@@ -1,0 +1,6 @@
+.deploy-config.json
+samconfig.toml
+dist/
+coverage/
+node_modules/
+.aws-sam/

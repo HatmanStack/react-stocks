@@ -223,29 +223,26 @@ Each step:
 - **Performance**: <100ms per article but blocks UI for sequential processing
 - **Lexicon**: Financial-specific word list in `src/data/sentiment-words.json`
 
-**Stock Predictions**:
-- **Type**: Logistic regression (ported from Python scikit-learn)
-- **Implementation**: `src/ml/prediction/model.ts`, `src/ml/prediction/scaler.ts`
-- **Features**: Price ratios, sentiment scores, technical indicators (volume, volatility)
-- **Targets**: Next day, next week, next month predictions
-- **Feature Flag**: `EXPO_PUBLIC_BROWSER_PREDICTION` (default: false, enable after testing)
-- **Fallback**: Python microservice (deprecated, for rollback only)
-- **Performance**: <50ms per prediction (runs in browser)
-- **Accuracy**: Identical to Python implementation (numerical precision to 4 decimals)
+**Multi-Signal Stock Predictions (Lambda-based)**:
+- **Type**: Logistic Regression with 14 features (OHLCV, Event Types, Aspect Scores, FinBERT Scores)
+- **Implementation**: Backend Lambda (`PredictionFunction`)
+- **Features**: 13 base features + 1 horizon feature
+- **Targets**: Next day, 2-week, 1-month predictions (Direction + Probability)
+- **Trigger**: Automatically triggered after sentiment analysis (smart refresh)
+- **Smart Refresh**: Only re-runs when new articles are available
+- **Frontend Display**: Sentiment Tab (aggregated) and Portfolio (per-item)
 
-### Python Microservices (DEPRECATED - For Rollback Only)
+### Deprecated Services
 
-**⚠️ Note**: These services are deprecated and will be decommissioned in Phase 5. Use feature flags to enable browser-based ML instead.
+**⚠️ Note**: The following services are deprecated and replaced by the Lambda-based architecture:
 
-**Sentiment Service**:
-- Endpoint: `https://stocks-backend-sentiment-f3jmjyxrpq-uc.a.run.app/sentiment`
-- Model: FinBERT (financial sentiment analysis)
-- Fallback: Only if `EXPO_PUBLIC_BROWSER_SENTIMENT=false`
+**Python Microservices**:
+- Sentiment Service (FinBERT on Cloud Run) - Replaced by `SentimentFunction` Lambda
+- Prediction Service (Logistic Regression on Cloud Run) - Replaced by `PredictionFunction` Lambda
 
-**Prediction Service**:
-- Endpoint: `https://stocks-f3jmjyxrpq-uc.a.run.app/predict`
-- Model: Logistic regression (scikit-learn)
-- Fallback: Only if `EXPO_PUBLIC_BROWSER_PREDICTION=false`
+**Browser-Based ML**:
+- `src/ml/prediction/model.ts` - Replaced by server-side training in Lambda
+- `src/ml/sentiment/sentiment.service.ts` - Replaced by Lambda sentiment analysis
 
 ## Testing Conventions
 

@@ -30,23 +30,23 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 * 🎨 **Material Design** - Beautiful, responsive UI with React Native Paper components
 * 🔄 **Smart Sync** - Automatic data synchronization with progress tracking
 * 🗄️ **Dual Database** - SQLite for native, localStorage for web - transparent abstraction
-* 🎯 **ML Predictions** - Browser-based predictions (next day, week, month) using logistic regression
+* 🎯 **ML Predictions** - Lambda-based multi-signal predictions (next day, week, month) using logistic regression
 * 🔒 **Secure Backend** - AWS Lambda backend protects API keys, no client-side exposure
 
 ---
 
 ## 🔧 Recent Improvements
 
-### v2.0.0 - Backend Migration & ML Implementation
+### v2.0.0 - Backend Migration & Multi-Signal ML
+- **Multi-Signal Prediction Model**: Replaced bag-of-words model with 14-feature logistic regression
+  - Combines OHLCV price data, Event Types, Aspect Scores, and FinBERT sentiment
+  - Server-side training on Lambda with TensorFlow.js
+  - Smart refresh logic minimizes compute costs
 - **AWS Lambda Backend**: Secure API proxy for stock/news data with DynamoDB caching
   - Eliminates client-side API key exposure
   - 7-30 day cache TTL for >80% hit rate
   - Auto-updates frontend `.env` on deployment
-- **Browser-Based ML**: Replaced Python microservices with JavaScript implementations
-  - Sentiment analysis: <100ms per article (vs ~1000ms API call)
-  - Stock predictions: <50ms per prediction with scikit-learn numerical match
-  - Full offline capability
-- **Testing & Security**: 618 tests (94% pass rate), comprehensive security audit
+- **Testing & Security**: Comprehensive unit, integration, and E2E test coverage
 - **Production Ready**: SAM deployment templates, CloudWatch monitoring, cost optimization (<$20/month)
 
 ---

@@ -96,7 +96,7 @@ describe('mlModel', () => {
 
              await expect(trainModel(X, y, defaultConfig))
                 .rejects
-                .toThrow('Invalid data contains NaN');
+                .toThrow('Invalid feature data contains NaN');
 
              X.dispose();
              y.dispose();
