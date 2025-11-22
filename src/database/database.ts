@@ -203,6 +203,28 @@ async function runMigrations(fromVersion: number): Promise<void> {
 
       console.log('[Database] Migration to version 3 complete');
     }
+
+    // Migration from version 3 to 4: Add Phase 1 word_count multi-signal fields
+    if (fromVersion < 4) {
+      console.log('[Database] Migrating to version 4: Adding word_count multi-signal fields');
+
+      const tableName = 'word_count_details';
+      const newColumns = [
+        { name: 'eventType', type: 'TEXT' },
+        { name: 'aspectScore', type: 'REAL' },
+        { name: 'distilFinBERTScore', type: 'REAL' },
+        { name: 'materialityScore', type: 'REAL' }
+      ];
+
+      for (const col of newColumns) {
+        if (!(await columnExists(tableName, col.name))) {
+          console.log(`[Database] Adding ${col.name} column to ${tableName}`);
+          await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN ${col.name} ${col.type}`);
+        }
+      }
+
+      console.log('[Database] Migration to version 4 complete');
+    }
   } catch (error) {
     console.error('[Database] Migration failed:', error);
     throw new Error(`Failed to run migrations: ${error}`);

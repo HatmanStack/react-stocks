@@ -69,6 +69,18 @@ export async function handler(
         }
       }
 
+      case '/predict': {
+        // POST only
+        if (method !== 'POST') {
+          return errorResponse(`Method ${method} not allowed for /predict`, 405);
+        }
+        const { predictionHandler } = await import('./handlers/prediction.handler');
+        // The predictionHandler expects APIGatewayProxyEvent, but we have APIGatewayProxyEventV2
+        // Cast/Adapt the event as needed or update handler to support V2
+        // For now, we'll pass it as any since properties overlap enough for basic usage
+        return predictionHandler(event as any) as any;
+      }
+
       default: {
         // Check if it's a job status request (/sentiment/job/:jobId)
         if (path.startsWith('/sentiment/job/')) {

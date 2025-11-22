@@ -51,8 +51,11 @@ export async function upsert(portfolio: PortfolioDetails): Promise<void> {
   const db = await getDatabase();
   const sql = `
     INSERT OR REPLACE INTO ${TABLE_NAMES.PORTFOLIO_DETAILS} (
-      ticker, next, name, wks, mnth
-    ) VALUES (?, ?, ?, ?, ?)
+      ticker, next, name, wks, mnth,
+      nextDayDirection, nextDayProbability,
+      twoWeekDirection, twoWeekProbability,
+      oneMonthDirection, oneMonthProbability
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   try {
@@ -62,6 +65,12 @@ export async function upsert(portfolio: PortfolioDetails): Promise<void> {
       portfolio.name,
       portfolio.wks,
       portfolio.mnth,
+      portfolio.nextDayDirection ?? null,
+      portfolio.nextDayProbability ?? null,
+      portfolio.twoWeekDirection ?? null,
+      portfolio.twoWeekProbability ?? null,
+      portfolio.oneMonthDirection ?? null,
+      portfolio.oneMonthProbability ?? null,
     ]);
   } catch (error) {
     console.error('[PortfolioRepository] Error upserting portfolio entry:', error);

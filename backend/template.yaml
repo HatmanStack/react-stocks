@@ -226,6 +226,9 @@ Resources:
         'GET /search':
           ThrottlingBurstLimit: 100
           ThrottlingRateLimit: 50
+        'POST /predict':
+          ThrottlingBurstLimit: 20
+          ThrottlingRateLimit: 10
 
   ReactStocksFunction:
     Type: AWS::Serverless::Function
@@ -300,6 +303,12 @@ Resources:
             ApiId: !Ref ReactStocksApi
             Path: /sentiment/job/{jobId}
             Method: GET
+        PredictApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /predict
+            Method: POST
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
