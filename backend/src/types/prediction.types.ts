@@ -58,6 +58,27 @@ export const MODEL_CONFIG = {
     labelThreshold: 0.01
 } as const;
 
+export interface ModelTrainingConfig {
+    inputDim: number;
+    learningRate: number;
+    epochs: number;
+    batchSize: number;
+    validationSplit: number;
+}
+
+export interface TrainingMetrics {
+    accuracy: number;
+    loss: number;
+    epochs: number;
+}
+
+/** Result of a single prediction */
+export interface PredictionResult {
+    direction: 'up' | 'down';
+    probability: number;
+    horizon: number;
+}
+
 // Data Models
 
 /** Historical stock price data */
@@ -72,7 +93,7 @@ export interface StockPrice {
 
 /** Analyzed news article sentiment */
 export interface ArticleSentiment {
-    hash: number;
+    hash: string;
     date: string;
     eventType: string | null;
     aspectScore: number | null;
