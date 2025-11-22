@@ -335,7 +335,25 @@ class WebDatabase {
 
   // Combined sentiment operations (daily aggregated)
   private upsertCombinedSentiment(params: any[]): any {
-    const [ticker, date, positive, negative, sentimentNumber, sentiment, nextDay, twoWks, oneMnth, updateDate] = params;
+    // params length depends on schema version. Basic is 10 params.
+    // For this simple implementation, we assume standard params or handle extension via repository logic
+    // The repository constructs the SQL. For localStorage we need to map params to object properties.
+    // But wait, the params array comes from `runAsync`. We need to know which param is which.
+    // The current implementation assumes fixed param order:
+    // ticker, date, positive, negative, sentimentNumber, sentiment, nextDay, twoWks, oneMnth, updateDate
+
+    // If more params are passed (e.g. prediction fields), we need to handle them.
+    // However, standard repository inserts usually name columns. `runAsync` here receives just values array?
+    // No, typically `runAsync` takes SQL + params.
+    // But here `upsertCombinedSentiment` takes `params` array.
+    // The caller `runAsync` just passes `params`.
+    // This implementation relies on knowing the param order which is fragile if SQL changes.
+    // For now, we assume the repository passes basic params first.
+
+    const [ticker, date, positive, negative, sentimentNumber, sentiment, nextDay, twoWks, oneMnth, updateDate,
+           nextDayDirection, nextDayProbability,
+           twoWeekDirection, twoWeekProbability,
+           oneMonthDirection, oneMonthProbability] = params;
 
     if (!this.data.sentiment[ticker]) {
       this.data.sentiment[ticker] = [];
@@ -344,7 +362,7 @@ class WebDatabase {
     // Find existing record and update or insert new
     const existingIndex = this.data.sentiment[ticker].findIndex((s) => s.date === date);
 
-    const record = {
+    const record: any = {
       date,
       ticker,
       positive,
@@ -357,8 +375,18 @@ class WebDatabase {
       updateDate,
     };
 
+    // Add prediction fields if present
+    if (nextDayDirection !== undefined) record.nextDayDirection = nextDayDirection;
+    if (nextDayProbability !== undefined) record.nextDayProbability = nextDayProbability;
+    if (twoWeekDirection !== undefined) record.twoWeekDirection = twoWeekDirection;
+    if (twoWeekProbability !== undefined) record.twoWeekProbability = twoWeekProbability;
+    if (oneMonthDirection !== undefined) record.oneMonthDirection = oneMonthDirection;
+    if (oneMonthProbability !== undefined) record.oneMonthProbability = oneMonthProbability;
+
     if (existingIndex >= 0) {
-      this.data.sentiment[ticker][existingIndex] = record;
+      // Preserve other fields if they exist (e.g. Phase 5 fields not in basic params)
+      const existing = this.data.sentiment[ticker][existingIndex];
+      this.data.sentiment[ticker][existingIndex] = { ...existing, ...record };
     } else {
       this.data.sentiment[ticker].push(record);
     }
@@ -433,17 +461,34 @@ class WebDatabase {
   // Portfolio operations
   private insertPortfolio(params: any[]): any {
     // Parameters: ticker, next, name, wks, mnth (from repository upsert)
-    const [ticker, next, name, wks, mnth] = params;
+    // Extended params: ..., nextDayDirection, nextDayProbability, etc.
+    const [ticker, next, name, wks, mnth,
+           nextDayDirection, nextDayProbability,
+           twoWeekDirection, twoWeekProbability,
+           oneMonthDirection, oneMonthProbability] = params;
 
     console.log(`[WebDB] Inserting portfolio: ${ticker}, name: ${name}`);
 
-    this.data.portfolio[ticker] = {
+    const record: any = {
       ticker,
       next: next || '0',
       name: name || ticker,
       wks: wks || '0',
       mnth: mnth || '0',
     };
+
+    // Add prediction fields if present
+    if (nextDayDirection !== undefined) record.nextDayDirection = nextDayDirection;
+    if (nextDayProbability !== undefined) record.nextDayProbability = nextDayProbability;
+    if (twoWeekDirection !== undefined) record.twoWeekDirection = twoWeekDirection;
+    if (twoWeekProbability !== undefined) record.twoWeekProbability = twoWeekProbability;
+    if (oneMonthDirection !== undefined) record.oneMonthDirection = oneMonthDirection;
+    if (oneMonthProbability !== undefined) record.oneMonthProbability = oneMonthProbability;
+
+    // Merge with existing to preserve other fields
+    const existing = this.data.portfolio[ticker] || {};
+    this.data.portfolio[ticker] = { ...existing, ...record };
+
     this.saveData();
     return { changes: 1 };
   }

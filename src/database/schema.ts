@@ -114,6 +114,28 @@ export const MIGRATE_PHASE_5_COLUMNS = `
   ALTER TABLE combined_word_count_details ADD COLUMN materialEventCount INTEGER DEFAULT 0;
 `;
 
+/**
+ * Migration: Add Phase 1 prediction fields for direction and probability
+ * @see docs/plans/Phase-1.md Task 2
+ */
+export const MIGRATE_PREDICTION_FORMAT_FIELDS = `
+  -- Add structured prediction fields to combined_word_count_details
+  ALTER TABLE combined_word_count_details ADD COLUMN nextDayDirection TEXT;
+  ALTER TABLE combined_word_count_details ADD COLUMN nextDayProbability REAL;
+  ALTER TABLE combined_word_count_details ADD COLUMN twoWeekDirection TEXT;
+  ALTER TABLE combined_word_count_details ADD COLUMN twoWeekProbability REAL;
+  ALTER TABLE combined_word_count_details ADD COLUMN oneMonthDirection TEXT;
+  ALTER TABLE combined_word_count_details ADD COLUMN oneMonthProbability REAL;
+
+  -- Add structured prediction fields to portfolio_details
+  ALTER TABLE portfolio_details ADD COLUMN nextDayDirection TEXT;
+  ALTER TABLE portfolio_details ADD COLUMN nextDayProbability REAL;
+  ALTER TABLE portfolio_details ADD COLUMN twoWeekDirection TEXT;
+  ALTER TABLE portfolio_details ADD COLUMN twoWeekProbability REAL;
+  ALTER TABLE portfolio_details ADD COLUMN oneMonthDirection TEXT;
+  ALTER TABLE portfolio_details ADD COLUMN oneMonthProbability REAL;
+`;
+
 export const CREATE_PORTFOLIO_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS portfolio_details (
     ticker TEXT PRIMARY KEY NOT NULL,
