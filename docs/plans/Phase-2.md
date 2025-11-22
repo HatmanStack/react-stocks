@@ -47,7 +47,7 @@ Deploy the Lambda prediction service with API Gateway, implement the frontend in
 **Files to Modify/Create**:
 - `backend/template.yaml` - Add IAM permissions for Lambda invocation
 - `backend/src/handlers/sentiment.handler.ts` - Add prediction Lambda invocation at end
-- `backend/src/functions/prediction/handler.py` - Update handler to accept invocation from sentiment Lambda
+- `backend/src/handlers/prediction.handler.ts` - Update handler to accept invocation from sentiment Lambda
 
 **Prerequisites**:
 - Phase 1 Task 4 completed (basic SAM template exists)
@@ -69,25 +69,28 @@ Deploy the Lambda prediction service with API Gateway, implement the frontend in
      ```
    - Ensure `PredictionFunction` has permissions to read DynamoDB tables
 2. Update `backend/src/handlers/sentiment.handler.ts`:
-   - Import boto3 Lambda client
+   - Import AWS SDK v3 Lambda client (@aws-sdk/client-lambda)
    - At end of sentiment processing (after storing results):
      - Check if prediction should be triggered (smart refresh logic)
      - If yes: Invoke PredictionFunction asynchronously
      - Pass payload: `{ ticker, days }`
    - Example invocation:
-     ```python
-     lambda_client.invoke(
-         FunctionName=os.environ['PREDICTION_FUNCTION_NAME'],
-         InvocationType='Event',  # Async
-         Payload=json.dumps({'ticker': ticker, 'days': days})
-     )
+     ```typescript
+     import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+
+     const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
+     await lambdaClient.send(new InvokeCommand({
+       FunctionName: process.env.PREDICTION_FUNCTION_NAME,
+       InvocationType: 'Event',  // Async
+       Payload: JSON.stringify({ ticker, days })
+     }));
      ```
 3. Update `backend/template.yaml` environment variables:
    - Add `PREDICTION_FUNCTION_NAME` to SentimentFunction environment
    - Value: `!Ref PredictionFunction`
-4. Update `backend/src/functions/prediction/handler.py`:
+4. Update `backend/src/handlers/prediction.handler.ts`:
    - Accept event payload: `{ ticker: string, days: number }`
-   - No API Gateway event structure (invoked by Lambda, not API Gateway)
+   - Support both API Gateway events and direct Lambda invocation
    - Return predictions to be stored (or emit event/write to DB)
 5. Test template validation:
    - Run `sam validate` (should pass)

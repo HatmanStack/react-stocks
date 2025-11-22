@@ -10,7 +10,6 @@ export interface StockHistoricalDataItem {
   marketCap?: number;
   peRatio?: number;
   pbRatio?: number;
-  [key: string]: any; // Allow for future extensibility
 }
 
 export interface ArticleAnalysisDataItem {
@@ -25,7 +24,6 @@ export interface ArticleAnalysisDataItem {
   title?: string;
   articleUrl?: string;
   publisher?: string;
-  [key: string]: any;
 }
 
 export interface DailySentimentAggregateItem {
@@ -41,5 +39,4 @@ export interface DailySentimentAggregateItem {
   twoWeekProbability?: number;
   oneMonthDirection?: 'up' | 'down';
   oneMonthProbability?: number;
-  [key: string]: any;
 }

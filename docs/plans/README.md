@@ -4,7 +4,7 @@
 
 This feature replaces the existing bag-of-words prediction model with a sophisticated multi-signal logistic regression system. The new model combines OHLCV price data, event classification, aspect analysis, and DistilFinBERT sentiment scores to predict stock price movements across three time horizons (1-day, 2-week, 1-month). The system leverages Lambda-based asynchronous processing for consistent performance and cross-user caching, following the same architectural patterns established for sentiment analysis.
 
-The model trains on-the-fly using scikit-learn's logistic regression, incorporating 14 features including price metrics, one-hot encoded event types, aggregated aspect scores, sentiment scores, and prediction horizon. Training data is labeled using same-day price movements with a ±1% threshold to filter market noise. The system implements smart refresh logic to minimize compute costs by only recomputing predictions when new news articles are available.
+The model trains on-the-fly using TensorFlow.js for Node.js (@tensorflow/tfjs-node), incorporating 14 features including price metrics, one-hot encoded event types, aggregated aspect scores, sentiment scores, and prediction horizon. Training data is labeled using same-day price movements with a ±1% threshold to filter market noise. The system implements smart refresh logic to minimize compute costs by only recomputing predictions when new news articles are available.
 
 Predictions are displayed as directional indicators (↑/↓) with probability percentages in both the sentiment tab's daily aggregate view and portfolio items, replacing the current percentage return format. The feature maintains backward compatibility during migration and follows strict test-driven development practices throughout implementation.
 
@@ -12,10 +12,10 @@ Predictions are displayed as directional indicators (↑/↓) with probability p
 
 ### Environment Requirements
 - **Node.js**: v24 LTS (managed via nvm)
-- **Python**: 3.13+ (for Lambda runtime)
+- **TypeScript**: 5.x (for Lambda runtime and build)
 - **AWS CLI**: Configured with appropriate credentials
 - **AWS SAM CLI**: For Lambda deployment
-- **Package Managers**: npm (frontend), pip/uv (Python dependencies)
+- **Package Managers**: npm (frontend and backend)
 
 ### Development Tools
 - TypeScript 5.x

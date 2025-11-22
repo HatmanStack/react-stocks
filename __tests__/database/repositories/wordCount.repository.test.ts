@@ -67,7 +67,7 @@ describe('WordCountRepository', () => {
       expect(result).toBe(42);
       expect(mockDb.runAsync).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO'),
-        expect.arrayContaining([
+        [
           mockWordCount.date,
           mockWordCount.hash,
           mockWordCount.ticker,
@@ -83,7 +83,7 @@ describe('WordCountRepository', () => {
           mockWordCount.aspectScore,
           mockWordCount.distilFinBERTScore,
           mockWordCount.materialityScore,
-        ])
+        ]
       );
     });
   });
