@@ -10,9 +10,24 @@ declare module 'react-native-paper' {
     positive: string;
     negative: string;
     neutral: string;
+    custom?: {
+      [key: string]: string;
+    };
   }
 
-  interface ThemeFonts {
-    mono: string;
+  interface MD3Typescale {
+    mono?: {
+      fontFamily: string;
+      fontSize?: number;
+      fontWeight?: string;
+      letterSpacing?: number;
+      lineHeight?: number;
+    };
+  }
+
+  interface MD3Theme {
+    custom?: {
+      [key: string]: any;
+    };
   }
 }

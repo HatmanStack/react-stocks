@@ -1,11 +1,14 @@
 /**
  * Sentiment Utility Functions
  *
- * Shared utilities for sentiment classification and aggregation
- * Used across handlers and services for consistency
+ * Shared utilities for sentiment classification and aggregation.
+ * Implements multi-signal aggregation (event counts, aspect scores, DistilFinBERT scores).
+ * Used across handlers and services for consistency.
  */
 
 import type { SentimentCacheItem, NewsCacheItem } from '../repositories/index.js';
+import type { DailySentiment } from '../types/sentiment.types.js';
+import type { EventType } from '../types/event.types.js';
 
 /**
  * Classification thresholds for sentiment scores
@@ -17,17 +20,8 @@ export const SENTIMENT_THRESHOLDS = {
   // Scores between -0.1 and 0.1 are neutral
 } as const;
 
-/**
- * Daily aggregated sentiment result
- */
-export interface DailySentiment {
-  date: string;
-  positive: number;
-  negative: number;
-  sentimentScore: number;
-  classification: 'POS' | 'NEG' | 'NEUT';
-  articleCount: number;
-}
+// Re-export DailySentiment type for backward compatibility
+export type { DailySentiment } from '../types/sentiment.types.js';
 
 /**
  * Classify sentiment score based on thresholds
@@ -46,16 +40,29 @@ export function classifySentiment(sentimentScore: number): 'POS' | 'NEG' | 'NEUT
 }
 
 /**
- * Aggregate article-level sentiment into daily aggregates
+ * Aggregate article-level sentiment into daily aggregates with multi-signal metrics
  *
  * Groups sentiments by date and calculates:
- * - Total positive/negative counts per day
- * - Sentiment score: (positive - negative) / total sentences
- * - Classification based on score thresholds
+ * - Legacy: Total positive/negative counts, sentiment score
+ * - NEW (Phase 4): Event distribution, average aspect scores, average DistilFinBERT scores
  *
  * @param sentiments - Article-level sentiment cache items
  * @param articles - News articles with dates
  * @returns Array of daily sentiment aggregates, sorted by date
+ *
+ * @example
+ * ```typescript
+ * const daily = aggregateDailySentiment(sentiments, articles);
+ * // daily[0] = {
+ * //   date: '2025-01-15',
+ * //   positive: 15, negative: 3,
+ * //   sentimentScore: 0.55,
+ * //   eventCounts: { EARNINGS: 2, M&A: 0, ... },
+ * //   avgAspectScore: 0.32,
+ * //   avgFinBERTScore: 0.68,
+ * //   materialEventCount: 4
+ * // }
+ * ```
  */
 export function aggregateDailySentiment(
   sentiments: SentimentCacheItem[],
@@ -84,25 +91,60 @@ export function aggregateDailySentiment(
   const dailySentiments: DailySentiment[] = [];
 
   for (const [date, daySentiments] of dailyGroups.entries()) {
+    // Legacy sentiment aggregation (backward compatibility)
     const totalPositive = daySentiments.reduce((sum, s) => sum + s.sentiment.positive, 0);
     const totalNegative = daySentiments.reduce((sum, s) => sum + s.sentiment.negative, 0);
-    const totalArticles = daySentiments.length;
 
     // Calculate aggregate sentiment score
     const totalSentences = totalPositive + totalNegative;
     const sentimentScore =
       totalSentences > 0 ? (totalPositive - totalNegative) / totalSentences : 0;
 
-    // Classify using shared thresholds
-    const classification = classifySentiment(sentimentScore);
+    // NEW (Phase 4): Count event types
+    const eventCounts: Record<EventType, number> = {
+      EARNINGS: 0,
+      'M&A': 0,
+      GUIDANCE: 0,
+      ANALYST_RATING: 0,
+      PRODUCT_LAUNCH: 0,
+      GENERAL: 0,
+    };
+
+    for (const sentiment of daySentiments) {
+      const eventType = sentiment.eventType ?? 'GENERAL';
+      eventCounts[eventType as EventType] = (eventCounts[eventType as EventType] || 0) + 1;
+    }
+
+    // NEW (Phase 4): Average aspect scores (exclude 0 scores which indicate no aspects detected)
+    const aspectScores = daySentiments
+      .map((s) => s.aspectScore)
+      .filter((score): score is number => score !== undefined && score !== 0);
+    const avgAspectScore =
+      aspectScores.length > 0
+        ? aspectScores.reduce((sum, score) => sum + score, 0) / aspectScores.length
+        : undefined;
+
+    // NEW (Phase 4): Average DistilFinBERT scores (only for material events)
+    const finBERTScores = daySentiments
+      .map((s) => s.distilFinBERTScore)
+      .filter((score): score is number => score !== undefined);
+    const avgFinBERTScore =
+      finBERTScores.length > 0
+        ? finBERTScores.reduce((sum, score) => sum + score, 0) / finBERTScores.length
+        : undefined;
+    const materialEventCount = finBERTScores.length;
 
     dailySentiments.push({
       date,
-      positive: totalPositive,
-      negative: totalNegative,
+      // Legacy fields
+      positiveCount: totalPositive,
+      negativeCount: totalNegative,
       sentimentScore,
-      classification,
-      articleCount: totalArticles,
+      // NEW: Multi-signal fields
+      eventCounts,
+      avgAspectScore,
+      avgFinBERTScore,
+      materialEventCount,
     });
   }
 

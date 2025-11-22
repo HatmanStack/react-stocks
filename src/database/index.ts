@@ -4,7 +4,7 @@
  */
 
 import { Platform } from 'react-native';
-import type * as SQLite from 'expo-sqlite';
+import type { DatabaseClient } from './types';
 
 let databaseModule: any = null;
 
@@ -24,7 +24,7 @@ export async function initializeDatabase(): Promise<void> {
   return module.initializeDatabase();
 }
 
-export async function getDatabase(): Promise<SQLite.SQLiteDatabase | any> {
+export async function getDatabase(): Promise<DatabaseClient> {
   const module = await loadDatabaseModule();
   return module.getDatabase();
 }

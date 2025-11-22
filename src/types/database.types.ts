@@ -4,6 +4,21 @@
  */
 
 /**
+ * Event type categories for financial news classification (Phase 4)
+ *
+ * Used in multi-signal sentiment analysis to categorize news articles.
+ * Material events (EARNINGS, M&A, GUIDANCE, ANALYST_RATING) receive
+ * sophisticated DistilFinBERT analysis.
+ */
+export type EventType =
+  | 'EARNINGS'
+  | 'M&A'
+  | 'PRODUCT_LAUNCH'
+  | 'ANALYST_RATING'
+  | 'GUIDANCE'
+  | 'GENERAL';
+
+/**
  * StockDetails - Historical stock price data (OHLCV)
  * Maps to: stock_details table
  * Android: StockDetails.java
@@ -86,21 +101,62 @@ export interface WordCountDetails {
 }
 
 /**
- * CombinedWordDetails - Daily aggregated sentiment analysis
+ * CombinedWordDetails - Daily aggregated sentiment analysis with three-signal architecture
  * Maps to: combined_word_count_details table
  * Android: CombinedWordDetails.java
+ *
+ * **Schema Evolution (Phase 5):**
+ * - Legacy: positive, negative, sentimentNumber, sentiment (kept for backward compatibility)
+ * - Phase 5: Added eventCounts, avgAspectScore, avgFinBERTScore, materialEventCount
  */
 export interface CombinedWordDetails {
-  date: string; // Primary key, ISO 8601 format (YYYY-MM-DD)
+  // Primary keys
+  date: string; // ISO 8601 format (YYYY-MM-DD)
   ticker: string;
-  positive: number; // Total positive words for the day
-  negative: number; // Total negative words for the day
-  sentimentNumber: number; // Aggregated sentiment score
-  sentiment: string; // 'POS', 'NEG', or 'NEUT'
+
+  // Legacy sentiment metrics (backward compatibility)
+  /** @deprecated Total positive words for the day */
+  positive: number;
+  /** @deprecated Total negative words for the day */
+  negative: number;
+  /** Aggregated sentiment score */
+  sentimentNumber: number;
+  /** Sentiment classification: 'POS', 'NEG', or 'NEUT' */
+  sentiment: string;
+
+  // Prediction fields
   nextDay: number; // 1-day prediction
   twoWks: number; // 2-week prediction
   oneMnth: number; // 1-month prediction
   updateDate: string; // Last update timestamp
+
+  // Phase 5: Event distribution (NEW - optional for backward compatibility)
+  /**
+   * JSON string containing count of each event type on this day
+   * Format: {"EARNINGS":2,"M&A":0,"GUIDANCE":1,"ANALYST_RATING":1,"PRODUCT_LAUNCH":0,"GENERAL":8}
+   */
+  eventCounts?: string;
+
+  // Phase 5: Multi-signal averages (NEW - optional for backward compatibility)
+  /**
+   * Average aspect score across all articles for this day
+   * Range: -1 to +1
+   * May be null if no articles have aspect scores
+   */
+  avgAspectScore?: number | null;
+
+  /**
+   * Average DistilFinBERT score across material events for this day
+   * Range: -1 to +1
+   * May be null if no material events occurred
+   */
+  avgFinBERTScore?: number | null;
+
+  /**
+   * Count of material events (articles with DistilFinBERT scores)
+   * Defaults to 0 if not present
+   */
+  materialEventCount?: number;
 }
 
 /**

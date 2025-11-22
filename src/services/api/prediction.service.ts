@@ -1,6 +1,8 @@
 /**
  * Stock Prediction Service
  * Unified interface for stock predictions using either Python API or browser-based ML
+ *
+ * **Phase 5 Update:** Now supports three-signal sentiment architecture.
  */
 
 import axios from 'axios';
@@ -10,6 +12,7 @@ import type {
   StockPredictionRequest,
   StockPredictionResponse,
 } from '@/types/api.types';
+import type { EventType } from '@/types/database.types';
 
 // Lazy import ML service (only loaded when feature flag enabled)
 let mlPredictionService: typeof import('@/ml/prediction/prediction.service') | null = null;
@@ -19,12 +22,18 @@ let mlPredictionService: typeof import('@/ml/prediction/prediction.service') | n
  *
  * Routes to either browser-based ML or Python API based on feature flag.
  *
+ * **Phase 5 Update:** Now accepts three-signal sentiment parameters.
+ * Legacy parameters maintained for backward compatibility.
+ *
  * @param ticker - Stock ticker symbol
  * @param closePrices - Array of closing prices
  * @param volumes - Array of trading volumes
- * @param positiveCounts - Array of positive word counts from sentiment analysis
- * @param negativeCounts - Array of negative word counts from sentiment analysis
- * @param sentimentScores - Array of sentiment scores or categories
+ * @param positiveCounts - (DEPRECATED) Array of positive word counts
+ * @param negativeCounts - (DEPRECATED) Array of negative word counts
+ * @param sentimentScores - (DEPRECATED) Array of sentiment scores or categories
+ * @param eventTypes - (NEW) Array of event type classifications
+ * @param aspectScores - (NEW) Array of aspect sentiment scores (-1 to +1)
+ * @param finBERTScores - (NEW) Array of DistilFinBERT scores (-1 to +1)
  * @returns Prediction results for next day, 2 weeks, and 1 month
  * @throws Error if service is unavailable or request fails
  */
@@ -32,9 +41,12 @@ export async function getStockPredictions(
   ticker: string,
   closePrices: number[],
   volumes: number[],
-  positiveCounts: number[],
-  negativeCounts: number[],
-  sentimentScores: number[] | string[]
+  positiveCounts: number[] = [],
+  negativeCounts: number[] = [],
+  sentimentScores: number[] | string[] = [],
+  eventTypes?: EventType[],
+  aspectScores?: number[],
+  finBERTScores?: number[]
 ): Promise<StockPredictionResponse> {
   // Check feature flag
   if (FeatureFlags.USE_BROWSER_PREDICTION) {
@@ -45,10 +57,13 @@ export async function getStockPredictions(
       volumes,
       positiveCounts,
       negativeCounts,
-      sentimentScores
+      sentimentScores,
+      eventTypes,
+      aspectScores,
+      finBERTScores
     );
   } else {
-    console.log(`[PredictionService] Using Python API for ${ticker}`);
+    console.log(`[PredictionService] Using Python API for ${ticker} (legacy - no three-signal support)`);
     return await getPythonAPIPredictions(
       ticker,
       closePrices,
@@ -70,25 +85,32 @@ async function getBrowserPredictions(
   volumes: number[],
   positiveCounts: number[],
   negativeCounts: number[],
-  sentimentScores: number[] | string[]
+  sentimentScores: number[] | string[],
+  eventTypes?: EventType[],
+  aspectScores?: number[],
+  finBERTScores?: number[]
 ): Promise<StockPredictionResponse> {
   // Lazy load ML service
   if (!mlPredictionService) {
     mlPredictionService = await import('@/ml/prediction/prediction.service');
   }
 
-  // Convert sentiment scores to categories if needed
+  // Convert sentiment scores to categories if needed (legacy support)
   const sentimentCategories: string[] = Array.isArray(sentimentScores) && typeof sentimentScores[0] === 'number'
     ? convertScoresToCategories(sentimentScores as number[])
     : (sentimentScores as string[]);
 
+  // Pass three-signal parameters to ML service
   return await mlPredictionService.getStockPredictions(
     ticker,
     closePrices,
     volumes,
     positiveCounts,
     negativeCounts,
-    sentimentCategories
+    sentimentCategories,
+    eventTypes,
+    aspectScores,
+    finBERTScores
   );
 }
 
@@ -105,7 +127,7 @@ function convertScoresToCategories(scores: number[]): string[] {
 }
 
 /**
- * Get predictions using Python API
+ * Get predictions using Python API (DEPRECATED - does not support three-signal sentiment)
  * @private
  */
 async function getPythonAPIPredictions(

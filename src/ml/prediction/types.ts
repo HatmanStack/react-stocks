@@ -2,16 +2,52 @@
  * Type definitions for prediction ML models
  */
 
+import type { EventType } from '../../types/database.types';
+
 /**
  * Input data for stock price predictions
+ *
+ * **Phase 4 Update:**
+ * - Price features: close prices (will be converted to price ratios internally)
+ * - Volume: normalized volume
+ * - Three-signal sentiment: eventType, aspectScore, finBERTScore
+ * - Volatility: calculated from close prices
+ *
+ * The feature matrix will contain 13 features:
+ * - 3 price ratios (1d, 5d, 10d)
+ * - 1 volume
+ * - 6 event type features (one-hot encoded)
+ * - 1 aspect score
+ * - 1 finBERT score
+ * - 1 volatility
  */
 export interface PredictionInput {
   ticker: string;
-  close: number[];
+
+  // Price and volume features (will be transformed internally)
+  close: number[]; // Will be converted to price ratios
   volume: number[];
-  positive: number[];
-  negative: number[];
-  sentiment: string[]; // "POS", "NEG", "NEUT", "UNKNOWN"
+
+  // Three-signal sentiment architecture
+  /**
+   * Event type classification for each observation.
+   * Will be one-hot encoded into 6 features in the feature matrix.
+   */
+  eventType?: EventType[];
+
+  /**
+   * Aspect-based sentiment score for each observation.
+   * Range: -1 (very negative) to +1 (very positive)
+   * Defaults to 0 if not provided.
+   */
+  aspectScore?: number[];
+
+  /**
+   * DistilFinBERT contextual sentiment score for each observation.
+   * Range: -1 (very negative) to +1 (very positive)
+   * Defaults to 0 if not provided.
+   */
+  finBERTScore?: number[];
 }
 
 /**

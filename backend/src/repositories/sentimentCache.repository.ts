@@ -1,7 +1,10 @@
 /**
  * SentimentCache Repository
  *
- * Provides CRUD operations for sentiment analysis results in DynamoDB cache
+ * Provides CRUD operations for sentiment analysis results in DynamoDB cache.
+ * Uses three-signal sentiment architecture (event type, aspect score, DistilFinBERT score).
+ *
+ * @see types/sentiment.types.ts for complete schema documentation
  */
 
 import {
@@ -11,29 +14,12 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { dynamoDb, batchPutItems } from '../utils/dynamodb.util.js';
 import { calculateTTL } from '../utils/cache.util.js';
+import type { SentimentCacheItem } from '../types/sentiment.types.js';
 
 const TABLE_NAME = process.env.SENTIMENT_CACHE_TABLE || 'SentimentCache';
 
-/**
- * Sentiment data interface
- */
-export interface SentimentData {
-  positive: number;
-  negative: number;
-  sentimentScore: number;
-  classification: 'POS' | 'NEG' | 'NEUT';
-}
-
-/**
- * Sentiment cache item interface
- */
-export interface SentimentCacheItem {
-  ticker: string;
-  articleHash: string;
-  sentiment: SentimentData;
-  analyzedAt: number;
-  ttl: number;
-}
+// Re-export types for convenience
+export type { SentimentCacheItem, SentimentData } from '../types/sentiment.types.js';
 
 /**
  * Get sentiment analysis for a specific ticker and article hash

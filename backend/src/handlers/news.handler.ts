@@ -24,10 +24,10 @@ async function filterNewArticles(
   ticker: string,
   apiArticles: FinnhubNewsArticle[]
 ): Promise<{
-  newArticles: Array<{ article: FinnhubNewsArticle; hash: string }>;
+  newArticles: { article: FinnhubNewsArticle; hash: string }[];
   duplicateCount: number;
 }> {
-  const newArticles: Array<{ article: FinnhubNewsArticle; hash: string }> = [];
+  const newArticles: { article: FinnhubNewsArticle; hash: string }[] = [];
   let duplicateCount = 0;
 
   for (const article of apiArticles) {

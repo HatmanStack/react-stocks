@@ -3,12 +3,15 @@
  *
  * JavaScript implementation of the Python logistic regression prediction service.
  * Provides stock price predictions for three time horizons using browser-native ML.
+ *
+ * **Phase 5 Update:** Now uses three-signal sentiment architecture for improved accuracy.
  */
 
 import { StandardScaler } from './scaler';
 import { LogisticRegressionCV } from './cross-validation';
 import { buildFeatureMatrix, createLabels } from './preprocessing';
 import type { PredictionInput, PredictionOutput } from './types';
+import type { EventType } from '../../types/database.types';
 
 /**
  * Time horizons for predictions (in trading days)
@@ -28,24 +31,48 @@ const MIN_DATA_POINTS = 29;
 /**
  * Get stock price predictions using logistic regression model
  *
- * Matches the interface of the existing Python service.
+ * **Phase 5 Update:** Now accepts three-signal sentiment parameters for improved accuracy.
+ * Legacy parameters (positiveCounts, negativeCounts, sentimentScores) are deprecated but
+ * maintained for backward compatibility.
  *
  * @param ticker - Stock ticker symbol
  * @param closePrices - Array of closing prices
  * @param volumes - Array of trading volumes
- * @param positiveCounts - Array of positive word counts from sentiment analysis
- * @param negativeCounts - Array of negative word counts from sentiment analysis
- * @param sentimentScores - Array of sentiment categories ("POS", "NEG", "NEUT")
+ * @param positiveCounts - (DEPRECATED) Array of positive word counts
+ * @param negativeCounts - (DEPRECATED) Array of negative word counts
+ * @param sentimentScores - (DEPRECATED) Array of sentiment categories
+ * @param eventTypes - (NEW) Array of event type classifications
+ * @param aspectScores - (NEW) Array of aspect sentiment scores (-1 to +1)
+ * @param finBERTScores - (NEW) Array of DistilFinBERT scores (-1 to +1)
  * @returns Prediction results for next day, 2 weeks, and 1 month
  * @throws Error if insufficient data or invalid inputs
+ *
+ * @example
+ * ```typescript
+ * // New usage with three-signal sentiment
+ * const predictions = await getStockPredictions(
+ *   'AAPL',
+ *   closePrices,
+ *   volumes,
+ *   [], // deprecated
+ *   [], // deprecated
+ *   [], // deprecated
+ *   eventTypes,
+ *   aspectScores,
+ *   finBERTScores
+ * );
+ * ```
  */
 export async function getStockPredictions(
   ticker: string,
   closePrices: number[],
   volumes: number[],
-  positiveCounts: number[],
-  negativeCounts: number[],
-  sentimentScores: string[]
+  positiveCounts: number[] = [],
+  negativeCounts: number[] = [],
+  sentimentScores: string[] = [],
+  eventTypes?: EventType[],
+  aspectScores?: number[],
+  finBERTScores?: number[]
 ): Promise<PredictionOutput> {
   const startTime = performance.now();
 
@@ -61,21 +88,22 @@ export async function getStockPredictions(
       );
     }
 
-    // Build input structure
+    // Build input structure with three-signal sentiment
     const input: PredictionInput = {
       ticker,
       close: closePrices,
       volume: volumes,
-      positive: positiveCounts,
-      negative: negativeCounts,
-      sentiment: sentimentScores,
+      eventType: eventTypes,
+      aspectScore: aspectScores,
+      finBERTScore: finBERTScores,
     };
 
     console.log(
-      `[PredictionService] Generating predictions for ${ticker} (${closePrices.length} data points)`
+      `[PredictionService] Generating predictions for ${ticker} (${closePrices.length} data points)` +
+        (eventTypes ? ` with three-signal sentiment` : ` without sentiment signals`)
     );
 
-    // Build feature matrix (n × 8)
+    // Build feature matrix (13 features with three-signal sentiment)
     const features = buildFeatureMatrix(input);
 
     // Make predictions for each horizon

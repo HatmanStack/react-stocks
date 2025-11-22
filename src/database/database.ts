@@ -33,12 +33,13 @@ export async function initializeDatabase(): Promise<void> {
       console.log('[Database] Tables already exist');
     }
 
-    // Check version for future migrations
+    // Check version and run migrations if needed
     const currentVersion = await getDatabaseVersion();
-    if (currentVersion !== DB_VERSION) {
-      console.log(`[Database] Version mismatch: ${currentVersion} -> ${DB_VERSION}`);
-      // Set new version
+    if (currentVersion < DB_VERSION) {
+      console.log(`[Database] Running migrations: version ${currentVersion} -> ${DB_VERSION}`);
+      await runMigrations(currentVersion);
       await database.execAsync(`PRAGMA user_version = ${DB_VERSION}`);
+      console.log(`[Database] Migrations complete`);
     }
 
     isInitialized = true;
@@ -109,6 +110,79 @@ async function checkTablesExist(): Promise<boolean> {
   } catch (error) {
     console.error('[Database] Error checking tables:', error);
     return false;
+  }
+}
+
+/**
+ * Check if a column exists in a table
+ * @param tableName - Name of the table
+ * @param columnName - Name of the column to check
+ * @returns true if column exists, false otherwise
+ */
+async function columnExists(tableName: string, columnName: string): Promise<boolean> {
+  if (!database) {
+    throw new Error('Database is not initialized');
+  }
+
+  try {
+    const columns = await database.getAllAsync<{ name: string }>(
+      `PRAGMA table_info(${tableName})`
+    );
+    return columns.some(col => col.name === columnName);
+  } catch (error) {
+    console.error(`[Database] Error checking column ${columnName} in ${tableName}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Run database migrations based on current version
+ * @param fromVersion - The current database version
+ */
+async function runMigrations(fromVersion: number): Promise<void> {
+  if (!database) {
+    throw new Error('Database is not initialized');
+  }
+
+  try {
+    // Migration from version 1 to 2: Add Phase 5 three-signal sentiment columns
+    if (fromVersion < 2) {
+      console.log('[Database] Migrating to version 2: Adding three-signal sentiment columns');
+
+      const tableName = 'combined_word_count_details';
+
+      // Add eventCounts column if it doesn't exist
+      if (!(await columnExists(tableName, 'eventCounts'))) {
+        console.log('[Database] Adding eventCounts column');
+        await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN eventCounts TEXT`);
+      }
+
+      // Add avgAspectScore column if it doesn't exist
+      if (!(await columnExists(tableName, 'avgAspectScore'))) {
+        console.log('[Database] Adding avgAspectScore column');
+        await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgAspectScore REAL`);
+      }
+
+      // Add avgFinBERTScore column if it doesn't exist
+      if (!(await columnExists(tableName, 'avgFinBERTScore'))) {
+        console.log('[Database] Adding avgFinBERTScore column');
+        await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgFinBERTScore REAL`);
+      }
+
+      // Add materialEventCount column if it doesn't exist
+      if (!(await columnExists(tableName, 'materialEventCount'))) {
+        console.log('[Database] Adding materialEventCount column');
+        await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN materialEventCount INTEGER DEFAULT 0`);
+      }
+
+      console.log('[Database] Migration to version 2 complete');
+    }
+
+    // Future migrations go here
+    // if (fromVersion < 3) { ... }
+  } catch (error) {
+    console.error('[Database] Migration failed:', error);
+    throw new Error(`Failed to run migrations: ${error}`);
   }
 }
 

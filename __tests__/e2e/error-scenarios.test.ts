@@ -12,7 +12,6 @@ import * as SymbolRepository from '@/database/repositories/symbol.repository';
 import * as StockRepository from '@/database/repositories/stock.repository';
 import * as NewsRepository from '@/database/repositories/news.repository';
 import { getSentimentAnalyzer } from '@/ml/sentiment/analyzer';
-import { generatePrediction } from '@/ml/prediction/prediction.service';
 import { validateTicker, validateDateRange } from '@/utils/validation/inputValidation';
 
 jest.mock('@/database');
