@@ -54,8 +54,9 @@ export async function insert(wordCount: Omit<WordCountDetails, 'id'>): Promise<n
   const sql = `
     INSERT INTO ${TABLE_NAMES.WORD_COUNT_DETAILS} (
       date, hash, ticker, positive, negative, nextDay,
-      twoWks, oneMnth, body, sentiment, sentimentNumber
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      twoWks, oneMnth, body, sentiment, sentimentNumber,
+      eventType, aspectScore, distilFinBERTScore, materialityScore
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   try {
@@ -71,6 +72,10 @@ export async function insert(wordCount: Omit<WordCountDetails, 'id'>): Promise<n
       wordCount.body,
       wordCount.sentiment,
       wordCount.sentimentNumber,
+      wordCount.eventType ?? null,
+      wordCount.aspectScore ?? null,
+      wordCount.distilFinBERTScore ?? null,
+      wordCount.materialityScore ?? null,
     ]);
 
     return result.lastInsertRowId;

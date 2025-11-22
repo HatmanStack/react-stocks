@@ -98,6 +98,19 @@ export interface WordCountDetails {
   body: string; // Article content
   sentiment: string; // 'POS', 'NEG', or 'NEUT'
   sentimentNumber: number; // Sentiment score
+
+  // Phase 5: Multi-signal fields
+  /**
+   * Event type category (e.g., 'EARNINGS', 'M&A')
+   * @see EventType
+   */
+  eventType?: string;
+  /** Aspect sentiment score (-1 to +1) */
+  aspectScore?: number;
+  /** DistilFinBERT sentiment score (-1 to +1) */
+  distilFinBERTScore?: number;
+  /** Materiality score (0 to 1) */
+  materialityScore?: number;
 }
 
 /**

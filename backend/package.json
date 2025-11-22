@@ -32,6 +32,7 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.931.0",
     "@aws-sdk/lib-dynamodb": "^3.931.0",
+    "@tensorflow/tfjs-node": "^4.22.0",
     "axios": "^1.13.2",
     "sentiment": "^5.0.2"
   },

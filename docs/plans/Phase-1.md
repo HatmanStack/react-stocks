@@ -252,14 +252,14 @@ feat(schema): add structured prediction fields for direction and probability
    - Test both SQLite and localStorage code paths
 
 **Verification Checklist**:
-- [ ] Insert operations accept all new fields
-- [ ] Query operations return all new fields
-- [ ] Null values handled gracefully
-- [ ] Type safety enforced (TypeScript validates field types)
-- [ ] Platform-specific code (SQLite vs localStorage) works correctly
-- [ ] Existing data (without new fields) still readable
-- [ ] Tests cover happy path and edge cases
-- [ ] Tests pass on both SQLite and localStorage mocks
+- [x] Insert operations accept all new fields
+- [x] Query operations return all new fields
+- [x] Null values handled gracefully
+- [x] Type safety enforced (TypeScript validates field types)
+- [x] Platform-specific code (SQLite vs localStorage) works correctly
+- [x] Existing data (without new fields) still readable
+- [x] Tests cover happy path and edge cases
+- [x] Tests pass on both SQLite and localStorage mocks
 
 **Testing Instructions**:
 - Unit test: Insert with all new fields populated
@@ -453,14 +453,14 @@ feat(repositories): update repositories for new prediction schema
    ```
 
 **Verification Checklist**:
-- [ ] TensorFlow.js added to package.json
-- [ ] prediction.handler.ts follows existing handler pattern
-- [ ] Type definitions created in types/ directory
-- [ ] Route mapping added to index.ts
-- [ ] SAM template adds /predict route (NOT new Lambda)
-- [ ] Handler compiles without TypeScript errors
-- [ ] Jest tests pass
-- [ ] SAM validates: `sam validate`
+- [x] TensorFlow.js added to package.json
+- [x] prediction.handler.ts follows existing handler pattern
+- [x] Type definitions created in types/ directory
+- [x] Route mapping added to index.ts
+- [x] SAM template adds /predict route (NOT new Lambda)
+- [x] Handler compiles without TypeScript errors
+- [x] Jest tests pass
+- [x] SAM validates: `sam validate`
 
 **Testing Instructions**:
 - Unit test: Handler with valid request

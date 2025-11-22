@@ -70,6 +70,10 @@ export const CREATE_WORD_COUNT_DETAILS_TABLE = `
     body TEXT,
     sentiment TEXT NOT NULL,
     sentimentNumber REAL NOT NULL,
+    eventType TEXT,
+    aspectScore REAL,
+    distilFinBERTScore REAL,
+    materialityScore REAL,
     UNIQUE(ticker, hash)
   );
 `;
@@ -90,6 +94,12 @@ export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
     avgAspectScore REAL,
     avgFinBERTScore REAL,
     materialEventCount INTEGER DEFAULT 0,
+    nextDayDirection TEXT,
+    nextDayProbability REAL,
+    twoWeekDirection TEXT,
+    twoWeekProbability REAL,
+    oneMonthDirection TEXT,
+    oneMonthProbability REAL,
     PRIMARY KEY (ticker, date)
   );
 `;
@@ -136,13 +146,37 @@ export const MIGRATE_PREDICTION_FORMAT_FIELDS = `
   ALTER TABLE portfolio_details ADD COLUMN oneMonthProbability REAL;
 `;
 
+/**
+ * Migration: Add Phase 1 multi-signal fields to word_count_details
+ * @see docs/plans/Phase-1.md Task 3
+ */
+export const MIGRATE_PHASE_1_WORD_COUNT_FIELDS = `
+  -- Add eventType column (nullable)
+  ALTER TABLE word_count_details ADD COLUMN eventType TEXT;
+
+  -- Add aspectScore column (nullable)
+  ALTER TABLE word_count_details ADD COLUMN aspectScore REAL;
+
+  -- Add distilFinBERTScore column (nullable)
+  ALTER TABLE word_count_details ADD COLUMN distilFinBERTScore REAL;
+
+  -- Add materialityScore column (nullable)
+  ALTER TABLE word_count_details ADD COLUMN materialityScore REAL;
+`;
+
 export const CREATE_PORTFOLIO_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS portfolio_details (
     ticker TEXT PRIMARY KEY NOT NULL,
     next TEXT,
     name TEXT,
     wks TEXT,
-    mnth TEXT
+    mnth TEXT,
+    nextDayDirection TEXT,
+    nextDayProbability REAL,
+    twoWeekDirection TEXT,
+    twoWeekProbability REAL,
+    oneMonthDirection TEXT,
+    oneMonthProbability REAL
   );
 `;
 

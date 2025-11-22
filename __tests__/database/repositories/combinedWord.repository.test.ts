@@ -28,6 +28,13 @@ describe('CombinedWordRepository', () => {
     twoWks: 0.06,
     oneMnth: 0.09,
     updateDate: '2025-01-15T12:00:00Z',
+    // Phase 1 new fields
+    nextDayDirection: 'up',
+    nextDayProbability: 0.75,
+    twoWeekDirection: 'up',
+    twoWeekProbability: 0.65,
+    oneMonthDirection: 'down',
+    oneMonthProbability: 0.55,
   };
 
   describe('findByTicker', () => {
@@ -38,6 +45,7 @@ describe('CombinedWordRepository', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].ticker).toBe('AAPL');
+      expect(result[0].nextDayDirection).toBe('up');
     });
   });
 
@@ -74,12 +82,33 @@ describe('CombinedWordRepository', () => {
   });
 
   describe('upsert', () => {
-    it('should insert or update combined word count', async () => {
+    it('should insert or update combined word count with prediction fields', async () => {
       mockDb.runAsync.mockResolvedValue({ changes: 1 });
 
       await CombinedWordRepository.upsert(mockCombinedWord);
 
-      expect(mockDb.runAsync).toHaveBeenCalled();
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT OR REPLACE INTO'),
+        expect.arrayContaining([
+          mockCombinedWord.ticker,
+          mockCombinedWord.date,
+          mockCombinedWord.positive,
+          mockCombinedWord.negative,
+          mockCombinedWord.sentimentNumber,
+          mockCombinedWord.sentiment,
+          mockCombinedWord.nextDay,
+          mockCombinedWord.twoWks,
+          mockCombinedWord.oneMnth,
+          mockCombinedWord.updateDate,
+          // Check for new fields
+          mockCombinedWord.nextDayDirection,
+          mockCombinedWord.nextDayProbability,
+          mockCombinedWord.twoWeekDirection,
+          mockCombinedWord.twoWeekProbability,
+          mockCombinedWord.oneMonthDirection,
+          mockCombinedWord.oneMonthProbability,
+        ])
+      );
     });
   });
 

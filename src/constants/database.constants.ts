@@ -4,7 +4,7 @@
  */
 
 export const DB_NAME = 'stock_sentiment.db';
-export const DB_VERSION = 3; // Phase 1: Added prediction fields
+export const DB_VERSION = 4; // Phase 1: Added prediction fields + multi-signal word_count fields
 
 export const TABLE_NAMES = {
   STOCK_DETAILS: 'stock_details',
