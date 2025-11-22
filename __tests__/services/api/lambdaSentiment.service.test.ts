@@ -111,7 +111,7 @@ describe('Lambda Sentiment Service', () => {
       mockAxiosInstance.post.mockRejectedValue(axiosError);
 
       await expect(triggerSentimentAnalysis(mockRequest)).rejects.toThrow(
-        'Failed to trigger sentiment analysis'
+        /Network error/
       );
     });
 
@@ -273,6 +273,11 @@ describe('Lambda Sentiment Service', () => {
           },
         ],
         cached: true,
+        predictions: {
+            nextDay: { direction: 'up', probability: 0.72 },
+            twoWeek: { direction: 'up', probability: 0.65 },
+            oneMonth: { direction: 'down', probability: 0.48 }
+        }
       };
 
       mockAxiosInstance.get.mockResolvedValue({ data: mockResponse });
@@ -281,6 +286,8 @@ describe('Lambda Sentiment Service', () => {
 
       expect(result).toEqual(mockResponse);
       expect(result.dailySentiment).toHaveLength(2);
+      expect(result.predictions).toBeDefined();
+      expect(result.predictions?.nextDay.direction).toBe('up');
       expect(mockAxiosInstance.get).toHaveBeenCalledWith('/sentiment', {
         params: { ticker, startDate, endDate },
       });

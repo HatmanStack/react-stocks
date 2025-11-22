@@ -15,7 +15,7 @@
     "clean": "rm -rf dist coverage",
     "warm-cache": "tsx scripts/warm-cache.ts",
     "create-dashboard": "./scripts/create-dashboard.sh",
-    "deploy": "./scripts/deploy.sh",
+    "deploy": "node scripts/deploy.js",
     "validate": "./scripts/validate.sh",
     "logs": "./scripts/logs.sh",
     "update-env": "./scripts/update-env.sh"
@@ -31,6 +31,7 @@
   "license": "MIT",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.931.0",
+    "@aws-sdk/client-lambda": "^3.938.0",
     "@aws-sdk/lib-dynamodb": "^3.931.0",
     "@tensorflow/tfjs-node": "^4.22.0",
     "axios": "^1.13.2",

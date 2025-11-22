@@ -79,6 +79,32 @@ export async function upsert(portfolio: PortfolioDetails): Promise<void> {
 }
 
 /**
+ * Update partial fields of a portfolio entry
+ * Useful for updating only predictions without affecting other fields
+ * @param ticker - Stock ticker symbol
+ * @param updates - Partial PortfolioDetails object
+ */
+export async function update(ticker: string, updates: Partial<PortfolioDetails>): Promise<void> {
+    const db = await getDatabase();
+
+    // Filter out undefined fields
+    const fields = Object.keys(updates).filter(key => updates[key as keyof PortfolioDetails] !== undefined);
+    if (fields.length === 0) return;
+
+    const setClause = fields.map(key => `${key} = ?`).join(', ');
+    const values = fields.map(key => updates[key as keyof PortfolioDetails]);
+
+    const sql = `UPDATE ${TABLE_NAMES.PORTFOLIO_DETAILS} SET ${setClause} WHERE ticker = ?`;
+
+    try {
+        await db.runAsync(sql, [...values, ticker]);
+    } catch (error) {
+        console.error('[PortfolioRepository] Error updating portfolio entry:', error);
+        throw new Error(`Failed to update portfolio entry for ticker ${ticker}: ${error}`);
+    }
+}
+
+/**
  * Delete a portfolio entry by ticker
  * @param ticker - Stock ticker symbol
  */

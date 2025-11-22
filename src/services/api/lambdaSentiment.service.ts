@@ -123,6 +123,15 @@ export interface SentimentResultsResponse {
   endDate: string;
   dailySentiment: DailySentiment[];
   cached: boolean;
+  /**
+   * Optional predictions if available (Phase 2+)
+   * May be missing if prediction calculation is still pending or failed
+   */
+  predictions?: {
+    nextDay: { direction: 'up' | 'down'; probability: number };
+    twoWeek: { direction: 'up' | 'down'; probability: number };
+    oneMonth: { direction: 'up' | 'down'; probability: number };
+  };
 }
 
 /**

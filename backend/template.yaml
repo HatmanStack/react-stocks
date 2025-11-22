@@ -247,6 +247,7 @@ Resources:
           STOCK_HISTORICAL_TABLE: !Ref StockHistoricalData
           ARTICLE_ANALYSIS_TABLE: !Ref ArticleAnalysisData
           DAILY_SENTIMENT_TABLE: !Ref DailySentimentAggregate
+          PREDICTION_FUNCTION_NAME: !Ref ReactStocksFunction
       Policies:
         - Statement:
             - Effect: Allow
@@ -266,6 +267,10 @@ Resources:
                 - !GetAtt StockHistoricalData.Arn
                 - !GetAtt ArticleAnalysisData.Arn
                 - !GetAtt DailySentimentAggregate.Arn
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !GetAtt ReactStocksFunction.Arn
       Events:
         StocksApi:
           Type: HttpApi
