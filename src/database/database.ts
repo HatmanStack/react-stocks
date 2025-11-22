@@ -178,8 +178,31 @@ async function runMigrations(fromVersion: number): Promise<void> {
       console.log('[Database] Migration to version 2 complete');
     }
 
-    // Future migrations go here
-    // if (fromVersion < 3) { ... }
+    // Migration from version 2 to 3: Add Phase 1 prediction fields
+    if (fromVersion < 3) {
+      console.log('[Database] Migrating to version 3: Adding prediction fields');
+
+      const tables = ['combined_word_count_details', 'portfolio_details'];
+      const newColumns = [
+        { name: 'nextDayDirection', type: 'TEXT' },
+        { name: 'nextDayProbability', type: 'REAL' },
+        { name: 'twoWeekDirection', type: 'TEXT' },
+        { name: 'twoWeekProbability', type: 'REAL' },
+        { name: 'oneMonthDirection', type: 'TEXT' },
+        { name: 'oneMonthProbability', type: 'REAL' }
+      ];
+
+      for (const tableName of tables) {
+        for (const col of newColumns) {
+          if (!(await columnExists(tableName, col.name))) {
+            console.log(`[Database] Adding ${col.name} column to ${tableName}`);
+            await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN ${col.name} ${col.type}`);
+          }
+        }
+      }
+
+      console.log('[Database] Migration to version 3 complete');
+    }
   } catch (error) {
     console.error('[Database] Migration failed:', error);
     throw new Error(`Failed to run migrations: ${error}`);
