@@ -36,24 +36,27 @@ This phase establishes the architectural foundation, design decisions, and share
 
 ---
 
-### ADR-2: Single Model with Horizon as Feature
+### ADR-2: Single Model with Horizon as Feature (Inference-Time)
 
-**Decision**: Train one logistic regression model with horizon (1, 14, 30 days) as an input feature, running inference three times to generate three predictions.
+**Decision**: Train one logistic regression model on same-day price movement using 13 base features, then run inference three times with horizon appended as the 14th feature to generate three predictions.
 
 **Rationale**:
 - **Efficiency**: Train once instead of three separate models (3x faster)
-- **Shared Learning**: Model learns cross-horizon patterns (early indicators of long-term trends)
-- **Simplicity**: Single training pipeline, single model artifact
-- **Flexibility**: Easy to add new horizons without architectural changes
+- **Simplicity**: Single training pipeline, single model artifact, same-day labeling strategy
+- **Flexibility**: Easy to add new horizons without retraining
+- **Consistent Labeling**: All training examples use same-day price movement labels (ADR-4)
 
 **Implementation Details**:
-- Feature vector includes `horizon` as 14th feature (values: 1, 14, 30)
-- Training data includes examples for all three horizons
-- Prediction: Run model 3 times with same features, varying only horizon value
-- Model output: 3 pairs of (direction, probability)
+- **Training**: 13-feature vectors (OHLCV metrics, event types, aspect/sentiment scores)
+- **Labels**: Same-day price movement (previous close → current close, ±1% threshold)
+- **Inference**: Append horizon value (1, 14, 30) as 14th feature, run model 3 times
+- **Model output**: 3 pairs of (direction, probability)
+
+**Note**: While horizon is included as a feature during inference, it is not part of the training data. This means the model learns general price movement patterns from same-day data, and the horizon feature allows the model to potentially adjust predictions based on the requested timeframe (though impact may be limited given same-day training labels).
 
 **Alternatives Considered**:
 - Three separate models (rejected: 3x training time, no shared learning)
+- Multi-horizon training with different labels per horizon (rejected: complex labeling logic, look-ahead bias)
 - Single model with multi-output (rejected: complex architecture, harder to interpret)
 
 ---
@@ -373,15 +376,17 @@ parameter_overrides = "MemorySize=1024 Timeout=120 TableName=stock-predictions-c
 - Utility functions (date formatting, type guards)
 
 **Tools**:
-- Jest test framework
+- Jest test framework (frontend and backend)
 - React Native Testing Library (frontend components)
-- Python unittest (Lambda functions)
+- ts-jest (TypeScript test runner for Lambda functions)
+- Node.js test environment for backend services
 
 **Patterns**:
 - Arrange-Act-Assert structure
 - Descriptive test names: `should [expected behavior] when [condition]`
-- Mock external dependencies (database, API calls)
+- Mock external dependencies (database, API calls) using jest.mock()
 - Test edge cases (empty data, null values, boundary conditions)
+- Test files: `__tests__/**/*.test.ts` or `*.spec.ts` convention
 
 **Example Test Structure**:
 ```

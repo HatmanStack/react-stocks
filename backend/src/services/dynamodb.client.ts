@@ -14,6 +14,17 @@ export class DynamoDBClientWrapper {
     this.stockTable = process.env.STOCK_HISTORICAL_TABLE || '';
     this.articleTable = process.env.ARTICLE_ANALYSIS_TABLE || '';
     this.sentimentTable = process.env.DAILY_SENTIMENT_TABLE || '';
+
+    // Validate that all required table names are configured
+    if (!this.stockTable) {
+      throw new Error('Missing required environment variable: STOCK_HISTORICAL_TABLE');
+    }
+    if (!this.articleTable) {
+      throw new Error('Missing required environment variable: ARTICLE_ANALYSIS_TABLE');
+    }
+    if (!this.sentimentTable) {
+      throw new Error('Missing required environment variable: DAILY_SENTIMENT_TABLE');
+    }
   }
 
   async putStockData(data: StockHistoricalDataItem): Promise<void> {

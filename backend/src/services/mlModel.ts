@@ -5,9 +5,10 @@ import { Scaler, normalize_features } from './preprocessing';
 /**
  * Creates a compiled logistic regression model.
  * @param inputDim Number of input features.
+ * @param learningRate Learning rate for the optimizer.
  * @returns Compiled TensorFlow.js Sequential model.
  */
-export function createLogisticRegressionModel(inputDim: number): tf.Sequential {
+export function createLogisticRegressionModel(inputDim: number, learningRate: number = 0.01): tf.Sequential {
     const model = tf.sequential({
         layers: [
             tf.layers.dense({
@@ -20,7 +21,7 @@ export function createLogisticRegressionModel(inputDim: number): tf.Sequential {
     });
 
     model.compile({
-        optimizer: tf.train.adam(0.01),
+        optimizer: tf.train.adam(learningRate),
         loss: 'binaryCrossentropy',
         metrics: ['accuracy']
     });
@@ -60,57 +61,75 @@ export async function trainModel(
     y: tf.Tensor2D,
     config: ModelTrainingConfig
 ): Promise<{ model: tf.Sequential, metrics: TrainingMetrics }> {
-    const model = createLogisticRegressionModel(config.inputDim);
+    let model: tf.Sequential | null = null;
 
-    const numSamples = X.shape[0];
-    if (numSamples < 10) {
-        throw new Error('Insufficient training data: At least 10 samples required.');
-    }
-
-    if (X.shape[0] !== y.shape[0]) {
-         throw new Error('Shape mismatch: X and y must have same number of rows.');
-    }
-
-    // Check for NaN in input
-    const xData = await X.data();
-    for (let i = 0; i < xData.length; i++) {
-        if (Number.isNaN(xData[i])) {
-             throw new Error('Invalid data contains NaN');
+    try {
+        const numSamples = X.shape[0];
+        if (numSamples < 10) {
+            throw new Error('Insufficient training data: At least 10 samples required.');
         }
-    }
 
-    const yArray = await y.array() as number[][];
-    const flatLabels = yArray.flat();
-    const classWeights = calculateClassWeights(flatLabels);
+        if (X.shape[0] !== y.shape[0]) {
+            throw new Error('Shape mismatch: X and y must have same number of rows.');
+        }
 
-    let finalAccuracy = 0;
-    let finalLoss = 0;
-
-    await model.fit(X, y, {
-        epochs: config.epochs,
-        batchSize: config.batchSize,
-        validationSplit: config.validationSplit,
-        classWeight: classWeights,
-        verbose: 0,
-        callbacks: {
-            onEpochEnd: (_epoch, logs) => {
-                // Keep track of latest metrics
-                if (logs) {
-                    finalLoss = logs.loss;
-                    finalAccuracy = logs.acc;
-                }
+        // Check for NaN in input features
+        const xData = await X.data();
+        for (let i = 0; i < xData.length; i++) {
+            if (Number.isNaN(xData[i])) {
+                throw new Error('Invalid feature data contains NaN');
             }
         }
-    });
 
-    return {
-        model,
-        metrics: {
-            accuracy: finalAccuracy,
-            loss: finalLoss,
-            epochs: config.epochs
+        // Check for NaN in labels
+        const yData = await y.data();
+        for (let i = 0; i < yData.length; i++) {
+            if (Number.isNaN(yData[i])) {
+                throw new Error('Invalid label data contains NaN');
+            }
         }
-    };
+
+        model = createLogisticRegressionModel(config.inputDim, config.learningRate);
+
+        const yArray = await y.array() as number[][];
+        const flatLabels = yArray.flat();
+        const classWeights = calculateClassWeights(flatLabels);
+
+        let finalAccuracy = 0;
+        let finalLoss = 0;
+
+        await model.fit(X, y, {
+            epochs: config.epochs,
+            batchSize: config.batchSize,
+            validationSplit: config.validationSplit,
+            classWeight: classWeights,
+            verbose: 0,
+            callbacks: {
+                onEpochEnd: (_epoch: number, logs?: tf.Logs) => {
+                    // Keep track of latest metrics
+                    if (logs) {
+                        finalLoss = logs.loss || 0;
+                        finalAccuracy = logs.accuracy || 0;
+                    }
+                }
+            }
+        });
+
+        return {
+            model,
+            metrics: {
+                accuracy: finalAccuracy,
+                loss: finalLoss,
+                epochs: config.epochs
+            }
+        };
+    } catch (error) {
+        // Dispose model if it was created before error
+        if (model) {
+            model.dispose();
+        }
+        throw error;
+    }
 }
 
 /**

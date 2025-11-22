@@ -92,9 +92,10 @@ export function generate_label(previousClose: number, currentClose: number, thre
  * Also computes labels based on price movement.
  * @param priceData List of StockPrice objects.
  * @param sentimentData List of ArticleSentiment objects.
+ * @param ticker Stock ticker symbol.
  * @returns List of DailyFeatures objects.
  */
-export function aggregate_daily_features(priceData: StockPrice[], sentimentData: ArticleSentiment[]): DailyFeatures[] {
+export function aggregate_daily_features(priceData: StockPrice[], sentimentData: ArticleSentiment[], ticker: string): DailyFeatures[] {
     // 1. Group articles by date
     const articlesByDate: Record<string, ArticleSentiment[]> = {};
     for (const article of sentimentData) {
@@ -174,7 +175,7 @@ export function aggregate_daily_features(priceData: StockPrice[], sentimentData:
 
         dailyFeatures.push({
             date: price.date,
-            ticker: '',
+            ticker: ticker,
             open: price.open,
             high: price.high,
             low: price.low,
