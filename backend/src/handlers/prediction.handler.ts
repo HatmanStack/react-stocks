@@ -1,10 +1,7 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { PredictionRequest, PredictionResponse } from '../types/prediction.types';
+import { runPredictionPipeline } from '../services/pipeline';
 
-/**
- * Handler for the /predict endpoint
- * Triggers the multi-signal prediction pipeline
- */
 export async function predictionHandler(
     event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> {
@@ -13,38 +10,56 @@ export async function predictionHandler(
     try {
         // Parse request
         let request: PredictionRequest;
-        try {
-            request = JSON.parse(event.body || '{}');
-        } catch (e) {
+        if (event.body) {
+            request = JSON.parse(event.body);
+        } else {
+             // Handle query params if body missing (optional, but good for testing)
+             request = {
+                 ticker: event.queryStringParameters?.ticker || '',
+                 days: parseInt(event.queryStringParameters?.days || '0', 10)
+             };
+        }
+
+        // Validate
+        if (!request.ticker) {
             return {
                 statusCode: 400,
-                body: JSON.stringify({ error: 'Invalid JSON body' })
+                body: JSON.stringify({ error: 'Missing ticker symbol' })
             };
         }
 
-        // Validate request
-        if (!request.ticker || typeof request.ticker !== 'string') {
-            return {
+        if (request.days && request.days < 30) {
+             return {
                 statusCode: 400,
-                body: JSON.stringify({ error: 'Missing or invalid ticker' })
+                body: JSON.stringify({ error: 'Minimum 30 days required for training' })
             };
         }
 
-        if (!request.days || typeof request.days !== 'number' || request.days < 30) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ error: 'Invalid days parameter. Must be at least 30.' })
-            };
-        }
+        // Default days if not provided
+        const days = request.days || 90;
 
-        // TODO: Implement full prediction pipeline (Tasks 5-11)
-        // For now, return a stubbed response to verify connectivity
+        // Run pipeline
+        const predictions = await runPredictionPipeline(request.ticker, days);
+
+        // Helper to extract and format prediction
+        const getPred = (h: number) => {
+            const p = predictions.find(item => item.horizon === h);
+            if (p) {
+                return {
+                    direction: p.direction,
+                    probability: p.probability
+                };
+            }
+            return { direction: 'down' as const, probability: 0.5 };
+        };
+
+        // Format response
         const response: PredictionResponse = {
             ticker: request.ticker,
             predictions: {
-                nextDay: { direction: 'up', probability: 0.5 },
-                twoWeek: { direction: 'up', probability: 0.5 },
-                oneMonth: { direction: 'down', probability: 0.5 }
+                nextDay: getPred(1),
+                twoWeek: getPred(14),
+                oneMonth: getPred(30)
             }
         };
 
@@ -56,11 +71,20 @@ export async function predictionHandler(
             },
             body: JSON.stringify(response)
         };
-    } catch (error) {
+    } catch (error: any) {
         console.error('[PredictionHandler] Error:', error);
+
+        // Handle known errors
+        if (error.message && error.message.includes('Insufficient')) {
+             return {
+                statusCode: 400,
+                body: JSON.stringify({ error: error.message })
+            };
+        }
+
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Internal server error' })
+            body: JSON.stringify({ error: 'Internal server error', details: error.message })
         };
     }
 }
