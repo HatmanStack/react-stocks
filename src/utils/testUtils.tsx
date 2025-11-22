@@ -39,12 +39,6 @@ export const createTestWrapper = () => {
         retry: false,
       },
     },
-    // Suppress error logging in tests
-    logger: {
-      log: () => {},
-      warn: () => {},
-      error: () => {},
-    },
   });
 
   // Return wrapper component
@@ -66,11 +60,6 @@ export const createQueryWrapper = () => {
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
       mutations: { retry: false },
-    },
-    logger: {
-      log: () => {},
-      warn: () => {},
-      error: () => {},
     },
   });
 

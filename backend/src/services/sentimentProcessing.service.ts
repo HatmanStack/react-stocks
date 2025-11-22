@@ -13,6 +13,11 @@ import * as NewsCacheRepository from '../repositories/newsCache.repository.js';
 import * as SentimentCacheRepository from '../repositories/sentimentCache.repository.js';
 import { analyzeSentimentBatch, analyzeSentiment } from '../ml/sentiment/analyzer.js';
 import { aggregateDailySentiment, type DailySentiment } from '../utils/sentiment.util.js';
+import { classifyEvent } from './eventClassification.service.js';
+import { analyzeAspects } from './aspectAnalysis.service.js';
+import { getDistilFinBERTSentiment } from './distilFinBERT.service.js';
+import { isMaterialEvent } from '../types/event.types.js';
+import type { EventType } from '../types/event.types.js';
 import type {
   NewsCacheItem,
   SentimentCacheItem,
@@ -224,10 +229,13 @@ async function partitionArticlesByCache(
 /**
  * Analyze articles and return sentiment cache items
  *
+ * NEW (Phase 1): Includes event classification before sentiment analysis
+ *
  * Uses hybrid error handling:
- * 1. Try batch analysis
- * 2. If batch fails, retry once
- * 3. If still fails, analyze articles individually to get partial success
+ * 1. Classify events for all articles
+ * 2. Try batch sentiment analysis
+ * 3. If batch fails, retry once
+ * 4. If still fails, analyze articles individually to get partial success
  *
  * @returns Successful cache items (may be partial if some articles failed)
  */
@@ -237,6 +245,192 @@ async function analyzeArticles(
 ): Promise<Omit<SentimentCacheItem, 'ttl'>[]> {
   if (articles.length === 0) {
     return [];
+  }
+
+  // NEW (Phase 1): Classify events for all articles first
+  const articleClassifications = await Promise.allSettled(
+    articles.map(async (item) => {
+      try {
+        const classification = await classifyEvent(item.article);
+        return {
+          articleHash: item.articleHash,
+          eventType: classification.eventType,
+        };
+      } catch (error) {
+        console.error('[SentimentProcessingService] Event classification failed:', {
+          ticker,
+          articleHash: item.articleHash,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Default to GENERAL on classification failure
+        return {
+          articleHash: item.articleHash,
+          eventType: 'GENERAL' as EventType,
+        };
+      }
+    })
+  );
+
+  // Create map of articleHash -> eventType
+  const eventTypeMap = new Map<string, EventType>();
+  articleClassifications.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      eventTypeMap.set(result.value.articleHash, result.value.eventType);
+    }
+  });
+
+  // Log event type distribution
+  const eventTypeCounts: Record<string, number> = {};
+  eventTypeMap.forEach((eventType) => {
+    eventTypeCounts[eventType] = (eventTypeCounts[eventType] || 0) + 1;
+  });
+  console.log('[SentimentProcessingService] Event type distribution:', {
+    ticker,
+    totalArticles: articles.length,
+    eventTypes: eventTypeCounts,
+  });
+
+  // NEW (Phase 2): Analyze aspects for all articles
+  const aspectAnalysisStartTime = Date.now();
+  const aspectAnalysisResults = await Promise.allSettled(
+    articles.map(async (item) => {
+      try {
+        const eventType = eventTypeMap.get(item.articleHash) as EventType | undefined;
+        const analysisResult = await analyzeAspects(
+          {
+            ticker,
+            headline: item.article.title || '',
+            summary: item.article.description || '',
+          },
+          eventType
+        );
+
+        return {
+          articleHash: item.articleHash,
+          aspectScore: analysisResult.overallScore,
+          aspectBreakdown: analysisResult.breakdown,
+        };
+      } catch (error) {
+        console.error('[SentimentProcessingService] Aspect analysis failed:', {
+          ticker,
+          articleHash: item.articleHash,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Default to neutral aspect score on failure
+        return {
+          articleHash: item.articleHash,
+          aspectScore: 0,
+          aspectBreakdown: {},
+        };
+      }
+    })
+  );
+
+  // Create map of articleHash -> aspect scores
+  const aspectScoreMap = new Map<string, { score: number; breakdown: any }>();
+  aspectAnalysisResults.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      aspectScoreMap.set(result.value.articleHash, {
+        score: result.value.aspectScore,
+        breakdown: result.value.aspectBreakdown,
+      });
+    }
+  });
+
+  const aspectAnalysisDuration = Date.now() - aspectAnalysisStartTime;
+  const avgAspectAnalysisTime = aspectAnalysisDuration / articles.length;
+
+  // Log performance metrics
+  console.log('[SentimentProcessingService] Aspect analysis performance:', {
+    ticker,
+    totalArticles: articles.length,
+    totalTimeMs: aspectAnalysisDuration,
+    avgTimePerArticleMs: avgAspectAnalysisTime.toFixed(2),
+  });
+
+  // Log warning if aspect analysis is slow
+  if (avgAspectAnalysisTime > 30) {
+    console.warn('[SentimentProcessingService] Aspect analysis slow:', {
+      ticker,
+      avgTimePerArticleMs: avgAspectAnalysisTime.toFixed(2),
+      threshold: 30,
+    });
+  }
+
+  // NEW (Phase 3): Analyze DistilFinBERT sentiment for material events
+  const distilFinBERTStartTime = Date.now();
+  const distilFinBERTResults = await Promise.allSettled(
+    articles.map(async (item) => {
+      const eventType = eventTypeMap.get(item.articleHash) as EventType | undefined;
+
+      // Only run DistilFinBERT for material events
+      if (eventType && isMaterialEvent(eventType)) {
+        try {
+          const text = `${item.article.title || ''} ${item.article.description || ''}`.trim();
+          const score = await getDistilFinBERTSentiment(text);
+
+          return {
+            articleHash: item.articleHash,
+            distilFinBERTScore: score, // null if service failed
+          };
+        } catch (error) {
+          console.error('[SentimentProcessingService] DistilFinBERT analysis failed:', {
+            ticker,
+            articleHash: item.articleHash,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return {
+            articleHash: item.articleHash,
+            distilFinBERTScore: null,
+          };
+        }
+      }
+
+      // Non-material events: skip DistilFinBERT
+      return {
+        articleHash: item.articleHash,
+        distilFinBERTScore: null,
+      };
+    })
+  );
+
+  // Create map of articleHash -> DistilFinBERT scores
+  const distilFinBERTScoreMap = new Map<string, number | null>();
+  distilFinBERTResults.forEach((result) => {
+    if (result.status === 'fulfilled') {
+      distilFinBERTScoreMap.set(result.value.articleHash, result.value.distilFinBERTScore);
+    }
+  });
+
+  const distilFinBERTDuration = Date.now() - distilFinBERTStartTime;
+  const materialEventCount = Array.from(eventTypeMap.values()).filter(
+    (eventType) => isMaterialEvent(eventType as EventType)
+  ).length;
+
+  // Log DistilFinBERT performance metrics
+  console.log('[SentimentProcessingService] DistilFinBERT analysis performance:', {
+    ticker,
+    totalArticles: articles.length,
+    materialEvents: materialEventCount,
+    nonMaterialEvents: articles.length - materialEventCount,
+    totalTimeMs: distilFinBERTDuration,
+    avgTimePerMaterialEventMs:
+      materialEventCount > 0 ? (distilFinBERTDuration / materialEventCount).toFixed(2) : 'N/A',
+  });
+
+  // Log DistilFinBERT success/failure rates
+  const distilFinBERTSuccessCount = Array.from(distilFinBERTScoreMap.values()).filter(
+    (score) => score !== null
+  ).length;
+  const distilFinBERTFailureCount = materialEventCount - distilFinBERTSuccessCount;
+  if (distilFinBERTFailureCount > 0) {
+    console.warn('[SentimentProcessingService] DistilFinBERT failures:', {
+      ticker,
+      materialEvents: materialEventCount,
+      successful: distilFinBERTSuccessCount,
+      failed: distilFinBERTFailureCount,
+      failureRate: ((distilFinBERTFailureCount / materialEventCount) * 100).toFixed(1) + '%',
+    });
   }
 
   // Prepare articles for batch analysis
@@ -250,19 +444,31 @@ async function analyzeArticles(
     try {
       const sentimentResults = await analyzeSentimentBatch(articlesForAnalysis);
 
-      // Convert to cache format
+      // Convert to cache format (with event types, aspect scores, and DistilFinBERT scores)
       const cacheItems: Omit<SentimentCacheItem, 'ttl'>[] = sentimentResults.map(
-        (result) => ({
-          ticker,
-          articleHash: result.articleHash,
-          sentiment: {
-            positive: parseInt(result.sentiment.positive[0]),
-            negative: parseInt(result.sentiment.negative[0]),
-            sentimentScore: result.sentimentScore,
-            classification: result.classification,
-          },
-          analyzedAt: Date.now(),
-        })
+        (result) => {
+          const aspectData = aspectScoreMap.get(result.articleHash);
+          const distilFinBERTScore = distilFinBERTScoreMap.get(result.articleHash);
+
+          return {
+            ticker,
+            articleHash: result.articleHash,
+            sentiment: {
+              positive: parseInt(result.sentiment.positive[0]),
+              negative: parseInt(result.sentiment.negative[0]),
+              sentimentScore: result.sentimentScore,
+              classification: result.classification,
+            },
+            analyzedAt: Date.now(),
+            // NEW (Phase 1): Include event type
+            eventType: eventTypeMap.get(result.articleHash) || 'GENERAL',
+            // NEW (Phase 2): Include aspect scores
+            aspectScore: aspectData?.score ?? 0,
+            aspectBreakdown: aspectData?.breakdown,
+            // NEW (Phase 3): Include DistilFinBERT score (undefined if not material event or failed)
+            distilFinBERTScore: distilFinBERTScore ?? undefined,
+          };
+        }
       );
 
       return cacheItems;
@@ -289,6 +495,8 @@ async function analyzeArticles(
   const results = await Promise.allSettled(
     articlesForAnalysis.map(async (article) => {
       const sentimentResult = await analyzeSentiment(article.text, article.hash);
+      const aspectData = aspectScoreMap.get(sentimentResult.articleHash);
+      const distilFinBERTScore = distilFinBERTScoreMap.get(sentimentResult.articleHash);
 
       return {
         ticker,
@@ -300,6 +508,13 @@ async function analyzeArticles(
           classification: sentimentResult.classification,
         },
         analyzedAt: Date.now(),
+        // NEW (Phase 1): Include event type
+        eventType: eventTypeMap.get(sentimentResult.articleHash) || 'GENERAL',
+        // NEW (Phase 2): Include aspect scores
+        aspectScore: aspectData?.score ?? 0,
+        aspectBreakdown: aspectData?.breakdown,
+        // NEW (Phase 3): Include DistilFinBERT score
+        distilFinBERTScore: distilFinBERTScore ?? undefined,
       } as Omit<SentimentCacheItem, 'ttl'>;
     })
   );

@@ -39,7 +39,7 @@ export function MonoText({
       {...props}
       style={[
         {
-          fontFamily: theme.fonts.mono,
+          fontFamily: theme.fonts.mono?.fontFamily || 'monospace',
           color,
           fontSize,
         },

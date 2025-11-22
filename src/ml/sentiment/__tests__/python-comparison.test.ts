@@ -92,12 +92,12 @@ describe('Python Service Comparison', () => {
   describe('Directional Agreement', () => {
     it('should achieve >80% directional agreement overall', async () => {
       let agreementCount = 0;
-      const results: Array<{
+      const results: {
         description: string;
         pythonDominant: string;
         jsDominant: string;
         agrees: boolean;
-      }> = [];
+      }[] = [];
 
       for (const sample of samples) {
         const jsResult = await analyzeSentiment(sample.articleText, sample.hash);

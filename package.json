@@ -14,7 +14,8 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "type-check": "tsc --noEmit",
-    "validate": "./scripts/validate-prerequisites.sh"
+    "validate": "./scripts/validate-prerequisites.sh",
+    "deploy": "cd backend && npm run deploy"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

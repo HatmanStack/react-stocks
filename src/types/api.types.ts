@@ -1,16 +1,34 @@
 /**
  * API Request/Response Types for External Services
  * Used for Python microservices (FinBERT sentiment & logistic regression predictions)
+ * and Lambda backend sentiment API
  */
 
 /**
+ * Event type categories for financial news classification
+ *
+ * @see backend/src/types/event.types.ts for backend equivalent
+ */
+export type EventType =
+  | 'EARNINGS'
+  | 'M&A'
+  | 'PRODUCT_LAUNCH'
+  | 'ANALYST_RATING'
+  | 'GUIDANCE'
+  | 'GENERAL';
+
+/**
  * Sentiment Analysis Service (FinBERT on Google Cloud Run)
+ * @deprecated This service is being phased out in favor of Lambda-based sentiment
  */
 export interface SentimentAnalysisRequest {
   text: string[]; // Array of sentences from article
   hash: string; // Hash of the article body
 }
 
+/**
+ * @deprecated Legacy response format from FinBERT service
+ */
 export interface SentimentAnalysisResponse {
   positive: [string, string]; // [count, confidence_score]
   neutral: [string, string]; // [count, confidence_score]

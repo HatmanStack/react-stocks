@@ -1,0 +1,174 @@
+/**
+ * Prediction Synchronization Service
+ * Generates stock predictions using three-signal sentiment data
+ *
+ * **Phase 5:** Wires prediction call sites to use event types, aspect scores, and DistilFinBERT scores
+ */
+
+import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
+import * as StockRepository from '@/database/repositories/stock.repository';
+import { getStockPredictions, parsePredictionResponse } from '@/services/api/prediction.service';
+import type { CombinedWordDetails, EventType } from '@/types/database.types';
+
+/**
+ * Generate and store predictions for a ticker using three-signal sentiment data
+ *
+ * @param ticker - Stock ticker symbol
+ * @param days - Number of days of historical data to use (default: 30)
+ * @returns Number of days updated with predictions
+ */
+export async function syncPredictions(ticker: string, days: number = 30): Promise<number> {
+  try {
+    console.log(`[PredictionSync] Generating predictions for ${ticker} using ${days} days of data`);
+
+    // Fetch recent combined sentiment data
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0];
+
+    const sentimentData = await CombinedWordRepository.findByTickerAndDateRange(
+      ticker,
+      startDate,
+      endDate
+    );
+
+    if (sentimentData.length < 10) {
+      console.warn(
+        `[PredictionSync] Insufficient data for ${ticker} (${sentimentData.length} days, need at least 10)`
+      );
+      return 0;
+    }
+
+    // Fetch stock price data
+    const stockData = await StockRepository.findByTickerAndDateRange(ticker, startDate, endDate);
+
+    if (stockData.length < 10) {
+      console.warn(
+        `[PredictionSync] Insufficient stock data for ${ticker} (${stockData.length} days, need at least 10)`
+      );
+      return 0;
+    }
+
+    // Sort by date (oldest first) for time-series prediction
+    sentimentData.sort((a, b) => a.date.localeCompare(b.date));
+    stockData.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Extract features for prediction
+    const closePrices = stockData.map((s) => s.close);
+    const volumes = stockData.map((s) => s.volume);
+
+    // Extract three-signal sentiment data
+    const { eventTypes, aspectScores, finBERTScores } = extractThreeSignalData(sentimentData);
+
+    // Generate predictions using three-signal model
+    const predictionResponse = await getStockPredictions(
+      ticker,
+      closePrices,
+      volumes,
+      [], // deprecated positiveCounts
+      [], // deprecated negativeCounts
+      [], // deprecated sentimentScores
+      eventTypes,
+      aspectScores,
+      finBERTScores
+    );
+
+    const predictions = parsePredictionResponse(predictionResponse);
+
+    // Update the most recent CombinedWordDetails record with predictions
+    const latestSentiment = sentimentData[sentimentData.length - 1];
+    const updatedDetails: CombinedWordDetails = {
+      ...latestSentiment,
+      nextDay: predictions.nextDay,
+      twoWks: predictions.twoWeeks,
+      oneMnth: predictions.oneMonth,
+      updateDate: new Date().toISOString(),
+    };
+
+    await CombinedWordRepository.upsert(updatedDetails);
+
+    console.log(
+      `[PredictionSync] Updated predictions for ${ticker}: next=${predictions.nextDay.toFixed(2)}, 2wks=${predictions.twoWeeks.toFixed(2)}, 1mo=${predictions.oneMonth.toFixed(2)}`
+    );
+
+    return 1;
+  } catch (error) {
+    console.error(`[PredictionSync] Error generating predictions for ${ticker}:`, error);
+    return 0;
+  }
+}
+
+/**
+ * Extract three-signal data from CombinedWordDetails array
+ *
+ * Parses eventCounts JSON, determines dominant event type per day,
+ * and extracts aspect and DistilFinBERT scores.
+ *
+ * @param sentimentData - Array of CombinedWordDetails sorted by date
+ * @returns Arrays of event types, aspect scores, and DistilFinBERT scores
+ */
+function extractThreeSignalData(sentimentData: CombinedWordDetails[]): {
+  eventTypes: EventType[];
+  aspectScores: number[];
+  finBERTScores: number[];
+} {
+  const eventTypes: EventType[] = [];
+  const aspectScores: number[] = [];
+  const finBERTScores: number[] = [];
+
+  for (const day of sentimentData) {
+    // Extract dominant event type from eventCounts JSON
+    let dominantEvent: EventType = 'GENERAL';
+    if (day.eventCounts) {
+      try {
+        const eventCounts = JSON.parse(day.eventCounts) as Record<string, number>;
+        const events = Object.entries(eventCounts);
+
+        if (events.length > 0) {
+          // Find event type with highest count (excluding GENERAL if others exist)
+          const nonGeneralEvents = events.filter(([type]) => type !== 'GENERAL');
+          if (nonGeneralEvents.length > 0) {
+            const [type] = nonGeneralEvents.reduce((max, curr) =>
+              curr[1] > max[1] ? curr : max
+            );
+            dominantEvent = type as EventType;
+          }
+        }
+      } catch (error) {
+        console.warn(`[PredictionSync] Failed to parse eventCounts for ${day.date}:`, error);
+      }
+    }
+    eventTypes.push(dominantEvent);
+
+    // Extract aspect score (default to 0 if missing)
+    aspectScores.push(day.avgAspectScore ?? 0);
+
+    // Extract DistilFinBERT score (default to 0 if missing)
+    finBERTScores.push(day.avgFinBERTScore ?? 0);
+  }
+
+  return { eventTypes, aspectScores, finBERTScores };
+}
+
+/**
+ * Generate predictions for all tickers in portfolio
+ *
+ * @param tickers - Array of ticker symbols
+ * @param days - Number of days of historical data to use
+ * @returns Number of tickers successfully updated
+ */
+export async function syncPredictionsForPortfolio(
+  tickers: string[],
+  days: number = 30
+): Promise<number> {
+  let successCount = 0;
+
+  for (const ticker of tickers) {
+    const updated = await syncPredictions(ticker, days);
+    successCount += updated;
+  }
+
+  console.log(`[PredictionSync] Updated predictions for ${successCount}/${tickers.length} tickers`);
+  return successCount;
+}

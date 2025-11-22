@@ -72,17 +72,21 @@ export async function findByDate(date: string): Promise<CombinedWordDetails | nu
 }
 
 /**
- * Insert or update a combined word count record
+ * Insert or update a combined word count record with three-signal sentiment
  * Uses INSERT OR REPLACE with composite key (ticker, date)
- * @param combinedWord - Combined word details
+ *
+ * **Phase 5 Update:** Now includes eventCounts, avgAspectScore, avgFinBERTScore, materialEventCount
+ *
+ * @param combinedWord - Combined word details with optional three-signal fields
  */
 export async function upsert(combinedWord: CombinedWordDetails): Promise<void> {
   const db = await getDatabase();
   const sql = `
     INSERT OR REPLACE INTO ${TABLE_NAMES.COMBINED_WORD_DETAILS} (
       ticker, date, positive, negative, sentimentNumber,
-      sentiment, nextDay, twoWks, oneMnth, updateDate
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      sentiment, nextDay, twoWks, oneMnth, updateDate,
+      eventCounts, avgAspectScore, avgFinBERTScore, materialEventCount
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   try {
@@ -97,6 +101,11 @@ export async function upsert(combinedWord: CombinedWordDetails): Promise<void> {
       combinedWord.twoWks,
       combinedWord.oneMnth,
       combinedWord.updateDate,
+      // Phase 5: Three-signal sentiment fields (optional, backward compatible)
+      combinedWord.eventCounts ?? null,
+      combinedWord.avgAspectScore ?? null,
+      combinedWord.avgFinBERTScore ?? null,
+      combinedWord.materialEventCount ?? 0,
     ]);
   } catch (error) {
     console.error('[CombinedWordRepository] Error upserting combined word:', error);

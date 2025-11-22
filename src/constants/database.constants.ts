@@ -4,7 +4,7 @@
  */
 
 export const DB_NAME = 'stock_sentiment.db';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2; // Phase 5: Added three-signal sentiment columns
 
 export const TABLE_NAMES = {
   STOCK_DETAILS: 'stock_details',

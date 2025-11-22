@@ -6,12 +6,10 @@ Parameters:
   TiingoApiKey:
     Type: String
     Description: Tiingo API key for stock price data
-    NoEcho: true
 
   FinnhubApiKey:
     Type: String
     Description: Finnhub API key for news data
-    NoEcho: true
 
   AllowedOrigins:
     Type: String

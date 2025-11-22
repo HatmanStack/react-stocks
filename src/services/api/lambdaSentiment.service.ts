@@ -6,6 +6,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { Environment } from '@/config/environment';
+import type { EventType } from '@/types/api.types';
 
 // Backend API configuration
 const BACKEND_TIMEOUT = 30000; // 30 seconds (Lambda handles retries)
@@ -43,14 +44,74 @@ export interface SentimentJobStatus extends SentimentJobResponse {
 }
 
 /**
- * Daily sentiment data point
+ * Breakdown of sentiment scores for individual financial aspects
+ */
+export interface AspectBreakdown {
+  REVENUE?: number;
+  EARNINGS?: number;
+  GUIDANCE?: number;
+  MARGINS?: number;
+  GROWTH?: number;
+  DEBT?: number;
+}
+
+/**
+ * Daily sentiment data point with three-signal architecture
+ *
+ * **Schema Evolution:**
+ * - Legacy: positive, negative, sentimentScore (kept for backward compatibility)
+ * - Phase 4: Added eventCounts, avgAspectScore, avgFinBERTScore, materialEventCount
+ *
+ * @see backend/src/types/sentiment.types.ts for backend equivalent
  */
 export interface DailySentiment {
+  /** Date in YYYY-MM-DD format */
   date: string;
+
+  // Legacy sentiment metrics (backward compatibility)
+  /** @deprecated Total positive sentence count across all articles */
   positive: number;
+  /** @deprecated Total negative sentence count across all articles */
   negative: number;
+  /** Legacy overall sentiment score */
   sentimentScore: number;
+  /** Classification based on sentiment score */
   classification: 'POS' | 'NEG' | 'NEUT';
+
+  // Phase 4: Event distribution (NEW)
+  /**
+   * Count of each event type on this day.
+   * Shows distribution of news types (e.g., 2 earnings, 1 M&A, 8 general).
+   */
+  eventCounts: {
+    EARNINGS: number;
+    'M&A': number;
+    GUIDANCE: number;
+    ANALYST_RATING: number;
+    PRODUCT_LAUNCH: number;
+    GENERAL: number;
+  };
+
+  // Phase 4: Multi-signal averages (NEW)
+  /**
+   * Average aspect score across all articles for this day.
+   * Range: -1 to +1
+   * May be undefined if no articles have aspect scores.
+   */
+  avgAspectScore?: number;
+
+  /**
+   * Average DistilFinBERT score across material events for this day.
+   * Range: -1 to +1
+   * May be undefined if no material events occurred.
+   */
+  avgFinBERTScore?: number;
+
+  /**
+   * Count of material events (articles with DistilFinBERT scores).
+   * Useful for weighting avgFinBERTScore in prediction model.
+   */
+  materialEventCount: number;
 }
 
 /**

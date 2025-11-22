@@ -9,7 +9,7 @@ import { transformPriceData, calculatePriceChange } from '@/hooks/useChartData';
 import type { StockDetails } from '@/types/database.types';
 
 interface PriceChartProps {
-  data: Array<{ date: string; price: number }> | StockDetails[];
+  data: { date: string; price: number }[] | StockDetails[];
   width?: number;
   height?: number;
 }
@@ -42,7 +42,7 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
     }
 
     // Already in simple format
-    const simpleData = data as Array<{ date: string; price: number }>;
+    const simpleData = data as { date: string; price: number }[];
     return {
       chartData: simpleData.map(d => d.price),
       dates: simpleData.map(d => d.date),
