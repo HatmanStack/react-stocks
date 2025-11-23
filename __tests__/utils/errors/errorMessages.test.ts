@@ -280,7 +280,6 @@ describe('errorMessages', () => {
     it('should be immutable (readonly)', () => {
       // TypeScript will prevent this at compile time, but we can check at runtime
       const messages = ERROR_MESSAGES as any;
-      const original = messages.TICKER_NOT_FOUND;
 
       // Attempt to modify (should not work with 'as const')
       messages.TICKER_NOT_FOUND = 'Modified message';

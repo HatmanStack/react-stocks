@@ -228,12 +228,6 @@ describe('E2E: Complete User Flow', () => {
 
   describe('Data Sync Workflow', () => {
     it('should handle sync progress reporting', async () => {
-      const progressUpdates: string[] = [];
-
-      const mockProgressCallback = (message: string) => {
-        progressUpdates.push(message);
-      };
-
       // Note: This test verifies the sync orchestrator interface
       // Actual sync would require mocked API responses
       expect(typeof syncAllData).toBe('function');

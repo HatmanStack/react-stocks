@@ -104,9 +104,10 @@ describe('useSentimentPolling', () => {
       dailySentiment: [
         {
           date: '2025-01-15',
-          positiveCount: 45,
-          negativeCount: 12,
+          positive: 45,
+          negative: 12,
           sentimentScore: 0.65,
+          classification: 'POS',
           eventCounts: {
             EARNINGS: 2,
             'M&A': 0,
@@ -179,9 +180,10 @@ describe('useSentimentPolling', () => {
       dailySentiment: [
         {
           date: '2025-01-15',
-          positiveCount: 45,
-          negativeCount: 12,
+          positive: 45,
+          negative: 12,
           sentimentScore: 0.65,
+          classification: 'POS',
           eventCounts: {
             EARNINGS: 2,
             'M&A': 0,

@@ -168,7 +168,6 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
       return null;
     }
 
-    const chartHeight = height - 40;
     const chartWidth = width - 66;
 
     return (

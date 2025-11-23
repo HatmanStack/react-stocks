@@ -100,14 +100,16 @@ export const theme = {
 };
 
 // Type augmentation for TypeScript
-declare module 'react-native-paper' {
-  interface MD3Colors {
-    positive: string;
-    negative: string;
-    neutral: string;
-  }
-  interface ThemeFonts {
-    mono: string;
+declare global {
+  namespace ReactNativePaper {
+    interface MD3Colors {
+      positive: string;
+      negative: string;
+      neutral: string;
+    }
+    interface ThemeFonts {
+      mono: any; // Use 'any' or specific Font type if available
+    }
   }
 }
 

@@ -67,9 +67,9 @@ export async function getStockPredictions(
   ticker: string,
   closePrices: number[],
   volumes: number[],
-  positiveCounts: number[] = [],
-  negativeCounts: number[] = [],
-  sentimentScores: string[] = [],
+  _positiveCounts: number[] = [],
+  _negativeCounts: number[] = [],
+  _sentimentScores: string[] = [],
   eventTypes?: EventType[],
   aspectScores?: number[],
   finBERTScores?: number[]

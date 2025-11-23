@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl, Alert } from 'react-native';
+import { FlatList, StyleSheet, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { MainTabScreenProps } from '../navigation/navigationTypes';
 import { PortfolioItem } from '@/components/portfolio/PortfolioItem';

@@ -3,7 +3,6 @@
  */
 
 import { SentimentAnalyzer, getSentimentAnalyzer, resetSentimentAnalyzer } from '../analyzer';
-import type { SentimentResult } from '../types';
 
 describe('SentimentAnalyzer', () => {
   let analyzer: SentimentAnalyzer;

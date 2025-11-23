@@ -6,7 +6,6 @@
 import {
   fetchNews,
   transformFinnhubToNewsDetails,
-  generateArticleHash,
 } from '@/services/api/finnhub.service';
 import * as NewsRepository from '@/database/repositories/news.repository';
 
@@ -43,9 +42,6 @@ export async function syncNewsData(
     let newArticlesCount = 0;
 
     for (const article of finnhubArticles) {
-      // Generate hash for deduplication
-      const hash = generateArticleHash(article.url);
-
       // Check if article already exists
       const exists = await NewsRepository.existsByUrl(article.url);
 

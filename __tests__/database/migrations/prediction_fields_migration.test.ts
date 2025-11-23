@@ -1,4 +1,4 @@
-import { initializeDatabase, getDatabase, resetDatabase, closeDatabase } from '../../../src/database/database';
+import { initializeDatabase, getDatabase, closeDatabase } from '../../../src/database/database';
 import { getDatabase as getWebDatabase, resetDatabase as resetWebDatabase } from '../../../src/database/database.web';
 
 // Mock expo-sqlite
@@ -76,6 +76,7 @@ describe('Database Migrations - Prediction Fields', () => {
         await closeDatabase();
 
         // Setup mock to return version 2 (needs upgrade to 3)
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const requireSqlite = require('expo-sqlite');
         const mockExecAsync = jest.fn();
         const mockGetAllAsync = jest.fn().mockImplementation((sql) => {

@@ -50,7 +50,7 @@ describe('E2E: Error Scenarios', () => {
 
       // Both cases should work (repository normalizes to uppercase)
       const upperCase = await SymbolRepository.findByTicker('AAPL');
-      const lowerCase = await SymbolRepository.findByTicker('aapl');
+      await SymbolRepository.findByTicker('aapl');
 
       // Note: Repository implementation converts to uppercase
       expect(upperCase).toBeDefined();

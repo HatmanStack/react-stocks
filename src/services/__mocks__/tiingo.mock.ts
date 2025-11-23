@@ -122,6 +122,6 @@ export async function fetchSymbolMetadata(
  * Mock implementation of setTiingoApiKey
  * No-op for mock service
  */
-export function setTiingoApiKey(apiKey: string): void {
+export function setTiingoApiKey(_apiKey: string): void {
   console.log('[MockTiingoService] API key set (mock mode)');
 }

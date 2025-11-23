@@ -114,11 +114,31 @@ export async function existsByHash(hash: number): Promise<boolean> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.WORD_COUNT_DETAILS} WHERE hash = ?`;
 
   try {
-    const result = await db.getFirstAsync<{ count: number }>(sql, [hash]);
-    return (result?.count || 0) > 0;
+    // Using getAllAsync instead of getFirstAsync
+    const results = await db.getAllAsync<{ count: number }>(sql, [hash]);
+    return results.length > 0 && results[0].count > 0;
   } catch (error) {
     console.error('[WordCountRepository] Error checking existence by hash:', error);
     return false;
+  }
+}
+
+/**
+ * Find a word count record by hash
+ * @param hash - Article hash
+ * @returns Word count details or null if not found
+ */
+export async function findByHash(hash: number): Promise<WordCountDetails | null> {
+  const db = await getDatabase();
+  const sql = `SELECT * FROM ${TABLE_NAMES.WORD_COUNT_DETAILS} WHERE hash = ?`;
+
+  try {
+    // Using getAllAsync instead of getFirstAsync
+    const results = await db.getAllAsync<WordCountDetails>(sql, [hash]);
+    return results.length > 0 ? results[0] : null;
+  } catch (error) {
+    console.error('[WordCountRepository] Error finding by hash:', error);
+    return null;
   }
 }
 
