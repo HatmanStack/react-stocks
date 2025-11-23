@@ -7,22 +7,48 @@
 
 import { getStockPredictions } from '../prediction.service';
 import predictionSamples from '../../../../docs/ml-migration/test-data/prediction-samples.json';
+import { EventType } from '@/types/database.types';
+
+// Define interface matching the JSON structure
+interface PredictionSample {
+  ticker: string;
+  input: {
+    close: number[];
+    volume: number[];
+    eventType: string[];
+    aspectScore: number[];
+    finBERTScore: number[];
+    // Legacy fields might be missing or empty in JSON
+    positive?: number[];
+    negative?: number[];
+    sentiment?: string[];
+  };
+  features: number[];
+  prediction: {
+    nextDay: number;
+    twoWeeks: number;
+    oneMonth: number;
+  };
+}
 
 describe('Python Service Comparison', () => {
   // Reference samples from synthetic data
-  const samples = predictionSamples.samples;
+  const samples = predictionSamples.samples as unknown as PredictionSample[];
 
   describe('Output Format Validation', () => {
     it('should match Python service response structure for AAPL', async () => {
       const sample = samples[0]; // AAPL
 
       const result = await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       // Structure should match exactly
@@ -43,24 +69,27 @@ describe('Python Service Comparison', () => {
       expect(['0.0', '1.0']).toContain(result.month);
 
       // Ticker should echo input
-      expect(result.ticker).toBe(sample.input.ticker);
+      expect(result.ticker).toBe(sample.ticker);
     });
 
     it('should produce same output format for all reference samples', async () => {
       for (const sample of samples) {
         const result = await getStockPredictions(
-          sample.input.ticker,
+          sample.ticker,
           sample.input.close,
           sample.input.volume,
-          sample.input.positive,
-          sample.input.negative,
-          sample.input.sentiment
+          sample.input.positive || [],
+          sample.input.negative || [],
+          sample.input.sentiment || [],
+          sample.input.eventType as EventType[],
+          sample.input.aspectScore,
+          sample.input.finBERTScore
         );
 
         expect(['0.0', '1.0']).toContain(result.next);
         expect(['0.0', '1.0']).toContain(result.week);
         expect(['0.0', '1.0']).toContain(result.month);
-        expect(result.ticker).toBe(sample.input.ticker);
+        expect(result.ticker).toBe(sample.ticker);
       }
     }, 30000); // Longer timeout for multiple predictions
   });
@@ -70,21 +99,27 @@ describe('Python Service Comparison', () => {
       const sample = samples[0]; // AAPL
 
       const result1 = await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       const result2 = await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       // Results should be identical (deterministic)
@@ -99,12 +134,15 @@ describe('Python Service Comparison', () => {
       const sample = samples[2]; // MSFT (clear downward trend)
 
       const result = await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       // MSFT has consistent downward trend
@@ -120,12 +158,15 @@ describe('Python Service Comparison', () => {
       const sample = samples[0]; // AAPL (mostly upward trend)
 
       const result = await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       // AAPL has upward trend with positive sentiment
@@ -141,12 +182,15 @@ describe('Python Service Comparison', () => {
       const sample = samples[4]; // AMZN (constant volume, sentiment)
 
       const result = await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       // Should still produce valid predictions despite std=0 features
@@ -164,12 +208,15 @@ describe('Python Service Comparison', () => {
       const sample = samples[3]; // TSLA (high volatility)
 
       const result = await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       // Should handle volatility without errors
@@ -186,12 +233,15 @@ describe('Python Service Comparison', () => {
       // This test ensures internal scaling uses population std
       // by checking that predictions are consistent with Python behavior
       const result = await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       // If we used sample std instead of population std,
@@ -209,12 +259,15 @@ describe('Python Service Comparison', () => {
       const startTime = performance.now();
 
       await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       const duration = performance.now() - startTime;
@@ -230,12 +283,15 @@ describe('Python Service Comparison', () => {
       const startTime = performance.now();
 
       await getStockPredictions(
-        sample.input.ticker,
+        sample.ticker,
         sample.input.close,
         sample.input.volume,
-        sample.input.positive,
-        sample.input.negative,
-        sample.input.sentiment
+        sample.input.positive || [],
+        sample.input.negative || [],
+        sample.input.sentiment || [],
+        sample.input.eventType as EventType[],
+        sample.input.aspectScore,
+        sample.input.finBERTScore
       );
 
       const duration = performance.now() - startTime;
@@ -253,16 +309,19 @@ describe('Python Service Comparison', () => {
       for (const sample of samples) {
         try {
           const result = await getStockPredictions(
-            sample.input.ticker,
+            sample.ticker,
             sample.input.close,
             sample.input.volume,
-            sample.input.positive,
-            sample.input.negative,
-            sample.input.sentiment
+            sample.input.positive || [],
+            sample.input.negative || [],
+            sample.input.sentiment || [],
+            sample.input.eventType as EventType[],
+            sample.input.aspectScore,
+            sample.input.finBERTScore
           );
           results.push(result);
         } catch (error) {
-          fail(`Training failed for ${sample.input.ticker}: ${error}`);
+          fail(`Training failed for ${sample.ticker}: ${error}`);
         }
       }
 

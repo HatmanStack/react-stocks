@@ -30,6 +30,10 @@ describe('WordCountRepository', () => {
     body: 'Article content here',
     sentiment: 'POS',
     sentimentNumber: 0.6,
+    eventType: 'EARNINGS',
+    aspectScore: 0.8,
+    distilFinBERTScore: 0.9,
+    materialityScore: 0.95,
   };
 
   describe('findByTicker', () => {
@@ -40,6 +44,7 @@ describe('WordCountRepository', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].ticker).toBe('AAPL');
+      expect(result[0].eventType).toBe('EARNINGS');
     });
   });
 
@@ -54,12 +59,32 @@ describe('WordCountRepository', () => {
   });
 
   describe('insert', () => {
-    it('should insert a word count record', async () => {
+    it('should insert a word count record with new fields', async () => {
       mockDb.runAsync.mockResolvedValue({ lastInsertRowId: 42 });
 
       const result = await WordCountRepository.insert(mockWordCount);
 
       expect(result).toBe(42);
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO'),
+        [
+          mockWordCount.date,
+          mockWordCount.hash,
+          mockWordCount.ticker,
+          mockWordCount.positive,
+          mockWordCount.negative,
+          mockWordCount.nextDay,
+          mockWordCount.twoWks,
+          mockWordCount.oneMnth,
+          mockWordCount.body,
+          mockWordCount.sentiment,
+          mockWordCount.sentimentNumber,
+          mockWordCount.eventType,
+          mockWordCount.aspectScore,
+          mockWordCount.distilFinBERTScore,
+          mockWordCount.materialityScore,
+        ]
+      );
     });
   });
 

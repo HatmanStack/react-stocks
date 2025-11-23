@@ -69,6 +69,15 @@ export async function handler(
         }
       }
 
+      case '/predict': {
+        // POST only
+        if (method !== 'POST') {
+          return errorResponse(`Method ${method} not allowed for /predict`, 405);
+        }
+        const { predictionHandler } = await import('./handlers/prediction.handler');
+        return predictionHandler(event);
+      }
+
       default: {
         // Check if it's a job status request (/sentiment/job/:jobId)
         if (path.startsWith('/sentiment/job/')) {

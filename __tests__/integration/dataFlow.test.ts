@@ -9,7 +9,7 @@
  * - React Query Provider
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 
 describe('Data Flow Integration Tests', () => {
   describe.skip('Stock Data Pipeline', () => {

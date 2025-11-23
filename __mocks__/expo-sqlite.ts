@@ -3,22 +3,22 @@
 export class SQLiteDatabase {
   private data: Map<string, any[]> = new Map();
 
-  execAsync = jest.fn(async (sql: string) => {
+  execAsync = jest.fn(async (_sql: string) => {
     // Mock table creation, no-op for CREATE TABLE statements
     return Promise.resolve();
   });
 
-  getAllAsync = jest.fn(async <T = any>(sql: string, params?: any[]): Promise<T[]> => {
+  getAllAsync = jest.fn(async <T = any>(_sql: string, _params?: any[]): Promise<T[]> => {
     // Return empty array by default
     return Promise.resolve([]);
   });
 
-  getFirstAsync = jest.fn(async <T = any>(sql: string, params?: any[]): Promise<T | null> => {
+  getFirstAsync = jest.fn(async <T = any>(_sql: string, _params?: any[]): Promise<T | null> => {
     // Return null by default
     return Promise.resolve(null);
   });
 
-  runAsync = jest.fn(async (sql: string, params?: any[]) => {
+  runAsync = jest.fn(async (_sql: string, _params?: any[]) => {
     return Promise.resolve({ changes: 1, lastInsertRowId: 1 });
   });
 
@@ -32,9 +32,9 @@ export class SQLiteDatabase {
   });
 }
 
-const mockDatabase = new SQLiteDatabase();
+// Removed unused mockDatabase
 
-export const openDatabaseAsync = jest.fn(async (dbName: string) => {
+export const openDatabaseAsync = jest.fn(async (_dbName: string) => {
   // Create new database instance per call to ensure test isolation
   return new SQLiteDatabase();
 });

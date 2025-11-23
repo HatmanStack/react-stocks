@@ -4,7 +4,7 @@
  * Backend proxies requests to Tiingo API (API keys secured in Lambda)
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import type { TiingoStockPrice, TiingoSymbolMetadata, TiingoSearchResult } from './tiingo.types';
 import type { StockDetails, SymbolDetails } from '@/types/database.types';
 import { Environment } from '@/config/environment';

@@ -120,8 +120,9 @@ export async function existsByUrl(articleUrl: string): Promise<boolean> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.NEWS_DETAILS} WHERE articleUrl = ?`;
 
   try {
-    const result = await db.getFirstAsync<{ count: number }>(sql, [articleUrl]);
-    return (result?.count || 0) > 0;
+    // Using getAllAsync instead of getFirstAsync for broader compatibility with different expo-sqlite versions
+    const results = await db.getAllAsync<{ count: number }>(sql, [articleUrl]);
+    return results.length > 0 && results[0].count > 0;
   } catch (error) {
     console.error('[NewsRepository] Error checking existence by URL:', error);
     return false;
@@ -154,8 +155,9 @@ export async function countByTicker(ticker: string): Promise<number> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.NEWS_DETAILS} WHERE ticker = ?`;
 
   try {
-    const result = await db.getFirstAsync<{ count: number }>(sql, [ticker]);
-    return result?.count || 0;
+    // Using getAllAsync instead of getFirstAsync
+    const results = await db.getAllAsync<{ count: number }>(sql, [ticker]);
+    return results.length > 0 ? results[0].count : 0;
   } catch (error) {
     console.error('[NewsRepository] Error counting news by ticker:', error);
     return 0;

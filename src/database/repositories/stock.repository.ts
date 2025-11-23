@@ -150,8 +150,9 @@ export async function countByTicker(ticker: string): Promise<number> {
   const sql = `SELECT COUNT(*) as count FROM ${TABLE_NAMES.STOCK_DETAILS} WHERE ticker = ?`;
 
   try {
-    const result = await db.getFirstAsync<{ count: number }>(sql, [ticker]);
-    return result?.count || 0;
+    // Using getAllAsync instead of getFirstAsync
+    const results = await db.getAllAsync<{ count: number }>(sql, [ticker]);
+    return results.length > 0 ? results[0].count : 0;
   } catch (error) {
     logger.error('[StockRepository] Error counting by ticker:', error);
     return 0;
@@ -173,8 +174,9 @@ export async function findLatestByTicker(ticker: string): Promise<StockDetails |
   `;
 
   try {
-    const result = await db.getFirstAsync<StockDetails>(sql, [ticker]);
-    return result || null;
+    // Using getAllAsync instead of getFirstAsync
+    const results = await db.getAllAsync<StockDetails>(sql, [ticker]);
+    return results.length > 0 ? results[0] : null;
   } catch (error) {
     logger.error('[StockRepository] Error finding latest by ticker:', error);
     return null;

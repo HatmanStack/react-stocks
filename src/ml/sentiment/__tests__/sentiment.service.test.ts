@@ -240,7 +240,7 @@ describe('Sentiment Service', () => {
           expect(res).toBeDefined();
           return res;
         })
-        .catch((err) => {
+        .catch(() => {
           fail('Should not reject');
         });
 
@@ -271,7 +271,7 @@ describe('Sentiment Service', () => {
 
       try {
         await analyzeSentiment('Test', 'error-hash');
-      } catch (error) {
+      } catch {
         // Expected
       }
 

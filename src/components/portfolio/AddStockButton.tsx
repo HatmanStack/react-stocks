@@ -3,14 +3,9 @@
  * Floating action button to add stocks to portfolio
  */
 
-import React, { useState } from 'react';
-import { StyleSheet, Pressable, Platform } from 'react-native';
+import React from 'react';
+import { StyleSheet } from 'react-native';
 import { FAB, useTheme } from 'react-native-paper';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
 
 interface AddStockButtonProps {
   onPress: () => void;

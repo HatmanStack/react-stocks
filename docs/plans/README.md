@@ -1,70 +1,117 @@
-# Enhanced Sentiment Analysis System - Implementation Plan
+# Multi-Signal Stock Prediction Model - Implementation Plan
 
-## Overview
+## Feature Overview
 
-This implementation plan details the development of a sophisticated multi-signal sentiment analysis system designed to improve trading signal accuracy for stock price predictions. The system replaces the current simple bag-of-words approach with a three-tiered analysis framework that provides multiple independent signals for the multivariate logistic regression prediction model.
+This feature replaces the existing bag-of-words prediction model with a sophisticated multi-signal logistic regression system. The new model combines OHLCV price data, event classification, aspect analysis, and DistilFinBERT sentiment scores to predict stock price movements across three time horizons (1-day, 2-week, 1-month). The system leverages Lambda-based asynchronous processing for consistent performance and cross-user caching, following the same architectural patterns established for sentiment analysis.
 
-The new system classifies financial news articles by event type (Earnings, M&A, Product Launch, etc.), performs aspect-based analysis to extract directional signals from key financial metrics (revenue, EPS, guidance), and applies DistilFinBERT contextual sentiment analysis to material events. These three signals—event classification, aspect score, and DistilFinBERT sentiment—combine with existing price and volume data to create more accurate stock movement predictions.
+The model trains on-the-fly using TensorFlow.js for Node.js (@tensorflow/tfjs-node), incorporating 14 features including price metrics, one-hot encoded event types, aggregated aspect scores, sentiment scores, and prediction horizon. Training data is labeled using same-day price movements with a ±1% threshold to filter market noise. The system implements smart refresh logic to minimize compute costs by only recomputing predictions when new news articles are available.
 
-This architecture balances accuracy and performance by using sophisticated models (DistilFinBERT) only for material events while maintaining fast bag-of-words processing for general news. The result is a system optimized for trading signals where direction accuracy is paramount.
+Predictions are displayed as directional indicators (↑/↓) with probability percentages in both the sentiment tab's daily aggregate view and portfolio items, replacing the current percentage return format. The feature maintains backward compatibility during migration and follows strict test-driven development practices throughout implementation.
 
 ## Prerequisites
 
-### Environment & Tools
-- Node.js 20+ with TypeScript 5.6+
-- AWS Lambda + DynamoDB (backend infrastructure)
-- Python 3.9+ (for DistilFinBERT service)
-- Docker (for containerizing DistilFinBERT service)
-- Jest testing framework
-- Git with conventional commits
+### Environment Requirements
+- **Node.js**: v24 LTS (managed via nvm)
+- **TypeScript**: 5.x (for Lambda runtime and build)
+- **AWS CLI**: Configured with appropriate credentials
+- **AWS SAM CLI**: For Lambda deployment
+- **Package Managers**: npm (frontend and backend)
 
-### Dependencies to Install
-```bash
-# Backend Lambda
-cd backend
-npm install transformers @xenova/transformers  # For DistilFinBERT integration
-npm install --save-dev @types/jest
+### Development Tools
+- TypeScript 5.x
+- Expo SDK (current project version)
+- React Native testing libraries
+- Jest test framework
+- AWS SDK for JavaScript v3
 
-# DistilFinBERT Service (Python)
-pip install transformers torch fastapi uvicorn
-```
+### External Dependencies
+- **Existing Services**: Lambda sentiment service (DistilFinBERT), Aspect score service
+- **Database**: SQLite (native), localStorage (web)
+- **APIs**: Backend Lambda (Tiingo/Finnhub proxies)
+- **ML Library**: scikit-learn 1.3+ (Lambda Python environment)
 
-### External Services
-- AWS Lambda + DynamoDB (existing)
-- DistilFinBERT model deployment (Phase 3)
-- Finnhub API (existing)
+### Knowledge Prerequisites
+- Familiarity with repository pattern (see `src/database/repositories/`)
+- Understanding of React Query caching patterns
+- Experience with SAM template configuration
+- Async polling patterns (reference: `src/services/api/lambdaSentiment.service.ts`)
 
 ## Phase Summary
 
-| Phase | Goal | Est. Tokens |
-|-------|------|-------------|
-| [Phase 0](./Phase-0.md) | Architecture & Design Foundation | N/A |
-| [Phase 1](./Phase-1.md) | Event Classification System | ~95,000 |
-| [Phase 2](./Phase-2.md) | Aspect-Based Analysis System | ~85,000 |
-| [Phase 3](./Phase-3.md) | DistilFinBERT Integration | ~90,000 |
-| [Phase 4](./Phase-4.md) | Data Schema & Storage Updates | ~75,000 |
-| [Phase 5](./Phase-5.md) | API Integration & Frontend Display | ~95,000 |
+| Phase | Goal | Estimated Tokens | Status |
+|-------|------|-----------------|--------|
+| **Phase 0** | Architecture & Foundation | N/A (Reference) | 📋 Pending |
+| **Phase 1** | Backend Infrastructure & ML Model | ~101,000 | 📋 Pending |
+| **Phase 2** | Deployment & Frontend Integration | ~104,000 | 📋 Pending |
 
-**Total Estimated Tokens:** ~440,000 across 5 phases
+### Phase Breakdown
+
+**Phase 0: Architecture & Foundation** (see [Phase-0.md](./Phase-0.md))
+- Architecture Decision Records (ADRs)
+- Tech stack and design rationale
+- Deployment script specifications
+- Testing strategy and mocking approach
+- Shared patterns and conventions
+
+**Phase 1: Backend Infrastructure & ML Model** (see [Phase-1.md](./Phase-1.md))
+- Database schema migrations (4 new fields + prediction format updates)
+- Repository pattern updates for new schema
+- Lambda function structure and data fetching layer
+- Feature engineering with materiality-weighted aggregation
+- Logistic regression implementation with on-the-fly training
+- Comprehensive unit testing
+
+**Phase 2: Deployment & Frontend Integration** (see [Phase-2.md](./Phase-2.md))
+- API Gateway configuration and async job processing
+- SAM template and deployment automation
+- Frontend API client with polling mechanism
+- Sync orchestration and smart refresh logic
+- UI updates (sentiment tab + portfolio)
+- Integration tests and end-to-end verification
 
 ## Navigation
 
-- **[Phase 0: Architecture & Design](./Phase-0.md)** - Start here for architectural decisions and shared patterns
-- **[Phase 1: Event Classification](./Phase-1.md)** - Build the event type classifier
-- **[Phase 2: Aspect Analysis](./Phase-2.md)** - Implement aspect-based scoring system
-- **[Phase 3: DistilFinBERT](./Phase-3.md)** - Deploy and integrate transformer model
-- **[Phase 4: Data Schema](./Phase-4.md)** - Update storage and caching
-- **[Phase 5: API & Frontend](./Phase-5.md)** - Expose new signals and update UI
+- **[Phase 0: Architecture & Foundation](./Phase-0.md)** - Start here to understand design decisions
+- **[Phase 1: Backend Infrastructure & ML Model](./Phase-1.md)** - Database and Lambda ML implementation
+- **[Phase 2: Deployment & Frontend Integration](./Phase-2.md)** - API, frontend, and UI completion
 
 ## Development Workflow
 
-Each phase follows this pattern:
-1. Read Phase-0.md for architectural context
-2. Complete tasks in sequential order
-3. Run verification checklist after each task
-4. Commit with provided template after each task
-5. Verify entire phase before moving to next
+1. **Read Phase 0** completely to understand architecture decisions
+2. **Execute Phase 1** sequentially, following TDD practices
+3. **Verify Phase 1** completion via test suite before proceeding
+4. **Execute Phase 2** with integration focus
+5. **Final verification** using end-to-end tests
 
-## Questions or Issues?
+## Branch Strategy
 
-If you encounter ambiguities during implementation, refer back to Phase-0.md for design rationale. Do not deviate from the plan without consultation.
+This plan is branch-agnostic. Create feature branches as needed following project conventions. All phases should be implemented with atomic commits using conventional commit format.
+
+## Testing Strategy Overview
+
+- **Unit Tests**: Every function, repository, and service method
+- **Integration Tests**: Mocked Lambda responses, no live AWS dependencies
+- **CI Compatibility**: All tests must pass in isolated CI environment (GitHub Actions)
+- **E2E Tests**: Local verification only, not required for CI
+
+## Success Criteria
+
+- [ ] All Phase 1 tasks complete with passing tests
+- [ ] All Phase 2 tasks complete with passing tests
+- [ ] CI pipeline passes (lint + unit tests + mocked integration tests)
+- [ ] Local deployment successful via `npm run deploy`
+- [ ] UI displays predictions in sentiment tab and portfolio
+- [ ] Smart refresh logic prevents unnecessary recomputation
+- [ ] Predictions match expected format (↑ 72% or ↓ 38%)
+- [ ] Legacy bag-of-words code removed
+
+## Token Budget Management
+
+Each phase is designed to fit within a ~100k token context window for efficient implementation. If context becomes constrained, prioritize:
+
+1. Core implementation guidance
+2. Test specifications
+3. Verification criteria
+4. Architectural patterns
+
+Detailed code examples are intentionally minimal - engineers should reference existing patterns in the codebase.

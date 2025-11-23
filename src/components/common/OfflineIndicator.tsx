@@ -21,7 +21,7 @@ export function OfflineIndicator() {
   const textColor = theme.colors.onPrimary; // White text on colored background
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.custom?.warning || '#FFA500' }]} testID="offline-indicator">
+    <View style={[styles.container, { backgroundColor: theme.custom.colors.warning || '#FFA500' }]} testID="offline-indicator">
       <Ionicons name="cloud-offline" size={16} color={textColor} />
       <Text style={[styles.text, { color: textColor }]}>Offline Mode - Using local analysis</Text>
     </View>

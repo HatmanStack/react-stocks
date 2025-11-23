@@ -1,824 +1,761 @@
-# Phase 0: Architecture & Design Foundation
+# Phase 0: Architecture & Foundation
 
-This phase documents all architectural decisions, design patterns, and shared conventions that apply across all implementation phases. Read this thoroughly before beginning any implementation.
+## Purpose
 
-## Table of Contents
-- [Architecture Decisions](#architecture-decisions)
-- [Tech Stack](#tech-stack)
-- [Design Patterns](#design-patterns)
-- [Data Flow](#data-flow)
-- [Testing Strategy](#testing-strategy)
-- [Common Pitfalls](#common-pitfalls)
+This phase establishes the architectural foundation, design decisions, and shared conventions that apply to all subsequent implementation phases. Read this document completely before starting Phase 1 to understand the technical approach, deployment strategy, and testing patterns that will guide the entire feature implementation.
 
----
+## Architecture Decision Records (ADRs)
 
-## Architecture Decisions
+### ADR-1: Lambda-Based Prediction with Existing Function
 
-### ADR-001: Three-Signal Sentiment Architecture
+**Decision**: Implement predictions as a new route (`/predict`) in the existing ReactStocksFunction Lambda, not as a separate Lambda function or browser-based computation.
 
-**Context:** Current bag-of-words sentiment provides a single signal (positive/negative counts) which lacks nuance for trading decisions.
+**Rationale**:
+- **Consistency**: Matches existing backend architecture (single Lambda, multiple routes)
+- **Simplicity**: No Lambda-to-Lambda invocation, simpler deployment
+- **Caching**: DynamoDB historical storage enables multi-user data sharing
+- **Performance**: Server-side ML training (~10-20s with TensorFlow.js)
+- **Maintenance**: Centralized updates with existing backend
 
-**Decision:** Implement three independent signals that feed into the prediction model:
+**Implementation**:
+- Add `backend/src/handlers/prediction.handler.ts` (follows existing pattern)
+- Add `/predict` route to API Gateway (existing ReactStocksApi)
+- Use TensorFlow.js for in-Lambda ML training
+- Store historical data in DynamoDB for cross-user efficiency
 
-1. **Event Classification** (Categorical)
-   - Values: `EARNINGS`, `M&A`, `PRODUCT_LAUNCH`, `ANALYST_RATING`, `GUIDANCE`, `GENERAL`
-   - Purpose: Different event types have different market impact patterns
-   - Implementation: Rule-based keyword matching + context validation
+**Implications**:
+- SAM template update (add route, not new Lambda)
+- Frontend makes separate API call to `/predict` endpoint
+- No async polling needed (synchronous response, ~15-20s)
+- Integration tests mock HTTP response (not Lambda invocation)
 
-2. **Aspect Score** (Numerical: -1 to +1)
-   - Analyzes key financial aspects: revenue, EPS, earnings, guidance, margins, growth
-   - Aggregates aspect-level signals into single directional score
-   - Purpose: Captures "mixed" signals (e.g., revenue beat but margin miss)
-   - Implementation: Financial keyword extraction + weighted scoring
-
-3. **DistilFinBERT Sentiment** (Numerical: -1 to +1)
-   - Contextual sentiment using transformer model
-   - Only runs on material events (EARNINGS, M&A, GUIDANCE, ANALYST_RATING)
-   - Purpose: Sophisticated understanding of nuance and context
-   - Implementation: External Python service, cached results
-
-**Consequences:**
-- Prediction model gains 2 new features (event type, aspect score)
-- DistilFinBERT sentiment replaces simple positive/negative counts
-- Increased complexity, but significantly better signal quality
-- Hybrid approach balances accuracy and performance
-
-**Status:** Accepted
+**Alternatives Considered**:
+- Separate prediction Lambda (rejected: conflicts with existing architecture)
+- Browser-based prediction (rejected: inconsistent performance, no cross-user caching)
+- Lambda-to-Lambda chaining (rejected: unnecessary complexity for single-function architecture)
 
 ---
 
-### ADR-002: Hybrid Processing Strategy
+### ADR-2: Single Model with Horizon as Feature (Inference-Time)
 
-**Context:** Running DistilFinBERT on all articles would be slow and expensive. Bag-of-words is fast but inaccurate.
+**Decision**: Train one logistic regression model on same-day price movement using 13 base features, then run inference three times with horizon appended as the 14th feature to generate three predictions.
 
-**Decision:** Use tiered processing based on event classification:
+**Rationale**:
+- **Efficiency**: Train once instead of three separate models (3x faster)
+- **Simplicity**: Single training pipeline, single model artifact, same-day labeling strategy
+- **Flexibility**: Easy to add new horizons without retraining
+- **Consistent Labeling**: All training examples use same-day price movement labels (ADR-4)
 
-```
-Article → Event Classifier
-           ↓
-    Material Event? (Earnings, M&A, etc.)
-           ↓
-    YES: DistilFinBERT + Aspect Analysis
-    NO:  Bag-of-words only
-```
+**Implementation Details**:
+- **Training**: 13-feature vectors (OHLCV metrics, event types, aspect/sentiment scores)
+- **Labels**: Same-day price movement (previous close → current close, ±1% threshold)
+- **Inference**: Append horizon value (1, 14, 30) as 14th feature, run model 3 times
+- **Model output**: 3 pairs of (direction, probability)
 
-**Material Events:**
-- EARNINGS
-- M&A (Merger, Acquisition, Spin-off)
-- GUIDANCE (Forward guidance, outlook changes)
-- ANALYST_RATING (Upgrades, downgrades, target changes)
+**Note**: While horizon is included as a feature during inference, it is not part of the training data. This means the model learns general price movement patterns from same-day data, and the horizon feature allows the model to potentially adjust predictions based on the requested timeframe (though impact may be limited given same-day training labels).
 
-**Non-Material Events:**
-- PRODUCT_LAUNCH
-- GENERAL (all other news)
-
-**Consequences:**
-- ~20-30% of articles get DistilFinBERT (material events)
-- ~70-80% get fast bag-of-words (general news)
-- Balances accuracy where it matters with performance
-- Event classifier becomes critical path - must be accurate
-
-**Status:** Accepted
+**Alternatives Considered**:
+- Three separate models (rejected: 3x training time, no shared learning)
+- Multi-horizon training with different labels per horizon (rejected: complex labeling logic, look-ahead bias)
+- Single model with multi-output (rejected: complex architecture, harder to interpret)
 
 ---
 
-### ADR-003: Aspect-Based Analysis Methodology
+### ADR-3: Materiality Score Weighting for Daily Aggregation
 
-**Context:** Need to extract actionable signals from financial aspects without full NLP pipeline.
+**Decision**: Weight articles by their materiality scores when aggregating features from per-article to daily level.
 
-**Decision:** Use keyword-based aspect extraction with weighted scoring:
+**Rationale**:
+- **Quality over Quantity**: Material events (EARNINGS, GUIDANCE with DistilFinBERT) should influence predictions more than non-material events
+- **Data-Driven**: Materiality scores reflect importance naturally, no arbitrary weights
+- **Existing Infrastructure**: Materiality scores already computed during sentiment processing
+- **Interpretability**: Clear why certain days have stronger signals (more material events)
 
-**Aspects to Track:**
-- `revenue` / `sales` / `top line`
-- `earnings` / `EPS` / `profit`
-- `guidance` / `outlook` / `forecast`
-- `margins` / `profitability`
-- `growth` / `expansion`
-- `debt` / `cash` / `liquidity`
-
-**Scoring Algorithm:**
+**Weighting Formula**:
 ```
-For each aspect:
-  1. Extract sentences mentioning aspect keywords
-  2. Detect sentiment polarity (beat/miss, up/down, strong/weak)
-  3. Assign aspect weight based on materiality
-  4. Aggregate: aspectScore = Σ(polarity × weight)
+For articles WITH DistilFinBERT sentiment:
+  weight = materiality_score
 
-Final aspect score = normalize(-1 to +1)
+For articles WITHOUT DistilFinBERT sentiment:
+  weight = materiality_score
+
+Daily aggregated feature = Σ(feature_value * weight) / Σ(weight)
 ```
 
-**Example:**
-```
-"Revenue grew 15% beating estimates" → revenue: +0.8
-"EPS missed by 10%" → earnings: -0.6
-"Raised guidance" → guidance: +0.7
+**Application**:
+- Event one-hot encoding: Weighted sum per event type
+- Aspect scores: Weighted average across articles
+- FinBERT sentiment: Weighted average across material articles
 
-Aspect Score = (0.8×0.4 + -0.6×0.4 + 0.7×0.2) / 1.0 = +0.22
-```
-
-**Consequences:**
-- Fast, deterministic scoring
-- Explainable results (can show which aspects drove score)
-- Limited by keyword quality - requires domain expertise
-- Won't catch complex relationships (handled by DistilFinBERT)
-
-**Status:** Accepted
+**Alternatives Considered**:
+- Binary weighting (2:1 ratio) - rejected: arbitrary, ignores materiality spectrum
+- Sentiment magnitude weighting - rejected: circular dependency (sentiment influences weight influences aggregation)
+- Equal weighting - rejected: gives undue influence to low-quality articles
 
 ---
 
-### ADR-004: DynamoDB Schema Extension
+### ADR-4: Same-Day Labeling Strategy
 
-**Context:** Current `SentimentCacheItem` only stores positive/negative counts and overall sentiment.
+**Decision**: Label training examples using same-day price movements (previous close → current close), not look-ahead labeling.
 
-**Decision:** Extend schema to include new signals while maintaining backward compatibility:
+**Rationale**:
+- **Data Availability**: With 30+ days of historical data, we have sufficient same-day examples
+- **Simplicity**: No need to manage look-ahead windows or edge cases (incomplete data at end of range)
+- **Immediate Feedback**: Model learns same-day market reactions to news
+- **Consistent Labeling**: All three horizons share the same labeling logic (same-day movement)
 
-**New Schema:**
-```typescript
-interface SentimentCacheItem {
-  // Existing fields (keep for backward compat)
-  ticker: string;              // PK
-  articleHash: string;         // SK
-  sentiment: {
-    positive: number;          // DEPRECATED but kept
-    negative: number;          // DEPRECATED but kept
-    sentimentScore: number;    // Overall score
-    classification: 'POS' | 'NEG' | 'NEUT';
-  };
-  analyzedAt: number;
-  ttl: number;
+**Labeling Logic**:
+```
+price_change = (close_today - close_yesterday) / close_yesterday * 100
 
-  // NEW FIELDS
-  eventType: EventType;        // Event classification
-  aspectScore: number;         // Aspect analysis (-1 to +1)
-  aspectBreakdown?: {          // Optional detailed breakdown
-    revenue?: number;
-    earnings?: number;
-    guidance?: number;
-    // ... other aspects
-  };
-  distilFinBERTScore?: number; // Only present for material events
-  modelVersion: string;        // Track which analysis version
-}
+IF price_change > 1%:
+  label = 1 (up)
+ELSE IF price_change < -1%:
+  label = 0 (down)
+ELSE:
+  exclude from training (noise)
 ```
 
-**Migration Strategy:**
-- Add new fields as optional (nullable)
-- Old records remain valid
-- Update processing service to populate new fields
-- Frontend gracefully handles missing fields
-- TTL expires old records naturally (7 days)
+**Threshold Rationale**:
+- ±1% filters daily volatility noise
+- Focuses model on meaningful price movements
+- Excludes ambiguous cases from training set
 
-**Status:** Accepted
+**Alternatives Considered**:
+- Look-ahead labeling (rejected: complexity, incomplete data at range end)
+- Multiple labeling strategies per horizon (rejected: inconsistent, harder to maintain)
+- Zero threshold (rejected: too much noise)
 
 ---
 
-### ADR-005: DistilFinBERT Deployment Architecture
+### ADR-5: On-the-Fly Model Training
 
-**Context:** DistilFinBERT is a Python-based model that needs to integrate with Node.js Lambda backend.
+**Decision**: Train a new logistic regression model on each prediction request using all available historical data, not pre-trained cached models.
 
-**Decision:** Deploy as separate microservice with HTTP API:
+**Rationale**:
+- **Simplicity**: No model persistence, versioning, or cache invalidation logic
+- **Fresh Data**: Always uses latest historical data (price, sentiment, events)
+- **Acceptable Performance**: Scikit-learn logistic regression trains in 5-15s on 30-60 days of data
+- **No Staleness**: Eliminates "when to retrain" decision complexity
+- **Async Pattern**: Lambda polling pattern makes 10-20s latency acceptable
 
-**Architecture:**
-```
-Lambda (Node.js)
-    ↓ HTTP Request
-DistilFinBERT Service (Python + FastAPI)
-    ↓ Model Inference
-Return: { sentiment: number (-1 to +1), confidence: number }
-```
+**Training Process**:
+1. Fetch historical data (30+ days of price, sentiment, events, aspect)
+2. Aggregate per-article features to daily level (materiality-weighted)
+3. Generate labels from same-day price movements
+4. Train logistic regression on all historical days
+5. Run inference 3 times (horizon=1, 14, 30)
+6. Return predictions with probabilities
 
-**Deployment Options:**
-1. **Phase 3 Default:** AWS Lambda (Python runtime) with API Gateway
-2. **Alternative:** ECS Fargate container (for larger models/batching)
+**Performance Expectations**:
+- 30 days: ~5-8s training
+- 60 days: ~10-15s training
+- 90 days: ~15-20s training
 
-**Caching Strategy:**
-- Results cached in DynamoDB with article hash
-- Cache hit rate expected ~80%+ (same articles analyzed repeatedly)
-- TTL: 30 days (sentiment doesn't change)
-
-**Consequences:**
-- Additional infrastructure cost (~$5-20/month depending on volume)
-- Network latency (50-200ms) acceptable for async processing
-- Python dependency isolated from main app
-- Can swap models without touching main codebase
-
-**Status:** Accepted
+**Alternatives Considered**:
+- Pre-trained universal model (rejected: doesn't capture stock-specific patterns)
+- Per-stock cached models (rejected: cache invalidation complexity, storage overhead)
+- Hybrid pre-train + fine-tune (rejected: over-engineering for current scale)
 
 ---
 
-### ADR-006: DistilFinBERT Deployment on AWS Lambda
+### ADR-6: DynamoDB Caching for Prediction Training Data (Prediction-Scoped)
 
-**Context:** DistilFinBERT is a Python-based model that needs HTTP API access from Node.js Lambda backend.
+**Decision**: Use DynamoDB to cache historical data **specifically for ML prediction training** (prices, sentiment features) to enable multi-user efficiency and avoid repeated Tiingo/Finnhub API calls. Frontend SQLite/localStorage **remains the source of truth** for display.
 
-**Decision:** Deploy DistilFinBERT as AWS Lambda function with Python 3.9 runtime and API Gateway.
+**Scope**: This architecture change applies **only to prediction feature**, not the entire app.
 
-**Why Lambda over ECS Fargate:**
-- **Cost:** Lambda pay-per-request (~$0.20/1M requests) vs ECS always-on (~$20-30/month minimum)
-- **Simplicity:** No container orchestration, automatic scaling
-- **Cold starts acceptable:** Async sentiment processing tolerates 5-10s cold starts
-- **Model size:** DistilBERT fits in Lambda (distilled from BERT, ~250MB)
-- **Volume:** Expected <10k requests/day initially (Lambda sweet spot)
+**Rationale**:
+- **Multi-User Efficiency**: When User A requests predictions for AAPL, cache training data in DynamoDB so User B's request doesn't re-fetch from expensive APIs
+- **API Cost Reduction**: Tiingo/Finnhub APIs have rate limits and costs - cache historical data used for model training
+- **Incremental Updates**: Append new date ranges to existing cached data (fetch only what's missing)
+- **Prediction Caching**: Cache prediction results in DynamoDB (User A's prediction benefits User B)
+- **No Impact on Existing Features**: Stocks, news, sentiment display continue using frontend SQLite/localStorage
 
-**Deployment Architecture:**
+**Architecture**:
 ```
-Lambda Backend (Node.js)
-    ↓ HTTPS
-API Gateway
-    ↓
-Lambda Function (Python 3.9)
-    ├─ DistilFinBERT model (Lambda Layer)
-    └─ FastAPI handler
+PREDICTION FEATURE ONLY:
+
+DynamoDB Tables (Backend) - ML Training Data Cache:
+  ✓ StockHistoricalData (prices for ML training)
+  ✓ ArticleAnalysisData (sentiment features for ML)
+  ✓ DailySentimentAggregate (aggregated features + prediction results)
+  ✓ Multi-user shared cache (permanent, not TTL)
+
+Frontend SQLite/localStorage - Display Source of Truth:
+  ✓ Stocks, news, sentiment (existing architecture unchanged)
+  ✓ Prediction results (stored for display, same as other data)
+  ✓ Offline capability maintained
 ```
 
-**Configuration:**
-- Memory: 2048MB (model needs RAM)
-- Timeout: 30s
-- Ephemeral storage: 1024MB (model files)
-- Runtime: Python 3.9
-- API Gateway: HTTP API (not REST - simpler, cheaper)
+**Data Flow (Prediction Endpoint Only)**:
+1. User requests prediction for ticker (via `/predict` endpoint)
+2. Backend checks DynamoDB for cached training data:
+   - If exists and complete: Use cached data for ML training
+   - If missing or partial: Fetch from Tiingo/Finnhub, store in DynamoDB
+   - If new date range requested: Append to existing DynamoDB data
+3. Backend trains model using DynamoDB data (avoid repeated API calls)
+4. Backend returns predictions
+5. Frontend stores predictions in local SQLite/localStorage (for display)
 
-**Migration Path if Needed:**
-If volume exceeds 100k requests/day or cold starts become issue:
-- Move to ECS Fargate (always-warm container)
-- Or use Lambda provisioned concurrency (keeps warm)
-- Architecture stays same (HTTP API unchanged)
+**What DOESN'T Change**:
+- ❌ Stocks display still uses frontend SQLite/localStorage
+- ❌ News display still uses frontend SQLite/localStorage
+- ❌ Sentiment display still uses frontend SQLite/localStorage
+- ❌ No changes to existing sync orchestrator for display data
+- ❌ Offline capability for existing features unchanged
 
-**Consequences:**
-- Phase 3 Task 2 will implement Lambda deployment only
-- SAM template used for IaC (consistent with existing backend)
-- Cold start monitoring required to detect if ECS migration needed
+**What DOES Change**:
+- ✅ New `/predict` endpoint caches training data in DynamoDB
+- ✅ Prediction results cached in DynamoDB (multi-user)
+- ✅ Frontend stores prediction results locally (like other features)
 
-**Status:** Accepted
+**Implications**:
+- Backend implements incremental date range appending (prediction data only)
+- Backend checks DynamoDB before calling Tiingo/Finnhub (when training models)
+- Frontend SQLite/localStorage schema extended (prediction result fields)
+- Existing data flow (stocks, news, sentiment) **completely unchanged**
+
+**Alternatives Considered**:
+- Full app migration to DynamoDB primary - rejected: massive scope, not needed for predictions
+- No caching (fetch from APIs every time) - rejected: expensive, rate limits
+- Frontend-only caching - rejected: no multi-user sharing, each user re-fetches same data
 
 ---
 
 ## Tech Stack
 
 ### Backend (Lambda)
-- **Runtime:** Node.js 20.x
-- **Language:** TypeScript 5.6+
-- **Testing:** Jest with ts-jest
-- **ML Library:** None (calls external service)
-- **Storage:** DynamoDB (existing)
 
-### DistilFinBERT Service
-- **Runtime:** Python 3.9
-- **Framework:** FastAPI + Mangum (Lambda adapter)
-- **ML Library:** Hugging Face Transformers (`transformers` package)
-- **Model:** `distilbert-base-uncased-finetuned-sst-2-english` or `ProsusAI/finbert`
-- **Deployment:** AWS Lambda (Python) - see ADR-006
+**Runtime**: Node.js 20 (TypeScript)
+- Existing backend runtime (verified in template.yaml)
+- Type safety with TypeScript
+- Consistent with existing handlers (sentiment, stocks, news)
 
-### Frontend (React Native)
-- **No Changes Required:** New signals consumed by existing prediction hooks
-- **Display:** Phase 5 updates article detail view to show event/aspect/sentiment
+**ML Library**: TensorFlow.js (@tensorflow/tfjs-node)
+- Logistic regression via `tf.sequential()` with sigmoid activation
+- Feature preprocessing with `tf.layers.normalization()`
+- Well-documented, production-ready
+- No GPU required (CPU-bound is sufficient)
+- Native Node.js performance with libtensorflow bindings
 
----
+**Data Access**: AWS SDK v3 (@aws-sdk/client-dynamodb)
+- DynamoDB for historical data storage (multi-user shared cache)
+- Query Builder for type-safe DynamoDB operations
+- Incremental date range appending
 
-## Design Patterns
+**API Framework**: Existing ReactStocksFunction Lambda
+- Add new route handler to existing function
+- Reuses existing API Gateway (ReactStocksApi)
+- Consistent with existing patterns (sentiment.handler.ts, stocks.handler.ts)
+- Built-in logging (CloudWatch)
 
-### 1. Repository Pattern
-All DynamoDB access goes through repository layer:
+### Frontend (React Native/Expo)
 
-```typescript
-// backend/src/repositories/sentimentCache.repository.ts
-export async function putSentiment(item: SentimentCacheItem): Promise<void>
-export async function getSentiment(ticker: string, hash: string): Promise<SentimentCacheItem | null>
-```
+**State Management**: React Query + Context
+- React Query for server/DB cache (existing pattern)
+- Context for global UI state (existing pattern)
 
-**Do:**
-- Keep business logic out of repositories
-- Repositories handle only CRUD + caching
-- Use TypeScript interfaces for data shapes
+**Database**: Platform-specific Storage (Source of Truth for Display)
+- Native: expo-sqlite (SQLite) - **source of truth** for display data
+- Web: localStorage wrapper (existing) - **source of truth** for display data
+- **Role**: Primary storage for all display data (stocks, news, sentiment, predictions)
+- **Prediction Integration**: Store prediction results like other data (no architecture change)
 
-**Don't:**
-- Put analysis logic in repositories
-- Access DynamoDB directly from services
+**HTTP Client**: fetch API
+- Consistent with existing services
+- Native browser/RN support
 
-### 2. Service Layer Pattern
-Business logic lives in services:
+**Type Safety**: TypeScript 5.x
+- Strong typing for database entities
+- API contract validation
 
-```typescript
-// backend/src/services/eventClassification.service.ts
-export async function classifyEvent(article: NewsArticle): Promise<EventType>
+### Infrastructure
 
-// backend/src/services/aspectAnalysis.service.ts
-export async function analyzeAspects(article: NewsArticle): Promise<AspectScore>
+**Deployment**: AWS SAM (Serverless Application Model)
+- Single Lambda function (ReactStocksFunction) with new route
+- API Gateway configuration (add /predict route)
+- DynamoDB table creation (historical data storage)
+- CloudWatch Logs
 
-// backend/src/services/distilFinBERT.service.ts
-export async function getSentiment(text: string): Promise<FinBERTResult>
-```
-
-**Do:**
-- One service per major function
-- Services orchestrate repositories and utilities
-- Export clear, typed interfaces
-
-**Don't:**
-- Mix concerns (keep event classification separate from sentiment)
-- Couple services tightly (use dependency injection patterns)
-
-### 3. Type-First Development
-Define types before implementation:
-
-```typescript
-// backend/src/types/sentiment.types.ts
-export type EventType =
-  | 'EARNINGS'
-  | 'M&A'
-  | 'PRODUCT_LAUNCH'
-  | 'ANALYST_RATING'
-  | 'GUIDANCE'
-  | 'GENERAL';
-
-export interface AspectBreakdown {
-  revenue?: number;
-  earnings?: number;
-  guidance?: number;
-  margins?: number;
-  growth?: number;
-  debt?: number;
-}
-
-export interface AspectAnalysisResult {
-  overallScore: number;
-  breakdown: AspectBreakdown;
-  confidence: number;
-}
-```
-
-**Do:**
-- Define types in dedicated `types/` files
-- Use discriminated unions for event types
-- Make optional fields explicit with `?`
-
-**Don't:**
-- Use `any` or `unknown` unless absolutely necessary
-- Define types inline in functions
-
-### 4. Error Handling Pattern
-
-```typescript
-import { APIError } from '../utils/error.util';
-
-try {
-  const result = await externalService();
-  return result;
-} catch (error) {
-  if (error instanceof APIError) {
-    // Rethrow API errors (already formatted)
-    throw error;
-  }
-
-  // Wrap unexpected errors
-  console.error('[ServiceName] Unexpected error:', error);
-  throw new APIError(
-    `Failed to process: ${error instanceof Error ? error.message : String(error)}`,
-    500
-  );
-}
-```
-
-**Do:**
-- Log errors with service name prefix
-- Use `APIError` for all thrown errors
-- Include context in error messages
-
-**Don't:**
-- Swallow errors silently
-- Throw raw Error objects from services
-- Log sensitive data (API keys, user data)
+**CI/CD**: GitHub Actions (lint + test only)
+- **NO deployment from CI** (local deployment only)
+- ESLint checks
+- Unit tests (Jest)
+- Integration tests with mocked AWS
 
 ---
 
-## Data Flow
+## Deployment Strategy
 
-### Complete Article Processing Pipeline
+### Local Deployment Script (`npm run deploy`)
 
+**Objective**: Interactive, persistent, configuration-driven deployment without SAM guided mode.
+
+#### Script Requirements
+
+**Location**: `backend/scripts/deploy.js` (or similar)
+
+**Workflow**:
+1. **Check Prerequisites**
+   - AWS CLI configured (`aws sts get-caller-identity`)
+   - SAM CLI installed (`sam --version`)
+   - Required environment variables
+
+2. **Load/Prompt Configuration**
+   - Read from `.deploy-config.json` (git-ignored)
+   - If missing values, prompt user interactively
+   - Save user inputs to `.deploy-config.json` for future runs
+   - Required config:
+     - AWS region (default: `us-east-1`)
+     - Stack name (default: `stocks-prediction-service`)
+     - Lambda memory size (default: `1024`)
+     - Lambda timeout (default: `120`)
+     - DynamoDB table name (optional, default: `stock-predictions-cache`)
+
+3. **Generate `samconfig.toml`**
+   - Programmatically build configuration file
+   - Use loaded/prompted values
+   - Overwrite existing `samconfig.toml` each run
+   - **DO NOT use `sam deploy --guided`**
+
+4. **Build & Deploy**
+   - Run `sam build` (compile dependencies)
+   - Run `sam deploy` (using generated `samconfig.toml`)
+   - Capture stack outputs (API Gateway URL, function ARN)
+
+5. **Update Frontend `.env`**
+   - Read stack outputs
+   - Update/create `../../.env` in frontend directory
+   - Set `EXPO_PUBLIC_PREDICTION_API_URL=<API_Gateway_URL>`
+   - Preserve existing env vars
+
+6. **Verify Deployment**
+   - Test Lambda invocation (health check)
+   - Log success message with API URL
+
+**Error Handling**:
+- Clear error messages for missing prerequisites
+- Rollback guidance if deployment fails
+- Validation of user inputs before deploy
+
+**Example `.deploy-config.json`**:
+```json
+{
+  "region": "us-east-1",
+  "stackName": "stocks-prediction-service",
+  "lambdaMemory": 1024,
+  "lambdaTimeout": 120,
+  "dynamoDBTable": "stock-predictions-cache"
+}
 ```
-1. Article Fetched (Finnhub)
-   ↓
-2. Event Classification
-   → EventType: EARNINGS | M&A | GUIDANCE | ANALYST_RATING | PRODUCT_LAUNCH | GENERAL
-   ↓
-3. Is Material Event?
-   ├─ YES → Material Event Path
-   │   ├─ Aspect Analysis → AspectScore (-1 to +1)
-   │   ├─ DistilFinBERT → FinBERTScore (-1 to +1)
-   │   └─ Combine → SentimentCacheItem with all 3 signals
-   │
-   └─ NO → Non-Material Event Path
-       ├─ Bag-of-words → Simple sentiment
-       └─ Store → SentimentCacheItem (aspectScore=0, no FinBERT)
-   ↓
-4. Store in DynamoDB
-   ↓
-5. Aggregate Daily (existing logic)
-   ↓
-6. Feed to Prediction Model
-   → Features: [eventType, aspectScore, finBERTScore, priceRatios, volume, ...]
-   ↓
-7. Generate Predictions (next day, 2 week, 1 month)
-```
 
-### Data Dependencies
-
-```
-Phase 1: Event Classifier
-    ↓ (provides EventType)
-Phase 2: Aspect Analyzer (uses EventType to determine relevance)
-    ↓ (provides AspectScore)
-Phase 3: DistilFinBERT (uses EventType to determine if needed)
-    ↓ (provides FinBERTScore)
-Phase 4: Storage (combines all signals)
-    ↓ (provides complete SentimentCacheItem)
-Phase 5: API & Prediction Model (consumes all signals)
+**Example `samconfig.toml` (generated)**:
+```toml
+version = 0.1
+[default.deploy.parameters]
+stack_name = "stocks-prediction-service"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "MemorySize=1024 Timeout=120 TableName=stock-predictions-cache"
 ```
 
 ---
 
 ## Testing Strategy
 
-### Test Pyramid
+### Unit Tests
 
+**Coverage Target**: 80%+ code coverage
+
+**Scope**:
+- All repository methods (database operations)
+- Feature engineering functions (aggregation, weighting, normalization)
+- Model training logic (training, prediction, label generation)
+- API client functions (request formatting, polling logic)
+- Utility functions (date formatting, type guards)
+
+**Tools**:
+- Jest test framework (frontend and backend)
+- React Native Testing Library (frontend components)
+- ts-jest (TypeScript test runner for Lambda functions)
+- Node.js test environment for backend services
+
+**Patterns**:
+- Arrange-Act-Assert structure
+- Descriptive test names: `should [expected behavior] when [condition]`
+- Mock external dependencies (database, API calls) using jest.mock()
+- Test edge cases (empty data, null values, boundary conditions)
+- Test files: `__tests__/**/*.test.ts` or `*.spec.ts` convention
+
+**Example Test Structure**:
 ```
-     /\
-    /  \  E2E (10%)
-   /____\
-  /      \  Integration (30%)
- /________\
-/          \ Unit (60%)
-```
-
-### Unit Testing (60% of tests)
-- Test each service function independently
-- Mock external dependencies (DynamoDB, DistilFinBERT API)
-- Focus on edge cases and error handling
-
-**Example:**
-```typescript
-// backend/src/services/__tests__/eventClassification.service.test.ts
-describe('classifyEvent', () => {
-  it('should classify earnings articles correctly', () => {
-    const article = {
-      headline: 'Apple Reports Q1 Earnings Beat',
-      summary: 'Apple Inc. reported earnings of $1.25 vs $1.15 expected...'
-    };
-
-    const result = classifyEvent(article);
-
-    expect(result).toBe('EARNINGS');
-  });
-
-  it('should handle ambiguous articles', () => {
-    const article = {
-      headline: 'Apple Launches New Product',
-      summary: 'The launch follows strong earnings last quarter...'
-    };
-
-    const result = classifyEvent(article);
-
-    // Should prioritize primary topic (product launch over incidental earnings mention)
-    expect(result).toBe('PRODUCT_LAUNCH');
-  });
-});
-```
-
-### Integration Testing (30% of tests)
-- Test service interactions
-- Use real DynamoDB (local instance or test table)
-- Mock only external HTTP services (DistilFinBERT)
-
-**Example:**
-```typescript
-// backend/src/__tests__/integration/sentimentPipeline.test.ts
-describe('Sentiment Pipeline Integration', () => {
-  it('should process material event end-to-end', async () => {
-    const article = mockEarningsArticle();
-
-    // Event classification
-    const eventType = await classifyEvent(article);
-    expect(eventType).toBe('EARNINGS');
-
-    // Aspect analysis
-    const aspectScore = await analyzeAspects(article);
-    expect(aspectScore.overallScore).toBeCloseTo(0.5, 1);
-
-    // DistilFinBERT (mocked)
-    const finBERTScore = await getDistilFinBERTSentiment(article.text);
-    expect(finBERTScore).toBeGreaterThan(0);
-
-    // Storage
-    const cacheItem = buildSentimentCacheItem({
-      eventType,
-      aspectScore: aspectScore.overallScore,
-      distilFinBERTScore: finBERTScore,
-      // ... other fields
+describe('DailyAggregator', () => {
+  describe('aggregateWithMaterialityWeighting', () => {
+    it('should weight articles by materiality score', () => {
+      // Arrange: Create test data
+      // Act: Call aggregation function
+      // Assert: Verify weighted average
     });
 
-    await putSentiment(cacheItem);
-
-    // Verify storage
-    const retrieved = await getSentiment(article.ticker, article.hash);
-    expect(retrieved.eventType).toBe('EARNINGS');
+    it('should handle zero materiality scores', () => { ... });
+    it('should return null when no articles exist', () => { ... });
   });
 });
 ```
 
-### E2E Testing (10% of tests)
-- Test full Lambda handler flow
-- Use real API Gateway event format
-- Verify HTTP responses and caching
+### Integration Tests
 
-**Example:**
+**Objective**: Verify component integration without live AWS dependencies.
+
+**Mocking Strategy**:
+- **Lambda Responses**: Mock API Gateway responses with realistic payloads
+- **Database**: Use in-memory SQLite or localStorage mocks
+- **External APIs**: Mock Tiingo/Finnhub responses (use existing mocks)
+
+**Scope**:
+- Sync orchestration flow (trigger prediction → poll → store → retrieve)
+- Repository integration with database migrations
+- API client polling mechanism
+- React Query cache invalidation
+
+**CI Compatibility**:
+- No network calls to AWS
+- No live database connections
+- Deterministic test data
+- Fast execution (<30s total)
+
+**Example Mock**:
 ```typescript
-// backend/src/__tests__/e2e/sentiment.handler.test.ts
-describe('Sentiment Handler E2E', () => {
-  it('should return enhanced sentiment for material event', async () => {
-    const event = createAPIGatewayEvent({
-      path: '/sentiment',
-      method: 'POST',
-      body: {
-        ticker: 'AAPL',
-        articles: [mockEarningsArticle()]
-      }
-    });
-
-    const response = await sentimentHandler(event);
-
-    expect(response.statusCode).toBe(200);
-
-    const body = JSON.parse(response.body);
-    expect(body.sentiments[0]).toMatchObject({
-      eventType: 'EARNINGS',
-      aspectScore: expect.any(Number),
-      distilFinBERTScore: expect.any(Number),
-      sentimentScore: expect.any(Number)
-    });
-  });
-});
-```
-
-### Test Data Management
-
-**Fixtures:**
-```typescript
-// backend/src/__tests__/fixtures/articles.fixture.ts
-export const mockEarningsArticle = (): NewsArticle => ({
-  ticker: 'AAPL',
-  headline: 'Apple Reports Strong Q1 Earnings',
-  summary: 'Apple Inc. reported Q1 earnings of $1.25 per share, beating analyst estimates of $1.15. Revenue grew 15% year-over-year to $95B.',
-  date: '2025-01-15',
-  url: 'https://example.com/article',
-  hash: 'abc123',
-  source: 'Reuters'
-});
-
-export const mockMergersArticle = (): NewsArticle => ({
-  // ... M&A article fixture
-});
-```
-
-**Do:**
-- Create realistic test data
-- Use fixtures for common scenarios
-- Include edge cases (empty strings, extreme values)
-
-**Don't:**
-- Use production data in tests
-- Hard-code test data inline
-- Share mutable test data across tests
-
----
-
-## Common Pitfalls
-
-### 1. Event Classification Ambiguity
-
-**Problem:** Articles mention multiple events.
-
-**Example:**
-```
-"Apple launches new iPhone after reporting strong earnings, analyst upgrades stock"
-- Contains: PRODUCT_LAUNCH, EARNINGS, ANALYST_RATING
-```
-
-**Solution:** Priority order:
-1. EARNINGS (highest priority - most material)
-2. M&A
-3. GUIDANCE
-4. ANALYST_RATING
-5. PRODUCT_LAUNCH
-6. GENERAL (lowest)
-
-**Implementation:**
-```typescript
-// Score each event type, return highest
-const scores = {
-  earnings: scoreEarningsKeywords(article),
-  m&a: scoreMergersKeywords(article),
-  // ...
-};
-
-return getHighestScoringEvent(scores);
-```
-
-### 2. Aspect Extraction False Positives
-
-**Problem:** Aspect keywords appear in non-financial context.
-
-**Example:**
-```
-"The company's guidance counselor program improved employee margins..."
-- "guidance" and "margins" are not financial here
-```
-
-**Solution:** Require financial context words nearby:
-
-```typescript
-const isFinancialContext = (sentence: string, aspectKeyword: string) => {
-  const contextWords = ['revenue', 'profit', 'earnings', 'forecast', 'expects', 'reported'];
-  const nearbyText = getSurroundingWords(sentence, aspectKeyword, windowSize=10);
-
-  return contextWords.some(word => nearbyText.includes(word));
+// Mock Lambda prediction response
+const mockPredictionResponse = {
+  jobId: 'test-job-123',
+  status: 'COMPLETE',
+  predictions: {
+    nextDay: { direction: 'up', probability: 0.72 },
+    twoWeek: { direction: 'up', probability: 0.65 },
+    oneMonth: { direction: 'down', probability: 0.48 }
+  }
 };
 ```
 
-### 3. DistilFinBERT Service Timeouts
+### End-to-End Tests (Local Only)
 
-**Problem:** External service calls can fail or timeout.
+**Scope**: Full user flow with actual deployment (not required for CI).
 
-**Solution:** Implement retry logic with exponential backoff:
+**Scenarios**:
+- User selects stock → triggers sync → predictions appear in UI
+- Smart refresh: Selecting same stock twice doesn't retrigger prediction
+- Error handling: Lambda timeout shows error state in UI
+- Portfolio: Predictions persist and display correctly
 
-```typescript
-async function getDistilFinBERTSentiment(text: string): Promise<number> {
-  const MAX_RETRIES = 3;
-  const TIMEOUT_MS = 5000;
-
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const result = await fetchWithTimeout(distilFinBERTUrl, text, TIMEOUT_MS);
-      return result.sentiment;
-    } catch (error) {
-      if (attempt === MAX_RETRIES) {
-        console.error('[DistilFinBERT] Max retries exceeded');
-        // Fallback to bag-of-words
-        return getBagOfWordsSentiment(text);
-      }
-
-      await sleep(Math.pow(2, attempt) * 1000); // Exponential backoff
-    }
-  }
-}
-```
-
-### 4. DynamoDB Schema Migration
-
-**Problem:** Old cache items don't have new fields.
-
-**Solution:** Handle missing fields gracefully:
-
-```typescript
-function getSentimentSignals(cacheItem: SentimentCacheItem) {
-  return {
-    eventType: cacheItem.eventType ?? 'GENERAL', // Default for old items
-    aspectScore: cacheItem.aspectScore ?? 0,     // Neutral default
-    finBERTScore: cacheItem.distilFinBERTScore ?? cacheItem.sentiment.sentimentScore, // Fallback
-  };
-}
-```
-
-### 5. Prediction Model Feature Mismatch
-
-**Problem:** Model expects exact number of features in specific order.
-
-**Solution:** Use feature builder with validation:
-
-```typescript
-interface PredictionFeatures {
-  // Price features (existing)
-  priceRatio1d: number;
-  priceRatio5d: number;
-  volume: number;
-
-  // NEW sentiment features
-  eventType: number;      // One-hot encoded: [0,0,1,0,0,0] for GUIDANCE
-  aspectScore: number;    // -1 to +1
-  finBERTScore: number;   // -1 to +1
-}
-
-function buildFeatureVector(features: PredictionFeatures): number[] {
-  // Ensure exact order and count
-  return [
-    features.priceRatio1d,
-    features.priceRatio5d,
-    features.volume,
-    ...oneHotEncodeEvent(features.eventType), // 6 features (one per event type)
-    features.aspectScore,
-    features.finBERTScore
-  ];
-
-  // Validate length
-  const expected = 11; // 3 price + 6 event + 1 aspect + 1 finBERT
-  if (result.length !== expected) {
-    throw new Error(`Feature vector length mismatch: expected ${expected}, got ${result.length}`);
-  }
-}
-```
-
-### 6. Performance Degradation
-
-**Problem:** Running DistilFinBERT on all articles causes slow processing.
-
-**Solution:** Enforce tiered processing:
-
-```typescript
-async function processSentiment(article: NewsArticle): Promise<SentimentCacheItem> {
-  const eventType = await classifyEvent(article);
-
-  const isMaterialEvent = ['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING'].includes(eventType);
-
-  if (isMaterialEvent) {
-    // Full analysis
-    const [aspectScore, finBERTScore] = await Promise.all([
-      analyzeAspects(article),
-      getDistilFinBERTSentiment(article.text)
-    ]);
-
-    return buildSentimentCacheItem({ eventType, aspectScore, finBERTScore });
-  } else {
-    // Fast path
-    const bagOfWords = analyzeBagOfWords(article.text);
-
-    return buildSentimentCacheItem({
-      eventType,
-      aspectScore: 0,  // Not analyzed
-      finBERTScore: null,  // Not analyzed
-      sentiment: bagOfWords
-    });
-  }
-}
-```
+**Tools**:
+- Expo testing tools
+- Manual verification
 
 ---
 
-## Development Guidelines
+## Shared Patterns and Conventions
+
+### Repository Pattern
+
+**Existing Pattern** (see `src/database/repositories/`):
+- Repositories abstract database operations
+- Platform-agnostic (SQLite for native, localStorage for web)
+- Consistent interface: `insert()`, `findByTicker()`, `deleteByTicker()`
+- Transactions for multi-row operations
+
+**New Repositories** (Phase 1):
+- Update existing repositories for new schema fields
+- Follow same naming: `[Entity].repository.ts`
+- Export async functions, not classes
+- Use prepared statements for SQL injection protection
+
+### Async Polling Pattern
+
+**Existing Pattern** (see `src/services/api/lambdaSentiment.service.ts`):
+1. Initiate async job (POST to Lambda)
+2. Receive job ID in response
+3. Poll for status (GET with job ID)
+4. Parse completed result or handle error
+5. Return data to caller
+
+**Reuse for Predictions**:
+- Same polling interval (2s)
+- Same timeout (60s max)
+- Same error handling (timeout, failure, retry logic)
+
+### Database Migrations
+
+**Pattern**:
+- Use `ALTER TABLE` statements for backward compatibility
+- Add nullable columns first, populate, then make NOT NULL if needed
+- Include version checks to prevent duplicate migrations
+- Test on both SQLite (native) and localStorage (web)
+
+**Example Migration**:
+```sql
+-- Safe: Add nullable column
+ALTER TABLE word_count_details ADD COLUMN eventType TEXT;
+
+-- Populate with default value
+UPDATE word_count_details SET eventType = 'GENERAL' WHERE eventType IS NULL;
+
+-- Later: Make NOT NULL if required
+-- ALTER TABLE word_count_details ALTER COLUMN eventType SET NOT NULL;
+```
+
+### Error Handling Conventions
+
+**Service Layer**:
+- Throw custom `APIError` with HTTP status codes
+- Log errors with context: `console.error('[ServiceName] Error:', error)`
+- Include original error in chain for debugging
+
+**Repository Layer**:
+- Log errors with pattern: `console.error('[RepositoryName] Error:', error)`
+- Rethrow after logging (let caller decide handling)
+- Use transactions for atomic operations
+
+**UI Layer**:
+- Display user-friendly messages (no stack traces)
+- Provide retry actions where appropriate
+- Degrade gracefully (show "—" for missing predictions)
 
 ### Commit Message Format
 
-Use conventional commits:
+**Convention**: Conventional Commits specification
 
+**Format**:
 ```
+Author & Commiter : HatmanStack
+Email : 82614182+HatmanStack@users.noreply.github.com
+
 type(scope): brief description
 
-- Detail 1
-- Detail 2
-
-Author & Committer: HatmanStack
-Email: 82614182+HatmanStack@users.noreply.github.com
+Detailed explanation line 1
+Detailed explanation line 2
 ```
 
-**Types:**
+**Types**:
 - `feat`: New feature
 - `fix`: Bug fix
-- `refactor`: Code restructuring
-- `test`: Adding/updating tests
+- `refactor`: Code restructuring without behavior change
+- `test`: Adding or updating tests
 - `docs`: Documentation only
 - `chore`: Build process, dependencies
 
-**Scopes:**
-- `event-classifier`: Event classification system
-- `aspect-analyzer`: Aspect analysis system
-- `distilfinbert`: DistilFinBERT integration
-- `schema`: Database schema changes
-- `api`: API handler changes
+**Scopes** (for this feature):
+- `prediction`: ML model, training logic
+- `schema`: Database migrations
+- `api`: Lambda functions, API Gateway
+- `frontend`: UI components, services
+- `deploy`: Deployment scripts, SAM template
 
-**Example:**
+**Examples**:
 ```
-feat(event-classifier): add earnings event detection
+feat(schema): add event type and aspect score fields to word_count_details
 
-- Implement keyword-based classification
-- Add tests for earnings article detection
-- Handle edge cases (earnings mention in non-financial context)
-
-Author & Committer: HatmanStack
-Email: 82614182+HatmanStack@users.noreply.github.com
+- Add eventType TEXT column (nullable)
+- Add aspectScore REAL column (nullable)
+- Add distilFinBERTScore REAL column (nullable)
+- Add materialityScore REAL column (nullable)
 ```
 
-### Code Review Checklist
+```
+feat(prediction): implement logistic regression training with materiality weighting
 
-Before moving to next task:
-- [ ] All tests pass (`npm test`)
-- [ ] TypeScript compiles without errors (`npm run type-check`)
-- [ ] Code follows existing patterns (repository, service layers)
-- [ ] Error handling implemented
-- [ ] Logging added for debugging
-- [ ] No console.log in production code (use console.error for errors)
-- [ ] Types defined and exported
-- [ ] Documentation comments added for public functions
+- Aggregate per-article features to daily level using materiality scores
+- Generate labels from same-day price movements (±1% threshold)
+- Train scikit-learn LogisticRegression on all available history
+- Return predictions for 3 horizons (1-day, 2-week, 1-month)
+```
+
+---
+
+## Database Design
+
+### Prediction-Scoped Architecture
+
+**IMPORTANT**: This database design applies **only to the prediction feature**. Existing stocks/news/sentiment infrastructure is unchanged.
+
+**Two-Tier Storage (Prediction Feature Only)**:
+1. **Backend (DynamoDB)**: ML training data cache (multi-user shared)
+2. **Frontend (SQLite/localStorage)**: Display storage (source of truth, unchanged)
+
+**Principles**:
+- DynamoDB caches training data **for prediction computation only**
+- Frontend SQLite/localStorage remains **source of truth** for all display data
+- Multi-user efficiency: User A's prediction fetch benefits User B
+- Incremental updates: Append new date ranges to existing DynamoDB training data
+- **No changes** to existing stocks/news/sentiment data flow
+
+### Backend Database (DynamoDB) - NEW TABLES
+
+**`StockHistoricalData` (DynamoDB)**:
+- **Partition Key**: `ticker` (STRING)
+- **Sort Key**: `date` (STRING, ISO 8601)
+- **Attributes**: open, high, low, close, volume, adjClose, marketCap, peRatio, pbRatio, etc.
+- **Purpose**: Multi-user shared price history
+- **TTL**: NONE (permanent storage)
+
+**`ArticleAnalysisData` (DynamoDB)** - replaces word_count_details concept:
+- **Partition Key**: `ticker` (STRING)
+- **Sort Key**: `articleHash#date` (STRING, composite)
+- **Attributes**:
+  - `eventType` (STRING): EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
+  - `aspectScore` (NUMBER): -1 to +1
+  - `distilFinBERTScore` (NUMBER): -1 to +1
+  - `materialityScore` (NUMBER): 0 to 1
+  - `title`, `articleUrl`, `publisher`, `articleDate`
+- **Purpose**: Per-article multi-signal analysis
+- **TTL**: NONE (permanent storage)
+
+**`DailySentimentAggregate` (DynamoDB)** - replaces combined_word_count_details:
+- **Partition Key**: `ticker` (STRING)
+- **Sort Key**: `date` (STRING)
+- **Attributes**:
+  - `eventCounts` (MAP): {"EARNINGS": 2, "M&A": 0, "GUIDANCE": 1, ...}
+  - `avgAspectScore` (NUMBER)
+  - `avgFinBERTScore` (NUMBER)
+  - `materialEventCount` (NUMBER)
+  - `nextDayDirection`, `nextDayProbability` (STRING, NUMBER)
+  - `twoWeekDirection`, `twoWeekProbability` (STRING, NUMBER)
+  - `oneMonthDirection`, `oneMonthProbability` (STRING, NUMBER)
+- **Purpose**: Daily aggregated signals + predictions
+- **TTL**: NONE (permanent storage)
+
+### Frontend Database (SQLite/localStorage) - SOURCE OF TRUTH (Unchanged)
+
+**`article_analysis_details` (renamed from word_count_details)**:
+- Schema extended with new fields: eventType, aspectScore, distilFinBERTScore, materialityScore
+- **Role**: Source of truth for display (existing architecture)
+- **Change**: Just schema extension, no behavior change
+
+**`daily_sentiment_aggregate` (renamed from combined_word_count_details)**:
+- Schema extended with prediction fields: nextDayDirection, nextDayProbability, etc.
+- **Role**: Source of truth for display (existing architecture)
+- **Change**: Just schema extension, no behavior change
+
+**Storage Behavior** (Existing, Unchanged):
+- Data synced from backend APIs (Tiingo, Finnhub, Lambda sentiment)
+- Stored locally for offline capability
+- Updated when user syncs stock data
+- **Prediction results**: Stored same as other data (no special behavior)
+
+### Migration Strategy
+
+**Backend (DynamoDB)**:
+1. Create new tables: `StockHistoricalData`, `ArticleAnalysisData`, `DailySentimentAggregate`
+2. Populate from existing TTL cache tables (if data exists)
+3. Start storing all new data in permanent tables
+4. Keep TTL cache tables for backward compatibility (short-term)
+
+**Frontend (SQLite/localStorage)**:
+1. Rename tables: `word_count_details` → `article_analysis_details`
+2. Rename tables: `combined_word_count_details` → `daily_sentiment_aggregate`
+3. Add 4 new fields to `article_analysis_details`:
+   - `eventType`, `aspectScore`, `distilFinBERTScore`, `materialityScore`
+4. Add 6 new prediction fields to `daily_sentiment_aggregate`:
+   - `nextDayDirection`, `nextDayProbability`, etc.
+5. Add 6 new prediction fields to `portfolio_details`
+6. Update all repositories to use new table names
+
+**Migration Commands**:
+```sql
+-- Frontend SQLite
+ALTER TABLE word_count_details RENAME TO article_analysis_details;
+ALTER TABLE combined_word_count_details RENAME TO daily_sentiment_aggregate;
+ALTER TABLE article_analysis_details ADD COLUMN eventType TEXT;
+ALTER TABLE article_analysis_details ADD COLUMN aspectScore REAL;
+ALTER TABLE article_analysis_details ADD COLUMN distilFinBERTScore REAL;
+ALTER TABLE article_analysis_details ADD COLUMN materialityScore REAL;
+-- (prediction fields omitted for brevity)
+```
+
+**Backward Compatibility**:
+- Frontend: Alias old table names to new names during transition
+- Legacy prediction fields remain (don't drop immediately)
+- Gradual rollout: support both old and new field names
+- Remove legacy after 2-4 weeks of stable operation
+
+---
+
+## Known Technical Debt
+
+**Accepted for Initial Release**:
+- On-the-fly training may be slow for stocks with 90+ days of data (acceptable with async)
+- No model performance metrics stored (accuracy, precision, recall)
+- No feature importance analysis (planned for Phase 5 F-testing)
+- No cross-validation during training (fast iteration prioritized)
+- Legacy bag-of-words code remains until full migration complete
+
+**Future Optimization Opportunities**:
+- Model caching (train once per ticker per day, cache in DynamoDB)
+- Batch predictions for portfolio (single Lambda call for all tickers)
+- Feature importance logging (identify which features drive predictions)
+- A/B testing framework (compare multi-signal vs bag-of-words accuracy)
+
+---
+
+## Reference Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         User Action                             │
+│                  (Select Stock in UI)                           │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             v
+┌─────────────────────────────────────────────────────────────────┐
+│                    Sync Orchestrator                            │
+│  (Checks: New articles exist? Trigger prediction)               │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             v
+┌─────────────────────────────────────────────────────────────────┐
+│                Prediction API Client (Frontend)                 │
+│  1. POST /predict → jobId                                       │
+│  2. Poll GET /predict/{jobId} → status                          │
+│  3. Receive predictions when complete                           │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             v
+┌─────────────────────────────────────────────────────────────────┐
+│              Lambda Prediction Service (Backend)                │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │ 1. Fetch Data (price, sentiment, events, aspect)         │ │
+│  │ 2. Aggregate to Daily (materiality-weighted)             │ │
+│  │ 3. Generate Labels (same-day ±1% threshold)              │ │
+│  │ 4. Train Logistic Regression (on-the-fly)                │ │
+│  │ 5. Predict (horizon=1,14,30)                             │ │
+│  │ 6. Cache Result (optional DynamoDB)                      │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             v
+┌─────────────────────────────────────────────────────────────────┐
+│              Frontend: Store in Local Database                  │
+│  - combined_word_count_details (daily predictions)              │
+│  - portfolio_details (portfolio predictions)                    │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             v
+┌─────────────────────────────────────────────────────────────────┐
+│                    UI Components Read & Display                 │
+│  - Sentiment Tab: CombinedWordItem (↑ 72%)                      │
+│  - Portfolio: PortfolioItem (↓ 38%)                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Questions for Plan Reviewer
+
+*None at this time. If architectural decisions need clarification during implementation, use QUESTION or CLARIFICATION keywords in subsequent phases.*
 
 ---
 
 ## Next Steps
 
-After reading this foundation document, proceed to:
-- [Phase 1: Event Classification System](./Phase-1.md)
+Proceed to **[Phase 1: Backend Infrastructure & ML Model](./Phase-1.md)** to begin implementation of database migrations and Lambda prediction service.

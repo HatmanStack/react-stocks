@@ -12,6 +12,7 @@ import * as SymbolRepository from '@/database/repositories/symbol.repository';
 import * as StockRepository from '@/database/repositories/stock.repository';
 import * as NewsRepository from '@/database/repositories/news.repository';
 import { getSentimentAnalyzer } from '@/ml/sentiment/analyzer';
+import { getStockPredictions } from '@/ml/prediction/prediction.service';
 import { validateTicker, validateDateRange } from '@/utils/validation/inputValidation';
 
 jest.mock('@/database');
@@ -50,7 +51,7 @@ describe('E2E: Error Scenarios', () => {
 
       // Both cases should work (repository normalizes to uppercase)
       const upperCase = await SymbolRepository.findByTicker('AAPL');
-      const lowerCase = await SymbolRepository.findByTicker('aapl');
+      await SymbolRepository.findByTicker('aapl');
 
       // Note: Repository implementation converts to uppercase
       expect(upperCase).toBeDefined();
@@ -125,10 +126,9 @@ describe('E2E: Error Scenarios', () => {
       const analyzer = getSentimentAnalyzer();
       const result = analyzer.analyze('', 'empty-hash');
 
-      expect(result.positive).toBe(0);
-      expect(result.negative).toBe(0);
-      expect(result.score).toBe(0);
-      expect(result.comparative).toBe(0);
+      expect(parseInt(result.positive[0])).toBe(0);
+      expect(parseInt(result.negative[0])).toBe(0);
+      expect(parseInt(result.neutral[0])).toBe(0);
     });
 
     it('should handle very long text in sentiment analysis', () => {
@@ -136,8 +136,8 @@ describe('E2E: Error Scenarios', () => {
       const longText = 'great '.repeat(1000); // 5000+ characters
       const result = analyzer.analyze(longText, 'long-hash');
 
-      expect(result.positive).toBeGreaterThan(0);
-      expect(result.score).toBeGreaterThan(0);
+      expect(parseInt(result.positive[0])).toBeGreaterThan(0);
+      expect(result.hash).toBe('long-hash');
     });
 
     it('should handle special characters in sentiment analysis', () => {
@@ -147,7 +147,7 @@ describe('E2E: Error Scenarios', () => {
 
       // Should not crash, neutral sentiment
       expect(result).toBeDefined();
-      expect(result.score).toBe(0);
+      expect(result.hash).toBe('special-hash');
     });
 
     it('should handle mixed language text', () => {
@@ -157,7 +157,7 @@ describe('E2E: Error Scenarios', () => {
 
       // Should still detect English sentiment
       expect(result).toBeDefined();
-      expect(result.positive).toBeGreaterThan(0);
+      expect(parseInt(result.positive[0])).toBeGreaterThan(0);
     });
   });
 
@@ -180,6 +180,7 @@ describe('E2E: Error Scenarios', () => {
         await StockRepository.insert({
           ticker,
           date: `2024-01-0${i}`,
+          hash: 123456 + i,
           open: 100,
           high: 105,
           low: 95,
@@ -192,13 +193,18 @@ describe('E2E: Error Scenarios', () => {
           adjVolume: 1000000,
           divCash: 0,
           splitFactor: 1,
+          marketCap: 2800000000000,
+          enterpriseVal: 2850000000000,
+          peRatio: 28.5,
+          pbRatio: 45.2,
+          trailingPEG1Y: 2.1,
         });
       }
 
       // Attempt prediction with insufficient data
       try {
-        await generatePrediction(ticker, 30);
-        // Should either throw or return null/empty prediction
+        await getStockPredictions(ticker, [100, 102, 103, 101, 102], [1000000, 1000000, 1000000, 1000000, 1000000]);
+        // Should either throw or return null/empty prediction (requires 30+ data points)
       } catch (error) {
         expect(error).toBeDefined();
       }

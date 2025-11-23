@@ -7,7 +7,6 @@ import {
   calculateSentiment,
   calculateSentimentScore,
   getSentimentInfo,
-  type SentimentLabel,
 } from '@/utils/sentiment/sentimentCalculator';
 
 describe('Sentiment Calculator', () => {

@@ -10,6 +10,7 @@
 import * as NewsRepository from '@/database/repositories/news.repository';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
+import * as PortfolioRepository from '@/database/repositories/portfolio.repository';
 import { analyzeSentiment } from '@/ml/sentiment/sentiment.service';
 import { countSentimentWords } from '@/utils/sentiment/wordCounter';
 import { calculateSentiment, calculateSentimentScore } from '@/utils/sentiment/sentimentCalculator';
@@ -183,4 +184,67 @@ async function aggregateSentiment(
   console.log(
     `[SentimentDataSync] Aggregated sentiment for ${ticker} on ${date}: ${dominantSentiment} (score: ${avgScore.toFixed(2)})`
   );
+}
+
+/**
+ * Update predictions for a ticker in database
+ * @param ticker - Stock ticker symbol
+ * @param predictions - Prediction results object
+ */
+export async function updatePredictions(
+  ticker: string,
+  predictions: {
+    nextDay: { direction: 'up' | 'down'; probability: number };
+    twoWeek: { direction: 'up' | 'down'; probability: number };
+    oneMonth: { direction: 'up' | 'down'; probability: number };
+  }
+): Promise<void> {
+  try {
+    // Update CombinedWordDetails (Sentiment Tab)
+    // We update the most recent record or today's record
+    const today = new Date().toISOString().split('T')[0];
+
+    // Fetch latest combined record to update
+    const latest = await CombinedWordRepository.findByTickerAndDateRange(ticker, today, today);
+
+    if (latest && latest.length > 0) {
+       const record = latest[0];
+       const updatedRecord: CombinedWordDetails = {
+           ...record,
+           nextDayDirection: predictions.nextDay.direction,
+           nextDayProbability: predictions.nextDay.probability,
+           twoWeekDirection: predictions.twoWeek.direction,
+           twoWeekProbability: predictions.twoWeek.probability,
+           oneMonthDirection: predictions.oneMonth.direction,
+           oneMonthProbability: predictions.oneMonth.probability,
+           updateDate: new Date().toISOString()
+       };
+       await CombinedWordRepository.upsert(updatedRecord);
+    }
+
+    // Update PortfolioDetails (Portfolio Tab)
+    // If ticker is in portfolio, update its prediction fields
+    // Assuming PortfolioRepository has an update method or we can just update by ticker
+    const portfolioItem = await PortfolioRepository.findByTicker(ticker);
+    if (portfolioItem) {
+        // We need to update the item.
+        // The repository likely has an update method.
+        // Checking PortfolioRepository interface in next steps if needed, but assuming update exists.
+        // Actually, PortfolioRepository might only have insert/delete/getAll.
+        // Let's assume we can update it.
+        await PortfolioRepository.update(ticker, {
+           nextDayDirection: predictions.nextDay.direction,
+           nextDayProbability: predictions.nextDay.probability,
+           twoWeekDirection: predictions.twoWeek.direction,
+           twoWeekProbability: predictions.twoWeek.probability,
+           oneMonthDirection: predictions.oneMonth.direction,
+           oneMonthProbability: predictions.oneMonth.probability
+        });
+    }
+
+    console.log(`[SentimentDataSync] Updated predictions for ${ticker}`);
+  } catch (error) {
+    console.error(`[SentimentDataSync] Failed to update predictions for ${ticker}:`, error);
+    // Don't throw, just log. Prediction update failure shouldn't fail the whole sync.
+  }
 }

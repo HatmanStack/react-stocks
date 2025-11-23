@@ -98,6 +98,19 @@ export interface WordCountDetails {
   body: string; // Article content
   sentiment: string; // 'POS', 'NEG', or 'NEUT'
   sentimentNumber: number; // Sentiment score
+
+  // Phase 5: Multi-signal fields
+  /**
+   * Event type category (e.g., 'EARNINGS', 'M&A')
+   * @see EventType
+   */
+  eventType?: EventType;
+  /** Aspect sentiment score (-1 to +1) */
+  aspectScore?: number;
+  /** DistilFinBERT sentiment score (-1 to +1) */
+  distilFinBERTScore?: number;
+  /** Materiality score (0 to 1) */
+  materialityScore?: number;
 }
 
 /**
@@ -125,10 +138,29 @@ export interface CombinedWordDetails {
   sentiment: string;
 
   // Prediction fields
-  nextDay: number; // 1-day prediction
-  twoWks: number; // 2-week prediction
-  oneMnth: number; // 1-month prediction
+  /** @deprecated Legacy bag-of-words 1-day prediction */
+  nextDay: number;
+  /** @deprecated Legacy bag-of-words 2-week prediction */
+  twoWks: number;
+  /** @deprecated Legacy bag-of-words 1-month prediction */
+  oneMnth: number;
   updateDate: string; // Last update timestamp
+
+  // Phase 1: Structured Prediction Fields (NEW)
+  /** 1-day prediction direction ('up' | 'down') */
+  nextDayDirection?: 'up' | 'down';
+  /** 1-day prediction probability (0-1) */
+  nextDayProbability?: number;
+
+  /** 2-week prediction direction ('up' | 'down') */
+  twoWeekDirection?: 'up' | 'down';
+  /** 2-week prediction probability (0-1) */
+  twoWeekProbability?: number;
+
+  /** 1-month prediction direction ('up' | 'down') */
+  oneMonthDirection?: 'up' | 'down';
+  /** 1-month prediction probability (0-1) */
+  oneMonthProbability?: number;
 
   // Phase 5: Event distribution (NEW - optional for backward compatibility)
   /**
@@ -166,8 +198,19 @@ export interface CombinedWordDetails {
  */
 export interface PortfolioDetails {
   ticker: string; // Primary key
-  next: string; // 1-day prediction (formatted string)
+  /** @deprecated Legacy formatted prediction string */
+  next: string;
   name: string; // Company name
-  wks: string; // 2-week prediction (formatted string)
-  mnth: string; // 1-month prediction (formatted string)
+  /** @deprecated Legacy formatted prediction string */
+  wks: string;
+  /** @deprecated Legacy formatted prediction string */
+  mnth: string;
+
+  // Phase 1: Structured Prediction Fields (NEW)
+  nextDayDirection?: 'up' | 'down';
+  nextDayProbability?: number;
+  twoWeekDirection?: 'up' | 'down';
+  twoWeekProbability?: number;
+  oneMonthDirection?: 'up' | 'down';
+  oneMonthProbability?: number;
 }

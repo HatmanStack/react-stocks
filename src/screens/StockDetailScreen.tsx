@@ -3,10 +3,9 @@
  * Container screen for the stock detail tabs (Price, Sentiment, News)
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
+import React, { useEffect, useCallback } from 'react';
+import { View, StyleSheet, Alert } from 'react-native';
 import { Appbar } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
 import type { MainTabScreenProps } from '../navigation/navigationTypes';
 import { StockDetailNavigator } from '../navigation/StockDetailNavigator';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
@@ -16,7 +15,7 @@ import { OfflineIndicator } from '@/components/common/OfflineIndicator';
 
 type Props = MainTabScreenProps<'StockDetail'>;
 
-export default function StockDetailScreen({ route, navigation }: Props) {
+export default function StockDetailScreen({ route }: Props) {
   const ticker = route.params?.ticker || 'AAPL'; // Default to AAPL for now
   const { data: symbolInfo, isLoading } = useSymbolDetails(ticker);
   const { isInPortfolio, addToPortfolio, removeFromPortfolio } = usePortfolioContext();

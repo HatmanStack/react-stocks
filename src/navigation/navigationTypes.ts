@@ -3,7 +3,6 @@
  * Type-safe navigation parameters for all navigators
  */
 
-import type { NavigatorScreenParams } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { StackScreenProps } from '@react-navigation/stack';
 import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
@@ -47,9 +46,11 @@ export type StockDetailTabScreenProps<T extends keyof StockDetailTabParamList> =
 
 /**
  * Combined navigation prop type for nested navigators
+ * This empty interface enables TypeScript declaration merging with React Navigation
  */
 declare global {
   namespace ReactNavigation {
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     interface RootParamList extends RootStackParamList {}
   }
 }

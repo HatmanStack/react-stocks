@@ -11,7 +11,6 @@ import Animated, {
   useSharedValue,
   useAnimatedProps,
   withSpring,
-  useDerivedValue,
 } from 'react-native-reanimated';
 import { MonoText } from './MonoText';
 
@@ -47,7 +46,7 @@ export function AnimatedNumber({
       stiffness: 100,
       mass: 0.5,
     });
-  }, [value]);
+  }, [value, animatedValue]);
 
   const animatedProps = useAnimatedProps(() => {
     // Format the animated value

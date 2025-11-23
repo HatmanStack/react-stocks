@@ -42,13 +42,15 @@ export const createTestWrapper = () => {
   });
 
   // Return wrapper component
-  return ({ children }: { children: React.ReactNode }) => (
+  const TestWrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <PaperProvider theme={theme}>
         {children}
       </PaperProvider>
     </QueryClientProvider>
   );
+  TestWrapper.displayName = 'TestWrapper';
+  return TestWrapper;
 };
 
 /**
@@ -63,11 +65,13 @@ export const createQueryWrapper = () => {
     },
   });
 
-  return ({ children }: { children: React.ReactNode }) => (
+  const QueryWrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       {children}
     </QueryClientProvider>
   );
+  QueryWrapper.displayName = 'QueryWrapper';
+  return QueryWrapper;
 };
 
 /**
@@ -75,9 +79,11 @@ export const createQueryWrapper = () => {
  * Use when you don't need React Query
  */
 export const createThemeWrapper = () => {
-  return ({ children }: { children: React.ReactNode }) => (
+  const ThemeWrapper = ({ children }: { children: React.ReactNode }) => (
     <PaperProvider theme={theme}>
       {children}
     </PaperProvider>
   );
+  ThemeWrapper.displayName = 'ThemeWrapper';
+  return ThemeWrapper;
 };
