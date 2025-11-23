@@ -43,11 +43,11 @@ export async function predictionHandler(
         else {
              // Handle query params if body missing (optional, but good for testing)
              const daysParam = event.queryStringParameters?.days;
-             const parsedDays = daysParam ? Number(daysParam) : 0;
+             const parsedDays = daysParam ? Number(daysParam) : 90;
 
              request = {
                  ticker: event.queryStringParameters?.ticker || '',
-                 days: parsedDays
+                 days: isNaN(parsedDays) ? 90 : parsedDays
              };
         }
 

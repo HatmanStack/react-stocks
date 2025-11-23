@@ -37,7 +37,14 @@ describe('DataFetcher Service', () => {
   const mockEndDate = '2023-01-31';
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // Clear only method mocks, not the constructor mock
+    mockQueryStock.mockClear();
+    mockQueryArticles.mockClear();
+    mockPutStock.mockClear();
+    mockGetStock.mockClear();
+    mockPutArticle.mockClear();
+    mockPutDaily.mockClear();
+    mockGetDaily.mockClear();
   });
 
   // The constructor is called when dataFetcher.ts is imported.
