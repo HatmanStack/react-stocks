@@ -7,14 +7,26 @@
  * - GET /sentiment - Get cached sentiment results
  */
 
+// eslint-disable-next-line import/no-unresolved
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { processSentimentForTicker } from '../services/sentimentProcessing.service.js';
 import * as SentimentJobsRepository from '../repositories/sentimentJobs.repository.js';
 import * as SentimentCacheRepository from '../repositories/sentimentCache.repository.js';
 import * as NewsCacheRepository from '../repositories/newsCache.repository.js';
+import * as DailySentimentAggregateRepository from '../repositories/dailySentimentAggregate.repository.js';
 import { generateJobId } from '../utils/job.util.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
 import { aggregateDailySentiment } from '../utils/sentiment.util.js';
+import { shouldTriggerPrediction } from '../utils/smartRefresh.util.js';
+// eslint-disable-next-line import/no-unresolved
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
+
+// Validate required environment variable
+if (!process.env.AWS_REGION) {
+    throw new Error('AWS_REGION environment variable is required but not set');
+}
+
+const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
 
 /**
  * POST /sentiment - Trigger sentiment analysis for a ticker
@@ -90,6 +102,36 @@ export async function handleSentimentRequest(
 
       // Mark job as completed
       await SentimentJobsRepository.markJobCompleted(jobId, result.articlesProcessed);
+
+      // Trigger prediction asynchronously (fire and forget)
+      // Smart refresh logic: trigger if new articles processed OR DB check says we should
+      const shouldTrigger = result.articlesProcessed > 0 || await shouldTriggerPrediction(ticker);
+
+      if (process.env.PREDICTION_FUNCTION_NAME && shouldTrigger) {
+          try {
+              // Minimal payload for prediction
+              const predictionPayload = {
+                  ticker: ticker.toUpperCase(),
+                  days: 90 // Default to 90 days history for training
+              };
+
+              console.log('[SentimentHandler] Invoking prediction lambda:', {
+                  functionName: process.env.PREDICTION_FUNCTION_NAME,
+                  payload: predictionPayload
+              });
+
+              await lambdaClient.send(new InvokeCommand({
+                  FunctionName: process.env.PREDICTION_FUNCTION_NAME,
+                  InvocationType: 'Event', // Asynchronous invocation
+                  Payload: JSON.stringify(predictionPayload)
+              }));
+          } catch (invokeError) {
+              console.error('[SentimentHandler] Failed to invoke prediction lambda:', invokeError);
+              // We don't fail the sentiment request if prediction trigger fails
+          }
+      } else if (!shouldTrigger) {
+          console.log(`[SentimentHandler] Skipping prediction trigger for ${ticker} (no new data needed)`);
+      }
 
       return successResponse({
         jobId,
@@ -242,12 +284,44 @@ export async function handleSentimentResultsRequest(
     // This ensures consistent thresholds and classification logic across handlers and services
     const dailySentiment = aggregateDailySentiment(allSentiments, articlesInRange);
 
+    // Fetch latest prediction (if available)
+    let predictions = undefined;
+    try {
+        const latestAggregate = await DailySentimentAggregateRepository.getLatestDailyAggregate(ticker.toUpperCase());
+        if (latestAggregate && latestAggregate.nextDayDirection && latestAggregate.nextDayProbability !== undefined) {
+            predictions = {
+                nextDay: {
+                    direction: latestAggregate.nextDayDirection,
+                    probability: latestAggregate.nextDayProbability
+                },
+                // Only include twoWeek if both direction and probability are defined
+                ...(latestAggregate.twoWeekDirection && latestAggregate.twoWeekProbability !== undefined ? {
+                    twoWeek: {
+                        direction: latestAggregate.twoWeekDirection,
+                        probability: latestAggregate.twoWeekProbability
+                    }
+                } : {}),
+                // Only include oneMonth if both direction and probability are defined
+                ...(latestAggregate.oneMonthDirection && latestAggregate.oneMonthProbability !== undefined ? {
+                    oneMonth: {
+                        direction: latestAggregate.oneMonthDirection,
+                        probability: latestAggregate.oneMonthProbability
+                    }
+                } : {})
+            };
+        }
+    } catch (predError) {
+        console.error('[SentimentHandler] Error fetching predictions:', predError);
+        // Continue without predictions
+    }
+
     return successResponse({
       ticker: ticker.toUpperCase(),
       startDate: startDate || null,
       endDate: endDate || null,
       dailySentiment,
       cached: true,
+      predictions
     });
   } catch (error) {
     console.error('[SentimentHandler] Error getting sentiment results:', error, {

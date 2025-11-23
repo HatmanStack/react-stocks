@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl, Alert, Platform } from 'react-native';
+import { FlatList, StyleSheet, RefreshControl, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
 import { router } from 'expo-router';

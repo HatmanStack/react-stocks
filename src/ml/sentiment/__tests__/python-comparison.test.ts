@@ -87,7 +87,7 @@ function countsWithinRange(
 }
 
 describe('Python Service Comparison', () => {
-  const samples = testData.samples as TestSample[];
+  const samples = testData.samples as unknown as TestSample[];
 
   describe('Directional Agreement', () => {
     it('should achieve >80% directional agreement overall', async () => {

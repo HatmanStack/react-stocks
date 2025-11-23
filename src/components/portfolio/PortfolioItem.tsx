@@ -60,6 +60,28 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
   const isPositive = priceChange.percentage > 0;
   const isNegative = priceChange.percentage < 0;
 
+  // Get prediction display based on Phase 2 format
+  const renderPrediction = () => {
+    if (!item.nextDayDirection || item.nextDayProbability === undefined || item.nextDayProbability === null) {
+      return (
+        <Text style={[styles.predictionText, { color: theme.colors.onSurfaceVariant, fontSize: fontSize.caption }]}>
+          —
+        </Text>
+      );
+    }
+
+    const arrow = item.nextDayDirection === 'up' ? '↑' : '↓';
+    const color = item.nextDayDirection === 'up' ? theme.colors.positive : theme.colors.negative;
+    const probability = formatPercentage(item.nextDayProbability);
+
+    return (
+        <View style={styles.predictionContainer}>
+            <Text style={[styles.predictionArrow, { color, fontSize: fontSize.caption }]}>{arrow}</Text>
+            <Text style={[styles.predictionText, { color, fontSize: fontSize.caption }]}>{probability}</Text>
+        </View>
+    );
+  };
+
   // Render right swipe action (delete)
   const renderRightActions = () => (
     <View style={[styles.deleteAction, { backgroundColor: theme.colors.error }]}>
@@ -201,6 +223,14 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
               </View>
             )}
           </View>
+
+          {/* Line 3: Prediction Display (Phase 2) */}
+          <View style={styles.predictionRow}>
+             <Text style={[styles.predictionLabel, { color: theme.colors.onSurfaceVariant, fontSize: fontSize.caption }]}>
+                Pred (1D):
+             </Text>
+             {renderPrediction()}
+          </View>
         </View>
         </AnimatedCard>
       </Swipeable>
@@ -283,4 +313,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
+  predictionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4
+  },
+  predictionLabel: {
+    fontWeight: '400',
+  },
+  predictionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2
+  },
+  predictionArrow: {
+    fontWeight: '700',
+  },
+  predictionText: {
+    fontWeight: '600',
+  }
 });

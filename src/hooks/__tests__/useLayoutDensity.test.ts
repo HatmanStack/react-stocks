@@ -101,7 +101,7 @@ describe('useLayoutDensity', () => {
     const { result, rerender } = renderHook(() => useLayoutDensity());
     const firstResult = result.current;
 
-    rerender();
+    rerender({});
     const secondResult = result.current;
 
     expect(firstResult).toBe(secondResult);
@@ -125,7 +125,7 @@ describe('useLayoutDensity', () => {
       fontScale: 1,
     });
 
-    rerender();
+    rerender({});
     expect(result.current.isDense).toBe(false);
   });
 });

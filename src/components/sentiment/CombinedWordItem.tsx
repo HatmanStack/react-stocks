@@ -85,12 +85,56 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
     }
   };
 
-  // Get prediction color
-  const getPredictionColor = (value: number): string => {
+  // Get prediction color based on direction
+  const getPredictionDirectionColor = (direction?: 'up' | 'down'): string => {
+    if (direction === 'up') return theme.colors.positive;
+    if (direction === 'down') return theme.colors.negative;
+    return theme.colors.onSurfaceVariant;
+  };
+
+  // Legacy prediction color (backward compatibility)
+  const getLegacyPredictionColor = (value: number): string => {
     return value >= 0 ? theme.colors.positive : theme.colors.negative;
   };
 
   const sentimentColor = getSentimentColor(item.sentiment);
+
+  // Helper to render prediction with new format (Phase 2) or legacy format
+  const renderPrediction = (
+    direction: 'up' | 'down' | undefined,
+    probability: number | undefined,
+    legacyValue: number
+  ) => {
+    if (direction && probability !== undefined) {
+      // New format: ↑ 72%
+      const arrow = direction === 'up' ? '↑' : '↓';
+      const color = getPredictionDirectionColor(direction);
+      return (
+        <Text variant="bodyLarge" style={{ color, fontWeight: 'bold' }}>
+          {arrow} {formatPercentage(probability)}
+        </Text>
+      );
+    }
+
+    // Legacy format: 0.5% (if non-zero) or placeholder
+    if (legacyValue !== 0) {
+        return (
+            <Text
+              variant="bodyLarge"
+              style={{ color: getLegacyPredictionColor(legacyValue), fontWeight: 'bold' }}
+            >
+              {formatPercentage(legacyValue / 100)}
+            </Text>
+        );
+    }
+
+    // Placeholder
+    return (
+        <Text variant="bodyLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+          —
+        </Text>
+    );
+  };
 
   return (
     <Card style={styles.card}>
@@ -264,36 +308,21 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
               <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                 1-Day
               </Text>
-              <Text
-                variant="bodyLarge"
-                style={{ color: getPredictionColor(item.nextDay), fontWeight: 'bold' }}
-              >
-                {formatPercentage(item.nextDay / 100)}
-              </Text>
+              {renderPrediction(item.nextDayDirection, item.nextDayProbability, item.nextDay)}
             </View>
 
             <View style={styles.prediction}>
               <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                 2-Weeks
               </Text>
-              <Text
-                variant="bodyLarge"
-                style={{ color: getPredictionColor(item.twoWks), fontWeight: 'bold' }}
-              >
-                {formatPercentage(item.twoWks / 100)}
-              </Text>
+              {renderPrediction(item.twoWeekDirection, item.twoWeekProbability, item.twoWks)}
             </View>
 
             <View style={styles.prediction}>
               <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                 1-Month
               </Text>
-              <Text
-                variant="bodyLarge"
-                style={{ color: getPredictionColor(item.oneMnth), fontWeight: 'bold' }}
-              >
-                {formatPercentage(item.oneMnth / 100)}
-              </Text>
+              {renderPrediction(item.oneMonthDirection, item.oneMonthProbability, item.oneMnth)}
             </View>
           </View>
         </View>

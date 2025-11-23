@@ -36,11 +36,11 @@ export interface DatabaseClient {
    * Execute a SQL statement with transaction support (optional)
    * @param callback - Transaction callback
    */
-  withTransactionAsync?(callback: () => Promise<void>): Promise<void>;
+  withTransactionAsync(callback: () => Promise<void>): Promise<void>;
 
   /**
    * Execute raw SQL (for native compatibility)
    * @param sql - SQL statement to execute
    */
-  execAsync?(sql: string): Promise<void>;
+  execAsync(sql: string): Promise<void>;
 }

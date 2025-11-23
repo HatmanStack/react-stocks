@@ -6,7 +6,6 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { Environment } from '@/config/environment';
-import type { EventType } from '@/types/api.types';
 
 // Backend API configuration
 const BACKEND_TIMEOUT = 30000; // 30 seconds (Lambda handles retries)
@@ -123,6 +122,15 @@ export interface SentimentResultsResponse {
   endDate: string;
   dailySentiment: DailySentiment[];
   cached: boolean;
+  /**
+   * Optional predictions if available (Phase 2+)
+   * May be missing if prediction calculation is still pending or failed
+   */
+  predictions?: {
+    nextDay: { direction: 'up' | 'down'; probability: number };
+    twoWeek: { direction: 'up' | 'down'; probability: number };
+    oneMonth: { direction: 'up' | 'down'; probability: number };
+  };
 }
 
 /**

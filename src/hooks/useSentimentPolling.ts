@@ -260,7 +260,13 @@ export function useSentimentPolling(
       if (!isMountedRef.current) return;
 
       setJobId(response.jobId);
-      setJobStatus(response);
+      const responseStatus: SentimentJobStatus = {
+        ...response,
+        ticker,
+        startDate,
+        endDate,
+      };
+      setJobStatus(responseStatus);
 
       // If already completed (cached), fetch results immediately
       if (response.status === 'COMPLETED') {

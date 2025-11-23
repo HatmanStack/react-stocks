@@ -123,6 +123,70 @@ Resources:
         - Key: CacheType
           Value: jobs
 
+  # New Persistent Historical Tables for ML
+  StockHistoricalData:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-StockHistoricalData'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ticker
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ticker
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: react-stocks
+        - Key: DataType
+          Value: historical-prices
+
+  ArticleAnalysisData:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-ArticleAnalysisData'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ticker
+          AttributeType: S
+        - AttributeName: articleHash#date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ticker
+          KeyType: HASH
+        - AttributeName: articleHash#date
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: react-stocks
+        - Key: DataType
+          Value: article-analysis
+
+  DailySentimentAggregate:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-DailySentimentAggregate'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: ticker
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ticker
+          KeyType: HASH
+        - AttributeName: date
+          KeyType: RANGE
+      Tags:
+        - Key: Project
+          Value: react-stocks
+        - Key: DataType
+          Value: daily-sentiment
+
   ReactStocksApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -162,6 +226,9 @@ Resources:
         'GET /search':
           ThrottlingBurstLimit: 100
           ThrottlingRateLimit: 50
+        'POST /predict':
+          ThrottlingBurstLimit: 20
+          ThrottlingRateLimit: 10
 
   ReactStocksFunction:
     Type: AWS::Serverless::Function
@@ -177,6 +244,10 @@ Resources:
           NEWS_CACHE_TABLE: !Ref NewsCacheTable
           SENTIMENT_CACHE_TABLE: !Ref SentimentCacheTable
           SENTIMENT_JOBS_TABLE: !Ref SentimentJobsTable
+          STOCK_HISTORICAL_TABLE: !Ref StockHistoricalData
+          ARTICLE_ANALYSIS_TABLE: !Ref ArticleAnalysisData
+          DAILY_SENTIMENT_TABLE: !Ref DailySentimentAggregate
+          PREDICTION_FUNCTION_NAME: !Ref ReactStocksFunction
       Policies:
         - Statement:
             - Effect: Allow
@@ -193,6 +264,13 @@ Resources:
                 - !GetAtt NewsCacheTable.Arn
                 - !GetAtt SentimentCacheTable.Arn
                 - !GetAtt SentimentJobsTable.Arn
+                - !GetAtt StockHistoricalData.Arn
+                - !GetAtt ArticleAnalysisData.Arn
+                - !GetAtt DailySentimentAggregate.Arn
+            - Effect: Allow
+              Action:
+                - lambda:InvokeFunction
+              Resource: !GetAtt ReactStocksFunction.Arn
       Events:
         StocksApi:
           Type: HttpApi
@@ -230,6 +308,12 @@ Resources:
             ApiId: !Ref ReactStocksApi
             Path: /sentiment/job/{jobId}
             Method: GET
+        PredictApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /predict
+            Method: POST
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -285,3 +369,21 @@ Outputs:
     Value: !GetAtt SentimentJobsTable.Arn
     Export:
       Name: !Sub '${AWS::StackName}-SentimentJobsTableArn'
+
+  StockHistoricalDataArn:
+    Description: ARN of StockHistoricalData DynamoDB table
+    Value: !GetAtt StockHistoricalData.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-StockHistoricalDataArn'
+
+  ArticleAnalysisDataArn:
+    Description: ARN of ArticleAnalysisData DynamoDB table
+    Value: !GetAtt ArticleAnalysisData.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ArticleAnalysisDataArn'
+
+  DailySentimentAggregateArn:
+    Description: ARN of DailySentimentAggregate DynamoDB table
+    Value: !GetAtt DailySentimentAggregate.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-DailySentimentAggregateArn'

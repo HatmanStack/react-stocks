@@ -23,6 +23,13 @@ describe('PortfolioRepository', () => {
     next: '+2.5%',
     wks: '+5.2%',
     mnth: '+8.1%',
+    // Phase 1 new fields
+    nextDayDirection: 'up',
+    nextDayProbability: 0.75,
+    twoWeekDirection: 'up',
+    twoWeekProbability: 0.65,
+    oneMonthDirection: 'down',
+    oneMonthProbability: 0.55,
   };
 
   describe('findAll', () => {
@@ -33,6 +40,7 @@ describe('PortfolioRepository', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].ticker).toBe('AAPL');
+      expect(result[0].nextDayDirection).toBe('up');
     });
 
     it('should return empty array for empty portfolio', async () => {
@@ -63,12 +71,28 @@ describe('PortfolioRepository', () => {
   });
 
   describe('upsert', () => {
-    it('should insert or update portfolio entry', async () => {
+    it('should insert or update portfolio entry with new fields', async () => {
       mockDb.runAsync.mockResolvedValue({ changes: 1 });
 
       await PortfolioRepository.upsert(mockPortfolioEntry);
 
-      expect(mockDb.runAsync).toHaveBeenCalled();
+      expect(mockDb.runAsync).toHaveBeenCalledTimes(1);
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT OR REPLACE INTO'),
+        [
+          mockPortfolioEntry.ticker,
+          mockPortfolioEntry.next,
+          mockPortfolioEntry.name,
+          mockPortfolioEntry.wks,
+          mockPortfolioEntry.mnth,
+          mockPortfolioEntry.nextDayDirection,
+          mockPortfolioEntry.nextDayProbability,
+          mockPortfolioEntry.twoWeekDirection,
+          mockPortfolioEntry.twoWeekProbability,
+          mockPortfolioEntry.oneMonthDirection,
+          mockPortfolioEntry.oneMonthProbability,
+        ]
+      );
     });
   });
 

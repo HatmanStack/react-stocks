@@ -70,6 +70,10 @@ export const CREATE_WORD_COUNT_DETAILS_TABLE = `
     body TEXT,
     sentiment TEXT NOT NULL,
     sentimentNumber REAL NOT NULL,
+    eventType TEXT,
+    aspectScore REAL,
+    distilFinBERTScore REAL,
+    materialityScore REAL,
     UNIQUE(ticker, hash)
   );
 `;
@@ -90,15 +94,30 @@ export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
     avgAspectScore REAL,
     avgFinBERTScore REAL,
     materialEventCount INTEGER DEFAULT 0,
+    nextDayDirection TEXT,
+    nextDayProbability REAL CHECK(nextDayProbability IS NULL OR (nextDayProbability >= 0 AND nextDayProbability <= 1)),
+    twoWeekDirection TEXT,
+    twoWeekProbability REAL CHECK(twoWeekProbability IS NULL OR (twoWeekProbability >= 0 AND twoWeekProbability <= 1)),
+    oneMonthDirection TEXT,
+    oneMonthProbability REAL CHECK(oneMonthProbability IS NULL OR (oneMonthProbability >= 0 AND oneMonthProbability <= 1)),
     PRIMARY KEY (ticker, date)
   );
 `;
 
 /**
  * Migration: Add Phase 5 multi-signal columns to existing tables
- * Safe to run multiple times (uses IF NOT EXISTS checks)
+ *
+ * ⚠️ WARNING: These raw SQL constants are NOT safe to execute directly!
+ * SQLite does not support "ADD COLUMN IF NOT EXISTS". Executing these
+ * migrations multiple times will fail with "duplicate column" errors.
+ *
+ * ACTUAL MIGRATIONS: See database.ts runMigrations() function, which wraps
+ * each ALTER TABLE in a columnExists() check for safe re-execution.
+ *
+ * These constants are kept for documentation purposes only.
  *
  * @see docs/plans/Phase-5.md Task 2 for migration rationale
+ * @see src/database/database.ts:runMigrations for actual implementation
  */
 export const MIGRATE_PHASE_5_COLUMNS = `
   -- Add eventCounts column (JSON string)
@@ -114,13 +133,81 @@ export const MIGRATE_PHASE_5_COLUMNS = `
   ALTER TABLE combined_word_count_details ADD COLUMN materialEventCount INTEGER DEFAULT 0;
 `;
 
+/**
+ * Migration: Add Phase 1 prediction fields for direction and probability
+ *
+ * ⚠️ WARNING: These raw SQL constants are NOT safe to execute directly!
+ * SQLite does not support "ADD COLUMN IF NOT EXISTS". Executing these
+ * migrations multiple times will fail with "duplicate column" errors.
+ *
+ * ACTUAL MIGRATIONS: See database.ts runMigrations() function, which wraps
+ * each ALTER TABLE in a columnExists() check for safe re-execution.
+ *
+ * These constants are kept for documentation purposes only.
+ *
+ * @see docs/plans/Phase-1.md Task 2
+ * @see src/database/database.ts:runMigrations for actual implementation
+ */
+export const MIGRATE_PREDICTION_FORMAT_FIELDS = `
+  -- Add structured prediction fields to combined_word_count_details
+  ALTER TABLE combined_word_count_details ADD COLUMN nextDayDirection TEXT;
+  ALTER TABLE combined_word_count_details ADD COLUMN nextDayProbability REAL;
+  ALTER TABLE combined_word_count_details ADD COLUMN twoWeekDirection TEXT;
+  ALTER TABLE combined_word_count_details ADD COLUMN twoWeekProbability REAL;
+  ALTER TABLE combined_word_count_details ADD COLUMN oneMonthDirection TEXT;
+  ALTER TABLE combined_word_count_details ADD COLUMN oneMonthProbability REAL;
+
+  -- Add structured prediction fields to portfolio_details
+  ALTER TABLE portfolio_details ADD COLUMN nextDayDirection TEXT;
+  ALTER TABLE portfolio_details ADD COLUMN nextDayProbability REAL;
+  ALTER TABLE portfolio_details ADD COLUMN twoWeekDirection TEXT;
+  ALTER TABLE portfolio_details ADD COLUMN twoWeekProbability REAL;
+  ALTER TABLE portfolio_details ADD COLUMN oneMonthDirection TEXT;
+  ALTER TABLE portfolio_details ADD COLUMN oneMonthProbability REAL;
+`;
+
+/**
+ * Migration: Add Phase 1 multi-signal fields to word_count_details
+ *
+ * ⚠️ WARNING: These raw SQL constants are NOT safe to execute directly!
+ * SQLite does not support "ADD COLUMN IF NOT EXISTS". Executing these
+ * migrations multiple times will fail with "duplicate column" errors.
+ *
+ * ACTUAL MIGRATIONS: See database.ts runMigrations() function, which wraps
+ * each ALTER TABLE in a columnExists() check for safe re-execution.
+ *
+ * These constants are kept for documentation purposes only.
+ *
+ * @see docs/plans/Phase-1.md Task 3
+ * @see src/database/database.ts:runMigrations for actual implementation
+ */
+export const MIGRATE_PHASE_1_WORD_COUNT_FIELDS = `
+  -- Add eventType column (nullable)
+  ALTER TABLE word_count_details ADD COLUMN eventType TEXT;
+
+  -- Add aspectScore column (nullable)
+  ALTER TABLE word_count_details ADD COLUMN aspectScore REAL;
+
+  -- Add distilFinBERTScore column (nullable)
+  ALTER TABLE word_count_details ADD COLUMN distilFinBERTScore REAL;
+
+  -- Add materialityScore column (nullable)
+  ALTER TABLE word_count_details ADD COLUMN materialityScore REAL;
+`;
+
 export const CREATE_PORTFOLIO_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS portfolio_details (
     ticker TEXT PRIMARY KEY NOT NULL,
     next TEXT,
     name TEXT,
     wks TEXT,
-    mnth TEXT
+    mnth TEXT,
+    nextDayDirection TEXT,
+    nextDayProbability REAL CHECK(nextDayProbability IS NULL OR (nextDayProbability >= 0 AND nextDayProbability <= 1)),
+    twoWeekDirection TEXT,
+    twoWeekProbability REAL CHECK(twoWeekProbability IS NULL OR (twoWeekProbability >= 0 AND twoWeekProbability <= 1)),
+    oneMonthDirection TEXT,
+    oneMonthProbability REAL CHECK(oneMonthProbability IS NULL OR (oneMonthProbability >= 0 AND oneMonthProbability <= 1))
   );
 `;
 

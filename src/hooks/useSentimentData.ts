@@ -6,12 +6,18 @@
 import { useQuery } from '@tanstack/react-query';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
-import { syncSentimentData } from '@/services/sync/sentimentDataSync';
+import { syncSentimentData, updatePredictions } from '@/services/sync/sentimentDataSync';
 import { getSentimentResults, type DailySentiment } from '@/services/api/lambdaSentiment.service';
 import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
 import type { WordCountDetails, CombinedWordDetails } from '@/types/database.types';
+
+interface Predictions {
+    nextDay: { direction: 'up' | 'down'; probability: number };
+    twoWeek: { direction: 'up' | 'down'; probability: number };
+    oneMonth: { direction: 'up' | 'down'; probability: number };
+}
 
 export interface UseSentimentDataOptions {
   /**
@@ -45,32 +51,58 @@ export interface UseSentimentDataOptions {
  */
 function transformLambdaToLocal(
   dailySentiment: DailySentiment[],
-  ticker: string
+  ticker: string,
+  predictions?: Predictions
 ): CombinedWordDetails[] {
-  return dailySentiment.map((day) => ({
-    // Primary keys
-    date: day.date,
-    ticker,
+  // Sort by date ascending to find the latest
+  const sorted = [...dailySentiment].sort((a, b) => a.date.localeCompare(b.date));
+  const latestDate = sorted.length > 0 ? sorted[sorted.length - 1].date : '';
 
-    // Legacy fields (backward compatibility)
-    positive: day.positive,
-    negative: day.negative,
-    sentimentNumber: day.sentimentScore,
-    sentiment: day.classification,
+  return sorted.map((day) => {
+    const isLatest = day.date === latestDate;
 
-    // Predictions (not provided by Lambda yet)
-    nextDay: 0,
-    twoWks: 0,
-    oneMnth: 0,
-    updateDate: formatDateForDB(new Date()),
+    // Apply predictions to the latest record if available
+    const nextDay = (isLatest && predictions) ? 0 : 0; // Legacy numeric field - keep as 0
+    const twoWks = (isLatest && predictions) ? 0 : 0;
+    const oneMnth = (isLatest && predictions) ? 0 : 0;
 
-    // Phase 5: Three-signal sentiment (NEW)
-    // Store eventCounts as JSON string for SQLite compatibility
-    eventCounts: day.eventCounts ? JSON.stringify(day.eventCounts) : undefined,
-    avgAspectScore: day.avgAspectScore ?? null,
-    avgFinBERTScore: day.avgFinBERTScore ?? null,
-    materialEventCount: day.materialEventCount ?? 0,
-  }));
+    const record: CombinedWordDetails = {
+        // Primary keys
+        date: day.date,
+        ticker,
+
+        // Legacy fields (backward compatibility)
+        positive: day.positive,
+        negative: day.negative,
+        sentimentNumber: day.sentimentScore,
+        sentiment: day.classification,
+
+        // Legacy numeric predictions (deprecated but required by type)
+        nextDay,
+        twoWks,
+        oneMnth,
+        updateDate: formatDateForDB(new Date()),
+
+        // Phase 5: Three-signal sentiment (NEW)
+        // Store eventCounts as JSON string for SQLite compatibility
+        eventCounts: day.eventCounts ? JSON.stringify(day.eventCounts) : undefined,
+        avgAspectScore: day.avgAspectScore ?? null,
+        avgFinBERTScore: day.avgFinBERTScore ?? null,
+        materialEventCount: day.materialEventCount ?? 0,
+    };
+
+    // Add Phase 2 prediction fields if this is the latest record and predictions exist
+    if (isLatest && predictions) {
+        record.nextDayDirection = predictions.nextDay.direction;
+        record.nextDayProbability = predictions.nextDay.probability;
+        record.twoWeekDirection = predictions.twoWeek.direction;
+        record.twoWeekProbability = predictions.twoWeek.probability;
+        record.oneMonthDirection = predictions.oneMonth.direction;
+        record.oneMonthProbability = predictions.oneMonth.probability;
+    }
+
+    return record;
+  });
 }
 
 /**
@@ -135,12 +167,23 @@ export function useSentimentData(
             console.log(`[useSentimentData] Lambda cache hit: ${lambdaResults.dailySentiment.length} records`);
 
             // Transform Lambda format to local DB format
-            const transformed = transformLambdaToLocal(lambdaResults.dailySentiment, ticker);
+            // Pass predictions if available to be injected into the latest record
+            const transformed = transformLambdaToLocal(
+                lambdaResults.dailySentiment,
+                ticker,
+                lambdaResults.predictions
+            );
 
             // Hydrate local DB for offline access
             console.log(`[useSentimentData] Hydrating local DB with Lambda results`);
             for (const record of transformed) {
               await CombinedWordRepository.upsert(record);
+            }
+
+            // If predictions exist, also update PortfolioDetails (and ensure persistence)
+            if (lambdaResults.predictions) {
+                console.log(`[useSentimentData] Updating predictions for ${ticker}`);
+                await updatePredictions(ticker, lambdaResults.predictions);
             }
 
             return transformed;

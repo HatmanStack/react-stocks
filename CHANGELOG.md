@@ -13,23 +13,23 @@ This is a **major release** that migrates the application from client-side API c
 
 ### Added
 
+#### Multi-Signal Prediction System
+- **Lambda-Based Predictions**: New multi-signal stock prediction service
+  - 14-feature logistic regression model (Price, Events, Sentiment)
+  - Training on Lambda with TensorFlow.js
+  - Smart refresh logic (only computes when new news available)
+- **Frontend Integration**: Updates to Sentiment and Portfolio screens
+  - Directional predictions with probability (e.g., ↑ 72%)
+  - Color-coded indicators
+  - Graceful degradation (offline/error states)
+
 #### Backend Infrastructure
 - **AWS Lambda Backend**: Secure API proxy for Tiingo and Polygon services
 - **API Gateway HTTP API**: Cost-effective HTTP API for routing requests
 - **SAM Deployment**: Infrastructure-as-code with AWS SAM templates
 - **Environment Configuration**: Support for development, staging, and production environments
 - **X-Ray Tracing**: Enabled for debugging and performance monitoring
-
-#### Browser-Based Machine Learning
-- **Sentiment Analysis**: JavaScript-based sentiment analyzer replacing FinBERT
-  - Rule-based approach with financial domain lexicon
-  - Performance: <100ms per article (vs ~1000ms API call)
-  - Offline capability
-- **Stock Prediction Model**: JavaScript logistic regression replacing Python service
-  - StandardScaler with exact scikit-learn numerical match
-  - 8-fold cross-validation
-  - Performance: <50ms per prediction
-  - Offline capability
+- **Lambda-to-Lambda Invocation**: Sentiment analysis triggers prediction pipeline
 
 #### Testing & Quality
 - **E2E Test Suites**: Comprehensive end-to-end testing

@@ -3,7 +3,7 @@
  * Custom transitions and animations for navigators
  */
 
-import { Animated, Easing } from 'react-native';
+import { Easing } from 'react-native';
 
 /**
  * Custom timing config for smooth animations
