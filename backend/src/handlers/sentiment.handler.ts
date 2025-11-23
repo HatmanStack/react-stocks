@@ -7,6 +7,7 @@
  * - GET /sentiment - Get cached sentiment results
  */
 
+// eslint-disable-next-line import/no-unresolved
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { processSentimentForTicker } from '../services/sentimentProcessing.service.js';
 import * as SentimentJobsRepository from '../repositories/sentimentJobs.repository.js';
@@ -17,6 +18,7 @@ import { generateJobId } from '../utils/job.util.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
 import { aggregateDailySentiment } from '../utils/sentiment.util.js';
 import { shouldTriggerPrediction } from '../utils/smartRefresh.util.js';
+// eslint-disable-next-line import/no-unresolved
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
 const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });

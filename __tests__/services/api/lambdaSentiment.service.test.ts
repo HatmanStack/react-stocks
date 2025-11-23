@@ -239,9 +239,10 @@ describe('Lambda Sentiment Service', () => {
         dailySentiment: [
           {
             date: '2025-01-15',
-            positiveCount: 45,
-            negativeCount: 12,
+            positive: 45,
+            negative: 12,
             sentimentScore: 0.65,
+            classification: 'POS' as const,
             avgAspectScore: 0.72,
             avgFinBERTScore: 0.68,
             eventCounts: {
@@ -256,9 +257,10 @@ describe('Lambda Sentiment Service', () => {
           },
           {
             date: '2025-01-16',
-            positiveCount: 30,
-            negativeCount: 25,
+            positive: 30,
+            negative: 25,
             sentimentScore: 0.1,
+            classification: 'POS' as const,
             avgAspectScore: 0.15,
             avgFinBERTScore: 0.12,
             eventCounts: {

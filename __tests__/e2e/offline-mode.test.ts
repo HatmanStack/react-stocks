@@ -123,13 +123,17 @@ describe('E2E: Offline Mode', () => {
       await PortfolioRepository.upsert({
         ticker: 'AAPL',
         name: 'Apple Inc.',
-        addedAt: new Date().toISOString(),
+        next: '',
+        wks: '',
+        mnth: '',
       });
 
       await PortfolioRepository.upsert({
         ticker: 'GOOGL',
         name: 'Alphabet Inc.',
-        addedAt: new Date().toISOString(),
+        next: '',
+        wks: '',
+        mnth: '',
       });
 
       // Query works offline (local database)
@@ -146,6 +150,7 @@ describe('E2E: Offline Mode', () => {
       const stockData = {
         ticker: TEST_TICKER,
         date: '2024-01-15',
+        hash: 123456,
         open: 100,
         high: 105,
         low: 95,
@@ -158,6 +163,11 @@ describe('E2E: Offline Mode', () => {
         adjVolume: 1000000,
         divCash: 0,
         splitFactor: 1,
+        marketCap: 2800000000000,
+        enterpriseVal: 2850000000000,
+        peRatio: 28.5,
+        pbRatio: 45.2,
+        trailingPEG1Y: 2.1,
       };
 
       await StockRepository.insert(stockData);
@@ -200,6 +210,7 @@ describe('E2E: Offline Mode', () => {
       const cachedStock = {
         ticker: 'CACHED',
         date: '2024-01-10',
+        hash: 123456,
         open: 100,
         high: 105,
         low: 95,
@@ -212,6 +223,11 @@ describe('E2E: Offline Mode', () => {
         adjVolume: 1000000,
         divCash: 0,
         splitFactor: 1,
+        marketCap: 2800000000000,
+        enterpriseVal: 2850000000000,
+        peRatio: 28.5,
+        pbRatio: 45.2,
+        trailingPEG1Y: 2.1,
       };
 
       await StockRepository.insert(cachedStock);
@@ -236,7 +252,9 @@ describe('E2E: Offline Mode', () => {
       await PortfolioRepository.upsert({
         ticker: 'OFFLINE1',
         name: 'Offline Stock 1',
-        addedAt: new Date().toISOString(),
+        next: '',
+        wks: '',
+        mnth: '',
       });
 
       let portfolio = await PortfolioRepository.findAll();
@@ -245,7 +263,9 @@ describe('E2E: Offline Mode', () => {
       await PortfolioRepository.upsert({
         ticker: 'OFFLINE2',
         name: 'Offline Stock 2',
-        addedAt: new Date().toISOString(),
+        next: '',
+        wks: '',
+        mnth: '',
       });
 
       portfolio = await PortfolioRepository.findAll();
@@ -290,6 +310,7 @@ describe('E2E: Offline Mode', () => {
         await StockRepository.insert({
           ticker: 'PERFTEST',
           date: `2024-01-${String(i).padStart(2, '0')}`,
+          hash: 123456 + i,
           open: 100 + i,
           high: 105 + i,
           low: 95 + i,
@@ -302,6 +323,11 @@ describe('E2E: Offline Mode', () => {
           adjVolume: 1000000,
           divCash: 0,
           splitFactor: 1,
+          marketCap: 2800000000000,
+          enterpriseVal: 2850000000000,
+          peRatio: 28.5,
+          pbRatio: 45.2,
+          trailingPEG1Y: 2.1,
         });
       }
 
@@ -324,12 +350,15 @@ describe('E2E: Offline Mode', () => {
       await PortfolioRepository.upsert({
         ticker,
         name: 'Integrity Test',
-        addedAt: new Date().toISOString(),
+        next: '',
+        wks: '',
+        mnth: '',
       });
 
       await StockRepository.insert({
         ticker,
         date: '2024-01-15',
+        hash: 123456,
         open: 100,
         high: 105,
         low: 95,
@@ -342,6 +371,11 @@ describe('E2E: Offline Mode', () => {
         adjVolume: 1000000,
         divCash: 0,
         splitFactor: 1,
+        marketCap: 2800000000000,
+        enterpriseVal: 2850000000000,
+        peRatio: 28.5,
+        pbRatio: 45.2,
+        trailingPEG1Y: 2.1,
       });
 
       // Verify both operations succeeded

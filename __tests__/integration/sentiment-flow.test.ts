@@ -75,11 +75,10 @@ describe('Sentiment Sync Unit Tests', () => {
       mockNewsRepo.findByTickerAndDateRange.mockResolvedValue(mockNewsArticles);
       mockWordCountRepo.findByHash.mockResolvedValue(null); // No existing sentiment
       mockAnalyzeSentiment.mockResolvedValue({
-        positive: 5,
-        negative: 2,
-        neutral: 3,
-        sentiment: 'POS',
-        sentimentNumber: 1,
+        positive: ['5', '0.80'],
+        negative: ['2', '0.60'],
+        neutral: ['3', '0.50'],
+        hash: 'test-hash',
       });
 
       // Act
@@ -100,16 +99,15 @@ describe('Sentiment Sync Unit Tests', () => {
       // Arrange
       mockNewsRepo.findByTickerAndDateRange.mockResolvedValue(mockNewsArticles);
       mockWordCountRepo.findByHash
-        .mockResolvedValueOnce({ id: 1, hash: 123 }) // First article exists
+        .mockResolvedValueOnce({} as any) // First article exists
         .mockResolvedValueOnce(null) // Second article doesn't exist
-        .mockResolvedValueOnce({ id: 2, hash: 456 }); // Third article exists
+        .mockResolvedValueOnce({} as any); // Third article exists
 
       mockAnalyzeSentiment.mockResolvedValue({
-        positive: 3,
-        negative: 1,
-        neutral: 2,
-        sentiment: 'POS',
-        sentimentNumber: 1,
+        positive: ['3', '0.70'],
+        negative: ['1', '0.60'],
+        neutral: ['2', '0.50'],
+        hash: 'test-hash',
       });
 
       // Act
@@ -135,11 +133,10 @@ describe('Sentiment Sync Unit Tests', () => {
       mockNewsRepo.findByTickerAndDateRange.mockResolvedValue(articlesWithEmpty);
       mockWordCountRepo.findByHash.mockResolvedValue(null);
       mockAnalyzeSentiment.mockResolvedValue({
-        positive: 1,
-        negative: 1,
-        neutral: 1,
-        sentiment: 'NEUT',
-        sentimentNumber: 0,
+        positive: ['1', '0.50'],
+        negative: ['1', '0.50'],
+        neutral: ['1', '0.50'],
+        hash: 'test-hash',
       });
 
       // Act
@@ -172,19 +169,17 @@ describe('Sentiment Sync Unit Tests', () => {
 
       mockAnalyzeSentiment
         .mockResolvedValueOnce({
-          positive: 5,
-          negative: 1,
-          neutral: 2,
-          sentiment: 'POS',
-          sentimentNumber: 1,
+          positive: ['5', '0.80'],
+          negative: ['1', '0.60'],
+          neutral: ['2', '0.50'],
+          hash: 'test-hash',
         })
         .mockRejectedValueOnce(new Error('Sentiment analysis failed'))
         .mockResolvedValueOnce({
-          positive: 2,
-          negative: 4,
-          neutral: 1,
-          sentiment: 'NEG',
-          sentimentNumber: -1,
+          positive: ['2', '0.70'],
+          negative: ['4', '0.80'],
+          neutral: ['1', '0.50'],
+          hash: 'test-hash',
         });
 
       // Act
@@ -201,11 +196,10 @@ describe('Sentiment Sync Unit Tests', () => {
     it('should store correct sentiment data structure', async () => {
       // Arrange
       const mockSentimentResult = {
-        positive: 8,
-        negative: 2,
-        neutral: 5,
-        sentiment: 'POS',
-        sentimentNumber: 1,
+        positive: ['8', '0.85'] as [string, string],
+        negative: ['2', '0.60'] as [string, string],
+        neutral: ['5', '0.70'] as [string, string],
+        hash: 'test-hash',
       };
 
       mockNewsRepo.findByTickerAndDateRange.mockResolvedValue([mockNewsArticles[0]]);
