@@ -280,21 +280,27 @@ export async function handleSentimentResultsRequest(
     // Fetch latest prediction (if available)
     let predictions = undefined;
     try {
-        const latestAggregate = await DailySentimentAggregateRepository.getLatestDailyAggregate(ticker);
+        const latestAggregate = await DailySentimentAggregateRepository.getLatestDailyAggregate(ticker.toUpperCase());
         if (latestAggregate && latestAggregate.nextDayDirection && latestAggregate.nextDayProbability !== undefined) {
             predictions = {
                 nextDay: {
                     direction: latestAggregate.nextDayDirection,
                     probability: latestAggregate.nextDayProbability
                 },
-                twoWeek: {
-                    direction: latestAggregate.twoWeekDirection ?? 'down', // Default if missing
-                    probability: latestAggregate.twoWeekProbability ?? 0.5
-                },
-                oneMonth: {
-                    direction: latestAggregate.oneMonthDirection ?? 'down',
-                    probability: latestAggregate.oneMonthProbability ?? 0.5
-                }
+                // Only include twoWeek if both direction and probability are defined
+                ...(latestAggregate.twoWeekDirection && latestAggregate.twoWeekProbability !== undefined ? {
+                    twoWeek: {
+                        direction: latestAggregate.twoWeekDirection,
+                        probability: latestAggregate.twoWeekProbability
+                    }
+                } : {}),
+                // Only include oneMonth if both direction and probability are defined
+                ...(latestAggregate.oneMonthDirection && latestAggregate.oneMonthProbability !== undefined ? {
+                    oneMonth: {
+                        direction: latestAggregate.oneMonthDirection,
+                        probability: latestAggregate.oneMonthProbability
+                    }
+                } : {})
             };
         }
     } catch (predError) {
