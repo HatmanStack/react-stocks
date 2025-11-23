@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { StockHistoricalDataItem, ArticleAnalysisDataItem } from '../../src/types/dynamodb.types';
 
 // 1. Hoist mocks
 const mockQueryStock = jest.fn();
@@ -29,7 +30,6 @@ jest.unstable_mockModule('../../src/services/dynamodb.client', () => {
 // 3. Dynamic import to load module under test AFTER mocks
 const { fetchPriceData, fetchSentimentData, fetchHistoricalData } = await import('../../src/services/dataFetcher');
 const { DynamoDBClientWrapper } = await import('../../src/services/dynamodb.client');
-import { StockHistoricalDataItem, ArticleAnalysisDataItem } from '../../src/types/dynamodb.types';
 
 describe('DataFetcher Service', () => {
   const mockTicker = 'AAPL';

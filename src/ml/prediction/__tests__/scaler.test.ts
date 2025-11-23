@@ -122,16 +122,16 @@ describe('StandardScaler', () => {
       const scaled = scaler.fitTransform(data);
 
       // Verify scaled output matches reference
-      for (let i = 0; i < ex.scaledOutput.length; i++) {
-        for (let j = 0; j < ex.scaledOutput[i].length; j++) {
-          expect(scaled[i][j]).toBeCloseTo(ex.scaledOutput[i][j], 6);
+      for (let i = 0; i < example.scaledOutput.length; i++) {
+        for (let j = 0; j < example.scaledOutput[i].length; j++) {
+          expect(scaled[i][j]).toBeCloseTo(example.scaledOutput[i][j], 6);
         }
       }
 
       // Verify column-wise calculations
       const params = scaler.getParams();
-      for (let j = 0; j < ex.columnWiseCalculations.length; j++) {
-        const col = ex.columnWiseCalculations[j];
+      for (let j = 0; j < example.columnWiseCalculations.length; j++) {
+        const col = example.columnWiseCalculations[j];
         expect(params.mean![j]).toBeCloseTo(col.mean, 6);
         expect(params.std![j]).toBeCloseTo(col.std, 6);
       }

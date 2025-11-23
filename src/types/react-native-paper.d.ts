@@ -1,8 +1,3 @@
-/**
- * Theme Type Augmentation
- * Extends React Native Paper types with custom theme properties
- */
-
 import 'react-native-paper';
 
 declare module 'react-native-paper' {
@@ -16,18 +11,22 @@ declare module 'react-native-paper' {
   }
 
   interface MD3Typescale {
-    mono?: {
+    mono: {
       fontFamily: string;
-      fontSize?: number;
-      fontWeight?: string;
-      letterSpacing?: number;
-      lineHeight?: number;
+      fontWeight: string;
+      fontSize: number;
+      lineHeight: number;
+      letterSpacing: number;
     };
   }
 
   interface MD3Theme {
-    custom?: {
-      [key: string]: any;
+    custom: {
+      colors: any;
+      typography: any;
+      spacing: any;
+      borderRadius: any;
+      shadows: any;
     };
   }
 }

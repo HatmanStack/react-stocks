@@ -87,7 +87,13 @@ export const theme = {
   },
   fonts: {
     ...MD3DarkTheme.fonts,
-    mono: typography.fonts.mono,
+    mono: {
+      fontFamily: typography.fonts.mono,
+      fontWeight: '400',
+      fontSize: 14,
+      lineHeight: 20,
+      letterSpacing: 0,
+    },
   },
   // Custom theme additions
   custom: {
@@ -98,19 +104,5 @@ export const theme = {
     shadows,
   },
 };
-
-// Type augmentation for TypeScript
-declare global {
-  namespace ReactNativePaper {
-    interface MD3Colors {
-      positive: string;
-      negative: string;
-      neutral: string;
-    }
-    interface ThemeFonts {
-      mono: any; // Use 'any' or specific Font type if available
-    }
-  }
-}
 
 export type AppTheme = typeof theme;
