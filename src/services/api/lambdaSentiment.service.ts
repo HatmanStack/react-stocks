@@ -6,7 +6,6 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { Environment } from '@/config/environment';
-import type { EventType } from '@/types/api.types';
 
 // Backend API configuration
 const BACKEND_TIMEOUT = 30000; // 30 seconds (Lambda handles retries)

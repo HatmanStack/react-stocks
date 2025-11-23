@@ -44,9 +44,21 @@ export default function SentimentScreen() {
     loadFilterSelection();
   }, []);
 
+  const saveFilterSelection = async () => {
+    try {
+      await AsyncStorage.setItem(
+        FILTER_STORAGE_KEY,
+        JSON.stringify(Array.from(selectedEventTypes))
+      );
+    } catch (error) {
+      console.warn('[SentimentScreen] Failed to save filter selection:', error);
+    }
+  };
+
   // Save filter selection to storage whenever it changes
   useEffect(() => {
     saveFilterSelection();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedEventTypes]);
 
   const loadFilterSelection = async () => {
@@ -61,16 +73,6 @@ export default function SentimentScreen() {
     }
   };
 
-  const saveFilterSelection = async () => {
-    try {
-      await AsyncStorage.setItem(
-        FILTER_STORAGE_KEY,
-        JSON.stringify(Array.from(selectedEventTypes))
-      );
-    } catch (error) {
-      console.warn('[SentimentScreen] Failed to save filter selection:', error);
-    }
-  };
 
   const toggleEventType = (eventType: EventType) => {
     const newSelection = new Set(selectedEventTypes);

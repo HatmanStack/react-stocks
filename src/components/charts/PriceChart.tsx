@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
-import { View, useWindowDimensions, Text as RNText } from 'react-native';
+import { View, useWindowDimensions } from 'react-native';
 import { useTheme, Text as PaperText } from 'react-native-paper';
 import { AreaChart, Grid, XAxis, YAxis } from 'react-native-svg-charts';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import * as shape from 'd3-shape';
 import { format, parseISO } from 'date-fns';
-import { transformPriceData, calculatePriceChange } from '@/hooks/useChartData';
+import { transformPriceData } from '@/hooks/useChartData';
 import type { StockDetails } from '@/types/database.types';
 
 interface PriceChartProps {

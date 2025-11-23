@@ -52,15 +52,6 @@ describe('E2E: Offline Mode', () => {
 
     it('should perform prediction preprocessing offline', () => {
       // Prediction model preprocessing works offline
-      const mockFeatures = {
-        sentiment_positive: 0.8,
-        sentiment_negative: 0.2,
-        sentiment_score: 0.6,
-        price_change_pct: 2.5,
-        volume_change_pct: 15.0,
-        volatility: 0.02,
-      };
-
       const scaler = new StandardScaler();
       const dataMatrix = [
         [0.8, 0.2, 0.6, 2.5, 15.0, 0.02],

@@ -2,7 +2,6 @@
  * Error Handler Tests
  */
 
-import axios, { AxiosError } from 'axios';
 import {
   handleAPIError,
   handleDatabaseError,

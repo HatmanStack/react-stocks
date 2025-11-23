@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text, Animated } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Animated } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 interface LoadingIndicatorProps {

@@ -4,7 +4,7 @@
  */
 
 import { loadVocabulary } from './vocabularyLoader';
-import { cleanWord, getFirstLetter } from './textProcessor';
+import { cleanWord } from './textProcessor';
 
 export interface WordCounts {
   positive: number;

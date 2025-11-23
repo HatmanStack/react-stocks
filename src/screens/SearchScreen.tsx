@@ -18,7 +18,6 @@ import { useSymbolSearch } from '@/hooks/useSymbolSearch';
 import { useStock } from '@/contexts/StockContext';
 import { syncAllData } from '@/services/sync/syncOrchestrator';
 import type { SymbolDetails } from '@/types/database.types';
-import { getDatesInRange } from '@/utils/date/dateUtils';
 import { differenceInDays } from 'date-fns';
 
 type Props = MainTabScreenProps<'Search'>;
