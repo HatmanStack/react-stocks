@@ -114,7 +114,7 @@ describe('Database Migrations - Prediction Fields', () => {
         }
 
         // Verify version update
-        expect(mockExecAsync).toHaveBeenCalledWith('PRAGMA user_version = 3');
+        expect(mockExecAsync).toHaveBeenCalledWith(expect.stringMatching(/PRAGMA user_version = 4/));
     });
   });
 
