@@ -675,7 +675,8 @@ async function trainAndPredict(
     y: tf.Tensor2D,
     XTest: tf.Tensor2D
 ): Promise<number[]> {
-    return await tf.tidy(async () => {
+    // Synchronous normalization in tidy
+    const { mean, std, XScaled, XTestScaled } = tf.tidy(() => {
         // Normalize
         const moments = tf.moments(X, 0);
         const mean = moments.mean as tf.Tensor1D;
@@ -684,7 +685,11 @@ async function trainAndPredict(
         const XScaled = X.sub(mean).div(std);
         const XTestScaled = XTest.sub(mean).div(std);
 
-        // Train
+        return { mean, std, XScaled, XTestScaled };
+    });
+
+    try {
+        // Train (async operations outside tidy)
         const model = tf.sequential({
             layers: [
                 tf.layers.dense({
@@ -709,8 +714,18 @@ async function trainAndPredict(
         const predictions = model.predict(XTestScaled) as tf.Tensor2D;
         const probabilities = await predictions.array();
 
+        // Cleanup
+        predictions.dispose();
+        model.dispose();
+
         return probabilities.map(p => p[0]);
-    });
+    } finally {
+        // Always dispose tensors from tidy
+        mean.dispose();
+        std.dispose();
+        XScaled.dispose();
+        XTestScaled.dispose();
+    }
 }
 ```
 

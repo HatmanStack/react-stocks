@@ -13,9 +13,15 @@ const TABLE_NAME = process.env.DAILY_SENTIMENT_TABLE || 'DailySentimentAggregate
  */
 export async function putDailyAggregate(item: DailySentimentAggregateItem): Promise<void> {
   try {
+    // Normalize ticker to uppercase to match read operations
+    const normalizedItem = {
+      ...item,
+      ticker: item.ticker?.toUpperCase() || item.ticker
+    };
+
     const command = new PutCommand({
       TableName: TABLE_NAME,
-      Item: item
+      Item: normalizedItem
     });
     await dynamoDb.send(command);
   } catch (error) {
