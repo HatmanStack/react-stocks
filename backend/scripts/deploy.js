@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { spawn, execSync } = require('child_process');
+const { spawn, execSync, execFileSync } = require('child_process');
 
 const DEPLOY_CONFIG_PATH = path.join(__dirname, '..', '.deploy-config.json');
 const SAM_CONFIG_PATH = path.join(__dirname, '..', 'samconfig.toml');
@@ -137,7 +137,18 @@ function parseOutputs(output) {
 
 async function getStackOutputs(stackName, region) {
     try {
-        const result = execSync(`aws cloudformation describe-stacks --stack-name ${stackName} --region ${region} --query "Stacks[0].Outputs" --output json`);
+        const result = execFileSync('aws', [
+            'cloudformation',
+            'describe-stacks',
+            '--stack-name',
+            stackName,
+            '--region',
+            region,
+            '--query',
+            'Stacks[0].Outputs',
+            '--output',
+            'json'
+        ]);
         return JSON.parse(result.toString());
     } catch (e) {
         console.error('Failed to get stack outputs');
@@ -181,7 +192,10 @@ function updateFrontendEnv(apiUrl) {
   // If backend url not set, maybe set it?
   // Phase 2 plan only mentions EXPO_PUBLIC_PREDICTION_API_URL
 
-  fs.writeFileSync(FRONTEND_ENV_PATH, finalLines.join('\n'));
+  // Atomic write: write to temp file first, then rename
+  const tmpPath = FRONTEND_ENV_PATH + '.tmp';
+  fs.writeFileSync(tmpPath, finalLines.join('\n'));
+  fs.renameSync(tmpPath, FRONTEND_ENV_PATH);
   console.log(`Updated frontend .env with API URL: ${apiUrl}`);
 }
 

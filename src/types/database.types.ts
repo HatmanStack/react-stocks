@@ -104,7 +104,7 @@ export interface WordCountDetails {
    * Event type category (e.g., 'EARNINGS', 'M&A')
    * @see EventType
    */
-  eventType?: string;
+  eventType?: EventType;
   /** Aspect sentiment score (-1 to +1) */
   aspectScore?: number;
   /** DistilFinBERT sentiment score (-1 to +1) */

@@ -73,6 +73,14 @@ export async function trainModel(
             throw new Error('Shape mismatch: X and y must have same number of rows.');
         }
 
+        // Validate feature dimension matches model configuration
+        if (X.shape.length !== 2) {
+            throw new Error(`Invalid feature tensor: Expected 2D tensor, got ${X.shape.length}D`);
+        }
+        if (X.shape[1] !== config.inputDim) {
+            throw new Error(`Feature dimension mismatch: Expected ${config.inputDim} features, got ${X.shape[1]}`);
+        }
+
         // Check for NaN in input features
         const xData = await X.data();
         for (let i = 0; i < xData.length; i++) {
