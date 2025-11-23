@@ -46,9 +46,11 @@ export type StockDetailTabScreenProps<T extends keyof StockDetailTabParamList> =
 
 /**
  * Combined navigation prop type for nested navigators
+ * This empty interface enables TypeScript declaration merging with React Navigation
  */
 declare global {
   namespace ReactNavigation {
+    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
     interface RootParamList extends RootStackParamList {}
   }
 }

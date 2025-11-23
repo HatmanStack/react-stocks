@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+// eslint-disable-next-line import/no-unresolved
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
 
 // Hoist mock
