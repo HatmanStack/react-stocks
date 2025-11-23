@@ -11,7 +11,8 @@ const dynamoDB = new DynamoDBClientWrapper();
  */
 function calculateStartDate(days: number): string {
   const date = new Date();
-  date.setDate(date.getDate() - days);
+  // Use UTC methods to avoid timezone-dependent off-by-one errors
+  date.setUTCDate(date.getUTCDate() - days);
   return date.toISOString().split('T')[0];
 }
 

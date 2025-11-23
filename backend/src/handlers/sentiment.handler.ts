@@ -21,6 +21,11 @@ import { shouldTriggerPrediction } from '../utils/smartRefresh.util.js';
 // eslint-disable-next-line import/no-unresolved
 import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
+// Validate required environment variable
+if (!process.env.AWS_REGION) {
+    throw new Error('AWS_REGION environment variable is required but not set');
+}
+
 const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
 
 /**

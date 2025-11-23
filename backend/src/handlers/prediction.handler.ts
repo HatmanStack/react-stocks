@@ -3,7 +3,7 @@ import { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { APIGatewayResponse } from '../utils/response.util';
 import { PredictionRequest, PredictionResponse } from '../types/prediction.types';
 import { runPredictionPipeline } from '../services/pipeline';
-import { putDailyAggregate } from '../repositories/dailySentimentAggregate.repository';
+import { putDailyAggregate, getDailyAggregate } from '../repositories/dailySentimentAggregate.repository';
 import { DailySentimentAggregateItem } from '../types/dynamodb.types';
 
 const RESPONSE_HEADERS = {
@@ -104,20 +104,23 @@ export async function predictionHandler(
         };
 
         // Persist prediction to DailySentimentAggregate table
-        // We use the current date or the date of the most recent data used for prediction.
-        // For simplicity, we use today's date (UTC) as the "prediction date".
+        // Use read-merge-write to preserve other fields (eventCounts, avg scores, etc.)
         const today = new Date().toISOString().split('T')[0];
 
         try {
+             // Read existing aggregate item if it exists
+             const existingItem = await getDailyAggregate(request.ticker, today);
+
+             // Merge prediction fields into existing item (or create new)
              const aggregateItem: DailySentimentAggregateItem = {
                  ticker: request.ticker,
                  date: today,
-                 eventCounts: {}, // These will be populated/merged by other processes or are not primary here
-                 // We only update the prediction fields. Note: In a real scenario, we might want to merge.
-                 // But since this handler is the source of truth for predictions, we overwrite/set them.
-                 // Ideally we should read first or use UPDATE expression, but put is simpler for MVP.
-                 // Assuming other fields might be missing if we just PUT.
-                 // However, since DailySentimentAggregate is primarily for this feature now, it's acceptable.
+                 // Preserve existing fields if present, otherwise use defaults
+                 eventCounts: existingItem?.eventCounts || {},
+                 avgAspectScore: existingItem?.avgAspectScore,
+                 avgFinBERTScore: existingItem?.avgFinBERTScore,
+                 materialEventCount: existingItem?.materialEventCount,
+                 // Update prediction fields with new values
                  nextDayDirection: predNextDay.direction,
                  nextDayProbability: predNextDay.probability,
                  twoWeekDirection: predTwoWeek.direction,

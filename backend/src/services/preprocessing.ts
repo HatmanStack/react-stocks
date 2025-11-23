@@ -18,8 +18,34 @@ export interface Scaler {
  * 13: finbert_score
  * 14: horizon
  *
+ * ⚠️ MEMORY MANAGEMENT WARNING:
+ * This function returns TensorFlow.js tensors (X, y) that are NOT automatically
+ * disposed. The caller MUST manually dispose these tensors to prevent memory leaks.
+ *
+ * The function uses tf.tidy() internally to clean up intermediate tensors, but the
+ * returned tensors escape the tidy scope and become the caller's responsibility.
+ *
+ * @example
+ * // Recommended pattern: Use try/finally to ensure disposal
+ * const { X, y } = prepare_training_data(features);
+ * try {
+ *   const normalized = normalize_features(X, scaler);
+ *   // ... use tensors ...
+ * } finally {
+ *   X.dispose();
+ *   y.dispose();
+ * }
+ *
+ * @example
+ * // Alternative: Explicit disposal after use
+ * const { X, y } = prepare_training_data(features);
+ * const result = await trainModel(X, y, config);
+ * X.dispose();
+ * y.dispose();
+ *
  * @param dailyFeatures List of daily features.
- * @returns Tuple [X, y] as Tensors.
+ * @returns Object containing X (feature matrix) and y (label vector) as Tensors.
+ *          Caller must dispose both tensors after use.
  */
 export function prepare_training_data(dailyFeatures: DailyFeatures[]): { X: tf.Tensor2D, y: tf.Tensor2D } {
     const validFeatures = dailyFeatures.filter(f => f.label !== null);

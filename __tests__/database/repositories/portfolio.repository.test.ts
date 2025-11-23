@@ -76,9 +76,10 @@ describe('PortfolioRepository', () => {
 
       await PortfolioRepository.upsert(mockPortfolioEntry);
 
+      expect(mockDb.runAsync).toHaveBeenCalledTimes(1);
       expect(mockDb.runAsync).toHaveBeenCalledWith(
         expect.stringContaining('INSERT OR REPLACE INTO'),
-        expect.arrayContaining([
+        [
           mockPortfolioEntry.ticker,
           mockPortfolioEntry.next,
           mockPortfolioEntry.name,
@@ -90,7 +91,7 @@ describe('PortfolioRepository', () => {
           mockPortfolioEntry.twoWeekProbability,
           mockPortfolioEntry.oneMonthDirection,
           mockPortfolioEntry.oneMonthProbability,
-        ])
+        ]
       );
     });
   });

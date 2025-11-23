@@ -5,7 +5,7 @@
  * **Phase 5 Enhancement (Task 6):** Event type filtering with filter chips
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme, Chip } from 'react-native-paper';
@@ -44,7 +44,7 @@ export default function SentimentScreen() {
     loadFilterSelection();
   }, []);
 
-  const saveFilterSelection = async () => {
+  const saveFilterSelection = useCallback(async () => {
     try {
       await AsyncStorage.setItem(
         FILTER_STORAGE_KEY,
@@ -53,13 +53,12 @@ export default function SentimentScreen() {
     } catch (error) {
       console.warn('[SentimentScreen] Failed to save filter selection:', error);
     }
-  };
+  }, [selectedEventTypes]);
 
   // Save filter selection to storage whenever it changes
   useEffect(() => {
     saveFilterSelection();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEventTypes]);
+  }, [saveFilterSelection]);
 
   const loadFilterSelection = async () => {
     try {

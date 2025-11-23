@@ -199,6 +199,54 @@ class WebDatabase {
     await callback();
   }
 
+  /**
+   * Execute raw SQL (for native compatibility)
+   * Web implementation: Handles DDL statements (CREATE TABLE, ALTER TABLE, PRAGMA)
+   * Most DDL is a no-op since schema is implicit in JSON structure
+   */
+  async execAsync(sql: string): Promise<void> {
+    const sqlLower = sql.toLowerCase().trim();
+
+    // Handle common DDL patterns
+    if (sqlLower.startsWith('pragma')) {
+      // PRAGMA statements are no-ops in web implementation
+      console.log('[WebDB] PRAGMA (no-op):', sql.substring(0, 50));
+      return;
+    }
+
+    if (sqlLower.startsWith('create table') || sqlLower.startsWith('create index')) {
+      // Table/index creation is implicit in our JSON structure
+      console.log('[WebDB] CREATE (no-op):', sql.substring(0, 50));
+      return;
+    }
+
+    if (sqlLower.startsWith('alter table')) {
+      // Schema changes handled by JSON structure evolution
+      console.log('[WebDB] ALTER TABLE (no-op):', sql.substring(0, 50));
+      return;
+    }
+
+    if (sqlLower.startsWith('drop table')) {
+      // Handle table drops by clearing data
+      const match = sql.match(/drop table if exists (\w+)/i) || sql.match(/drop table (\w+)/i);
+      if (match) {
+        const tableName = match[1];
+        console.log(`[WebDB] DROP TABLE: ${tableName}`);
+        // Map table names to data structure keys
+        if (tableName === 'symbol_details') this.data.symbols = {};
+        else if (tableName === 'stock_details') this.data.stocks = {};
+        else if (tableName === 'news_details') this.data.news = {};
+        else if (tableName === 'combined_word_count_details') this.data.sentiment = {};
+        else if (tableName === 'word_count_details') this.data.articleSentiment = {};
+        else if (tableName === 'portfolio_details') this.data.portfolio = {};
+        this.saveData();
+      }
+      return;
+    }
+
+    console.warn('[WebDB] Unhandled execAsync SQL:', sql.substring(0, 80));
+  }
+
   // Symbol operations
   private insertSymbol(params: any[]): any {
     const [longDescription, exchangeCode, name, startDate, ticker, endDate] = params;
