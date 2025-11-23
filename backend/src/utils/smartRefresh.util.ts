@@ -10,6 +10,12 @@ import * as NewsCacheRepository from '../repositories/newsCache.repository';
  */
 export async function shouldTriggerPrediction(ticker: string): Promise<boolean> {
     try {
+        // Validate ticker parameter
+        if (!ticker || ticker.trim().length === 0) {
+            console.error('[SmartRefresh] Invalid ticker provided');
+            return false;
+        }
+
         // 1. Get latest prediction date
         const latestAggregate = await DailySentimentAggregateRepository.getLatestDailyAggregate(ticker);
 

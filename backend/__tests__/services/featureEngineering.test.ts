@@ -67,7 +67,7 @@ describe('Feature Engineering Service', () => {
         ];
 
         it('should aggregate features for each day with price data', () => {
-            const features = aggregate_daily_features(mockPrices, mockArticles);
+            const features = aggregate_daily_features(mockPrices, mockArticles, 'TEST');
 
             expect(features).toHaveLength(2);
 
@@ -91,7 +91,7 @@ describe('Feature Engineering Service', () => {
         });
 
         it('should handle days with no articles', () => {
-            const features = aggregate_daily_features(mockPrices, []); // No articles
+            const features = aggregate_daily_features(mockPrices, [], 'TEST'); // No articles
 
             expect(features).toHaveLength(2);
             expect(features[0].event_earnings).toBe(0);

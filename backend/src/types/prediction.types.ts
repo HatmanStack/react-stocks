@@ -42,8 +42,8 @@ export interface PredictionResponse {
  * Configuration for the Logistic Regression model
  */
 export const MODEL_CONFIG = {
-    /** Number of input features (13 base features + 1 horizon feature) */
-    inputDim: 14,
+    /** Number of input features (13 base features: OHLCV + events + sentiment scores) */
+    inputDim: 13,
     /** Learning rate for Adam optimizer */
     learningRate: 0.01,
     /** Number of training epochs */
@@ -52,7 +52,7 @@ export const MODEL_CONFIG = {
     batchSize: 32,
     /** Validation split ratio */
     validationSplit: 0.2,
-    /** Prediction horizons in days */
+    /** Prediction horizons in days (horizon appended as 14th feature during inference only) */
     horizons: [1, 14, 30],
     /** Threshold for label generation (±1%) */
     labelThreshold: 0.01

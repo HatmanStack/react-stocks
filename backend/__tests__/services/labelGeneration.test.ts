@@ -48,7 +48,7 @@ describe('Feature Engineering - Label Generation', () => {
         const mockArticles: ArticleSentiment[] = [];
 
         it('should assign correct labels based on price history', () => {
-            const features = aggregate_daily_features(mockPrices, mockArticles);
+            const features = aggregate_daily_features(mockPrices, mockArticles, 'TEST');
 
             expect(features).toHaveLength(4);
 

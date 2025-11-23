@@ -288,12 +288,12 @@ export async function handleSentimentResultsRequest(
                     probability: latestAggregate.nextDayProbability
                 },
                 twoWeek: {
-                    direction: latestAggregate.twoWeekDirection || 'down', // Default if missing
-                    probability: latestAggregate.twoWeekProbability || 0.5
+                    direction: latestAggregate.twoWeekDirection ?? 'down', // Default if missing
+                    probability: latestAggregate.twoWeekProbability ?? 0.5
                 },
                 oneMonth: {
-                    direction: latestAggregate.oneMonthDirection || 'down',
-                    probability: latestAggregate.oneMonthProbability || 0.5
+                    direction: latestAggregate.oneMonthDirection ?? 'down',
+                    probability: latestAggregate.oneMonthProbability ?? 0.5
                 }
             };
         }
