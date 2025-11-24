@@ -1,761 +1,645 @@
-# Phase 0: Architecture & Foundation
+# Phase 0: Foundation - Architecture & Deployment Strategy
 
 ## Purpose
 
-This phase establishes the architectural foundation, design decisions, and shared conventions that apply to all subsequent implementation phases. Read this document completely before starting Phase 1 to understand the technical approach, deployment strategy, and testing patterns that will guide the entire feature implementation.
+This document establishes the architectural foundation, design decisions, and shared patterns that apply to **all phases** of the API Gateway optimization project. Engineers implementing Phase 1 and Phase 2 must read and understand this document first.
+
+**Think of Phase-0 as "The Law"** - it defines:
+- Architecture Decision Records (ADRs) explaining "why"
+- Deployment script specifications for consistent infrastructure updates
+- Testing strategies ensuring CI compatibility
+- Shared patterns and conventions to maintain consistency
+
+---
 
 ## Architecture Decision Records (ADRs)
 
-### ADR-1: Lambda-Based Prediction with Existing Function
+### ADR-001: API Gateway Response Caching Strategy
 
-**Decision**: Implement predictions as a new route (`/predict`) in the existing ReactStocksFunction Lambda, not as a separate Lambda function or browser-based computation.
+**Context:**
+Currently, every API request invokes Lambda, even for identical requests. API Gateway v2 HTTP API supports response caching which can reduce Lambda invocations by 40-60% for stable data (stock prices, company metadata).
 
-**Rationale**:
-- **Consistency**: Matches existing backend architecture (single Lambda, multiple routes)
-- **Simplicity**: No Lambda-to-Lambda invocation, simpler deployment
-- **Caching**: DynamoDB historical storage enables multi-user data sharing
-- **Performance**: Server-side ML training (~10-20s with TensorFlow.js)
-- **Maintenance**: Centralized updates with existing backend
+**Decision:**
+Enable API Gateway caching with TTL based on data volatility:
+- **Stock prices** (historical): 5 minutes (data doesn't change)
+- **Company metadata**: 1 hour (rarely changes)
+- **News articles**: 2 minutes (updates frequently during market hours)
+- **Sentiment results** (GET /sentiment): 5 minutes (computed results are stable)
+- **Search queries**: 5 minutes (ticker lists don't change often)
 
-**Implementation**:
-- Add `backend/src/handlers/prediction.handler.ts` (follows existing pattern)
-- Add `/predict` route to API Gateway (existing ReactStocksApi)
-- Use TensorFlow.js for in-Lambda ML training
-- Store historical data in DynamoDB for cross-user efficiency
+**Rationale:**
+- Historical stock prices are immutable - once a trading day closes, OHLCV data never changes
+- Company metadata (name, description, exchange) rarely updates
+- News articles update frequently but not in real-time
+- Cache keys include query parameters (ticker, startDate, endDate) for granular caching
+- Reduces Lambda invocations, DynamoDB reads, and API calls to Tiingo/Finnhub
 
-**Implications**:
-- SAM template update (add route, not new Lambda)
-- Frontend makes separate API call to `/predict` endpoint
-- No async polling needed (synchronous response, ~15-20s)
-- Integration tests mock HTTP response (not Lambda invocation)
+**Trade-offs:**
+- Additional cost: API Gateway caching costs ~$0.02/GB/hour per cache size
+- Stale data risk: Mitigated by short TTLs and cache invalidation patterns
+- Complexity: Cache key design must account for query parameter variations
 
-**Alternatives Considered**:
-- Separate prediction Lambda (rejected: conflicts with existing architecture)
-- Browser-based prediction (rejected: inconsistent performance, no cross-user caching)
-- Lambda-to-Lambda chaining (rejected: unnecessary complexity for single-function architecture)
-
----
-
-### ADR-2: Single Model with Horizon as Feature (Inference-Time)
-
-**Decision**: Train one logistic regression model on same-day price movement using 13 base features, then run inference three times with horizon appended as the 14th feature to generate three predictions.
-
-**Rationale**:
-- **Efficiency**: Train once instead of three separate models (3x faster)
-- **Simplicity**: Single training pipeline, single model artifact, same-day labeling strategy
-- **Flexibility**: Easy to add new horizons without retraining
-- **Consistent Labeling**: All training examples use same-day price movement labels (ADR-4)
-
-**Implementation Details**:
-- **Training**: 13-feature vectors (OHLCV metrics, event types, aspect/sentiment scores)
-- **Labels**: Same-day price movement (previous close → current close, ±1% threshold)
-- **Inference**: Append horizon value (1, 14, 30) as 14th feature, run model 3 times
-- **Model output**: 3 pairs of (direction, probability)
-
-**Note**: While horizon is included as a feature during inference, it is not part of the training data. This means the model learns general price movement patterns from same-day data, and the horizon feature allows the model to potentially adjust predictions based on the requested timeframe (though impact may be limited given same-day training labels).
-
-**Alternatives Considered**:
-- Three separate models (rejected: 3x training time, no shared learning)
-- Multi-horizon training with different labels per horizon (rejected: complex labeling logic, look-ahead bias)
-- Single model with multi-output (rejected: complex architecture, harder to interpret)
+**Implementation Notes:**
+- Use `CacheKeyParameters` to include query string parameters in cache key
+- Set `CacheDataEncrypted: true` for security
+- Start with 0.5GB cache size, monitor hit rate and adjust
+- Cache warming for popular tickers during pre-market hours
 
 ---
 
-### ADR-3: Materiality Score Weighting for Daily Aggregation
+### ADR-002: Lambda Memory and Timeout Tuning
 
-**Decision**: Weight articles by their materiality scores when aggregating features from per-article to daily level.
+**Context:**
+All endpoints currently use 1024MB memory and 60s timeout. Different endpoints have vastly different resource requirements:
+- `/stocks` - Simple DynamoDB lookup + API proxy
+- `/sentiment` - CPU-intensive sentiment analysis
+- `/predict` - TensorFlow.js model training and inference
 
-**Rationale**:
-- **Quality over Quantity**: Material events (EARNINGS, GUIDANCE with DistilFinBERT) should influence predictions more than non-material events
-- **Data-Driven**: Materiality scores reflect importance naturally, no arbitrary weights
-- **Existing Infrastructure**: Materiality scores already computed during sentiment processing
-- **Interpretability**: Clear why certain days have stronger signals (more material events)
+**Decision:**
+Implement per-endpoint Lambda configuration:
+- **GET /stocks**: 512MB, 30s timeout (I/O bound)
+- **GET /news**: 512MB, 30s timeout (I/O bound)
+- **GET /search**: 256MB, 10s timeout (lightweight)
+- **POST /sentiment**: 1536MB, 120s timeout (CPU intensive)
+- **GET /sentiment/job/{jobId}**: 256MB, 10s timeout (DynamoDB lookup)
+- **POST /predict**: 2048MB, 120s timeout (ML training/inference)
 
-**Weighting Formula**:
-```
-For articles WITH DistilFinBERT sentiment:
-  weight = materiality_score
+**Rationale:**
+- Lambda pricing is proportional to GB-seconds (memory × duration)
+- Over-provisioning wastes money; under-provisioning causes timeouts
+- AWS Lambda allocates CPU proportionally to memory (more memory = faster execution for CPU-bound tasks)
+- Sentiment and prediction endpoints benefit from higher memory (faster TensorFlow.js)
 
-For articles WITHOUT DistilFinBERT sentiment:
-  weight = materiality_score
+**Trade-offs:**
+- Complexity: Requires separate Lambda functions or environment variables per endpoint
+- Cold starts: Higher memory configurations have slightly longer cold start times
+- Cost: ML endpoints cost more but complete faster, reducing overall GB-seconds
 
-Daily aggregated feature = Σ(feature_value * weight) / Σ(weight)
-```
-
-**Application**:
-- Event one-hot encoding: Weighted sum per event type
-- Aspect scores: Weighted average across articles
-- FinBERT sentiment: Weighted average across material articles
-
-**Alternatives Considered**:
-- Binary weighting (2:1 ratio) - rejected: arbitrary, ignores materiality spectrum
-- Sentiment magnitude weighting - rejected: circular dependency (sentiment influences weight influences aggregation)
-- Equal weighting - rejected: gives undue influence to low-quality articles
-
----
-
-### ADR-4: Same-Day Labeling Strategy
-
-**Decision**: Label training examples using same-day price movements (previous close → current close), not look-ahead labeling.
-
-**Rationale**:
-- **Data Availability**: With 30+ days of historical data, we have sufficient same-day examples
-- **Simplicity**: No need to manage look-ahead windows or edge cases (incomplete data at end of range)
-- **Immediate Feedback**: Model learns same-day market reactions to news
-- **Consistent Labeling**: All three horizons share the same labeling logic (same-day movement)
-
-**Labeling Logic**:
-```
-price_change = (close_today - close_yesterday) / close_yesterday * 100
-
-IF price_change > 1%:
-  label = 1 (up)
-ELSE IF price_change < -1%:
-  label = 0 (down)
-ELSE:
-  exclude from training (noise)
-```
-
-**Threshold Rationale**:
-- ±1% filters daily volatility noise
-- Focuses model on meaningful price movements
-- Excludes ambiguous cases from training set
-
-**Alternatives Considered**:
-- Look-ahead labeling (rejected: complexity, incomplete data at range end)
-- Multiple labeling strategies per horizon (rejected: inconsistent, harder to maintain)
-- Zero threshold (rejected: too much noise)
+**Implementation Notes:**
+- Use SAM template `Environment` overrides per function event
+- Monitor CloudWatch metrics: Duration, Memory Used, Throttles
+- Adjust based on actual usage patterns after 1-2 weeks
 
 ---
 
-### ADR-5: On-the-Fly Model Training
+### ADR-003: DynamoDB TTL Optimization by Data Type
 
-**Decision**: Train a new logistic regression model on each prediction request using all available historical data, not pre-trained cached models.
+**Context:**
+All DynamoDB cache items currently use 7-day TTL regardless of data type. This is wasteful for volatile data (news) and insufficient for stable data (historical prices).
 
-**Rationale**:
-- **Simplicity**: No model persistence, versioning, or cache invalidation logic
-- **Fresh Data**: Always uses latest historical data (price, sentiment, events)
-- **Acceptable Performance**: Scikit-learn logistic regression trains in 5-15s on 30-60 days of data
-- **No Staleness**: Eliminates "when to retrain" decision complexity
-- **Async Pattern**: Lambda polling pattern makes 10-20s latency acceptable
+**Decision:**
+Implement variable TTL based on data volatility:
+- **Stock prices** (historical closed days): 90 days (immutable once day closes)
+- **Stock prices** (today/recent): 1 day (intraday updates)
+- **Company metadata**: 30 days (rarely changes)
+- **News articles**: 7 days (moderate volatility)
+- **Sentiment cache**: 30 days (computed results are expensive to regenerate)
+- **Sentiment jobs**: 1 day (temporary job status)
 
-**Training Process**:
-1. Fetch historical data (30+ days of price, sentiment, events, aspect)
-2. Aggregate per-article features to daily level (materiality-weighted)
-3. Generate labels from same-day price movements
-4. Train logistic regression on all historical days
-5. Run inference 3 times (horizon=1, 14, 30)
-6. Return predictions with probabilities
+**Rationale:**
+- Historical prices are immutable - longer TTL reduces Tiingo API calls
+- Current-day prices may need intraday updates
+- Sentiment analysis is expensive (FinBERT inference) - cache longer
+- Job status only needed during polling window (~5-15 minutes)
 
-**Performance Expectations**:
-- 30 days: ~5-8s training
-- 60 days: ~10-15s training
-- 90 days: ~15-20s training
+**Trade-offs:**
+- Storage costs increase with longer TTL
+- Stale data risk for current-day prices
+- Complexity: Logic to determine if date is "historical" vs "current"
 
-**Alternatives Considered**:
-- Pre-trained universal model (rejected: doesn't capture stock-specific patterns)
-- Per-stock cached models (rejected: cache invalidation complexity, storage overhead)
-- Hybrid pre-train + fine-tune (rejected: over-engineering for current scale)
-
----
-
-### ADR-6: DynamoDB Caching for Prediction Training Data (Prediction-Scoped)
-
-**Decision**: Use DynamoDB to cache historical data **specifically for ML prediction training** (prices, sentiment features) to enable multi-user efficiency and avoid repeated Tiingo/Finnhub API calls. Frontend SQLite/localStorage **remains the source of truth** for display.
-
-**Scope**: This architecture change applies **only to prediction feature**, not the entire app.
-
-**Rationale**:
-- **Multi-User Efficiency**: When User A requests predictions for AAPL, cache training data in DynamoDB so User B's request doesn't re-fetch from expensive APIs
-- **API Cost Reduction**: Tiingo/Finnhub APIs have rate limits and costs - cache historical data used for model training
-- **Incremental Updates**: Append new date ranges to existing cached data (fetch only what's missing)
-- **Prediction Caching**: Cache prediction results in DynamoDB (User A's prediction benefits User B)
-- **No Impact on Existing Features**: Stocks, news, sentiment display continue using frontend SQLite/localStorage
-
-**Architecture**:
-```
-PREDICTION FEATURE ONLY:
-
-DynamoDB Tables (Backend) - ML Training Data Cache:
-  ✓ StockHistoricalData (prices for ML training)
-  ✓ ArticleAnalysisData (sentiment features for ML)
-  ✓ DailySentimentAggregate (aggregated features + prediction results)
-  ✓ Multi-user shared cache (permanent, not TTL)
-
-Frontend SQLite/localStorage - Display Source of Truth:
-  ✓ Stocks, news, sentiment (existing architecture unchanged)
-  ✓ Prediction results (stored for display, same as other data)
-  ✓ Offline capability maintained
-```
-
-**Data Flow (Prediction Endpoint Only)**:
-1. User requests prediction for ticker (via `/predict` endpoint)
-2. Backend checks DynamoDB for cached training data:
-   - If exists and complete: Use cached data for ML training
-   - If missing or partial: Fetch from Tiingo/Finnhub, store in DynamoDB
-   - If new date range requested: Append to existing DynamoDB data
-3. Backend trains model using DynamoDB data (avoid repeated API calls)
-4. Backend returns predictions
-5. Frontend stores predictions in local SQLite/localStorage (for display)
-
-**What DOESN'T Change**:
-- ❌ Stocks display still uses frontend SQLite/localStorage
-- ❌ News display still uses frontend SQLite/localStorage
-- ❌ Sentiment display still uses frontend SQLite/localStorage
-- ❌ No changes to existing sync orchestrator for display data
-- ❌ Offline capability for existing features unchanged
-
-**What DOES Change**:
-- ✅ New `/predict` endpoint caches training data in DynamoDB
-- ✅ Prediction results cached in DynamoDB (multi-user)
-- ✅ Frontend stores prediction results locally (like other features)
-
-**Implications**:
-- Backend implements incremental date range appending (prediction data only)
-- Backend checks DynamoDB before calling Tiingo/Finnhub (when training models)
-- Frontend SQLite/localStorage schema extended (prediction result fields)
-- Existing data flow (stocks, news, sentiment) **completely unchanged**
-
-**Alternatives Considered**:
-- Full app migration to DynamoDB primary - rejected: massive scope, not needed for predictions
-- No caching (fetch from APIs every time) - rejected: expensive, rate limits
-- Frontend-only caching - rejected: no multi-user sharing, each user re-fetches same data
+**Implementation Notes:**
+- Add utility function `calculateTTLByDataType(type, date)` in `cache.util.ts`
+- Update repository `putStock`, `putNews`, `putSentiment` methods
+- Consider date comparison: `if (date < today) { ttl = 90 days } else { ttl = 1 day }`
 
 ---
 
-## Tech Stack
+### ADR-004: Response Compression (gzip)
 
-### Backend (Lambda)
+**Context:**
+Stock price responses can be large (30 days = 30 records × 200 bytes = 6KB+). API Gateway supports automatic gzip compression but it's not enabled.
 
-**Runtime**: Node.js 20 (TypeScript)
-- Existing backend runtime (verified in template.yaml)
-- Type safety with TypeScript
-- Consistent with existing handlers (sentiment, stocks, news)
+**Decision:**
+Enable response compression for all endpoints with minimum compression size of 1KB.
 
-**ML Library**: TensorFlow.js (@tensorflow/tfjs-node)
-- Logistic regression via `tf.sequential()` with sigmoid activation
-- Feature preprocessing with `tf.layers.normalization()`
-- Well-documented, production-ready
-- No GPU required (CPU-bound is sufficient)
-- Native Node.js performance with libtensorflow bindings
+**Rationale:**
+- Reduces data transfer costs (AWS charges for data OUT)
+- Improves frontend latency, especially on mobile networks
+- No cost to enable (included in API Gateway pricing)
+- Modern browsers automatically handle gzip decompression
 
-**Data Access**: AWS SDK v3 (@aws-sdk/client-dynamodb)
-- DynamoDB for historical data storage (multi-user shared cache)
-- Query Builder for type-safe DynamoDB operations
-- Incremental date range appending
+**Trade-offs:**
+- Minimal CPU overhead for compression
+- Not effective for small responses (<1KB)
+- Already-compressed responses (images) won't benefit
 
-**API Framework**: Existing ReactStocksFunction Lambda
-- Add new route handler to existing function
-- Reuses existing API Gateway (ReactStocksApi)
-- Consistent with existing patterns (sentiment.handler.ts, stocks.handler.ts)
-- Built-in logging (CloudWatch)
-
-### Frontend (React Native/Expo)
-
-**State Management**: React Query + Context
-- React Query for server/DB cache (existing pattern)
-- Context for global UI state (existing pattern)
-
-**Database**: Platform-specific Storage (Source of Truth for Display)
-- Native: expo-sqlite (SQLite) - **source of truth** for display data
-- Web: localStorage wrapper (existing) - **source of truth** for display data
-- **Role**: Primary storage for all display data (stocks, news, sentiment, predictions)
-- **Prediction Integration**: Store prediction results like other data (no architecture change)
-
-**HTTP Client**: fetch API
-- Consistent with existing services
-- Native browser/RN support
-
-**Type Safety**: TypeScript 5.x
-- Strong typing for database entities
-- API contract validation
-
-### Infrastructure
-
-**Deployment**: AWS SAM (Serverless Application Model)
-- Single Lambda function (ReactStocksFunction) with new route
-- API Gateway configuration (add /predict route)
-- DynamoDB table creation (historical data storage)
-- CloudWatch Logs
-
-**CI/CD**: GitHub Actions (lint + test only)
-- **NO deployment from CI** (local deployment only)
-- ESLint checks
-- Unit tests (Jest)
-- Integration tests with mocked AWS
+**Implementation Notes:**
+- Add `MinimumCompressionSize: 1024` to API Gateway configuration
+- Frontend axios client automatically handles `Accept-Encoding: gzip`
+- Monitor CloudWatch metrics for data transfer reduction
 
 ---
 
-## Deployment Strategy
+### ADR-005: Provisioned Concurrency for Market Hours
 
-### Local Deployment Script (`npm run deploy`)
+**Context:**
+Cold starts during market hours (9:30 AM - 4:00 PM ET) cause 1-3 second delays, degrading user experience. Traffic is predictable during these hours.
 
-**Objective**: Interactive, persistent, configuration-driven deployment without SAM guided mode.
+**Decision:**
+Implement provisioned concurrency with schedule-based scaling:
+- **Pre-market** (9:00-9:30 AM ET): 2 provisioned instances
+- **Market hours** (9:30 AM - 4:00 PM ET): 5 provisioned instances
+- **After-hours** (4:00 PM - 9:00 AM ET): 0 provisioned (on-demand only)
 
-#### Script Requirements
+**Rationale:**
+- Eliminates cold starts during peak traffic hours
+- Predictable traffic pattern aligns with market schedule
+- Provisioned concurrency costs ~$0.015/GB-hour but prevents poor UX
+- Zero provisioned instances during off-hours minimizes waste
 
-**Location**: `backend/scripts/deploy.js` (or similar)
+**Trade-offs:**
+- Additional cost: ~$5-10/day during market hours
+- Over-provisioning wastes money; under-provisioning still has cold starts
+- Requires EventBridge rules to manage schedule
 
-**Workflow**:
-1. **Check Prerequisites**
-   - AWS CLI configured (`aws sts get-caller-identity`)
-   - SAM CLI installed (`sam --version`)
-   - Required environment variables
+**Implementation Notes:**
+- Use Application Auto Scaling with target tracking
+- Create EventBridge rules for schedule-based scaling
+- Start conservative (2/5 instances), monitor and adjust
+- Consider weekends/holidays (markets closed) - reduce to 0
 
-2. **Load/Prompt Configuration**
-   - Read from `.deploy-config.json` (git-ignored)
-   - If missing values, prompt user interactively
-   - Save user inputs to `.deploy-config.json` for future runs
-   - Required config:
-     - AWS region (default: `us-east-1`)
-     - Stack name (default: `stocks-prediction-service`)
-     - Lambda memory size (default: `1024`)
-     - Lambda timeout (default: `120`)
-     - DynamoDB table name (optional, default: `stock-predictions-cache`)
+---
 
-3. **Generate `samconfig.toml`**
-   - Programmatically build configuration file
-   - Use loaded/prompted values
-   - Overwrite existing `samconfig.toml` each run
-   - **DO NOT use `sam deploy --guided`**
+### ADR-006: Request Batching API Design
 
-4. **Build & Deploy**
-   - Run `sam build` (compile dependencies)
-   - Run `sam deploy` (using generated `samconfig.toml`)
-   - Capture stack outputs (API Gateway URL, function ARN)
+**Context:**
+Frontend often fetches data for multiple tickers simultaneously (portfolio with 5-10 stocks). Each ticker makes 3 separate API calls (stocks, news, sentiment), resulting in 30+ serial round-trips.
 
-5. **Update Frontend `.env`**
-   - Read stack outputs
-   - Update/create `../../.env` in frontend directory
-   - Set `EXPO_PUBLIC_PREDICTION_API_URL=<API_Gateway_URL>`
-   - Preserve existing env vars
+**Decision:**
+Create batch endpoints that accept multiple tickers:
+- `POST /batch/stocks` - Body: `{ tickers: ['AAPL', 'GOOGL'], startDate, endDate }`
+- `POST /batch/news` - Body: `{ tickers: ['AAPL', 'GOOGL'], limit }`
+- `POST /batch/sentiment` - Body: `{ tickers: ['AAPL', 'GOOGL'], startDate, endDate }`
 
-6. **Verify Deployment**
-   - Test Lambda invocation (health check)
-   - Log success message with API URL
+Return format: `{ data: { AAPL: [...], GOOGL: [...] } }`
 
-**Error Handling**:
-- Clear error messages for missing prerequisites
-- Rollback guidance if deployment fails
-- Validation of user inputs before deploy
+**Rationale:**
+- Reduces round-trip latency (1 request vs 10 requests)
+- Parallel processing within Lambda (Promise.all)
+- Lower API Gateway costs (fewer requests)
+- Better mobile network performance
 
-**Example `.deploy-config.json`**:
+**Trade-offs:**
+- Larger request/response payloads
+- Timeout risk if too many tickers requested
+- Need rate limiting per batch size
+- Frontend changes required
+
+**Implementation Notes:**
+- Limit batch size to 10 tickers to prevent timeouts
+- Process tickers in parallel using `Promise.allSettled` (don't fail entire batch on one error)
+- Return partial results: `{ data: { AAPL: [...] }, errors: { GOOGL: 'Not found' } }`
+- Maintain backward compatibility - keep single-ticker endpoints
+
+---
+
+### ADR-007: Cache Warming Strategy
+
+**Context:**
+First request of the day for popular tickers (AAPL, TSLA, MSFT) is slow due to empty cache. Predictable pre-market warming can improve morning experience.
+
+**Decision:**
+Implement EventBridge-triggered Lambda function that pre-warms cache:
+- **Schedule**: Daily at 9:00 AM ET (30 minutes before market open)
+- **Tickers**: Top 20 most-requested tickers (tracked via CloudWatch metrics)
+- **Data**: Stock prices (last 30 days), news (last 7 days), metadata
+- **Storage**: DynamoDB cache (standard flow)
+
+**Rationale:**
+- First-request latency eliminated for 80% of users (Pareto principle)
+- Leverages existing cache infrastructure
+- EventBridge + Lambda is cost-effective (~$0.10/day)
+- Tracks actual usage patterns (top tickers) rather than hardcoding
+
+**Trade-offs:**
+- Wastes cache space for tickers that won't be requested
+- API costs for Tiingo/Finnhub during warming
+- Requires tracking mechanism for "top tickers"
+
+**Implementation Notes:**
+- Create CloudWatch Logs Insights query to extract top tickers from last 7 days
+- Store top tickers in DynamoDB or Parameter Store
+- Use batch processing to warm multiple tickers efficiently
+- Monitor warming duration (<5 minutes acceptable)
+
+---
+
+## Deployment Script Specifications
+
+### Overview
+
+The `npm run deploy` command in `/backend` must handle the complete deployment lifecycle:
+1. Check for required inputs (API keys, region, stack name)
+2. Prompt user for missing values
+3. Save inputs to `.deploy-config.json` (git-ignored) for future runs
+4. Generate `samconfig.toml` programmatically (never use `sam deploy --guided`)
+5. Execute `sam build && sam deploy`
+6. Capture CloudFormation outputs
+7. Update frontend `.env` file with API Gateway URL
+
+### Script Architecture
+
+**File**: `/backend/scripts/deploy.js`
+
+**Responsibilities**:
+1. **Prerequisite checking** - Verify AWS CLI, SAM CLI, credentials
+2. **Config management** - Load/save `.deploy-config.json`
+3. **Interactive prompts** - Collect missing values
+4. **SAM config generation** - Build `samconfig.toml` from config
+5. **Deployment execution** - Run SAM commands, capture output
+6. **Environment injection** - Update frontend `.env` with stack outputs
+
+### Configuration File Format
+
+**`.deploy-config.json`** (git-ignored, local only):
 ```json
 {
   "region": "us-east-1",
-  "stackName": "stocks-prediction-service",
-  "lambdaMemory": 1024,
-  "lambdaTimeout": 120,
-  "dynamoDBTable": "stock-predictions-cache"
+  "stackName": "react-stocks-backend",
+  "tiingoApiKey": "****",
+  "finnhubApiKey": "****",
+  "allowedOrigins": "*",
+  "lambdaMemory": {
+    "stocks": "512",
+    "news": "512",
+    "search": "256",
+    "sentiment": "1536",
+    "predict": "2048"
+  },
+  "lambdaTimeout": {
+    "stocks": "30",
+    "news": "30",
+    "search": "10",
+    "sentiment": "120",
+    "predict": "120"
+  },
+  "enableProvisionedConcurrency": false,
+  "provisionedConcurrency": {
+    "marketHours": 5,
+    "preMarket": 2
+  },
+  "apiGatewayCacheSize": "0.5",
+  "enableCaching": true
 }
 ```
 
-**Example `samconfig.toml` (generated)**:
+### Generated SAM Config Format
+
+**`samconfig.toml`** (generated, not committed):
 ```toml
 version = 0.1
+
 [default.deploy.parameters]
-stack_name = "stocks-prediction-service"
+stack_name = "react-stocks-backend"
 region = "us-east-1"
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "MemorySize=1024 Timeout=120 TableName=stock-predictions-cache"
+parameter_overrides = [
+  "TiingoApiKey=****",
+  "FinnhubApiKey=****",
+  "AllowedOrigins=*",
+  "EnableCaching=true",
+  "CacheSize=0.5"
+]
+resolve_s3 = true
 ```
+
+### Deployment Flow
+
+```
+START
+  ↓
+[1] Check prerequisites (AWS CLI, SAM CLI, credentials)
+  ↓ OK
+[2] Load .deploy-config.json (if exists)
+  ↓
+[3] Prompt for missing values (region, stack name, API keys)
+  ↓
+[4] Save config to .deploy-config.json
+  ↓
+[5] Generate samconfig.toml from config
+  ↓
+[6] Run: sam build
+  ↓ Success
+[7] Run: sam deploy --no-confirm-changeset
+  ↓ Success
+[8] Fetch CloudFormation stack outputs
+  ↓
+[9] Update frontend .env: EXPO_PUBLIC_BACKEND_URL={ApiGatewayUrl}
+  ↓
+[10] Display success message with API URL
+  ↓
+END
+```
+
+### Error Handling
+
+- **AWS CLI not configured**: Display error, exit with code 1
+- **SAM CLI not installed**: Display error with installation link, exit with code 1
+- **Build fails**: Display SAM error output, exit with code 1
+- **Deploy fails**: Display CloudFormation error, exit with code 1
+- **Stack outputs not found**: Warn user, skip .env update (non-fatal)
+
+### Security Considerations
+
+- **Never commit** `.deploy-config.json` (add to `.gitignore`)
+- **Never commit** `samconfig.toml` (add to `.gitignore`)
+- **Never log** API keys to console (mask with `****`)
+- **Environment variables** in Lambda are encrypted at rest by AWS
 
 ---
 
 ## Testing Strategy
 
-### Unit Tests
+### Overview
 
-**Coverage Target**: 80%+ code coverage
+All tests must run successfully in CI environment (GitHub Actions) without live AWS resources. This requires comprehensive mocking of AWS services, external APIs, and asynchronous operations.
 
-**Scope**:
-- All repository methods (database operations)
-- Feature engineering functions (aggregation, weighting, normalization)
-- Model training logic (training, prediction, label generation)
-- API client functions (request formatting, polling logic)
-- Utility functions (date formatting, type guards)
+### Testing Pyramid
 
-**Tools**:
-- Jest test framework (frontend and backend)
-- React Native Testing Library (frontend components)
-- ts-jest (TypeScript test runner for Lambda functions)
-- Node.js test environment for backend services
-
-**Patterns**:
-- Arrange-Act-Assert structure
-- Descriptive test names: `should [expected behavior] when [condition]`
-- Mock external dependencies (database, API calls) using jest.mock()
-- Test edge cases (empty data, null values, boundary conditions)
-- Test files: `__tests__/**/*.test.ts` or `*.spec.ts` convention
-
-**Example Test Structure**:
 ```
-describe('DailyAggregator', () => {
-  describe('aggregateWithMaterialityWeighting', () => {
-    it('should weight articles by materiality score', () => {
-      // Arrange: Create test data
-      // Act: Call aggregation function
-      // Assert: Verify weighted average
-    });
+        /\
+       /E2E\       <- Local only, not CI (optional)
+      /------\
+     /  INT   \    <- Mocked AWS SDK, no live resources
+    /----------\
+   /    UNIT    \  <- Pure functions, business logic
+  /--------------\
+```
 
-    it('should handle zero materiality scores', () => { ... });
-    it('should return null when no articles exist', () => { ... });
+**Unit Tests** (80% coverage target):
+- Pure functions (cache.util.ts, response.util.ts, error.util.ts)
+- Repository methods (mock DynamoDB client)
+- Service methods (mock axios for API calls)
+- Handler logic (mock repositories and services)
+
+**Integration Tests** (Mocked, CI-compatible):
+- Full Lambda handler execution (mock AWS SDK, axios)
+- API Gateway event → Lambda handler → Response format
+- Error scenarios (timeout, invalid input, API failures)
+- Cache hit/miss logic with mocked DynamoDB
+
+**E2E Tests** (Local verification only):
+- Deploy to real AWS stack
+- Frontend → API Gateway → Lambda → DynamoDB → External APIs
+- Verify caching behavior, performance metrics
+- NOT required for CI, developer-run only
+
+### Mocking Patterns
+
+**AWS SDK Mocking** (DynamoDB, Lambda, CloudWatch):
+```typescript
+// Use aws-sdk-client-mock library
+import { mockClient } from 'aws-sdk-client-mock';
+import { DynamoDBDocumentClient, GetCommand } from '@aws-sdk/lib-dynamodb';
+
+const dynamoMock = mockClient(DynamoDBDocumentClient);
+
+beforeEach(() => {
+  dynamoMock.reset();
+});
+
+test('should fetch from cache', async () => {
+  dynamoMock.on(GetCommand).resolves({
+    Item: { ticker: 'AAPL', date: '2025-01-15', ... }
   });
+
+  const result = await getStock('AAPL', '2025-01-15');
+  expect(result).toBeDefined();
 });
 ```
 
-### Integration Tests
-
-**Objective**: Verify component integration without live AWS dependencies.
-
-**Mocking Strategy**:
-- **Lambda Responses**: Mock API Gateway responses with realistic payloads
-- **Database**: Use in-memory SQLite or localStorage mocks
-- **External APIs**: Mock Tiingo/Finnhub responses (use existing mocks)
-
-**Scope**:
-- Sync orchestration flow (trigger prediction → poll → store → retrieve)
-- Repository integration with database migrations
-- API client polling mechanism
-- React Query cache invalidation
-
-**CI Compatibility**:
-- No network calls to AWS
-- No live database connections
-- Deterministic test data
-- Fast execution (<30s total)
-
-**Example Mock**:
+**Axios Mocking** (External APIs):
 ```typescript
-// Mock Lambda prediction response
-const mockPredictionResponse = {
-  jobId: 'test-job-123',
-  status: 'COMPLETE',
-  predictions: {
-    nextDay: { direction: 'up', probability: 0.72 },
-    twoWeek: { direction: 'up', probability: 0.65 },
-    oneMonth: { direction: 'down', probability: 0.48 }
-  }
-};
+import axios from 'axios';
+import MockAdapter from 'axios-mock-adapter';
+
+const mockAxios = new MockAdapter(axios);
+
+beforeEach(() => {
+  mockAxios.reset();
+});
+
+test('should fetch stock prices from Tiingo', async () => {
+  mockAxios.onGet(/tiingo/).reply(200, { data: [...] });
+
+  const result = await fetchStockPrices('AAPL', '2025-01-01');
+  expect(result).toHaveLength(30);
+});
 ```
 
-### End-to-End Tests (Local Only)
+**Lambda Handler Mocking** (API Gateway events):
+```typescript
+import { APIGatewayProxyEventV2 } from 'aws-lambda';
 
-**Scope**: Full user flow with actual deployment (not required for CI).
+const mockEvent: APIGatewayProxyEventV2 = {
+  rawPath: '/stocks',
+  requestContext: {
+    http: { method: 'GET' },
+    requestId: 'test-123'
+  },
+  queryStringParameters: {
+    ticker: 'AAPL',
+    startDate: '2025-01-01'
+  }
+};
 
-**Scenarios**:
-- User selects stock → triggers sync → predictions appear in UI
-- Smart refresh: Selecting same stock twice doesn't retrigger prediction
-- Error handling: Lambda timeout shows error state in UI
-- Portfolio: Predictions persist and display correctly
+test('should return 200 with stock data', async () => {
+  const response = await handler(mockEvent);
+  expect(response.statusCode).toBe(200);
+});
+```
 
-**Tools**:
-- Expo testing tools
-- Manual verification
+### CI Pipeline Configuration
+
+**GitHub Actions** (`.github/workflows/backend-ci.yml`):
+```yaml
+name: Backend CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: cd backend && npm install
+      - name: Run linter
+        run: cd backend && npm run lint
+      - name: Run unit tests
+        run: cd backend && npm test
+      - name: Run integration tests (mocked)
+        run: cd backend && npm run test:integration
+      - name: Check coverage
+        run: cd backend && npm run test:coverage
+```
+
+**Key Requirements**:
+- No AWS credentials in CI environment
+- All tests use mocked AWS SDK clients
+- No external API calls (mock axios)
+- Fast execution (<5 minutes total)
 
 ---
 
 ## Shared Patterns and Conventions
 
-### Repository Pattern
+### Error Handling Pattern
 
-**Existing Pattern** (see `src/database/repositories/`):
-- Repositories abstract database operations
-- Platform-agnostic (SQLite for native, localStorage for web)
-- Consistent interface: `insert()`, `findByTicker()`, `deleteByTicker()`
-- Transactions for multi-row operations
+**Consistent error responses**:
+```typescript
+// utils/error.util.ts
+export class APIError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number = 500,
+    public code?: string
+  ) {
+    super(message);
+    this.name = 'APIError';
+  }
+}
 
-**New Repositories** (Phase 1):
-- Update existing repositories for new schema fields
-- Follow same naming: `[Entity].repository.ts`
-- Export async functions, not classes
-- Use prepared statements for SQL injection protection
-
-### Async Polling Pattern
-
-**Existing Pattern** (see `src/services/api/lambdaSentiment.service.ts`):
-1. Initiate async job (POST to Lambda)
-2. Receive job ID in response
-3. Poll for status (GET with job ID)
-4. Parse completed result or handle error
-5. Return data to caller
-
-**Reuse for Predictions**:
-- Same polling interval (2s)
-- Same timeout (60s max)
-- Same error handling (timeout, failure, retry logic)
-
-### Database Migrations
-
-**Pattern**:
-- Use `ALTER TABLE` statements for backward compatibility
-- Add nullable columns first, populate, then make NOT NULL if needed
-- Include version checks to prevent duplicate migrations
-- Test on both SQLite (native) and localStorage (web)
-
-**Example Migration**:
-```sql
--- Safe: Add nullable column
-ALTER TABLE word_count_details ADD COLUMN eventType TEXT;
-
--- Populate with default value
-UPDATE word_count_details SET eventType = 'GENERAL' WHERE eventType IS NULL;
-
--- Later: Make NOT NULL if required
--- ALTER TABLE word_count_details ALTER COLUMN eventType SET NOT NULL;
+// Usage in handlers
+if (!ticker) {
+  throw new APIError('Missing required parameter: ticker', 400, 'MISSING_PARAMETER');
+}
 ```
 
-### Error Handling Conventions
+**Error logging**:
+```typescript
+import { logError } from '../utils/error.util';
 
-**Service Layer**:
-- Throw custom `APIError` with HTTP status codes
-- Log errors with context: `console.error('[ServiceName] Error:', error)`
-- Include original error in chain for debugging
+try {
+  // ... operation
+} catch (error) {
+  logError('HandlerName', error, { ticker, requestId });
+  throw error; // Re-throw after logging
+}
+```
 
-**Repository Layer**:
-- Log errors with pattern: `console.error('[RepositoryName] Error:', error)`
-- Rethrow after logging (let caller decide handling)
-- Use transactions for atomic operations
+### Response Format Pattern
 
-**UI Layer**:
-- Display user-friendly messages (no stack traces)
-- Provide retry actions where appropriate
-- Degrade gracefully (show "—" for missing predictions)
+**Success responses**:
+```typescript
+return successResponse(
+  data,
+  200,
+  {
+    _meta: {
+      cached: true,
+      cacheHitRate: 0.85,
+      timestamp: new Date().toISOString()
+    }
+  }
+);
+```
+
+**Error responses**:
+```typescript
+return errorResponse('Ticker not found', 404);
+```
+
+### Metrics Logging Pattern
+
+**CloudWatch custom metrics**:
+```typescript
+import { logMetrics, MetricUnit } from '../utils/metrics.util';
+
+logMetrics(
+  [
+    { name: 'CacheHitRate', value: 85, unit: MetricUnit.Percent },
+    { name: 'RequestDuration', value: 150, unit: MetricUnit.Milliseconds }
+  ],
+  { Endpoint: 'stocks', Ticker: 'AAPL', Cached: 'true' }
+);
+```
+
+### Repository Pattern
+
+**Consistent interface**:
+```typescript
+// repositories/[resource].repository.ts
+export async function get[Resource](key: string): Promise<Item | null>
+export async function put[Resource](item: Item): Promise<void>
+export async function batchGet[Resource](keys: string[]): Promise<Item[]>
+export async function batchPut[Resource](items: Item[]): Promise<void>
+export async function query[Resource]ByRange(start, end): Promise<Item[]>
+```
 
 ### Commit Message Format
 
-**Convention**: Conventional Commits specification
-
-**Format**:
+**Conventional Commits**:
 ```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
 type(scope): brief description
 
-Detailed explanation line 1
-Detailed explanation line 2
+Detail 1
+Detail 2
+Detail 3
 ```
 
 **Types**:
 - `feat`: New feature
 - `fix`: Bug fix
-- `refactor`: Code restructuring without behavior change
-- `test`: Adding or updating tests
-- `docs`: Documentation only
-- `chore`: Build process, dependencies
+- `perf`: Performance improvement
+- `refactor`: Code restructuring
+- `test`: Test additions/modifications
+- `docs`: Documentation changes
+- `chore`: Build/tooling changes
 
-**Scopes** (for this feature):
-- `prediction`: ML model, training logic
-- `schema`: Database migrations
-- `api`: Lambda functions, API Gateway
-- `frontend`: UI components, services
-- `deploy`: Deployment scripts, SAM template
+**Scopes**:
+- `api-gateway`: API Gateway configuration
+- `lambda`: Lambda function changes
+- `dynamodb`: DynamoDB schema/repository changes
+- `deployment`: Deployment script changes
+- `tests`: Test infrastructure
 
 **Examples**:
 ```
-feat(schema): add event type and aspect score fields to word_count_details
+feat(api-gateway): enable response caching with 5min TTL
 
-- Add eventType TEXT column (nullable)
-- Add aspectScore REAL column (nullable)
-- Add distilFinBERTScore REAL column (nullable)
-- Add materialityScore REAL column (nullable)
+Configure API Gateway cache for stocks and metadata endpoints
+Add cache key parameters for query string inclusion
+Set cache size to 0.5GB with encryption enabled
 ```
 
 ```
-feat(prediction): implement logistic regression training with materiality weighting
+perf(lambda): optimize memory allocation per endpoint
 
-- Aggregate per-article features to daily level using materiality scores
-- Generate labels from same-day price movements (±1% threshold)
-- Train scikit-learn LogisticRegression on all available history
-- Return predictions for 3 horizons (1-day, 2-week, 1-month)
-```
-
----
-
-## Database Design
-
-### Prediction-Scoped Architecture
-
-**IMPORTANT**: This database design applies **only to the prediction feature**. Existing stocks/news/sentiment infrastructure is unchanged.
-
-**Two-Tier Storage (Prediction Feature Only)**:
-1. **Backend (DynamoDB)**: ML training data cache (multi-user shared)
-2. **Frontend (SQLite/localStorage)**: Display storage (source of truth, unchanged)
-
-**Principles**:
-- DynamoDB caches training data **for prediction computation only**
-- Frontend SQLite/localStorage remains **source of truth** for all display data
-- Multi-user efficiency: User A's prediction fetch benefits User B
-- Incremental updates: Append new date ranges to existing DynamoDB training data
-- **No changes** to existing stocks/news/sentiment data flow
-
-### Backend Database (DynamoDB) - NEW TABLES
-
-**`StockHistoricalData` (DynamoDB)**:
-- **Partition Key**: `ticker` (STRING)
-- **Sort Key**: `date` (STRING, ISO 8601)
-- **Attributes**: open, high, low, close, volume, adjClose, marketCap, peRatio, pbRatio, etc.
-- **Purpose**: Multi-user shared price history
-- **TTL**: NONE (permanent storage)
-
-**`ArticleAnalysisData` (DynamoDB)** - replaces word_count_details concept:
-- **Partition Key**: `ticker` (STRING)
-- **Sort Key**: `articleHash#date` (STRING, composite)
-- **Attributes**:
-  - `eventType` (STRING): EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
-  - `aspectScore` (NUMBER): -1 to +1
-  - `distilFinBERTScore` (NUMBER): -1 to +1
-  - `materialityScore` (NUMBER): 0 to 1
-  - `title`, `articleUrl`, `publisher`, `articleDate`
-- **Purpose**: Per-article multi-signal analysis
-- **TTL**: NONE (permanent storage)
-
-**`DailySentimentAggregate` (DynamoDB)** - replaces combined_word_count_details:
-- **Partition Key**: `ticker` (STRING)
-- **Sort Key**: `date` (STRING)
-- **Attributes**:
-  - `eventCounts` (MAP): {"EARNINGS": 2, "M&A": 0, "GUIDANCE": 1, ...}
-  - `avgAspectScore` (NUMBER)
-  - `avgFinBERTScore` (NUMBER)
-  - `materialEventCount` (NUMBER)
-  - `nextDayDirection`, `nextDayProbability` (STRING, NUMBER)
-  - `twoWeekDirection`, `twoWeekProbability` (STRING, NUMBER)
-  - `oneMonthDirection`, `oneMonthProbability` (STRING, NUMBER)
-- **Purpose**: Daily aggregated signals + predictions
-- **TTL**: NONE (permanent storage)
-
-### Frontend Database (SQLite/localStorage) - SOURCE OF TRUTH (Unchanged)
-
-**`article_analysis_details` (renamed from word_count_details)**:
-- Schema extended with new fields: eventType, aspectScore, distilFinBERTScore, materialityScore
-- **Role**: Source of truth for display (existing architecture)
-- **Change**: Just schema extension, no behavior change
-
-**`daily_sentiment_aggregate` (renamed from combined_word_count_details)**:
-- Schema extended with prediction fields: nextDayDirection, nextDayProbability, etc.
-- **Role**: Source of truth for display (existing architecture)
-- **Change**: Just schema extension, no behavior change
-
-**Storage Behavior** (Existing, Unchanged):
-- Data synced from backend APIs (Tiingo, Finnhub, Lambda sentiment)
-- Stored locally for offline capability
-- Updated when user syncs stock data
-- **Prediction results**: Stored same as other data (no special behavior)
-
-### Migration Strategy
-
-**Backend (DynamoDB)**:
-1. Create new tables: `StockHistoricalData`, `ArticleAnalysisData`, `DailySentimentAggregate`
-2. Populate from existing TTL cache tables (if data exists)
-3. Start storing all new data in permanent tables
-4. Keep TTL cache tables for backward compatibility (short-term)
-
-**Frontend (SQLite/localStorage)**:
-1. Rename tables: `word_count_details` → `article_analysis_details`
-2. Rename tables: `combined_word_count_details` → `daily_sentiment_aggregate`
-3. Add 4 new fields to `article_analysis_details`:
-   - `eventType`, `aspectScore`, `distilFinBERTScore`, `materialityScore`
-4. Add 6 new prediction fields to `daily_sentiment_aggregate`:
-   - `nextDayDirection`, `nextDayProbability`, etc.
-5. Add 6 new prediction fields to `portfolio_details`
-6. Update all repositories to use new table names
-
-**Migration Commands**:
-```sql
--- Frontend SQLite
-ALTER TABLE word_count_details RENAME TO article_analysis_details;
-ALTER TABLE combined_word_count_details RENAME TO daily_sentiment_aggregate;
-ALTER TABLE article_analysis_details ADD COLUMN eventType TEXT;
-ALTER TABLE article_analysis_details ADD COLUMN aspectScore REAL;
-ALTER TABLE article_analysis_details ADD COLUMN distilFinBERTScore REAL;
-ALTER TABLE article_analysis_details ADD COLUMN materialityScore REAL;
--- (prediction fields omitted for brevity)
-```
-
-**Backward Compatibility**:
-- Frontend: Alias old table names to new names during transition
-- Legacy prediction fields remain (don't drop immediately)
-- Gradual rollout: support both old and new field names
-- Remove legacy after 2-4 weeks of stable operation
-
----
-
-## Known Technical Debt
-
-**Accepted for Initial Release**:
-- On-the-fly training may be slow for stocks with 90+ days of data (acceptable with async)
-- No model performance metrics stored (accuracy, precision, recall)
-- No feature importance analysis (planned for Phase 5 F-testing)
-- No cross-validation during training (fast iteration prioritized)
-- Legacy bag-of-words code remains until full migration complete
-
-**Future Optimization Opportunities**:
-- Model caching (train once per ticker per day, cache in DynamoDB)
-- Batch predictions for portfolio (single Lambda call for all tickers)
-- Feature importance logging (identify which features drive predictions)
-- A/B testing framework (compare multi-signal vs bag-of-words accuracy)
-
----
-
-## Reference Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         User Action                             │
-│                  (Select Stock in UI)                           │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             v
-┌─────────────────────────────────────────────────────────────────┐
-│                    Sync Orchestrator                            │
-│  (Checks: New articles exist? Trigger prediction)               │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             v
-┌─────────────────────────────────────────────────────────────────┐
-│                Prediction API Client (Frontend)                 │
-│  1. POST /predict → jobId                                       │
-│  2. Poll GET /predict/{jobId} → status                          │
-│  3. Receive predictions when complete                           │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             v
-┌─────────────────────────────────────────────────────────────────┐
-│              Lambda Prediction Service (Backend)                │
-│  ┌───────────────────────────────────────────────────────────┐ │
-│  │ 1. Fetch Data (price, sentiment, events, aspect)         │ │
-│  │ 2. Aggregate to Daily (materiality-weighted)             │ │
-│  │ 3. Generate Labels (same-day ±1% threshold)              │ │
-│  │ 4. Train Logistic Regression (on-the-fly)                │ │
-│  │ 5. Predict (horizon=1,14,30)                             │ │
-│  │ 6. Cache Result (optional DynamoDB)                      │ │
-│  └───────────────────────────────────────────────────────────┘ │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             v
-┌─────────────────────────────────────────────────────────────────┐
-│              Frontend: Store in Local Database                  │
-│  - combined_word_count_details (daily predictions)              │
-│  - portfolio_details (portfolio predictions)                    │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             v
-┌─────────────────────────────────────────────────────────────────┐
-│                    UI Components Read & Display                 │
-│  - Sentiment Tab: CombinedWordItem (↑ 72%)                      │
-│  - Portfolio: PortfolioItem (↓ 38%)                             │
-└─────────────────────────────────────────────────────────────────┘
+Reduce stocks endpoint to 512MB (I/O bound)
+Increase sentiment endpoint to 1536MB (CPU intensive)
+Adjust timeouts to match endpoint requirements
 ```
 
 ---
 
-## Questions for Plan Reviewer
+## Verification Checklist
 
-*None at this time. If architectural decisions need clarification during implementation, use QUESTION or CLARIFICATION keywords in subsequent phases.*
+Before proceeding to Phase 1, ensure:
+
+- [ ] All ADRs are understood (caching, Lambda tuning, TTL, compression, provisioning, batching, warming)
+- [ ] Deployment script flow is clear (prompt → config → SAM → outputs → .env)
+- [ ] Testing strategy is understood (mocked AWS SDK, no live resources in CI)
+- [ ] Shared patterns are clear (error handling, responses, metrics, commits)
+- [ ] `.gitignore` includes `.deploy-config.json` and `samconfig.toml`
+- [ ] CI pipeline configuration is reviewed
 
 ---
 
-## Next Steps
-
-Proceed to **[Phase 1: Backend Infrastructure & ML Model](./Phase-1.md)** to begin implementation of database migrations and Lambda prediction service.
+**Next Steps:** Proceed to [Phase 1: Infrastructure Optimizations](./Phase-1.md)
