@@ -762,7 +762,9 @@ Feature disabled by default (EnableProvisionedConcurrency=false)
    - Query: Average Lambda duration by endpoint
    - Query: DynamoDB cache hit rate per ticker
 
-5. Create `monitoring.md` documentation:
+5. Create `backend/docs` directory and `monitoring.md` documentation:
+   - Create directory if it doesn't exist: `mkdir -p backend/docs`
+   - Create `backend/docs/monitoring.md` file
    - List all custom metrics with descriptions
    - Provide CloudWatch Logs Insights query examples
    - Document how to create CloudWatch dashboard (Phase 2)

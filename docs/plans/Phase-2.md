@@ -88,7 +88,9 @@ Implement application-level performance optimizations that build on Phase 1's in
 3. Implement parallel ticker processing:
    - Use `Promise.allSettled` to process all tickers concurrently
    - Don't fail entire batch if one ticker fails
-   - Call existing `handlePricesRequest` function from `stocks.handler.ts` (DRY)
+   - **First, export** the internal `handlePricesRequest` function from `stocks.handler.ts` (currently not exported)
+   - Import and call `handlePricesRequest` for each ticker (DRY - reuses existing cache logic)
+   - Alternative: Call `handleStocksRequest` but requires constructing API Gateway event objects (less ideal)
    - Capture individual ticker results (success or error)
 
 4. Build response with partial results:
@@ -143,7 +145,8 @@ Implement application-level performance optimizations that build on Phase 1's in
 - [ ] Response includes success/error counts and cache status
 - [ ] API Gateway route configured correctly (POST, no caching)
 - [ ] Rate limiting prevents >10 ticker batches
-- [ ] Handler reuses existing `handlePricesRequest` logic (DRY)
+- [ ] `handlePricesRequest` function exported from `stocks.handler.ts`
+- [ ] Handler imports and reuses `handlePricesRequest` logic (DRY)
 
 **Testing Instructions:**
 - **Unit tests** (`__tests__/handlers/batch.handler.test.ts`):
@@ -235,13 +238,15 @@ Configure API Gateway route with POST method and throttling
    - Default limit: 10 articles per ticker
    - Max limit: 50 articles per ticker (prevent large payloads)
    - Response format: `{ data: { AAPL: [...articles], GOOGL: [...] }, errors: {...} }`
-   - Reuse existing `handleNewsRequest` logic per ticker
+   - **Export internal helper function** from `news.handler.ts` (e.g., `handleNewsWithCache`) or call `handleNewsRequest` with constructed API Gateway events
+   - Reuse existing handler logic per ticker (DRY)
 
 2. Create `handleBatchSentimentRequest` function:
    - Request format: `{ tickers: string[], startDate: string, endDate?: string }`
    - This is **GET sentiment results**, not POST sentiment job creation
    - Response format: `{ data: { AAPL: [...sentiment], GOOGL: [...] }, errors: {...} }`
-   - Reuse existing `handleSentimentResultsRequest` logic per ticker
+   - **Export internal helper function** from `sentiment.handler.ts` or call `handleSentimentResultsRequest` with constructed API Gateway events
+   - Reuse existing handler logic per ticker (DRY)
 
 3. Add validation for batch-specific limits:
    - News: Max 10 tickers × 50 articles = 500 articles per batch
