@@ -1,75 +1,81 @@
 #!/bin/bash
-#
-# CloudWatch Dashboard Deployment Script
-#
-# Creates or updates the ReactStocksCachePerformance CloudWatch dashboard
-# Run: ./scripts/create-dashboard.sh
-
-set -e
-
-# Color codes for output
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-echo "========================================="
-echo "CloudWatch Dashboard Deployment"
-echo "========================================="
 
 # Check if AWS CLI is installed
 if ! command -v aws &> /dev/null; then
-    echo -e "${RED}✗ Error: AWS CLI is not installed${NC}"
-    echo "Install it from: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+    echo "AWS CLI not found. Please install it."
     exit 1
 fi
 
-# Check if AWS credentials are configured
-if ! aws sts get-caller-identity &> /dev/null; then
-    echo -e "${RED}✗ Error: AWS credentials not configured${NC}"
-    echo "Run: aws configure"
+# Load configuration
+if [ -f ".deploy-config.json" ]; then
+    STACK_NAME=$(grep -o '"stackName": "[^"]*"' .deploy-config.json | cut -d'"' -f4)
+    REGION=$(grep -o '"region": "[^"]*"' .deploy-config.json | cut -d'"' -f4)
+else
+    echo "Config file .deploy-config.json not found. Using defaults."
+    STACK_NAME="react-stocks-backend"
+    REGION="us-east-1"
+fi
+
+echo "Fetching CloudFormation outputs for stack: $STACK_NAME in region: $REGION..."
+
+# Fetch CloudFormation outputs
+OUTPUTS=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION --query "Stacks[0].Outputs" --output json)
+
+if [ $? -ne 0 ]; then
+    echo "Failed to fetch stack outputs. Check your credentials and stack name."
     exit 1
 fi
 
-# Get AWS region from environment or use default
-AWS_REGION=${AWS_REGION:-us-east-1}
-echo -e "${YELLOW}Using AWS region: ${AWS_REGION}${NC}"
+# Extract resource names from outputs (assuming these are exported)
+# Note: Since we didn't export everything needed for the dashboard, we might need to query resources directly
+# or rely on naming conventions.
+# The template exports: ReactStocksFunctionArn, StocksCacheTableArn, NewsCacheTableArn.
 
-# Get stack name from samconfig.toml or use default
-STACK_NAME=$(grep -A 10 "\[default.deploy.parameters\]" samconfig.toml 2>/dev/null | grep "stack_name" | cut -d'"' -f2 || echo "react-stocks")
-echo -e "${YELLOW}Using stack name: ${STACK_NAME}${NC}"
+FUNCTION_ARN=$(echo $OUTPUTS | grep -o '"OutputKey": "ReactStocksFunctionArn", "OutputValue": "[^"]*"' | cut -d'"' -f8)
+FUNCTION_NAME=$(echo $FUNCTION_ARN | cut -d':' -f7)
 
-# Dashboard name
-DASHBOARD_NAME="${STACK_NAME}-CachePerformance"
+STOCKS_TABLE_ARN=$(echo $OUTPUTS | grep -o '"OutputKey": "StocksCacheTableArn", "OutputValue": "[^"]*"' | cut -d'"' -f8)
+STOCKS_TABLE_NAME=$(echo $STOCKS_TABLE_ARN | cut -d'/' -f2)
 
-# Read dashboard JSON and replace placeholders
-DASHBOARD_BODY=$(sed -e "s/StocksCache/${STACK_NAME}-StocksCache/g" \
-                     -e "s/NewsCache/${STACK_NAME}-NewsCache/g" \
-                     -e "s/SentimentCache/${STACK_NAME}-SentimentCache/g" \
-                     -e "s/SentimentJobs/${STACK_NAME}-SentimentJobs/g" \
-                     -e "s/us-east-1/${AWS_REGION}/g" \
-                     cloudwatch-dashboard.json)
+NEWS_TABLE_ARN=$(echo $OUTPUTS | grep -o '"OutputKey": "NewsCacheTableArn", "OutputValue": "[^"]*"' | cut -d'"' -f8)
+NEWS_TABLE_NAME=$(echo $NEWS_TABLE_ARN | cut -d'/' -f2)
 
-echo ""
-echo "Creating/updating dashboard: ${DASHBOARD_NAME}"
+# Assume other tables follow naming convention
+SENTIMENT_TABLE_NAME="${STACK_NAME}-SentimentCache"
+API_NAME="${STACK_NAME}-Api"
 
-# Create or update the dashboard
+echo "Detected resources:"
+echo "  Function: $FUNCTION_NAME"
+echo "  Stocks Table: $STOCKS_TABLE_NAME"
+echo "  News Table: $NEWS_TABLE_NAME"
+
+# Read template
+DASHBOARD_BODY=$(cat cloudwatch-dashboard.json)
+
+# Replace placeholders
+DASHBOARD_BODY=${DASHBOARD_BODY//\$\{ReactStocksFunction\}/$FUNCTION_NAME}
+DASHBOARD_BODY=${DASHBOARD_BODY//\$\{AWS_REGION\}/$REGION}
+DASHBOARD_BODY=${DASHBOARD_BODY//\$\{StocksCacheTable\}/$STOCKS_TABLE_NAME}
+DASHBOARD_BODY=${DASHBOARD_BODY//\$\{NewsCacheTable\}/$NEWS_TABLE_NAME}
+DASHBOARD_BODY=${DASHBOARD_BODY//\$\{SentimentCacheTable\}/$SENTIMENT_TABLE_NAME}
+DASHBOARD_BODY=${DASHBOARD_BODY//\$\{ApiName\}/$API_NAME}
+
+# Placeholder for costs (mocked for now, would need Cost Explorer API)
+DASHBOARD_BODY=${DASHBOARD_BODY//\$\{LAMBDA_COST\}/"0.00"}
+DASHBOARD_BODY=${DASHBOARD_BODY//\$\{DYNAMODB_COST\}/"0.00"}
+DASHBOARD_BODY=${DASHBOARD_BODY//\$\{TOTAL_COST\}/"0.00"}
+
+# Create dashboard
+echo "Creating CloudWatch dashboard: ReactStocksOptimization..."
 aws cloudwatch put-dashboard \
-    --dashboard-name "${DASHBOARD_NAME}" \
-    --dashboard-body "${DASHBOARD_BODY}" \
-    --region "${AWS_REGION}"
+    --dashboard-name "ReactStocksOptimization" \
+    --dashboard-body "$DASHBOARD_BODY" \
+    --region $REGION
 
 if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✓ Dashboard created/updated successfully${NC}"
-    echo ""
-    echo "View dashboard at:"
-    echo "https://console.aws.amazon.com/cloudwatch/home?region=${AWS_REGION}#dashboards:name=${DASHBOARD_NAME}"
+    echo "Dashboard created successfully!"
+    echo "URL: https://$REGION.console.aws.amazon.com/cloudwatch/home?region=$REGION#dashboards:name=ReactStocksOptimization"
 else
-    echo -e "${RED}✗ Failed to create/update dashboard${NC}"
+    echo "Failed to create dashboard."
     exit 1
 fi
-
-echo ""
-echo "========================================="
-echo "Dashboard Deployment Complete"
-echo "========================================="

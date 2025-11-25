@@ -3,8 +3,9 @@
  * Global state for portfolio stocks
  */
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import { usePortfolio } from '../hooks/usePortfolio';
+import { usePortfolioBatchData } from '../hooks/usePortfolioBatchData';
 import type { PortfolioDetails } from '../types/database.types';
 
 interface PortfolioContextType {
@@ -15,6 +16,13 @@ interface PortfolioContextType {
   addToPortfolio: (ticker: string) => Promise<void>;
   removeFromPortfolio: (ticker: string) => Promise<void>;
   refetch: () => void;
+  batchData?: {
+    stocks: Record<string, any>;
+    news: Record<string, any>;
+    sentiment: Record<string, any>;
+    errors: Record<string, string>;
+  };
+  isLoadingBatch: boolean;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
@@ -25,6 +33,28 @@ interface PortfolioProviderProps {
 
 export function PortfolioProvider({ children }: PortfolioProviderProps) {
   const portfolioHook = usePortfolio();
+
+  // Get list of tickers for batch loading
+  const tickers = useMemo(() => {
+    return portfolioHook.portfolio.map((item) => item.ticker);
+  }, [portfolioHook.portfolio]);
+
+  // Use batch loading if we have more than 3 tickers
+  // (For small portfolios, individual queries might be fine or handled by existing logic,
+  // but using batch for >3 is consistent with the plan)
+  const shouldUseBatch = tickers.length > 3;
+
+  // Always call the hook, but it will be disabled if empty.
+  // Note: We can pass `tickers` directly. The hook handles empty array.
+  // However, we want to conditionally enable it based on portfolio size?
+  // The plan says: "When portfolio >3 tickers, use batch loading"
+  // But we can just use it for all sizes if efficient.
+  // Let's stick to the plan: "When portfolio <=3 tickers, use existing single-ticker loading (less overhead)"
+  // Wait, if we don't call batch hook, we don't get batchData.
+  // If we use single-ticker loading in components, they need to know whether to look at batchData or fetch individually.
+  // Components will consume PortfolioContext.
+
+  const { data: batchData, isLoading: isLoadingBatch } = usePortfolioBatchData(shouldUseBatch ? tickers : []);
 
   const isInPortfolio = (ticker: string): boolean => {
     return portfolioHook.portfolio.some((item: PortfolioDetails) => item.ticker === ticker);
@@ -68,6 +98,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     addToPortfolio,
     removeFromPortfolio,
     refetch: portfolioHook.refetch,
+    batchData,
+    isLoadingBatch: shouldUseBatch ? isLoadingBatch : false,
   };
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;

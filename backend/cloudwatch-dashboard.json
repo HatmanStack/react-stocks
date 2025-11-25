@@ -1,48 +1,49 @@
 {
   "widgets": [
     {
-      "type": "metric",
+      "type": "log",
       "x": 0,
       "y": 0,
-      "width": 12,
+      "width": 8,
       "height": 6,
       "properties": {
-        "title": "Cache Hit Rate",
-        "metrics": [
-          ["ReactStocks", "CacheHitRate", { "stat": "Average", "label": "Cache Hit Rate (%)" }]
-        ],
-        "period": 300,
-        "stat": "Average",
-        "region": "us-east-1",
-        "yAxis": {
-          "left": {
-            "min": 0,
-            "max": 100
-          }
-        }
+        "query": "SOURCE '/aws/lambda/${ReactStocksFunction}'\n| filter @type = 'REPORT'\n| stats sum(ApiGatewayCacheHit) / (sum(ApiGatewayCacheHit) + sum(ApiGatewayCacheMiss)) * 100 as CacheHitRate by bin(5m)",
+        "region": "${AWS_REGION}",
+        "title": "API Gateway Cache Hit Rate (%)",
+        "view": "timeSeries",
+        "stacked": false
+      }
+    },
+    {
+      "type": "log",
+      "x": 8,
+      "y": 0,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "query": "SOURCE '/aws/lambda/${ReactStocksFunction}'\n| filter @type = 'REPORT'\n| stats sum(DynamoDBCacheHit) / (sum(DynamoDBCacheHit) + sum(DynamoDBCacheMiss)) * 100 as CacheHitRate by bin(5m)",
+        "region": "${AWS_REGION}",
+        "title": "DynamoDB Cache Hit Rate (%)",
+        "view": "timeSeries",
+        "stacked": false
       }
     },
     {
       "type": "metric",
-      "x": 12,
+      "x": 16,
       "y": 0,
-      "width": 12,
+      "width": 8,
       "height": 6,
       "properties": {
-        "title": "Lambda Duration (ms)",
         "metrics": [
-          ["AWS/Lambda", "Duration", { "stat": "Average", "label": "Avg Duration" }],
-          ["...", { "stat": "Maximum", "label": "Max Duration" }],
-          ["...", { "stat": "p99", "label": "P99 Duration" }]
+          [ "ReactStocks", "CacheHit", "Endpoint", "stocks", { "stat": "Sum", "label": "Stocks Hit" } ],
+          [ ".", "CacheMiss", ".", ".", { "stat": "Sum", "label": "Stocks Miss" } ],
+          [ ".", "CacheHit", ".", "news", { "stat": "Sum", "label": "News Hit" } ],
+          [ ".", "CacheMiss", ".", ".", { "stat": "Sum", "label": "News Miss" } ]
         ],
-        "period": 300,
-        "stat": "Average",
-        "region": "us-east-1",
-        "yAxis": {
-          "left": {
-            "label": "ms"
-          }
-        }
+        "view": "singleValue",
+        "region": "${AWS_REGION}",
+        "title": "Total Cache Hits vs Misses"
       }
     },
     {
@@ -52,16 +53,13 @@
       "width": 8,
       "height": 6,
       "properties": {
-        "title": "DynamoDB Consumed Read Capacity",
         "metrics": [
-          ["AWS/DynamoDB", "ConsumedReadCapacityUnits", { "stat": "Sum", "label": "StocksCache" }, { "TableName": "StocksCache" }],
-          ["...", { "TableName": "NewsCache" }],
-          ["...", { "TableName": "SentimentCache" }],
-          ["...", { "TableName": "SentimentJobs" }]
+          [ "AWS/Lambda", "Invocations", "FunctionName", "${ReactStocksFunction}", { "stat": "Sum" } ]
         ],
-        "period": 300,
-        "stat": "Sum",
-        "region": "us-east-1"
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "Lambda Invocations"
       }
     },
     {
@@ -71,73 +69,73 @@
       "width": 8,
       "height": 6,
       "properties": {
-        "title": "DynamoDB Consumed Write Capacity",
         "metrics": [
-          ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", { "stat": "Sum", "label": "StocksCache" }, { "TableName": "StocksCache" }],
-          ["...", { "TableName": "NewsCache" }],
-          ["...", { "TableName": "SentimentCache" }],
-          ["...", { "TableName": "SentimentJobs" }]
+          [ "AWS/Lambda", "Duration", "FunctionName", "${ReactStocksFunction}", { "stat": "Average" } ],
+          [ ".", ".", ".", ".", { "stat": "p99", "label": "p99" } ]
         ],
-        "period": 300,
-        "stat": "Sum",
-        "region": "us-east-1"
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "Lambda Duration (ms)"
       }
     },
     {
-      "type": "metric",
+      "type": "log",
       "x": 16,
       "y": 6,
       "width": 8,
       "height": 6,
       "properties": {
-        "title": "Lambda Errors & Throttles",
+        "query": "SOURCE '/aws/lambda/${ReactStocksFunction}'\n| filter @type = 'REPORT'\n| stats count(*) as ColdStarts by bin(5m) | filter @initDuration > 0",
+        "region": "${AWS_REGION}",
+        "title": "Cold Start Count",
+        "view": "timeSeries",
+        "stacked": false
+      }
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": 12,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "markdown": "### Cost Estimation\n\n**Lambda**: $${LAMBDA_COST}\n**DynamoDB**: $${DYNAMODB_COST}\n**Total**: $${TOTAL_COST}\n\n*Estimated based on last 30 days*"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 12,
+      "width": 16,
+      "height": 6,
+      "properties": {
         "metrics": [
-          ["AWS/Lambda", "Errors", { "stat": "Sum", "label": "Errors", "color": "#d62728" }],
-          [".", "Throttles", { "stat": "Sum", "label": "Throttles", "color": "#ff7f0e" }]
+          [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${StocksCacheTable}", { "stat": "Sum" } ],
+          [ ".", ".", ".", "${NewsCacheTable}", { "stat": "Sum" } ],
+          [ ".", ".", ".", "${SentimentCacheTable}", { "stat": "Sum" } ]
         ],
-        "period": 300,
-        "stat": "Sum",
-        "region": "us-east-1",
-        "yAxis": {
-          "left": {
-            "min": 0
-          }
-        }
+        "view": "timeSeries",
+        "stacked": true,
+        "region": "${AWS_REGION}",
+        "title": "DynamoDB Consumed Read Units"
       }
     },
     {
       "type": "metric",
       "x": 0,
-      "y": 12,
-      "width": 12,
+      "y": 18,
+      "width": 24,
       "height": 6,
       "properties": {
-        "title": "API Gateway Requests",
         "metrics": [
-          ["AWS/ApiGateway", "Count", { "stat": "Sum", "label": "Total Requests" }],
-          [".", "4XXError", { "stat": "Sum", "label": "4XX Errors", "color": "#ff7f0e" }],
-          [".", "5XXError", { "stat": "Sum", "label": "5XX Errors", "color": "#d62728" }]
+          [ "AWS/ApiGateway", "5XXError", "ApiName", "${ApiName}", { "stat": "Sum" } ],
+          [ ".", "4XXError", ".", ".", { "stat": "Sum" } ]
         ],
-        "period": 300,
-        "stat": "Sum",
-        "region": "us-east-1"
-      }
-    },
-    {
-      "type": "metric",
-      "x": 12,
-      "y": 12,
-      "width": 12,
-      "height": 6,
-      "properties": {
-        "title": "Lambda Invocations",
-        "metrics": [
-          ["AWS/Lambda", "Invocations", { "stat": "Sum", "label": "Total Invocations" }],
-          [".", "ConcurrentExecutions", { "stat": "Maximum", "label": "Max Concurrent" }]
-        ],
-        "period": 300,
-        "stat": "Sum",
-        "region": "us-east-1"
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS_REGION}",
+        "title": "API Gateway Errors"
       }
     }
   ]

@@ -40,7 +40,7 @@ function generateDateRange(startDate: string, endDate: string): string[] {
 /**
  * Handle stock prices request with three-tier caching
  */
-async function handlePricesRequest(
+export async function handlePricesRequest(
   ticker: string,
   startDate: string,
   endDate: string | undefined,
