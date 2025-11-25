@@ -22,7 +22,7 @@ Parameters:
     Type: String
     AllowedValues: ['true', 'false']
     Default: 'true'
-    Description: Enable response compression (gzip) for API Gateway (Note: API Gateway v2 HTTP API automatically compresses if client sends Accept-Encoding)
+    Description: "Enable response compression (gzip) for API Gateway. HTTP API automatically compresses if client sends Accept-Encoding."
 
   # Lambda Configuration Parameters
   StocksMemory:
@@ -506,6 +506,109 @@ Resources:
       ScalableDimension: lambda:function:ProvisionedConcurrentExecutions
       ServiceNamespace: lambda
 
+  # SNS Topic for Cost Anomaly Notifications
+  CostAnomalySNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AWS::StackName}-CostAnomalyAlerts'
+      DisplayName: 'React Stocks Cost Alerts'
+      Tags:
+        - Key: Project
+          Value: react-stocks
+
+  # CloudWatch Alarms
+  LambdaInvocationsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Lambda invocations exceeded expected threshold"
+      MetricName: Invocations
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReactStocksFunction
+      Statistic: Sum
+      Period: 86400 # 1 day
+      EvaluationPeriods: 1
+      Threshold: 10000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
+
+  DynamoDBReadUnitsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "DynamoDB read units exceeded expected threshold"
+      MetricName: ConsumedReadCapacityUnits
+      Namespace: AWS/DynamoDB
+      Dimensions:
+        - Name: TableName
+          Value: !Ref StocksCacheTable
+      Statistic: Sum
+      Period: 86400 # 1 day
+      EvaluationPeriods: 1
+      Threshold: 50000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
+      OKActions:
+        - !Ref CostAnomalySNSTopic
+
+  LambdaDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Lambda average duration exceeded threshold - potential cold starts or performance issues"
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReactStocksFunction
+      Statistic: Average
+      Period: 300 # 5 minutes
+      EvaluationPeriods: 3
+      Threshold: 5000 # 5 seconds average indicates issues
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
+
+  LambdaErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Lambda errors exceeded threshold"
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReactStocksFunction
+      Statistic: Sum
+      Period: 300 # 5 minutes
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
+
+  LambdaThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Lambda throttles detected - consider increasing concurrency"
+      MetricName: Throttles
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReactStocksFunction
+      Statistic: Sum
+      Period: 300 # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
+
 Outputs:
   ReactStocksApiUrl:
     Description: API Gateway endpoint URL
@@ -531,35 +634,8 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-NewsCacheTableArn'
 
-  # CloudWatch Alarms
-  LambdaInvocationsAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: "Lambda invocations exceeded expected threshold"
-      MetricName: Invocations
-      Namespace: AWS/Lambda
-      Dimensions:
-        - Name: FunctionName
-          Value: !Ref ReactStocksFunction
-      Statistic: Sum
-      Period: 86400 # 1 day
-      EvaluationPeriods: 1
-      Threshold: 10000
-      ComparisonOperator: GreaterThanThreshold
-      TreatMissingData: notBreaching
-
-  DynamoDBReadUnitsAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      AlarmDescription: "DynamoDB read units exceeded expected threshold"
-      MetricName: ConsumedReadCapacityUnits
-      Namespace: AWS/DynamoDB
-      Dimensions:
-        - Name: TableName
-          Value: !Ref StocksCacheTable
-      Statistic: Sum
-      Period: 86400 # 1 day
-      EvaluationPeriods: 1
-      Threshold: 50000
-      ComparisonOperator: GreaterThanThreshold
-      TreatMissingData: notBreaching
+  CostAnomalySNSTopicArn:
+    Description: SNS Topic ARN for cost anomaly alerts
+    Value: !Ref CostAnomalySNSTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-CostAnomalySNSTopicArn'

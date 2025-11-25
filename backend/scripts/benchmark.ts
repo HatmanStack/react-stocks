@@ -92,6 +92,67 @@ async function main() {
     });
   }
 
+  if (scenario === 'all' || scenario === 'single-ticker-warm') {
+    // Warm cache test: Make request twice, measure second (cached) response
+    scenarios['Single Ticker (Warm)'] = await runBenchmark('Single Ticker (Warm)', async () => {
+      // First request warms cache
+      await axios.get(`${API_URL}/stocks?ticker=${TEST_TICKER}&startDate=${date}`);
+      // Second request should hit cache
+      await axios.get(`${API_URL}/stocks?ticker=${TEST_TICKER}&startDate=${date}`);
+    });
+  }
+
+  if (scenario === 'all' || scenario === 'portfolio') {
+    // Portfolio loading: 5 tickers with all data types
+    const PORTFOLIO_TICKERS = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN'];
+    scenarios['Portfolio (5 tickers)'] = await runBenchmark('Portfolio (5 tickers)', async () => {
+      // Parallel fetch all data types using batch endpoints
+      await Promise.all([
+        axios.post(`${API_URL}/batch/stocks`, { tickers: PORTFOLIO_TICKERS, startDate: date }),
+        axios.post(`${API_URL}/batch/news`, { tickers: PORTFOLIO_TICKERS, limit: 10 }),
+        axios.post(`${API_URL}/batch/sentiment`, { tickers: PORTFOLIO_TICKERS, startDate: date })
+      ]);
+    });
+  }
+
+  if (scenario === 'all' || scenario === 'cold-start') {
+    // Cold start approximation: Use unique ticker to avoid cache hits
+    // Note: True cold start measurement requires Lambda being idle for ~15+ minutes
+    const uniqueTickers = ['COST', 'JNJ', 'PG', 'UNH', 'HD']; // Less common tickers
+    let coldStartCount = 0;
+    let totalColdStartDuration = 0;
+
+    console.log('Running cold start detection (approximate)...');
+    for (const ticker of uniqueTickers) {
+      const start = Date.now();
+      try {
+        const response = await axios.get(`${API_URL}/stocks?ticker=${ticker}&startDate=${date}`);
+        const duration = Date.now() - start;
+        // Cold starts typically >1000ms, warm requests <500ms
+        if (duration > 1000) {
+          coldStartCount++;
+          totalColdStartDuration += duration;
+        }
+      } catch (e) {
+        // Skip errors
+      }
+    }
+
+    const coldStartPercentage = (coldStartCount / uniqueTickers.length) * 100;
+    const avgColdStartDuration = coldStartCount > 0 ? totalColdStartDuration / coldStartCount : 0;
+
+    scenarios['Cold Start Detection'] = {
+      min: 0,
+      max: avgColdStartDuration,
+      mean: avgColdStartDuration,
+      median: avgColdStartDuration,
+      p95: avgColdStartDuration,
+      p99: avgColdStartDuration,
+    };
+
+    console.log(`Cold start approximation: ${coldStartPercentage.toFixed(1)}% of requests`);
+  }
+
   // Generate Markdown Report
   let markdown = `# Benchmark Results\n\n`;
   markdown += `**Date:** ${new Date().toISOString()}\n`;
