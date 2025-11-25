@@ -16,10 +16,113 @@ Parameters:
     Description: Comma-separated list of allowed CORS origins (e.g., https://example.com,https://www.example.com). Use '*' for development only.
     Default: '*'
 
+  # --- Optimization Parameters ---
+
+  EnableCompression:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'true'
+    Description: Enable response compression (gzip) for API Gateway (Note: API Gateway v2 HTTP API automatically compresses if client sends Accept-Encoding)
+
+  # Lambda Configuration Parameters
+  StocksMemory:
+    Type: Number
+    Default: 512
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for stocks endpoint (I/O bound)
+
+  StocksTimeout:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for stocks endpoint
+
+  NewsMemory:
+    Type: Number
+    Default: 512
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for news endpoint (I/O bound)
+
+  NewsTimeout:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for news endpoint
+
+  SearchMemory:
+    Type: Number
+    Default: 256
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for search endpoint (Lightweight)
+
+  SearchTimeout:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for search endpoint
+
+  SentimentMemory:
+    Type: Number
+    Default: 1536
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for sentiment endpoint (CPU intensive)
+
+  SentimentTimeout:
+    Type: Number
+    Default: 120
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for sentiment endpoint
+
+  PredictMemory:
+    Type: Number
+    Default: 2048
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for predict endpoint (ML Training)
+
+  PredictTimeout:
+    Type: Number
+    Default: 120
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for predict endpoint
+
+  EnableProvisionedConcurrency:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'false'
+    Description: Enable provisioned concurrency for Lambda
+
+  ProvisionedConcurrencyMarketHours:
+    Type: Number
+    Default: 5
+    MinValue: 0
+    MaxValue: 100
+    Description: Number of provisioned instances during market hours
+
+  ProvisionedConcurrencyPreMarket:
+    Type: Number
+    Default: 2
+    MinValue: 0
+    MaxValue: 100
+    Description: Number of provisioned instances during pre-market
+
+Conditions:
+  EnableProvisioning: !Equals [!Ref EnableProvisionedConcurrency, 'true']
+
 Globals:
   Function:
-    Timeout: 60
-    MemorySize: 1024
+    # Set to max required for now since we use single function
+    Timeout: !Ref PredictTimeout
+    MemorySize: !Ref PredictMemory
     Runtime: nodejs20.x
     Architectures:
       - x86_64
@@ -191,10 +294,6 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       CorsConfiguration:
-        # CORS Configuration - Configurable via AllowedOrigins parameter
-        # Security Note: Default is '*' for development convenience
-        # For production, deploy with: --parameter-overrides AllowedOrigins=https://your-domain.com
-        # Multiple origins: AllowedOrigins='https://prod.com,https://staging.com'
         AllowOrigins: !Split [',', !Ref AllowedOrigins]
         AllowMethods:
           - GET
@@ -204,31 +303,13 @@ Resources:
           - Content-Type
           - Authorization
         MaxAge: 300
-      # API Gateway Throttling - Prevents DDoS and excessive costs
-      # BurstLimit: Maximum concurrent requests
-      # RateLimit: Steady-state requests per second
-      RouteSettings:
-        'GET /stocks':
-          ThrottlingBurstLimit: 100
-          ThrottlingRateLimit: 50
-        'GET /news':
-          ThrottlingBurstLimit: 100
-          ThrottlingRateLimit: 50
-        'POST /sentiment':
-          ThrottlingBurstLimit: 50
-          ThrottlingRateLimit: 20
-        'GET /sentiment':
-          ThrottlingBurstLimit: 100
-          ThrottlingRateLimit: 50
-        'GET /sentiment/job/{jobId}':
-          ThrottlingBurstLimit: 200
-          ThrottlingRateLimit: 100
-        'GET /search':
-          ThrottlingBurstLimit: 100
-          ThrottlingRateLimit: 50
-        'POST /predict':
-          ThrottlingBurstLimit: 20
-          ThrottlingRateLimit: 10
+
+      # API Gateway Throttling
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+        DataTraceEnabled: true
+        DetailedMetricsEnabled: true
 
   ReactStocksFunction:
     Type: AWS::Serverless::Function
@@ -236,6 +317,13 @@ Resources:
       CodeUri: ./
       Handler: dist/index.handler
       Description: Backend proxy for Tiingo and Finnhub APIs
+      AutoPublishAlias: live
+      # Provisioned Concurrency (Optional)
+      ProvisionedConcurrencyConfig:
+        ProvisionedConcurrentExecutions: !If
+          - EnableProvisioning
+          - !Ref ProvisionedConcurrencyMarketHours
+          - !Ref AWS::NoValue
       Environment:
         Variables:
           TIINGO_API_KEY: !Ref TiingoApiKey
@@ -327,6 +415,18 @@ Resources:
           - '@aws-sdk/client-dynamodb'
           - '@aws-sdk/lib-dynamodb'
 
+  # Scheduled Scaling for Provisioned Concurrency
+  ConcurrencyScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Condition: EnableProvisioning
+    Properties:
+      MaxCapacity: !Ref ProvisionedConcurrencyMarketHours
+      MinCapacity: 0
+      ResourceId: !Sub function:${ReactStocksFunction}:live
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/lambda.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_LambdaTable
+      ScalableDimension: lambda:function:ProvisionedConcurrentExecutions
+      ServiceNamespace: lambda
+
 Outputs:
   ReactStocksApiUrl:
     Description: API Gateway endpoint URL
@@ -340,12 +440,6 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-FunctionArn'
 
-  ReactStocksFunctionIamRole:
-    Description: IAM Role for Lambda Function
-    Value: !GetAtt ReactStocksFunctionRole.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-FunctionRole'
-
   StocksCacheTableArn:
     Description: ARN of StocksCache DynamoDB table
     Value: !GetAtt StocksCacheTable.Arn
@@ -357,33 +451,3 @@ Outputs:
     Value: !GetAtt NewsCacheTable.Arn
     Export:
       Name: !Sub '${AWS::StackName}-NewsCacheTableArn'
-
-  SentimentCacheTableArn:
-    Description: ARN of SentimentCache DynamoDB table
-    Value: !GetAtt SentimentCacheTable.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-SentimentCacheTableArn'
-
-  SentimentJobsTableArn:
-    Description: ARN of SentimentJobs DynamoDB table
-    Value: !GetAtt SentimentJobsTable.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-SentimentJobsTableArn'
-
-  StockHistoricalDataArn:
-    Description: ARN of StockHistoricalData DynamoDB table
-    Value: !GetAtt StockHistoricalData.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-StockHistoricalDataArn'
-
-  ArticleAnalysisDataArn:
-    Description: ARN of ArticleAnalysisData DynamoDB table
-    Value: !GetAtt ArticleAnalysisData.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-ArticleAnalysisDataArn'
-
-  DailySentimentAggregateArn:
-    Description: ARN of DailySentimentAggregate DynamoDB table
-    Value: !GetAtt DailySentimentAggregate.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-DailySentimentAggregateArn'

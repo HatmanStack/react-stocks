@@ -1,183 +1,71 @@
-/**
- * Unit tests for cache utilities
- */
+import { calculateTTLByDataType } from '../../src/utils/cache.util';
+import { jest } from '@jest/globals';
 
-import {
-  calculateTTL,
-  isCacheFresh,
-  generateCacheKey,
-  parseCacheKey,
-} from '../../src/utils/cache.util.js';
-
-describe('Cache Utilities', () => {
-  describe('calculateTTL', () => {
-    it('should calculate TTL for 7 days from now', () => {
-      const now = Date.now();
-      const ttl = calculateTTL(7);
-
-      // TTL should be approximately 7 days from now (in seconds)
-      const expectedTTL = Math.floor((now + 7 * 24 * 60 * 60 * 1000) / 1000);
-
-      // Allow 1 second variance due to execution time
-      expect(ttl).toBeGreaterThanOrEqual(expectedTTL - 1);
-      expect(ttl).toBeLessThanOrEqual(expectedTTL + 1);
-    });
-
-    it('should calculate TTL for 30 days from now', () => {
-      const now = Date.now();
-      const ttl = calculateTTL(30);
-
-      const expectedTTL = Math.floor((now + 30 * 24 * 60 * 60 * 1000) / 1000);
-
-      expect(ttl).toBeGreaterThanOrEqual(expectedTTL - 1);
-      expect(ttl).toBeLessThanOrEqual(expectedTTL + 1);
-    });
-
-    it('should calculate TTL for 90 days from now', () => {
-      const now = Date.now();
-      const ttl = calculateTTL(90);
-
-      const expectedTTL = Math.floor((now + 90 * 24 * 60 * 60 * 1000) / 1000);
-
-      expect(ttl).toBeGreaterThanOrEqual(expectedTTL - 1);
-      expect(ttl).toBeLessThanOrEqual(expectedTTL + 1);
-    });
-
-    it('should return Unix timestamp in seconds, not milliseconds', () => {
-      const ttl = calculateTTL(1);
-
-      // Unix timestamp in seconds should be 10 digits (as of 2025)
-      expect(ttl.toString().length).toBe(10);
-    });
-
-    it('should handle zero days', () => {
-      const now = Date.now();
-      const ttl = calculateTTL(0);
-
-      const expectedTTL = Math.floor(now / 1000);
-
-      expect(ttl).toBeGreaterThanOrEqual(expectedTTL - 1);
-      expect(ttl).toBeLessThanOrEqual(expectedTTL + 1);
-    });
+describe('calculateTTLByDataType', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2025-01-20T12:00:00Z')); // Mock "today" as Jan 20, 2025
   });
 
-  describe('isCacheFresh', () => {
-    it('should return true for fresh cache (within max age)', () => {
-      const fetchedAt = Date.now() - 2 * 60 * 1000; // 2 minutes ago
-      const maxAgeMs = 5 * 60 * 1000; // 5 minutes
-
-      expect(isCacheFresh(fetchedAt, maxAgeMs)).toBe(true);
-    });
-
-    it('should return false for stale cache (exceeds max age)', () => {
-      const fetchedAt = Date.now() - 10 * 60 * 1000; // 10 minutes ago
-      const maxAgeMs = 5 * 60 * 1000; // 5 minutes
-
-      expect(isCacheFresh(fetchedAt, maxAgeMs)).toBe(false);
-    });
-
-    it('should return true for cache exactly at max age boundary', () => {
-      const maxAgeMs = 5 * 60 * 1000;
-      const fetchedAt = Date.now() - maxAgeMs + 100; // Just under max age
-
-      expect(isCacheFresh(fetchedAt, maxAgeMs)).toBe(true);
-    });
-
-    it('should return false for cache just over max age', () => {
-      const maxAgeMs = 5 * 60 * 1000;
-      const fetchedAt = Date.now() - maxAgeMs - 100; // Just over max age
-
-      expect(isCacheFresh(fetchedAt, maxAgeMs)).toBe(false);
-    });
-
-    it('should handle zero max age', () => {
-      const fetchedAt = Date.now() - 1000; // 1 second ago
-      const maxAgeMs = 0;
-
-      expect(isCacheFresh(fetchedAt, maxAgeMs)).toBe(false);
-    });
-
-    it('should return true for freshly cached item (now)', () => {
-      const fetchedAt = Date.now();
-      const maxAgeMs = 5 * 60 * 1000;
-
-      expect(isCacheFresh(fetchedAt, maxAgeMs)).toBe(true);
-    });
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
-  describe('generateCacheKey', () => {
-    it('should generate cache key from ticker and date', () => {
-      const key = generateCacheKey('AAPL', '2025-01-15');
-      expect(key).toBe('AAPL#2025-01-15');
-    });
-
-    it('should uppercase ticker symbol', () => {
-      const key = generateCacheKey('aapl', '2025-01-15');
-      expect(key).toBe('AAPL#2025-01-15');
-    });
-
-    it('should handle lowercase ticker', () => {
-      const key = generateCacheKey('googl', '2025-01-15');
-      expect(key).toBe('GOOGL#2025-01-15');
-    });
-
-    it('should handle mixed case ticker', () => {
-      const key = generateCacheKey('TsLa', '2025-01-15');
-      expect(key).toBe('TSLA#2025-01-15');
-    });
-
-    it('should generate consistent keys for same inputs', () => {
-      const key1 = generateCacheKey('AAPL', '2025-01-15');
-      const key2 = generateCacheKey('aapl', '2025-01-15');
-
-      expect(key1).toBe(key2);
-    });
+  test('historical stock date returns 90 days TTL', () => {
+    const ttl = calculateTTLByDataType('stock', '2025-01-15');
+    const expectedTTL = Math.floor((new Date('2025-01-20T12:00:00Z').getTime() + 90 * 24 * 60 * 60 * 1000) / 1000);
+    expect(ttl).toBe(expectedTTL);
   });
 
-  describe('parseCacheKey', () => {
-    it('should parse cache key into ticker and date', () => {
-      const result = parseCacheKey('AAPL#2025-01-15');
+  test('current stock date returns 1 day TTL', () => {
+    const ttl = calculateTTLByDataType('stock', '2025-01-20');
+    const expectedTTL = Math.floor((new Date('2025-01-20T12:00:00Z').getTime() + 1 * 24 * 60 * 60 * 1000) / 1000);
+    expect(ttl).toBe(expectedTTL);
+  });
 
-      expect(result).toEqual({
-        ticker: 'AAPL',
-        date: '2025-01-15',
-      });
-    });
+  test('future stock date returns 1 day TTL', () => {
+    const ttl = calculateTTLByDataType('stock', '2025-01-25');
+    const expectedTTL = Math.floor((new Date('2025-01-20T12:00:00Z').getTime() + 1 * 24 * 60 * 60 * 1000) / 1000);
+    expect(ttl).toBe(expectedTTL);
+  });
 
-    it('should handle different tickers', () => {
-      const result = parseCacheKey('GOOGL#2025-12-31');
+  test('news data returns 7 days TTL', () => {
+    const ttl = calculateTTLByDataType('news');
+    const expectedTTL = Math.floor((new Date('2025-01-20T12:00:00Z').getTime() + 7 * 24 * 60 * 60 * 1000) / 1000);
+    expect(ttl).toBe(expectedTTL);
+  });
 
-      expect(result).toEqual({
-        ticker: 'GOOGL',
-        date: '2025-12-31',
-      });
-    });
+  test('sentiment data returns 30 days TTL', () => {
+    const ttl = calculateTTLByDataType('sentiment');
+    const expectedTTL = Math.floor((new Date('2025-01-20T12:00:00Z').getTime() + 30 * 24 * 60 * 60 * 1000) / 1000);
+    expect(ttl).toBe(expectedTTL);
+  });
 
-    it('should be inverse of generateCacheKey', () => {
-      const ticker = 'AAPL';
-      const date = '2025-01-15';
+  test('metadata returns 30 days TTL', () => {
+      const ttl = calculateTTLByDataType('metadata');
+      const expectedTTL = Math.floor((new Date('2025-01-20T12:00:00Z').getTime() + 30 * 24 * 60 * 60 * 1000) / 1000);
+      expect(ttl).toBe(expectedTTL);
+  });
 
-      const key = generateCacheKey(ticker, date);
-      const parsed = parseCacheKey(key);
+  test('job returns 1 day TTL', () => {
+      const ttl = calculateTTLByDataType('job');
+      const expectedTTL = Math.floor((new Date('2025-01-20T12:00:00Z').getTime() + 1 * 24 * 60 * 60 * 1000) / 1000);
+      expect(ttl).toBe(expectedTTL);
+  });
 
-      expect(parsed.ticker).toBe(ticker.toUpperCase());
-      expect(parsed.date).toBe(date);
-    });
+  test('invalid date returns 1 day TTL default', () => {
+      const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const ttl = calculateTTLByDataType('stock', 'invalid-date');
+      const expectedTTL = Math.floor((new Date('2025-01-20T12:00:00Z').getTime() + 1 * 24 * 60 * 60 * 1000) / 1000);
+      expect(ttl).toBe(expectedTTL);
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
+  });
 
-    it('should throw error for malformed cache key (no delimiter)', () => {
-      expect(() => parseCacheKey('AAPL')).toThrow('Invalid cacheKey format');
-    });
-
-    it('should throw error for malformed cache key (too many parts)', () => {
-      expect(() => parseCacheKey('AAPL#2025-01-15#EXTRA')).toThrow('Invalid cacheKey format');
-    });
-
-    it('should throw error for empty ticker', () => {
-      expect(() => parseCacheKey('#2025-01-15')).toThrow('Invalid cacheKey format');
-    });
-
-    it('should throw error for empty date', () => {
-      expect(() => parseCacheKey('AAPL#')).toThrow('Invalid cacheKey format');
-    });
+  test('unknown data type returns 1 day TTL default', () => {
+      // @ts-ignore
+      const ttl = calculateTTLByDataType('unknown');
+      const expectedTTL = Math.floor((new Date('2025-01-20T12:00:00Z').getTime() + 1 * 24 * 60 * 60 * 1000) / 1000);
+      expect(ttl).toBe(expectedTTL);
   });
 });

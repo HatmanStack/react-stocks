@@ -1,7 +1,7 @@
 export default {
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/__tests__'],
-  testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
+  testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.ts', '**/__tests__/**/*.test.js'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
