@@ -121,6 +121,159 @@ Update prompts to collect new optimization settings
 
 ---
 
+## Review Feedback (Iteration 1)
+
+### Task 1: Deployment Configuration - Critical Issues
+
+> **Consider:** The plan in Implementation Step 4 requires validation logic for:
+> - Cache size must be one of AWS-supported sizes ('0.5', '1.6', '6.1', '13.5')
+> - Lambda memory must be 128-10240 MB
+> - Lambda timeout must be 1-900 seconds
+> - TTL values must be positive integers
+>
+> **Question:** Looking at `backend/scripts/deploy.js:58-135`, where is the validation code that checks these constraints before saving to `.deploy-config.json`?
+>
+> **Think about:** What happens if a user manually edits `.deploy-config.json` and sets `lambdaMemory.stocks` to `50000` (above max)? Will the deployment fail gracefully with a clear error, or will it fail during SAM deployment with a cryptic CloudFormation error?
+>
+> **Reflect:** The verification checklist at line 91 states "Config validation catches invalid values" [x]. Is this accurate if validation code doesn't exist in deploy.js?
+
+> **Consider:** The plan's Testing Instructions (lines 97-102) specify unit tests should:
+> - Test config schema validation (valid/invalid cache sizes, memory, timeouts)
+> - Test default value generation for missing fields
+> - Test SAM parameter override generation from config object
+> - Mock `readline` for prompt testing
+>
+> **Question:** Looking at `__tests__/scripts/deploy.test.js:1-82`, which of these test requirements are covered? Are the prompts tested? Is validation tested?
+>
+> **Reflect:** If validation code doesn't exist yet, should those tests be marked as pending/skipped until validation is implemented, or should validation be implemented first?
+
+> **Consider:** The plan (line 50) states "Document new config options" in backend/README.md.
+>
+> **Question:** Running `grep -A 10 "Configuration\|.deploy-config" backend/README.md`, do you see a detailed section explaining:
+> - The schema of `.deploy-config.json` with all new fields?
+> - What each optimization parameter does?
+> - Valid value ranges for each parameter?
+> - Examples of a complete config file?
+>
+> **Think about:** If a new developer joins the project, can they understand the deployment configuration from the README alone, or do they need to read deploy.js source code?
+
+### Task 1: API Gateway Caching - Architectural Mismatch
+
+> **Critical Question:** Looking at `backend/scripts/deploy.js:106-109`, the code removes API Gateway caching with the comment "HTTP API doesn't support it".
+>
+> **Consider:** The plan's Phase-1 has an entire Task 2 dedicated to "SAM Template - API Gateway Caching Configuration". Phase-0 ADR-001 discusses "API Gateway Response Caching Strategy" in detail.
+>
+> **Reflect:** If HTTP API v2 doesn't support response caching (which is technically correct), should:
+> 1. The plan be updated to remove caching tasks and adjust ADR-001?
+> 2. The implementation switch from HTTP API to REST API to support caching?
+> 3. An alternative caching strategy be proposed (CloudFront, Lambda@Edge)?
+>
+> **Question:** Looking at lines 88-94 where the verification checklist is marked [x] complete, item 88 states "Config schema includes all new optimization parameters". Does the schema actually include API Gateway caching parameters if they were deleted from the code?
+>
+> **Think about:** If we remove API Gateway caching:
+> - What happens to the expected 40% reduction in Lambda invocations mentioned in the Phase Goal (line 5)?
+> - How do we achieve the cost savings promised in Phase-0 ADR-001?
+> - Should Phase-2 Task 1-2 (batch endpoints) be prioritized to compensate for missing caching?
+
+### Test Failures - TTL Calculation Logic
+
+> **Consider:** Running `npm test -- __tests__/utils/cache.util.test.ts` shows:
+> ```
+> ✕ current stock date returns 1 day TTL (3 ms)
+>    Expected: 1737460800
+>    Received: 1745150400
+> ```
+>
+> **Question:** Looking at `src/utils/cache.util.ts:92-109`, the logic compares `itemDate < todayUTC` to determine historical vs current dates.
+>
+> **Think about:** When `itemDate` equals `todayUTC` (same day), which branch executes? Line 102 (90-day TTL) or line 105 (1-day TTL)?
+>
+> **Reflect:** The test at `__tests__/utils/cache.util.test.ts:20-24` uses `jest.useFakeTimers()` to mock the date as '2025-01-20T12:00:00Z'. Is the comparison logic in cache.util.ts correctly distinguishing between "today" and "historical" dates? Or does the normalization to UTC midnight change the comparison result?
+>
+> **Debug approach:** What would happen if you added logging to show:
+> - The actual `itemDate` value after normalization
+> - The actual `todayUTC` value
+> - The comparison result (`itemDate < todayUTC`)
+> This might reveal why today's date is being treated as historical.
+
+### Additional Test Failures
+
+> **Consider:** Running `npm test` shows 23 failing tests across multiple suites:
+> - `__tests__/handlers/stocks.handler.test.ts` - Multiple timeout failures
+> - `__tests__/handlers/stocks.handler.cache.test.ts` - Cache-related failures
+> - `__tests__/handlers/news.handler.cache.test.ts` - Cache-related failures
+> - `__tests__/integration/compression.test.ts` - Compression test failures
+> - `__tests__/integration/api-gateway-cache.test.ts` - API Gateway cache test failures
+>
+> **Question:** Before marking Task 1 as complete, should all tests pass? Or are some test failures acceptable if they're related to tasks that haven't been implemented yet?
+>
+> **Reflect:** Looking at `__tests__/integration/api-gateway-cache.test.ts`, if this tests API Gateway caching functionality that we've decided not to implement (HTTP API limitation), should this test file be:
+> - Deleted (feature won't be implemented)?
+> - Marked as skipped with a comment explaining why?
+> - Updated to test an alternative caching approach?
+>
+> **Think about:** The integration tests for compression and cache were likely created as placeholders. Do they test actual functionality, or are they just skeleton tests waiting for implementation?
+
+### Review Summary - Iteration 1
+
+**Status:** **NEEDS REVISION** - Critical issues found
+
+**What's Working Well:**
+- ✓ Lambda memory/timeout optimization implemented (Task 3)
+- ✓ DynamoDB TTL optimization implemented (Task 4, Task 5)
+- ✓ CloudWatch metrics utilities created (Task 8)
+- ✓ Monitoring documentation created (docs/monitoring.md)
+- ✓ Provisioned concurrency support added (Task 7)
+- ✓ Repository pattern updated correctly
+- ✓ Template.yaml has proper parameter validation (min/max values)
+
+**Critical Issues Requiring Fixes:**
+
+1. **Missing Validation Logic** (Task 1)
+   - No input validation in deploy.js
+   - Tests don't cover validation
+   - Verification checklist incorrectly marked complete
+
+2. **API Gateway Caching Architecture** (Task 1, Task 2)
+   - Caching removed but plan assumes it exists
+   - Fundamental conflict between plan and HTTP API capabilities
+   - Need architectural decision: Update plan, switch to REST API, or alternative approach?
+
+3. **Test Failures** (23 tests failing)
+   - TTL calculation logic bug (current date treated as historical)
+   - Handler timeout issues
+   - Integration tests failing
+
+4. **Incomplete Documentation** (Task 1)
+   - README missing detailed configuration schema
+   - No examples of .deploy-config.json
+
+**Recommended Next Steps:**
+
+1. **Address API Gateway Caching Decision:**
+   - Decide on one approach: Remove from plan, switch to REST API, or use CloudFront
+   - Update Phase-0 ADR-001 if removing caching
+   - Update Phase Goal if cost/performance targets change
+
+2. **Fix Test Failures:**
+   - Debug TTL calculation date comparison (add logging)
+   - Fix or skip integration tests for removed features
+   - Ensure all tests pass before marking tasks complete
+
+3. **Add Missing Validation:**
+   - Implement validation function in deploy.js
+   - Add tests for validation
+   - Update verification checklist accurately
+
+4. **Complete Documentation:**
+   - Add configuration schema section to README
+   - Include example .deploy-config.json
+   - Document validation rules
+
+**Once these issues are addressed, please update the verification checklists accurately and re-run the review.**
+
+---
+
 ### Task 2: SAM Template - API Gateway Caching Configuration
 
 **Goal:** Enable API Gateway response caching in SAM template with configurable cache size and per-route TTL settings. This is the foundation for reducing Lambda invocations.

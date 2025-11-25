@@ -55,12 +55,55 @@ async function checkPrerequisites() {
   }
 }
 
+/**
+ * Validate configuration values
+ * @param {object} config - Configuration object to validate
+ * @returns {object} - { valid: boolean, errors: string[] }
+ */
+export function validateConfig(config) {
+  const errors = [];
+
+  // Validate Lambda memory (128-10240 MB)
+  if (config.lambdaMemory) {
+    for (const [endpoint, memory] of Object.entries(config.lambdaMemory)) {
+      const memoryNum = parseInt(memory, 10);
+      if (isNaN(memoryNum) || memoryNum < 128 || memoryNum > 10240) {
+        errors.push(`Invalid lambdaMemory.${endpoint}: ${memory}. Must be between 128-10240 MB.`);
+      }
+    }
+  }
+
+  // Validate Lambda timeout (1-900 seconds)
+  if (config.lambdaTimeout) {
+    for (const [endpoint, timeout] of Object.entries(config.lambdaTimeout)) {
+      const timeoutNum = parseInt(timeout, 10);
+      if (isNaN(timeoutNum) || timeoutNum < 1 || timeoutNum > 900) {
+        errors.push(`Invalid lambdaTimeout.${endpoint}: ${timeout}. Must be between 1-900 seconds.`);
+      }
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
 export async function loadOrPromptConfig(rl) {
   let config = {};
   if (fs.existsSync(DEPLOY_CONFIG_PATH)) {
     try {
       config = JSON.parse(fs.readFileSync(DEPLOY_CONFIG_PATH, 'utf8'));
       console.log('Loaded configuration from .deploy-config.json');
+
+      // Validate loaded config
+      const validation = validateConfig(config);
+      if (!validation.valid) {
+        console.warn('Configuration validation errors:');
+        validation.errors.forEach(err => console.warn(`  - ${err}`));
+        console.warn('Please fix .deploy-config.json or delete it to re-prompt.');
+        process.exit(1);
+      }
     } catch (e) {
       console.warn('Failed to parse .deploy-config.json, prompting for new config.');
     }
