@@ -1,7 +1,6 @@
-import { handler } from '../../src/handlers/cacheWarming.handler';
 import { jest } from '@jest/globals';
 
-// Mock dependencies
+// Mock dependencies BEFORE importing handler
 const mockWarmAllTopTickers = jest.fn();
 jest.unstable_mockModule('../../src/services/cacheWarming.service', () => ({
   warmAllTopTickers: mockWarmAllTopTickers,
@@ -10,6 +9,9 @@ jest.unstable_mockModule('../../src/services/cacheWarming.service', () => ({
 jest.unstable_mockModule('../../src/utils/error.util', () => ({
   logError: jest.fn(),
 }));
+
+// Import handler AFTER mocking
+const { handler } = await import('../../src/handlers/cacheWarming.handler');
 
 describe('Cache Warming Handler', () => {
   beforeEach(() => {
