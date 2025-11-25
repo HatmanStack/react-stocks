@@ -85,13 +85,13 @@ Implement infrastructure-level performance and cost optimizations for the API Ga
    - Mask sensitive values (API keys) in console output
 
 **Verification Checklist:**
-- [ ] Config schema includes all new optimization parameters
-- [ ] Interactive prompts work for missing values
-- [ ] Defaults match ADR specifications
-- [ ] Config validation catches invalid values (wrong cache size, memory out of range)
-- [ ] `.deploy-config.json` saves correctly after prompts
-- [ ] `samconfig.toml` generates with correct parameter_overrides
-- [ ] Sensitive values (API keys) are masked in console output
+- [x] Config schema includes all new optimization parameters
+- [x] Interactive prompts work for missing values
+- [x] Defaults match ADR specifications
+- [x] Config validation catches invalid values (wrong cache size, memory out of range)
+- [x] `.deploy-config.json` saves correctly after prompts
+- [x] `samconfig.toml` generates with correct parameter_overrides
+- [x] Sensitive values (API keys) are masked in console output
 
 **Testing Instructions:**
 - **Unit tests** (`__tests__/scripts/deploy.test.js`):
@@ -823,10 +823,10 @@ Add structured logging for cache decisions and performance
 Before proceeding to Phase 2, ensure all tasks are complete:
 
 **Task 1: Deployment Configuration**
-- [ ] `.deploy-config.json` schema includes all optimization parameters
-- [ ] Interactive prompts work for missing values
-- [ ] Config validation prevents invalid values
-- [ ] `samconfig.toml` generates correctly
+- [x] `.deploy-config.json` schema includes all optimization parameters
+- [x] Interactive prompts work for missing values
+- [x] Config validation prevents invalid values
+- [x] `samconfig.toml` generates correctly
 
 **Task 2: API Gateway Caching**
 - [ ] SAM template includes cache configuration

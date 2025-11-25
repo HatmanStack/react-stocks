@@ -77,6 +77,47 @@ export function parseCacheKey(cacheKey: string): { ticker: string; date: string 
   return { ticker, date };
 }
 
+function normalizeDateToUTC(dateString: string): Date {
+  const date = new Date(dateString);
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+}
+
+/**
+ * Calculate TTL based on data type and date volatility
+ */
+export function calculateTTLByDataType(
+  dataType: 'stock' | 'news' | 'sentiment' | 'metadata' | 'job',
+  date?: string
+): number {
+  if (dataType === 'stock' && date) {
+    try {
+      const itemDate = normalizeDateToUTC(date);
+      if (isNaN(itemDate.getTime())) {
+         throw new Error('Invalid Date');
+      }
+
+      const today = new Date();
+      const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+
+      if (itemDate < todayUTC) {
+        return calculateTTL(90); // Historical
+      }
+      return calculateTTL(1); // Current/Future
+    } catch (e) {
+      console.warn('Invalid date passed to calculateTTLByDataType:', date);
+      return calculateTTL(1);
+    }
+  }
+
+  switch (dataType) {
+    case 'news': return calculateTTL(7);
+    case 'sentiment': return calculateTTL(30);
+    case 'metadata': return calculateTTL(30);
+    case 'job': return calculateTTL(1);
+    default: return calculateTTL(1);
+  }
+}
+
 /**
  * Interface for cached items with TTL and fetch timestamp
  */

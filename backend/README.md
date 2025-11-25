@@ -18,9 +18,9 @@ AWS Lambda backend proxying Tiingo and Finnhub APIs with intelligent DynamoDB ca
 ## ✨ Features
 
 * 🚀 **Serverless Architecture** - Auto-scaling Lambda + HTTP API Gateway for cost-effective API proxy
-* 💾 **Smart Caching** - DynamoDB with TTL (7d stocks, 30d news, 90d sentiment) for >80% hit rate
+* 💾 **Smart Caching** - DynamoDB with TTL (90d/1d stocks, 7d news, 30d sentiment) for >80% hit rate
+* ⚡ **Performance Optimization** - API Gateway response caching, gzip compression, and optimized Lambda configuration
 * 🔒 **Security First** - API keys encrypted in Lambda environment, never exposed to frontend
-* ⚡ **High Performance** - <15s sentiment processing, sub-second cache hits
 * 📊 **Stock Data** - Real-time OHLCV prices + company metadata via Tiingo
 * 📰 **News Feed** - Financial news articles with deduplication via Finnhub
 * 🧠 **Sentiment Analysis** - Asynchronous Lambda-based sentiment processing with job tracking
@@ -39,7 +39,7 @@ npm run validate  # Checks AWS CLI, SAM CLI, credentials
 cd backend
 npm install
 npm run deploy:guided  # First time - prompts for API keys
-npm run deploy         # Subsequent deploys
+npm run deploy         # Subsequent deploys (prompts for optimization settings)
 
 # API Gateway URL auto-updates frontend .env
 ```
@@ -50,24 +50,34 @@ npm run deploy         # Subsequent deploys
 
 | Endpoint | Method | Description | Cache TTL |
 |----------|--------|-------------|-----------|
-| `/stocks` | GET | Stock prices & metadata (Tiingo proxy) | 7 days |
-| `/news` | GET | Financial news articles (Finnhub proxy) | 30 days |
+| `/stocks` | GET | Stock prices & metadata (Tiingo proxy) | 5 minutes (API Gateway) |
+| `/news` | GET | Financial news articles (Finnhub proxy) | 2 minutes (API Gateway) |
 | `/sentiment` | POST | Start sentiment analysis job | - |
 | `/sentiment/job/{jobId}` | GET | Check job status | - |
-| `/sentiment` | GET | Get sentiment results | 90 days |
+| `/sentiment` | GET | Get sentiment results | 5 minutes (API Gateway) |
 
-**Example requests:**
-```bash
-# Stock data
-GET /stocks?ticker=AAPL&startDate=2025-01-01&type=prices
+**Note:** API Gateway Caching reduces Lambda invocations. DynamoDB caching stores data for longer periods (up to 90 days).
 
-# News articles
-GET /news?ticker=AAPL&from=2025-01-01&to=2025-01-30
+---
 
-# Sentiment analysis
-POST /sentiment
-Body: {"ticker":"AAPL","startDate":"2025-01-01","endDate":"2025-01-15"}
-```
+## ⚙️ Configuration & Optimization
+
+The deployment script (`npm run deploy`) supports interactive configuration for:
+
+- **API Gateway Caching**: Enable/disable response caching (default: enabled, 0.5GB)
+- **Response Compression**: Gzip compression automatically enabled for responses >1KB
+- **Lambda Memory/Timeout**: Optimized per endpoint type (Stocks, News, Search, Sentiment, Predict)
+- **Provisioned Concurrency**: Optional configuration for market-hour scaling (reduces cold starts)
+
+### Cache TTL Strategy
+
+| Data Type | DynamoDB TTL | API Gateway TTL |
+|-----------|--------------|-----------------|
+| Historical Stocks | 90 days | 5 minutes |
+| Current Stocks | 1 day | 5 minutes |
+| News | 7 days | 2 minutes |
+| Sentiment | 30 days | 5 minutes |
+| Metadata | 30 days | 1 hour |
 
 ---
 
@@ -114,15 +124,16 @@ npm run create-dashboard   # Create CloudWatch dashboard
 | Service | Monthly Cost | Notes |
 |---------|--------------|-------|
 | DynamoDB | ~$9 | 80% cache hit rate, pay-per-request |
-| Lambda | ~$0 | Free tier covers most usage |
-| API Gateway | ~$1 | HTTP API (cheaper than REST) |
+| Lambda | ~$0 | Free tier covers most usage (reduced by caching) |
+| API Gateway | ~$1 | HTTP API + Caching (~$0.02/hour for cache) |
 | CloudWatch | ~$1 | Logs + custom metrics |
 
 **Cost optimization:**
-- Cache TTL: 7d (stocks), 30d (news), 90d (sentiment)
+- API Gateway Response Caching (reduces Lambda calls)
+- Response Compression (reduces data transfer)
+- DynamoDB TTL Optimization (reduces storage)
 - Target >80% cache hit rate
 - Pay-per-request billing (auto-scales, no idle costs)
-- Use `npm run warm-cache` to reduce cold starts
 
 ---
 

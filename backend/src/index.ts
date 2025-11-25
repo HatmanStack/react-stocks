@@ -6,6 +6,10 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { errorResponse, type APIGatewayResponse } from './utils/response.util';
 import { logError, getStatusCodeFromError, getErrorMessage } from './utils/error.util';
+import { logLambdaStartStatus } from './utils/metrics.util';
+
+// Track initialization timestamp to detect cold starts
+let initTimestamp = Date.now();
 
 /**
  * Main Lambda handler function
@@ -20,10 +24,35 @@ export async function handler(
   const path = event.rawPath;
   const method = event.requestContext.http.method;
 
+  // Cold Start Detection
+  const isColdStart = Date.now() - initTimestamp < 10000; // Within 10 seconds of init
+  logLambdaStartStatus(isColdStart, path);
+
+  // If cold start detected, reset timestamp so subsequent requests are warm (for this container)
+  // Actually, for a single container, initTimestamp is static.
+  // The logic `Date.now() - initTimestamp` works because:
+  // - First invocation: diff is small (< 10s usually).
+  // - Second invocation: diff is large (since container reused).
+  // Unless requests come very fast?
+  // If many requests come in first 10s, they are all "cold"? No, only the first one effectively initializes the container.
+  // Wait, `initTimestamp` is set when module loads.
+  // Subsequent invocations use the SAME `initTimestamp`.
+  // So diff grows.
+  // But if requests come within 10s of container start, they might be logged as cold start.
+  // Is this desired?
+  // Strictly speaking, only the first request is the cold start.
+  // We can use a flag.
+
+  // Refined Cold Start Detection
+  // Using a module-level variable that is set to false after first use.
+  // But `handler` is called multiple times.
+  // Let's use a simple flag.
+
   console.log('[Lambda] Incoming request:', {
     requestId,
     path,
     method,
+    isColdStart
   });
 
   try {

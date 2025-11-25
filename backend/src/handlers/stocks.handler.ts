@@ -5,7 +5,7 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
 import { logError } from '../utils/error.util';
-import { logMetrics, MetricUnit } from '../utils/metrics.util';
+import { logMetrics, MetricUnit, logDynamoDBCacheHit } from '../utils/metrics.util';
 import { transformTiingoToCache, transformCacheToTiingo } from '../utils/cacheTransform.util';
 import { fetchStockPrices, fetchSymbolMetadata } from '../services/tiingo.service';
 import {
@@ -66,6 +66,7 @@ async function handlePricesRequest(
       console.log(`[StocksHandler] Cache hit for ${ticker}: ${(cacheHitRate * 100).toFixed(1)}%`);
 
       // Log metrics for cache hit
+      logDynamoDBCacheHit(ticker, true);
       logMetrics(
         [
           { name: 'CacheHitRate', value: cacheHitRate * 100, unit: MetricUnit.Percent },
@@ -84,9 +85,13 @@ async function handlePricesRequest(
 
     // Tier 2: Cache miss or insufficient coverage - fetch from Tiingo
     console.log(`[StocksHandler] Cache miss for ${ticker}: ${(cacheHitRate * 100).toFixed(1)}% - fetching from API`);
-    const apiData = await fetchStockPrices(ticker, startDate, effectiveEndDate, apiKey);
 
     // Log metrics for cache miss
+    logDynamoDBCacheHit(ticker, false);
+
+    const apiData = await fetchStockPrices(ticker, startDate, effectiveEndDate, apiKey);
+
+    // Log metrics for API call
     logMetrics(
       [
         { name: 'CacheHitRate', value: cacheHitRate * 100, unit: MetricUnit.Percent },

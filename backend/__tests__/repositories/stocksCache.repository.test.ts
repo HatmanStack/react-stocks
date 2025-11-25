@@ -1,171 +1,84 @@
-/**
- * Unit tests for StocksCache repository
- */
+// The issue is that ESM imports are read-only bindings, so simply casting them doesn't make them mocks if jest.mock didn't successfully replace the module.
+// But I am using jest.mock factory.
+// In ESM with experimental vm modules, jest.mock works but sometimes tricky.
 
-import {
-  getStock,
-  putStock,
-  batchGetStocks,
-  batchPutStocks,
-  queryStocksByDateRange,
-  type StockCacheItem,
-  type PriceData,
-} from '../../src/repositories/stocksCache.repository.js';
+// Let's use jest.unstable_mockModule again as it's the recommended way for ESM.
 
-// Note: These tests verify the repository logic without actual DynamoDB calls
-// Integration tests with DynamoDB Local or mocks would be in separate integration test files
+import { jest } from '@jest/globals';
 
-describe('StocksCache Repository', () => {
-  describe('Type Definitions', () => {
-    it('should accept valid PriceData', () => {
-      const priceData: PriceData = {
-        open: 150,
-        high: 155,
-        low: 149,
-        close: 154,
-        volume: 1000000,
-      };
+jest.unstable_mockModule('../../src/utils/cache.util.js', () => ({
+  calculateTTLByDataType: jest.fn(),
+  calculateTTL: jest.fn(),
+  generateCacheKey: jest.fn(),
+  isCacheFresh: jest.fn(),
+  parseCacheKey: jest.fn(),
+}));
 
-      expect(priceData).toBeDefined();
-      expect(priceData.open).toBe(150);
-      expect(priceData.volume).toBe(1000000);
-    });
+jest.unstable_mockModule('../../src/utils/dynamodb.util.js', () => ({
+  dynamoDb: {
+    send: jest.fn(),
+  },
+  batchPutItems: jest.fn(),
+  batchGetItems: jest.fn(),
+}));
 
-    it('should accept PriceData with adjusted values', () => {
-      const priceData: PriceData = {
-        open: 150,
-        high: 155,
-        low: 149,
-        close: 154,
-        volume: 1000000,
-        adjOpen: 148,
-        adjHigh: 153,
-        adjLow: 147,
-        adjClose: 152,
-        adjVolume: 1000000,
-        divCash: 0.5,
-        splitFactor: 1.0,
-      };
+const { calculateTTLByDataType } = await import('../../src/utils/cache.util.js');
+const { putStock, batchPutStocks } = await import('../../src/repositories/stocksCache.repository.js');
+const { dynamoDb, batchPutItems } = await import('../../src/utils/dynamodb.util.js');
 
-      expect(priceData.adjClose).toBe(152);
-      expect(priceData.divCash).toBe(0.5);
-      expect(priceData.splitFactor).toBe(1.0);
-    });
-
-    it('should accept valid StockCacheItem', () => {
-      const cacheItem: StockCacheItem = {
-        ticker: 'AAPL',
-        date: '2025-01-15',
-        priceData: {
-          open: 150,
-          high: 155,
-          low: 149,
-          close: 154,
-          volume: 1000000,
-        },
-        ttl: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
-        fetchedAt: Date.now(),
-      };
-
-      expect(cacheItem.ticker).toBe('AAPL');
-      expect(cacheItem.date).toBe('2025-01-15');
-      expect(cacheItem.priceData.close).toBe(154);
-    });
-
-    it('should accept StockCacheItem with metadata', () => {
-      const cacheItem: StockCacheItem = {
-        ticker: 'AAPL',
-        date: '2025-01-15',
-        priceData: {
-          open: 150,
-          high: 155,
-          low: 149,
-          close: 154,
-          volume: 1000000,
-        },
-        metadata: {
-          ticker: 'AAPL',
-          name: 'Apple Inc.',
-          description: 'Technology company',
-          exchange: 'NASDAQ',
-          sector: 'Technology',
-          industry: 'Consumer Electronics',
-        },
-        ttl: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60,
-        fetchedAt: Date.now(),
-      };
-
-      expect(cacheItem.metadata?.name).toBe('Apple Inc.');
-      expect(cacheItem.metadata?.exchange).toBe('NASDAQ');
-    });
+describe('StocksCacheRepository TTL Integration', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  describe('batchGetStocks', () => {
-    it('should return empty array for empty dates', async () => {
-      const result = await batchGetStocks('AAPL', []);
-      expect(result).toEqual([]);
-    });
+  test('putStock uses date-aware TTL', async () => {
+    // @ts-ignore
+    calculateTTLByDataType.mockReturnValue(1234567890);
 
-    // Note: Actual DynamoDB operations would be tested in integration tests
+    const item = {
+      ticker: 'AAPL',
+      date: '2025-01-15',
+      priceData: { open: 100, high: 110, low: 90, close: 105, volume: 1000 },
+      fetchedAt: 1700000000000,
+    };
+
+    await putStock(item);
+
+    expect(calculateTTLByDataType).toHaveBeenCalledWith('stock', '2025-01-15');
+
+    expect(dynamoDb.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Item: expect.objectContaining({
+            ttl: 1234567890,
+            ticker: 'AAPL',
+          }),
+        }),
+      })
+    );
   });
 
-  describe('batchPutStocks', () => {
-    it('should handle empty items array', async () => {
-      await expect(batchPutStocks([])).resolves.not.toThrow();
-    });
+  test('batchPutStocks calculates TTL per item', async () => {
+    // @ts-ignore
+    calculateTTLByDataType.mockReturnValue(9876543210);
 
-    // Note: Actual DynamoDB operations would be tested in integration tests
-  });
+    const items = [
+      { ticker: 'AAPL', date: '2025-01-01', priceData: {} as any, fetchedAt: 1700000000000 },
+      { ticker: 'GOOGL', date: '2025-01-02', priceData: {} as any, fetchedAt: 1700000000000 },
+    ];
 
-  describe('Repository Function Signatures', () => {
-    it('should have correct getStock signature', () => {
-      expect(typeof getStock).toBe('function');
-      expect(getStock.length).toBe(2); // ticker, date
-    });
+    await batchPutStocks(items);
 
-    it('should have correct putStock signature', () => {
-      expect(typeof putStock).toBe('function');
-      expect(putStock.length).toBe(1); // item
-    });
+    expect(calculateTTLByDataType).toHaveBeenCalledTimes(2);
+    expect(calculateTTLByDataType).toHaveBeenCalledWith('stock', '2025-01-01');
+    expect(calculateTTLByDataType).toHaveBeenCalledWith('stock', '2025-01-02');
 
-    it('should have correct batchGetStocks signature', () => {
-      expect(typeof batchGetStocks).toBe('function');
-      expect(batchGetStocks.length).toBe(2); // ticker, dates
-    });
-
-    it('should have correct batchPutStocks signature', () => {
-      expect(typeof batchPutStocks).toBe('function');
-      expect(batchPutStocks.length).toBe(1); // items
-    });
-
-    it('should have correct queryStocksByDateRange signature', () => {
-      expect(typeof queryStocksByDateRange).toBe('function');
-      expect(queryStocksByDateRange.length).toBe(3); // ticker, startDate, endDate
-    });
-  });
-
-  describe('Data Validation', () => {
-    it('should accept valid date format', () => {
-      const validDate = '2025-01-15';
-      expect(validDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    });
-
-    it('should accept valid ticker format', () => {
-      const validTickers = ['AAPL', 'GOOGL', 'MSFT', 'TSLA'];
-      validTickers.forEach((ticker) => {
-        expect(ticker).toBeTruthy();
-        expect(ticker.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('should handle numeric price data', () => {
-      const price = 150.25;
-      const volume = 1000000;
-
-      expect(typeof price).toBe('number');
-      expect(typeof volume).toBe('number');
-      expect(price).toBeGreaterThan(0);
-      expect(volume).toBeGreaterThan(0);
-    });
+    expect(batchPutItems).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining([
+        expect.objectContaining({ ticker: 'AAPL', ttl: 9876543210 }),
+        expect.objectContaining({ ticker: 'GOOGL', ttl: 9876543210 }),
+      ])
+    );
   });
 });

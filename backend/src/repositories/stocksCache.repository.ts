@@ -10,7 +10,7 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { dynamoDb, batchGetItems, batchPutItems } from '../utils/dynamodb.util.js';
-import { calculateTTL } from '../utils/cache.util.js';
+import { calculateTTLByDataType } from '../utils/cache.util.js';
 
 const TABLE_NAME = process.env.STOCKS_CACHE_TABLE || 'StocksCache';
 
@@ -94,7 +94,7 @@ export async function getStock(
 
 /**
  * Cache stock price data
- * Automatically sets TTL to 7 days from now
+ * Automatically sets TTL based on date volatility (90 days historical, 1 day current)
  *
  * @param item - Stock cache item to store
  *
@@ -108,10 +108,11 @@ export async function getStock(
  */
 export async function putStock(item: Omit<StockCacheItem, 'ttl'>): Promise<void> {
   try {
+    const ttl = calculateTTLByDataType('stock', item.date);
     const stockItem: StockCacheItem = {
       ...item,
       ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTL(7), // 7 days expiration
+      ttl,
       fetchedAt: item.fetchedAt || Date.now(),
     };
 
@@ -187,7 +188,7 @@ export async function batchPutStocks(
     const stockItems: StockCacheItem[] = items.map((item) => ({
       ...item,
       ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTL(7),
+      ttl: calculateTTLByDataType('stock', item.date),
       fetchedAt: item.fetchedAt || Date.now(),
     }));
 
