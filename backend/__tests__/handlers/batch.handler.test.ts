@@ -46,6 +46,12 @@ const {
   handleBatchSentimentRequest
 } = await import('../../src/handlers/batch.handler');
 
+// Set required API keys for all tests
+beforeAll(() => {
+  process.env.TIINGO_API_KEY = 'test-tiingo-key';
+  process.env.FINNHUB_API_KEY = 'test-finnhub-key';
+});
+
 describe('handleBatchStocksRequest', () => {
   const mockEvent = (body: any) => ({
     body: JSON.stringify(body),
