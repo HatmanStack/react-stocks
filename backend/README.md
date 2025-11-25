@@ -17,9 +17,9 @@ AWS Lambda backend proxying Tiingo and Finnhub APIs with intelligent DynamoDB ca
 
 ## ✨ Features
 
-* 🚀 **Serverless Architecture** - Auto-scaling Lambda + HTTP API Gateway for cost-effective API proxy
-* 💾 **Smart Caching** - DynamoDB with TTL (90d/1d stocks, 7d news, 30d sentiment) for >80% hit rate
-* ⚡ **Performance Optimization** - API Gateway response caching, gzip compression, and optimized Lambda configuration
+* 🚀 **Serverless Architecture** - Auto-scaling Lambda + HTTP API Gateway v2 for cost-effective API proxy
+* 💾 **Smart Caching** - DynamoDB with variable TTL (90d historical, 1d current, 7d news, 30d sentiment) for >80% hit rate
+* ⚡ **Performance Optimization** - Gzip compression, per-endpoint Lambda tuning, optional provisioned concurrency
 * 🔒 **Security First** - API keys encrypted in Lambda environment, never exposed to frontend
 * 📊 **Stock Data** - Real-time OHLCV prices + company metadata via Tiingo
 * 📰 **News Feed** - Financial news articles with deduplication via Finnhub
@@ -48,36 +48,73 @@ npm run deploy         # Subsequent deploys (prompts for optimization settings)
 
 ## 📡 API Endpoints
 
-| Endpoint | Method | Description | Cache TTL |
-|----------|--------|-------------|-----------|
-| `/stocks` | GET | Stock prices & metadata (Tiingo proxy) | 5 minutes (API Gateway) |
-| `/news` | GET | Financial news articles (Finnhub proxy) | 2 minutes (API Gateway) |
+| Endpoint | Method | Description | DynamoDB Cache |
+|----------|--------|-------------|----------------|
+| `/stocks` | GET | Stock prices & metadata (Tiingo proxy) | 90d (historical) / 1d (current) |
+| `/news` | GET | Financial news articles (Finnhub proxy) | 7 days |
 | `/sentiment` | POST | Start sentiment analysis job | - |
-| `/sentiment/job/{jobId}` | GET | Check job status | - |
-| `/sentiment` | GET | Get sentiment results | 5 minutes (API Gateway) |
+| `/sentiment/job/{jobId}` | GET | Check job status | 1 day |
+| `/sentiment` | GET | Get sentiment results | 30 days |
 
-**Note:** API Gateway Caching reduces Lambda invocations. DynamoDB caching stores data for longer periods (up to 90 days).
+**Note:** DynamoDB caching reduces external API calls and provides fast response times. HTTP API v2 automatically compresses responses >1KB when client sends `Accept-Encoding: gzip` header.
 
 ---
 
 ## ⚙️ Configuration & Optimization
 
-The deployment script (`npm run deploy`) supports interactive configuration for:
+### Deployment Configuration
 
-- **API Gateway Caching**: Enable/disable response caching (default: enabled, 0.5GB)
-- **Response Compression**: Gzip compression automatically enabled for responses >1KB
-- **Lambda Memory/Timeout**: Optimized per endpoint type (Stocks, News, Search, Sentiment, Predict)
-- **Provisioned Concurrency**: Optional configuration for market-hour scaling (reduces cold starts)
+The deployment script (`npm run deploy`) creates a `.deploy-config.json` file (git-ignored) that stores your optimization settings:
+
+```json
+{
+  "region": "us-east-1",
+  "stackName": "stocks-prediction-service",
+  "enableProvisionedConcurrency": false,
+  "provisionedConcurrency": {
+    "marketHours": 5,
+    "preMarket": 2
+  },
+  "lambdaMemory": {
+    "stocks": "512",
+    "news": "512",
+    "search": "256",
+    "sentiment": "1536",
+    "predict": "2048"
+  },
+  "lambdaTimeout": {
+    "stocks": "30",
+    "news": "30",
+    "search": "10",
+    "sentiment": "120",
+    "predict": "120"
+  }
+}
+```
+
+**Configuration Options:**
+
+- **Lambda Memory** (per endpoint): 128-10240 MB
+  - Lower memory for I/O-bound endpoints (stocks, news, search)
+  - Higher memory for CPU-intensive endpoints (sentiment, predict with ML)
+- **Lambda Timeout** (per endpoint): 1-900 seconds
+  - Short timeouts for simple queries (<30s)
+  - Long timeouts for ML processing (120s)
+- **Provisioned Concurrency**: Enable during market hours to eliminate cold starts (optional, costs ~$10/day)
+- **Response Compression**: Automatically enabled for all responses >1KB (HTTP API feature)
+
+**Note:** API Gateway v2 HTTP API doesn't support built-in response caching. Use DynamoDB caching instead (already configured).
 
 ### Cache TTL Strategy
 
-| Data Type | DynamoDB TTL | API Gateway TTL |
-|-----------|--------------|-----------------|
-| Historical Stocks | 90 days | 5 minutes |
-| Current Stocks | 1 day | 5 minutes |
-| News | 7 days | 2 minutes |
-| Sentiment | 30 days | 5 minutes |
-| Metadata | 30 days | 1 hour |
+| Data Type | DynamoDB TTL | Purpose |
+|-----------|--------------|---------|
+| Historical Stocks | 90 days | Immutable historical data |
+| Current Stocks | 1 day | Today's data (intraday updates) |
+| News | 7 days | Moderate volatility |
+| Sentiment | 30 days | Expensive to recompute |
+| Metadata | 30 days | Company info rarely changes |
+| Jobs | 1 day | Temporary job status |
 
 ---
 

@@ -78,8 +78,13 @@ export function parseCacheKey(cacheKey: string): { ticker: string; date: string 
 }
 
 function normalizeDateToUTC(dateString: string): Date {
-  const date = new Date(dateString);
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Parse YYYY-MM-DD as UTC midnight to avoid timezone issues
+  // Split the date string and create UTC date directly
+  const parts = dateString.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+  const day = parseInt(parts[2], 10);
+  return new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
 }
 
 /**
@@ -96,8 +101,9 @@ export function calculateTTLByDataType(
          throw new Error('Invalid Date');
       }
 
-      const today = new Date();
-      const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+      // Use Date.now() instead of new Date() to properly work with jest.useFakeTimers()
+      const now = new Date(Date.now());
+      const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
       if (itemDate < todayUTC) {
         return calculateTTL(90); // Historical

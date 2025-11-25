@@ -19,11 +19,97 @@ jest.unstable_mockModule('fs', () => ({
 }));
 
 // We need to import these AFTER mocking
-const { generateSamConfig } = await import('../../scripts/deploy.js');
+const { generateSamConfig, validateConfig } = await import('../../scripts/deploy.js');
 
 describe('Deployment Script', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('validateConfig', () => {
+    it('should validate correct Lambda memory values', () => {
+      const config = {
+        lambdaMemory: {
+          stocks: '512',
+          sentiment: '1536'
+        }
+      };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should reject Lambda memory below minimum (128 MB)', () => {
+      const config = {
+        lambdaMemory: {
+          stocks: '64'
+        }
+      };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Invalid lambdaMemory.stocks: 64. Must be between 128-10240 MB.');
+    });
+
+    it('should reject Lambda memory above maximum (10240 MB)', () => {
+      const config = {
+        lambdaMemory: {
+          stocks: '50000'
+        }
+      };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('Must be between 128-10240 MB');
+    });
+
+    it('should validate correct Lambda timeout values', () => {
+      const config = {
+        lambdaTimeout: {
+          stocks: '30',
+          sentiment: '120'
+        }
+      };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should reject Lambda timeout below minimum (1 second)', () => {
+      const config = {
+        lambdaTimeout: {
+          stocks: '0'
+        }
+      };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Invalid lambdaTimeout.stocks: 0. Must be between 1-900 seconds.');
+    });
+
+    it('should reject Lambda timeout above maximum (900 seconds)', () => {
+      const config = {
+        lambdaTimeout: {
+          stocks: '1000'
+        }
+      };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('Must be between 1-900 seconds');
+    });
+
+    it('should validate multiple fields and return all errors', () => {
+      const config = {
+        lambdaMemory: {
+          stocks: '50000',
+          sentiment: '64'
+        },
+        lambdaTimeout: {
+          stocks: '0',
+          sentiment: '1000'
+        }
+      };
+      const result = validateConfig(config);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toHaveLength(4);
+    });
   });
 
   describe('generateSamConfig', () => {
