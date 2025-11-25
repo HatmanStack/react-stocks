@@ -139,14 +139,14 @@ Implement application-level performance optimizations that build on Phase 1's in
    - Lower limits than single-ticker endpoint (batch is more expensive)
 
 **Verification Checklist:**
-- [ ] Request validation rejects invalid tickers, dates, batch sizes
-- [ ] Parallel processing completes for all tickers
-- [ ] Partial results returned when some tickers fail
-- [ ] Response includes success/error counts and cache status
-- [ ] API Gateway route configured correctly (POST, no caching)
-- [ ] Rate limiting prevents >10 ticker batches
-- [ ] `handlePricesRequest` function exported from `stocks.handler.ts`
-- [ ] Handler imports and reuses `handlePricesRequest` logic (DRY)
+- [x] Request validation rejects invalid tickers, dates, batch sizes
+- [x] Parallel processing completes for all tickers
+- [x] Partial results returned when some tickers fail
+- [x] Response includes success/error counts and cache status
+- [x] API Gateway route configured correctly (POST, no caching)
+- [x] Rate limiting prevents >10 ticker batches
+- [x] `handlePricesRequest` function exported from `stocks.handler.ts`
+- [x] Handler imports and reuses `handlePricesRequest` logic (DRY)
 
 **Testing Instructions:**
 - **Unit tests** (`__tests__/handlers/batch.handler.test.ts`):
@@ -270,12 +270,12 @@ Configure API Gateway route with POST method and throttling
    - Reason: Async job tracking is more complex for batches
 
 **Verification Checklist:**
-- [ ] Batch news endpoint returns articles for all tickers
-- [ ] Batch sentiment endpoint returns sentiment data for all tickers
-- [ ] Partial results work for both endpoints
-- [ ] Validation rejects oversized batches (article/record limits)
-- [ ] API Gateway routes configured correctly
-- [ ] Handlers reuse existing single-ticker logic (DRY)
+- [x] Batch news endpoint returns articles for all tickers
+- [x] Batch sentiment endpoint returns sentiment data for all tickers
+- [x] Partial results work for both endpoints
+- [x] Validation rejects oversized batches (article/record limits)
+- [x] API Gateway routes configured correctly
+- [x] Handlers reuse existing single-ticker logic (DRY)
 
 **Testing Instructions:**
 - **Unit tests** (`__tests__/handlers/batch.handler.test.ts`):

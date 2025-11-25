@@ -107,6 +107,33 @@ export async function handler(
         return predictionHandler(event);
       }
 
+      case '/batch/stocks': {
+        // POST only
+        if (method !== 'POST') {
+          return errorResponse(`Method ${method} not allowed for /batch/stocks`, 405);
+        }
+        const { handleBatchStocksRequest } = await import('./handlers/batch.handler');
+        return handleBatchStocksRequest(event);
+      }
+
+      case '/batch/news': {
+        // POST only
+        if (method !== 'POST') {
+          return errorResponse(`Method ${method} not allowed for /batch/news`, 405);
+        }
+        const { handleBatchNewsRequest } = await import('./handlers/batch.handler');
+        return handleBatchNewsRequest(event);
+      }
+
+      case '/batch/sentiment': {
+        // POST only
+        if (method !== 'POST') {
+          return errorResponse(`Method ${method} not allowed for /batch/sentiment`, 405);
+        }
+        const { handleBatchSentimentRequest } = await import('./handlers/batch.handler');
+        return handleBatchSentimentRequest(event);
+      }
+
       default: {
         // Check if it's a job status request (/sentiment/job/:jobId)
         if (path.startsWith('/sentiment/job/')) {

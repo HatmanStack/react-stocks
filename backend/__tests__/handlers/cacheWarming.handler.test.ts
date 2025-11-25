@@ -1,0 +1,51 @@
+import { handler } from '../../src/handlers/cacheWarming.handler';
+import { jest } from '@jest/globals';
+
+// Mock dependencies
+const mockWarmAllTopTickers = jest.fn();
+jest.unstable_mockModule('../../src/services/cacheWarming.service', () => ({
+  warmAllTopTickers: mockWarmAllTopTickers,
+}));
+
+jest.unstable_mockModule('../../src/utils/error.util', () => ({
+  logError: jest.fn(),
+}));
+
+describe('Cache Warming Handler', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should warm cache successfully', async () => {
+    mockWarmAllTopTickers.mockResolvedValue({ success: 10, failure: 0 } as never);
+
+    const event = {
+      'detail-type': 'Scheduled Event',
+      source: 'aws.events',
+      time: '2025-01-01T14:00:00Z',
+      id: 'test-event-id',
+      resources: [],
+      detail: {},
+    };
+
+    const result = await handler(event as any);
+
+    expect(result).toEqual({ success: 10, failure: 0 });
+    expect(mockWarmAllTopTickers).toHaveBeenCalled();
+  });
+
+  it('should handle errors', async () => {
+    mockWarmAllTopTickers.mockRejectedValue(new Error('Warming failed') as never);
+
+    const event = {
+      'detail-type': 'Scheduled Event',
+      source: 'aws.events',
+      time: '2025-01-01T14:00:00Z',
+      id: 'test-event-id',
+      resources: [],
+      detail: {},
+    };
+
+    await expect(handler(event as any)).rejects.toThrow('Warming failed');
+  });
+});
