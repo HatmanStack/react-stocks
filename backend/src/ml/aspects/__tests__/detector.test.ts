@@ -2,6 +2,7 @@
  * Tests for aspect detection engine
  */
 
+import { describe, it, expect } from '@jest/globals';
 import {
   extractSentences,
   detectAspectMentions,
