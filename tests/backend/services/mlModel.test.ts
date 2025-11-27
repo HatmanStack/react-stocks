@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import * as tf from '@tensorflow/tfjs-node';
 import { trainModel, calculateClassWeights, createLogisticRegressionModel, validateModel } from '../../../backend/src/services/mlModel';
 

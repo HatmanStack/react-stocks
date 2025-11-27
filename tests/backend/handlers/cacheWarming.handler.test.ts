@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 // Mock dependencies BEFORE importing handler
 const mockWarmAllTopTickers = jest.fn();

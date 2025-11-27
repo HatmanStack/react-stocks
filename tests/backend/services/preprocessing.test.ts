@@ -1,3 +1,4 @@
+import { describe, it, expect, afterEach } from '@jest/globals';
 import { prepare_training_data, create_scaler, normalize_features } from '../../../backend/src/services/preprocessing';
 import { DailyFeatures } from '../../../backend/src/types/prediction.types';
 import * as tf from '@tensorflow/tfjs-node';

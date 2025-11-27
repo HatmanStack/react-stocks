@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 /**
  * Unit tests for NewsCache repository
  */

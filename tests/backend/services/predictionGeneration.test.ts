@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { generate_predictions, createLogisticRegressionModel } from '../../../backend/src/services/mlModel';
 import { create_scaler } from '../../../backend/src/services/preprocessing';
 import { DailyFeatures } from '../../../backend/src/types/prediction.types';
