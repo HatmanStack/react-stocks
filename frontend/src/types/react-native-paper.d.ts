@@ -1,6 +1,13 @@
+/**
+ * Type augmentation for react-native-paper MD3 theme.
+ * Extends the library's theme types with custom colors and design tokens.
+ * All themes using these augmented types must provide these fields.
+ * See frontend/src/theme/theme.ts for the implementation.
+ */
 import 'react-native-paper';
 
 declare module 'react-native-paper' {
+  // Sentiment indicator colors added to the base MD3 palette
   interface MD3Colors {
     positive: string;
     negative: string;

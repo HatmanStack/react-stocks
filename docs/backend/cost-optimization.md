@@ -4,6 +4,10 @@
 
 This document tracks the cost impact of performance optimizations implemented in Phase 1 and Phase 2.
 
+**Phase References:**
+- Phase 1 (Infrastructure): Commit `9f20abd` - Lambda memory tuning, DynamoDB caching, provisioned concurrency
+- Phase 2 (Application): Commit `be8373b` - Batch endpoints, cache warming, CloudWatch monitoring
+
 ## Baseline vs Optimized Costs
 
 | Service | Baseline (Monthly) | Optimized (Monthly) | Savings |
