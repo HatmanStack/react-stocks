@@ -13,7 +13,7 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { dynamoDb, batchPutItems } from '../utils/dynamodb.util.js';
-import { calculateTTL } from '../utils/cache.util.js';
+import { calculateTTLByDataType } from '../utils/cache.util.js';
 import type { SentimentCacheItem } from '../types/sentiment.types.js';
 
 const TABLE_NAME = process.env.SENTIMENT_CACHE_TABLE || 'SentimentCache';
@@ -62,7 +62,7 @@ export async function getSentiment(
 
 /**
  * Cache sentiment analysis result
- * Automatically sets TTL to 90 days from now
+ * Automatically sets TTL to 30 days from now (was 90 days)
  *
  * @param item - Sentiment cache item to store
  *
@@ -86,7 +86,7 @@ export async function putSentiment(
     const sentimentItem: SentimentCacheItem = {
       ...item,
       ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTL(90), // 90 days expiration (sentiment is timeless)
+      ttl: calculateTTLByDataType('sentiment'), // 30 days expiration
       analyzedAt: item.analyzedAt || Date.now(),
     };
 
@@ -155,7 +155,7 @@ export async function batchPutSentiments(
     const sentimentItems: SentimentCacheItem[] = items.map((item) => ({
       ...item,
       ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTL(90),
+      ttl: calculateTTLByDataType('sentiment'),
       analyzedAt: item.analyzedAt || Date.now(),
     }));
 

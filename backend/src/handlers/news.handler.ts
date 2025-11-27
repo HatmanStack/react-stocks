@@ -47,7 +47,7 @@ async function filterNewArticles(
 /**
  * Handle news request with three-tier caching
  */
-async function handleNewsWithCache(
+export async function handleNewsWithCache(
   ticker: string,
   from: string,
   to: string,

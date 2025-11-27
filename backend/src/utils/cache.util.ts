@@ -77,6 +77,56 @@ export function parseCacheKey(cacheKey: string): { ticker: string; date: string 
   return { ticker, date };
 }
 
+function normalizeDateToUTC(dateString: string): Date {
+  // Parse YYYY-MM-DD as UTC midnight to avoid timezone issues
+  // Split the date string and create UTC date directly
+  const parts = dateString.split('-');
+  if (parts.length !== 3) {
+    return new Date(NaN); // Signal invalid date
+  }
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+  const day = parseInt(parts[2], 10);
+  return new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+}
+
+/**
+ * Calculate TTL based on data type and date volatility
+ */
+export function calculateTTLByDataType(
+  dataType: 'stock' | 'news' | 'sentiment' | 'metadata' | 'job',
+  date?: string
+): number {
+  if (dataType === 'stock' && date) {
+    try {
+      const itemDate = normalizeDateToUTC(date);
+      if (isNaN(itemDate.getTime())) {
+         throw new Error('Invalid Date');
+      }
+
+      // Use Date.now() instead of new Date() to properly work with jest.useFakeTimers()
+      const now = new Date(Date.now());
+      const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+
+      if (itemDate < todayUTC) {
+        return calculateTTL(90); // Historical
+      }
+      return calculateTTL(1); // Current/Future
+    } catch (e) {
+      console.warn('Invalid date passed to calculateTTLByDataType:', date);
+      return calculateTTL(1);
+    }
+  }
+
+  switch (dataType) {
+    case 'news': return calculateTTL(7);
+    case 'sentiment': return calculateTTL(30);
+    case 'metadata': return calculateTTL(30);
+    case 'job': return calculateTTL(1);
+    default: return calculateTTL(1);
+  }
+}
+
 /**
  * Interface for cached items with TTL and fetch timestamp
  */

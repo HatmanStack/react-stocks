@@ -1,1349 +1,1095 @@
-# Phase 1: Backend Infrastructure & ML Model
+# Phase 1: Infrastructure Optimizations
 
 ## Phase Goal
 
-Implement DynamoDB historical storage tables, frontend database schema updates (table renames + new fields), and complete TypeScript-based prediction handler for multi-signal stock prediction. This phase establishes the hybrid database architecture (DynamoDB backend + frontend cache), integrates existing Phase 5 services (eventClassification, aspectAnalysis, distilFinBERT), and builds the ML pipeline using TensorFlow.js. By the end of this phase, the prediction handler will be fully functional and tested, ready for API Gateway integration in Phase 2.
+Implement infrastructure-level performance and cost optimizations for the API Gateway v2 HTTP API, Lambda functions, and DynamoDB caching layer. These optimizations reduce Lambda invocations by 40%, decrease response latency by 30%, and lower monthly costs by 25-35% without any breaking changes to the existing API contract.
 
-**Success Criteria**:
-- DynamoDB tables created for persistent historical storage (multi-user shared)
-- Frontend tables renamed and updated with new prediction fields
-- Repositories updated to use new table names (`article_analysis_details`, `daily_sentiment_aggregate`)
-- Prediction handler (`prediction.handler.ts`) integrates Phase 5 services
-- TensorFlow.js logistic regression trains on-the-fly and generates predictions
-- Unit tests achieve 80%+ coverage (Jest for TypeScript)
-- Integration tests verify data flow with mocked DynamoDB
+**Success Criteria:**
+- API Gateway response caching enabled with appropriate TTLs per endpoint
+- Lambda memory and timeouts optimized per endpoint type
+- DynamoDB TTL varies by data type (90 days for historical, 1 day for current)
+- Response compression (gzip) enabled for all endpoints
+- Provisioned concurrency configured with market-hour scheduling
+- All optimizations tested with mocked AWS services in CI
+- Zero breaking changes to existing API responses
 
-**Estimated Tokens**: ~105,000
+**Estimated tokens:** ~95,000
 
 ---
 
 ## Prerequisites
 
-### Completed Dependencies
-- Phase 0 read and understood
-- Development environment configured (Node v24, TypeScript, AWS CLI, SAM CLI)
-- **Phase 5 services already implemented** (eventClassification, aspectAnalysis, distilFinBERT)
-  - Located in: `backend/src/services/`
-  - Status: Written but untested (this plan adds comprehensive tests)
+### Required Reading
+- [Phase-0: Foundation](./Phase-0.md) - All ADRs and shared patterns
 
-### External Dependencies to Verify
-- Existing ReactStocksFunction Lambda operational
-- Backend API Gateway accessible (`EXPO_PUBLIC_BACKEND_URL`)
-- Expo SQLite and localStorage database implementations working
-- TensorFlow.js compatible with Lambda environment (Node.js 20)
+### Previous Phases
+- None (this is the first implementation phase)
+
+### External Dependencies
+- AWS account with CloudFormation/SAM deployment permissions
+- Existing `react-stocks-backend` stack deployed
+- API keys configured (Tiingo, Finnhub)
 
 ### Environment Requirements
-- `.env` file with `EXPO_PUBLIC_BACKEND_URL` configured
-- AWS credentials configured locally (DynamoDB access for testing)
-- Node.js 20 with TypeScript support
-
----
-
-## Implementation Guide Reference
-
-**IMPORTANT**: Many tasks in this phase require converting Python/scikit-learn patterns to TypeScript/TensorFlow.js.
-
-📘 **See**: [Python to TypeScript Conversion Guide](./PYTHON_TO_TYPESCRIPT_GUIDE.md)
-
-This comprehensive guide covers:
-- Language syntax differences (Python → TypeScript)
-- NumPy → TensorFlow.js tensor operations
-- scikit-learn → TensorFlow.js ML models
-- pytest → Jest testing patterns
-- Complete code examples and best practices
-
-**When to use the guide**:
-- Tasks involving feature engineering (arrays, math operations)
-- Tasks involving ML models (logistic regression)
-- Tasks involving normalization/scaling
-- Any task marked "NEEDS REWRITE" in PLAN_UPDATES_STATUS.md
-
-**Pattern to follow**:
-1. Read the task requirements
-2. Consult the conversion guide for syntax/library equivalents
-3. Reference existing backend handlers (`sentiment.handler.ts`, `stocks.handler.ts`) for architectural patterns
-4. Implement using TypeScript/TensorFlow.js
-5. Test with Jest (not pytest)
+- Node.js v20.x
+- AWS CLI v2.x configured
+- AWS SAM CLI v1.100+
+- Existing `.deploy-config.json` from previous deployment
 
 ---
 
 ## Tasks
 
-### Task 1: Create DynamoDB Historical Storage Tables
+### Task 1: Update Deployment Configuration Schema
 
-**Goal**: Create three new DynamoDB tables for persistent multi-user historical data storage: `StockHistoricalData`, `ArticleAnalysisData`, and `DailySentimentAggregate`. These tables enable cross-user caching and incremental date range appending.
+**Goal:** Extend `.deploy-config.json` schema to support new optimization parameters (cache size, provisioned concurrency, per-endpoint Lambda configs). This establishes the configuration foundation for all subsequent tasks.
 
-**Files to Modify/Create**:
-- `backend/template.yaml` - Add DynamoDB table definitions
-- `backend/src/types/dynamodb.types.ts` - TypeScript interfaces for DynamoDB items
-- `backend/src/services/dynamodb.client.ts` - DynamoDB client wrapper
-- `__tests__/backend/services/dynamodb.client.test.ts` - Unit tests
+**Files to Modify/Create:**
+- `backend/scripts/deploy.js` - Extend config schema and prompts
+- `backend/.gitignore` - Ensure config files are ignored
+- `backend/README.md` - Document new config options
 
-**Prerequisites**:
-- Understanding of DynamoDB table design (partition key + sort key)
-- Familiarity with SAM template DynamoDB resources
-- Knowledge of AWS SDK v3 DynamoDB operations
+**Prerequisites:**
+- Read Phase-0 deployment script specifications
+- Understand existing `deploy.js` implementation
 
-**Implementation Steps**:
-1. Update `backend/template.yaml` with three new table resources:
-   - **StockHistoricalData**:
-     - PartitionKey: `ticker` (STRING)
-     - SortKey: `date` (STRING, ISO 8601)
-     - Attributes: OHLCV, marketCap, ratios
-     - BillingMode: PAY_PER_REQUEST (or provisioned with auto-scaling)
-   - **ArticleAnalysisData**:
-     - PartitionKey: `ticker` (STRING)
-     - SortKey: `articleHash#date` (STRING, composite)
-     - Attributes: eventType, aspectScore, distilFinBERTScore, materialityScore
-     - GSI (optional): date-based queries
-   - **DailySentimentAggregate**:
-     - PartitionKey: `ticker` (STRING)
-     - SortKey: `date` (STRING)
-     - Attributes: eventCounts, avgAspectScore, avgFinBERTScore, prediction fields
-2. Add table name environment variables to Lambda function config
-3. Create TypeScript interfaces in `dynamodb.types.ts`:
-   - `StockHistoricalDataItem`, `ArticleAnalysisDataItem`, `DailySentimentAggregateItem`
-4. Create DynamoDB client wrapper with type-safe methods:
-   - `putStockData()`, `getStockData()`, `queryStockDataByDateRange()`
-   - `putArticleAnalysis()`, `queryArticlesByTicker()`
-   - `putDailySentiment()`, `getDailySentiment()`
-5. Write unit tests with mocked DynamoDB client
+**Implementation Steps:**
+1. Extend `.deploy-config.json` schema to include new fields:
+   - `enableApiGatewayCaching` (boolean, default: true)
+   - `apiGatewayCacheSize` (string, options: '0.5', '1.6', '6.1', '13.5' GB)
+   - `cacheTTL` object with per-endpoint TTL values in seconds
+   - `enableProvisionedConcurrency` (boolean, default: false)
+   - `provisionedConcurrency` object (marketHours, preMarket counts)
+   - `lambdaMemory` object (per-endpoint memory in MB)
+   - `lambdaTimeout` object (per-endpoint timeout in seconds)
 
-**Verification Checklist**:
-- [ ] SAM template validates (`sam validate`)
-- [ ] Three DynamoDB tables defined in template
-- [ ] Environment variables configured for table names
-- [ ] TypeScript interfaces match DynamoDB schema
-- [ ] DynamoDB client wrapper implements CRUD operations
-- [ ] Unit tests mock DynamoDB operations (no real AWS calls)
-- [ ] Tests verify type safety and error handling
+2. Add interactive prompts in `deploy.js` for new config values:
+   - If `enableApiGatewayCaching` not set, prompt: "Enable API Gateway caching? (y/n) [y]"
+   - If `apiGatewayCacheSize` not set, prompt: "Cache size in GB (0.5/1.6/6.1/13.5) [0.5]"
+   - Skip provisioned concurrency prompts initially (advanced feature)
 
-**Testing Instructions**:
-- Unit test: DynamoDB client wrapper methods
-- Unit test: putStockData and getStockData operations
-- Unit test: Query operations with date ranges
-- Unit test: Error handling (table not found, validation errors)
-- Run: `npm test -- dynamodb.client.test.ts`
-- Validate: `cd backend && sam validate`
+3. Provide sensible defaults for missing values:
+   - Cache TTL defaults from ADR-001 (stocks: 300s, news: 120s, metadata: 3600s)
+   - Lambda memory defaults from ADR-002 (stocks: 512, sentiment: 1536, predict: 2048)
+   - Lambda timeout defaults from ADR-002 (stocks: 30, sentiment: 120, predict: 120)
 
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
+4. Validate configuration values:
+   - Cache size must be one of AWS-supported sizes
+   - Lambda memory must be 128-10240 MB
+   - Lambda timeout must be 1-900 seconds
+   - TTL values must be positive integers
 
-feat(backend): create DynamoDB tables for historical data storage
+5. Generate `samconfig.toml` parameter overrides from config:
+   - Convert config object to SAM parameter_overrides array
+   - Handle boolean values (convert true/false to 'true'/'false' strings)
+   - Mask sensitive values (API keys) in console output
 
-- Add StockHistoricalData table (ticker + date keys)
-- Add ArticleAnalysisData table (ticker + articleHash#date keys)
-- Add DailySentimentAggregate table (ticker + date keys)
-- Create TypeScript interfaces for DynamoDB items
-- Implement DynamoDB client wrapper with type-safe methods
-- Add unit tests with mocked AWS SDK
-```
+**Verification Checklist:**
+- [x] Config schema includes all new optimization parameters
+- [x] Interactive prompts work for missing values
+- [x] Defaults match ADR specifications
+- [x] Config validation catches invalid values (wrong cache size, memory out of range)
+- [x] `.deploy-config.json` saves correctly after prompts
+- [x] `samconfig.toml` generates with correct parameter_overrides
+- [x] Sensitive values (API keys) are masked in console output
 
----
+**Testing Instructions:**
+- **Unit tests** (`__tests__/scripts/deploy.test.js`):
+  - Test config schema validation (valid/invalid cache sizes, memory, timeouts)
+  - Test default value generation for missing fields
+  - Test SAM parameter override generation from config object
+  - Mock `readline` for prompt testing
+- **Integration tests** (manual, local only):
+  - Run `npm run deploy` without `.deploy-config.json` - verify prompts appear
+  - Run `npm run deploy` with existing config - verify no prompts, uses saved values
+  - Verify generated `samconfig.toml` contains expected parameter_overrides
+- **CI compatibility:** Tests mock file system and readline, no AWS dependencies
 
-### Task 2: Database Schema Migration - Update Prediction Fields
+**Commit Message Template:**
+```text
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-**Goal**: Replace single-value prediction fields (`nextDay`, `twoWks`, `oneMnth`) with structured direction + probability fields in both `combined_word_count_details` and `portfolio_details` tables. This enables storing binary classification results (up/down) with confidence scores.
+feat(deployment): extend config schema for optimization parameters
 
-**Files to Modify/Create**:
-- `src/database/schema.ts` - Add migration SQL for prediction fields
-- `src/database/database.ts` - Execute migration (SQLite)
-- `src/database/database.web.ts` - Update localStorage schema
-- `src/types/database.types.ts` - Update `CombinedWordDetails` and `PortfolioDetails` interfaces
-- `__tests__/database/migrations/prediction_fields_migration.test.ts` - Test migration
-
-**Prerequisites**:
-- Task 1 completed
-- Understanding of prediction format (direction: 'up' | 'down', probability: 0-1)
-
-**Implementation Steps**:
-1. Create migration constant `MIGRATE_PREDICTION_FORMAT_FIELDS` in `schema.ts`
-2. For `combined_word_count_details`, add six new columns:
-   - `nextDayDirection TEXT` (values: 'up' or 'down')
-   - `nextDayProbability REAL` (range 0-1)
-   - `twoWeekDirection TEXT`
-   - `twoWeekProbability REAL`
-   - `oneMonthDirection TEXT`
-   - `oneMonthProbability REAL`
-3. For `portfolio_details`, add same six columns
-4. Keep legacy fields (`nextDay`, `twoWks`, `oneMnth`) for backward compatibility
-5. Update TypeScript interfaces:
-   - Mark old fields as deprecated (`@deprecated`)
-   - Add new fields with proper types
-6. Update localStorage schema to store new fields
-7. Write migration test covering:
-   - Migration execution
-   - Column existence and types
-   - Valid value constraints
-   - Backward compatibility (legacy fields still work)
-
-**Verification Checklist**:
-- [ ] Migration runs successfully on both tables
-- [ ] New direction fields only accept 'up' or 'down' (or NULL)
-- [ ] New probability fields accept 0-1 range (or NULL)
-- [ ] Legacy prediction fields remain functional
-- [ ] TypeScript interfaces reflect schema changes
-- [ ] localStorage implementation supports new format
-- [ ] Tests pass for both SQLite and localStorage
-
-**Testing Instructions**:
-- Unit test: Migration execution on both tables
-- Unit test: Data type validation (TEXT, REAL)
-- Unit test: Valid value constraints (direction enum, probability range)
-- Unit test: Backward compatibility (old fields readable)
-- Run: `npm test -- prediction_fields_migration.test.ts`
-
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
-
-feat(schema): add structured prediction fields for direction and probability
-
-- Add nextDayDirection, nextDayProbability to combined_word_count_details
-- Add twoWeekDirection, twoWeekProbability to combined_word_count_details
-- Add oneMonthDirection, oneMonthProbability to combined_word_count_details
-- Add same six fields to portfolio_details table
-- Deprecate legacy single-value prediction fields
-- Maintain backward compatibility during migration
+Add API Gateway caching configuration (size, TTL per endpoint)
+Add per-endpoint Lambda memory and timeout configuration
+Add provisioned concurrency scheduling options
+Implement validation for cache size and Lambda limits
+Update prompts to collect new optimization settings
 ```
 
 ---
 
-### Task 3: Repository Layer Updates
+## Review Feedback (Iteration 1)
 
-**Goal**: Update repository methods in `word_count.repository.ts`, `combined_word_count.repository.ts`, and `portfolio.repository.ts` to handle new schema fields. Ensure both SQLite and localStorage implementations work correctly with the updated schema.
+### Task 1: Deployment Configuration - Critical Issues
 
-**Files to Modify/Create**:
-- `src/database/repositories/word_count.repository.ts` - Add new fields to insert/query
-- `src/database/repositories/combined_word_count.repository.ts` - Update prediction field handling
-- `src/database/repositories/portfolio.repository.ts` - Update prediction field handling
-- `__tests__/database/repositories/word_count.repository.test.ts` - Test new fields
-- `__tests__/database/repositories/combined_word_count.repository.test.ts` - Test prediction updates
-- `__tests__/database/repositories/portfolio.repository.test.ts` - Test prediction updates
+> **Consider:** The plan in Implementation Step 4 requires validation logic for:
+> - Cache size must be one of AWS-supported sizes ('0.5', '1.6', '6.1', '13.5')
+> - Lambda memory must be 128-10240 MB
+> - Lambda timeout must be 1-900 seconds
+> - TTL values must be positive integers
+>
+> **Question:** Looking at `backend/scripts/deploy.js:58-135`, where is the validation code that checks these constraints before saving to `.deploy-config.json`?
+>
+> **Think about:** What happens if a user manually edits `.deploy-config.json` and sets `lambdaMemory.stocks` to `50000` (above max)? Will the deployment fail gracefully with a clear error, or will it fail during SAM deployment with a cryptic CloudFormation error?
+>
+> **Reflect:** The verification checklist at line 91 states "Config validation catches invalid values" [x]. Is this accurate if validation code doesn't exist in deploy.js?
 
-**Prerequisites**:
-- Task 1 and Task 2 completed (migrations run successfully)
-- Understanding of repository pattern (see existing repositories)
-- Familiarity with prepared SQL statements
+> **Consider:** The plan's Testing Instructions (lines 97-102) specify unit tests should:
+> - Test config schema validation (valid/invalid cache sizes, memory, timeouts)
+> - Test default value generation for missing fields
+> - Test SAM parameter override generation from config object
+> - Mock `readline` for prompt testing
+>
+> **Question:** Looking at `__tests__/scripts/deploy.test.js:1-82`, which of these test requirements are covered? Are the prompts tested? Is validation tested?
+>
+> **Reflect:** If validation code doesn't exist yet, should those tests be marked as pending/skipped until validation is implemented, or should validation be implemented first?
 
-**Implementation Steps**:
-1. **word_count.repository.ts**:
-   - Update `insert()` to accept and store new fields (eventType, aspectScore, distilFinBERTScore, materialityScore)
-   - Update `findByTicker()` to SELECT new fields
-   - Update `findByHash()` to SELECT new fields
-   - Ensure platform-specific code paths handle both SQLite and localStorage
-2. **combined_word_count.repository.ts**:
-   - Update `insert()` to accept new prediction format (6 fields)
-   - Update `findByTicker()` to SELECT and return new fields
-   - Add helper to map legacy fields to new format (for backward compatibility)
-   - Update transaction logic if needed
-3. **portfolio.repository.ts**:
-   - Update `insert()` and `update()` for new prediction fields
-   - Update `findAll()` to SELECT new fields
-   - Ensure prediction format matches combined_word_count pattern
-4. Write comprehensive repository tests:
-   - Test insert with new fields (valid values)
-   - Test insert with null values (optional fields)
-   - Test query returns new fields correctly
-   - Test backward compatibility (old data still readable)
-   - Test both SQLite and localStorage code paths
+> **Consider:** The plan (line 50) states "Document new config options" in backend/README.md.
+>
+> **Question:** Running `grep -A 10 "Configuration\|.deploy-config" backend/README.md`, do you see a detailed section explaining:
+> - The schema of `.deploy-config.json` with all new fields?
+> - What each optimization parameter does?
+> - Valid value ranges for each parameter?
+> - Examples of a complete config file?
+>
+> **Think about:** If a new developer joins the project, can they understand the deployment configuration from the README alone, or do they need to read deploy.js source code?
 
-**Verification Checklist**:
-- [x] Insert operations accept all new fields
-- [x] Query operations return all new fields
-- [x] Null values handled gracefully
-- [x] Type safety enforced (TypeScript validates field types)
-- [x] Platform-specific code (SQLite vs localStorage) works correctly
-- [x] Existing data (without new fields) still readable
-- [x] Tests cover happy path and edge cases
-- [x] Tests pass on both SQLite and localStorage mocks
+### Task 1: API Gateway Caching - Architectural Mismatch
 
-**Testing Instructions**:
-- Unit test: Insert with all new fields populated
-- Unit test: Insert with null/undefined new fields
-- Unit test: Query returns correct data types
-- Unit test: Backward compatibility with legacy data
-- Integration test: End-to-end insert → query flow
-- Run: `npm test -- repositories/`
+> **Critical Question:** Looking at `backend/scripts/deploy.js:106-109`, the code removes API Gateway caching with the comment "HTTP API doesn't support it".
+>
+> **Consider:** The plan's Phase-1 has an entire Task 2 dedicated to "SAM Template - API Gateway Caching Configuration". Phase-0 ADR-001 discusses "API Gateway Response Caching Strategy" in detail.
+>
+> **Reflect:** If HTTP API v2 doesn't support response caching (which is technically correct), should:
+> 1. The plan be updated to remove caching tasks and adjust ADR-001?
+> 2. The implementation switch from HTTP API to REST API to support caching?
+> 3. An alternative caching strategy be proposed (CloudFront, Lambda@Edge)?
+>
+> **Question:** Looking at lines 88-94 where the verification checklist is marked [x] complete, item 88 states "Config schema includes all new optimization parameters". Does the schema actually include API Gateway caching parameters if they were deleted from the code?
+>
+> **Think about:** If we remove API Gateway caching:
+> - What happens to the expected 40% reduction in Lambda invocations mentioned in the Phase Goal (line 5)?
+> - How do we achieve the cost savings promised in Phase-0 ADR-001?
+> - Should Phase-2 Task 1-2 (batch endpoints) be prioritized to compensate for missing caching?
 
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
+### Test Failures - TTL Calculation Logic
 
-feat(repositories): update repositories for new prediction schema
+> **Consider:** Running `npm test -- __tests__/utils/cache.util.test.ts` shows:
+> ```
+> ✕ current stock date returns 1 day TTL (3 ms)
+>    Expected: 1737460800
+>    Received: 1745150400
+> ```
+>
+> **Question:** Looking at `src/utils/cache.util.ts:92-109`, the logic compares `itemDate < todayUTC` to determine historical vs current dates.
+>
+> **Think about:** When `itemDate` equals `todayUTC` (same day), which branch executes? Line 102 (90-day TTL) or line 105 (1-day TTL)?
+>
+> **Reflect:** The test at `__tests__/utils/cache.util.test.ts:20-24` uses `jest.useFakeTimers()` to mock the date as '2025-01-20T12:00:00Z'. Is the comparison logic in cache.util.ts correctly distinguishing between "today" and "historical" dates? Or does the normalization to UTC midnight change the comparison result?
+>
+> **Debug approach:** What would happen if you added logging to show:
+> - The actual `itemDate` value after normalization
+> - The actual `todayUTC` value
+> - The comparison result (`itemDate < todayUTC`)
+> This might reveal why today's date is being treated as historical.
 
-- Add event and sentiment field support to word_count.repository
-- Update prediction format handling in combined_word_count.repository
-- Update prediction format handling in portfolio.repository
-- Maintain backward compatibility with legacy data
-- Add comprehensive unit tests for new field operations
+### Additional Test Failures
+
+> **Consider:** Running `npm test` shows 23 failing tests across multiple suites:
+> - `__tests__/handlers/stocks.handler.test.ts` - Multiple timeout failures
+> - `__tests__/handlers/stocks.handler.cache.test.ts` - Cache-related failures
+> - `__tests__/handlers/news.handler.cache.test.ts` - Cache-related failures
+> - `__tests__/integration/compression.test.ts` - Compression test failures
+> - `__tests__/integration/api-gateway-cache.test.ts` - API Gateway cache test failures
+>
+> **Question:** Before marking Task 1 as complete, should all tests pass? Or are some test failures acceptable if they're related to tasks that haven't been implemented yet?
+>
+> **Reflect:** Looking at `__tests__/integration/api-gateway-cache.test.ts`, if this tests API Gateway caching functionality that we've decided not to implement (HTTP API limitation), should this test file be:
+> - Deleted (feature won't be implemented)?
+> - Marked as skipped with a comment explaining why?
+> - Updated to test an alternative caching approach?
+>
+> **Think about:** The integration tests for compression and cache were likely created as placeholders. Do they test actual functionality, or are they just skeleton tests waiting for implementation?
+
+### Review Summary - Iteration 1
+
+**Status:** **NEEDS REVISION** - Critical issues found
+
+**What's Working Well:**
+- ✓ Lambda memory/timeout optimization implemented (Task 3)
+- ✓ DynamoDB TTL optimization implemented (Task 4, Task 5)
+- ✓ CloudWatch metrics utilities created (Task 8)
+- ✓ Monitoring documentation created (docs/monitoring.md)
+- ✓ Provisioned concurrency support added (Task 7)
+- ✓ Repository pattern updated correctly
+- ✓ Template.yaml has proper parameter validation (min/max values)
+
+**Critical Issues Requiring Fixes:**
+
+1. **Missing Validation Logic** (Task 1)
+   - No input validation in deploy.js
+   - Tests don't cover validation
+   - Verification checklist incorrectly marked complete
+
+2. **API Gateway Caching Architecture** (Task 1, Task 2)
+   - Caching removed but plan assumes it exists
+   - Fundamental conflict between plan and HTTP API capabilities
+   - Need architectural decision: Update plan, switch to REST API, or alternative approach?
+
+3. **Test Failures** (23 tests failing)
+   - TTL calculation logic bug (current date treated as historical)
+   - Handler timeout issues
+   - Integration tests failing
+
+4. **Incomplete Documentation** (Task 1)
+   - README missing detailed configuration schema
+   - No examples of .deploy-config.json
+
+**Recommended Next Steps:**
+
+1. **Address API Gateway Caching Decision:**
+   - Decide on one approach: Remove from plan, switch to REST API, or use CloudFront
+   - Update Phase-0 ADR-001 if removing caching
+   - Update Phase Goal if cost/performance targets change
+
+2. **Fix Test Failures:**
+   - Debug TTL calculation date comparison (add logging)
+   - Fix or skip integration tests for removed features
+   - Ensure all tests pass before marking tasks complete
+
+3. **Add Missing Validation:**
+   - Implement validation function in deploy.js
+   - Add tests for validation
+   - Update verification checklist accurately
+
+4. **Complete Documentation:**
+   - Add configuration schema section to README
+   - Include example .deploy-config.json
+   - Document validation rules
+
+**Once these issues are addressed, please update the verification checklists accurately and re-run the review.**
+
+---
+
+### Task 2: SAM Template - API Gateway Caching Configuration
+
+**Goal:** Enable API Gateway response caching in SAM template with configurable cache size and per-route TTL settings. This is the foundation for reducing Lambda invocations.
+
+**Files to Modify/Create:**
+- `backend/template.yaml` - Add API Gateway cache configuration
+
+**Prerequisites:**
+- Task 1 complete (config schema updated)
+- Understand API Gateway v2 HTTP API caching model (AWS docs)
+
+**Implementation Steps:**
+1. Add SAM template parameters for caching:
+   - `EnableApiGatewayCaching` (String, AllowedValues: ['true', 'false'], Default: 'true')
+   - `ApiGatewayCacheSize` (String, AllowedValues: ['0.5', '1.6', '6.1', '13.5'], Default: '0.5')
+
+2. Add conditional cache configuration to `ReactStocksApi` resource:
+   - Use `Fn::If` condition: `EnableCaching: !Equals [!Ref EnableApiGatewayCaching, 'true']`
+   - Add `DefaultRouteSettings` with `DataTraceEnabled` and `CachingEnabled`
+   - Set `CacheClusterSize` from parameter (converts to GB internally)
+   - Enable `CacheDataEncrypted: true` for security
+
+3. Configure per-route caching in `RouteSettings`:
+   - Override caching for each route with specific TTL
+   - `'GET /stocks'`: `CacheTtlInSeconds: 300` (5 minutes - historical data doesn't change)
+   - `'GET /news'`: `CacheTtlInSeconds: 120` (2 minutes - frequent updates during market)
+   - `'GET /search'`: `CacheTtlInSeconds: 300` (5 minutes - ticker lists stable)
+   - `'GET /sentiment'`: `CacheTtlInSeconds: 300` (5 minutes - computed results stable)
+   - `'GET /sentiment/job/{jobId}'`: `CacheTtlInSeconds: 0` (disable - job status changes rapidly)
+   - `'POST /sentiment'`: `CacheTtlInSeconds: 0` (disable - POST requests not cacheable)
+   - `'POST /predict'`: `CacheTtlInSeconds: 0` (disable - POST requests not cacheable)
+
+4. Add cache key parameters for GET endpoints:
+   - Include query string parameters in cache key: `ticker`, `startDate`, `endDate`, `type`, `limit`, `query`
+   - This ensures `GET /stocks?ticker=AAPL` and `GET /stocks?ticker=GOOGL` are cached separately
+   - API Gateway v2 automatically includes query parameters in cache key (verify in AWS docs)
+
+5. Add CloudFormation outputs for cache metrics:
+   - `ApiCacheHitCount` - Metric for cache hits
+   - `ApiCacheMissCount` - Metric for cache misses
+   - Document how to query these in CloudWatch
+
+**Verification Checklist:**
+- [ ] SAM template validates successfully (`sam validate`)
+- [ ] Cache configuration only applies when `EnableApiGatewayCaching=true`
+- [ ] Cache size parameter accepts only valid AWS values
+- [ ] Per-route TTL settings match ADR-001 specifications
+- [ ] POST endpoints have caching disabled (TTL=0)
+- [ ] Job status endpoint has caching disabled (rapidly changing data)
+- [ ] Cache encryption is enabled
+- [ ] Template deploys without errors (test in dev environment)
+
+**Testing Instructions:**
+- **Unit tests:** Not applicable (CloudFormation configuration)
+- **Integration tests** (`__tests__/integration/api-gateway-cache.test.ts`):
+  - Mock API Gateway SDK to verify cache settings applied
+  - Test cache hit/miss behavior with mocked responses
+  - Verify query parameters affect cache key (different tickers = different cache entries)
+- **Manual verification** (post-deployment):
+  - Deploy with caching enabled
+  - Make identical requests (same ticker, same date range)
+  - Check CloudWatch Logs for `X-Cache: Hit` header
+  - Verify Lambda invocation count decreases on repeated requests
+  - Use AWS Console → API Gateway → Caching to verify configuration
+
+**Commit Message Template:**
+```text
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+feat(api-gateway): enable response caching with per-route TTL
+
+Add cache configuration to API Gateway v2 HTTP API
+Set cache size to 0.5GB with encryption enabled
+Configure per-route TTL (5min stocks, 2min news, 5min search)
+Disable caching for POST endpoints and job status polls
+Include query parameters in cache key for granular caching
 ```
 
 ---
 
-### Task 4: Prediction Handler Setup and Route Configuration
+### Task 3: SAM Template - Per-Endpoint Lambda Memory and Timeout
 
-**Goal**: Add prediction handler to existing ReactStocksFunction Lambda following the established backend pattern. Configure TypeScript dependencies and add `/predict` route to API Gateway.
+**Goal:** Optimize Lambda function memory and timeout allocations per endpoint type. This reduces costs for I/O-bound endpoints and improves performance for CPU-bound ML endpoints.
 
-**Files to Modify/Create**:
-- `backend/src/handlers/prediction.handler.ts` - New prediction handler (TypeScript)
-- `backend/src/index.ts` - Add route mapping for /predict
-- `backend/src/types/prediction.types.ts` - Request/response types
-- `backend/package.json` - Add TensorFlow.js dependency
-- `backend/template.yaml` - Add /predict API route
-- `__tests__/backend/handlers/prediction.handler.test.ts` - Handler tests
+**Files to Modify/Create:**
+- `backend/template.yaml` - Add per-endpoint Lambda configuration
 
-**Prerequisites**:
-- Task 3 completed (repository layer ready)
-- Understanding of existing handler pattern (see `sentiment.handler.ts`)
-- Familiarity with SAM API Gateway route configuration
+**Prerequisites:**
+- Task 1 complete (config schema supports per-endpoint settings)
+- Understand Lambda pricing model (GB-seconds)
+- Review ADR-002 for memory/timeout rationale
 
-**Implementation Steps**:
+**Implementation Steps:**
+1. Add SAM template parameters for Lambda configurations:
+   - `StocksMemory` (Number, Default: 512, Min: 128, Max: 10240)
+   - `StocksTimeout` (Number, Default: 30, Min: 1, Max: 900)
+   - `NewsMemory`, `NewsTimeout` (512MB, 30s)
+   - `SearchMemory`, `SearchTimeout` (256MB, 10s)
+   - `SentimentMemory`, `SentimentTimeout` (1536MB, 120s)
+   - `PredictMemory`, `PredictTimeout` (2048MB, 120s)
 
-1. **Install TensorFlow.js** in backend:
-   ```bash
-   cd backend
-   npm install --save @tensorflow/tfjs-node
+2. Create environment variable to identify endpoint type in Lambda:
+   - Add `ENDPOINT_TYPE` environment variable per event
+   - Values: 'stocks', 'news', 'search', 'sentiment', 'predict'
+   - Lambda handler uses this to apply endpoint-specific logic if needed
+
+3. **Option A: Single Lambda with Environment Variables** (Recommended for Phase 1):
+   - Keep single `ReactStocksFunction` resource
+   - Set memory/timeout to highest required values (2048MB, 120s)
+   - Add monitoring to track actual usage per endpoint
+   - Plan to split functions in Phase 2 if cost becomes significant
+   - **Rationale:** Simpler deployment, single codebase, avoids cold start multiplication
+   - **Trade-off:** Some over-provisioning for lightweight endpoints
+
+4. **Option B: Separate Lambda Functions** (Future optimization):
+   - Create separate function resources: `StocksFunction`, `NewsFunction`, etc.
+   - Each function has optimized memory/timeout
+   - Requires code duplication or shared layers
+   - More complex deployment and monitoring
+   - **Defer to Phase 2** based on cost analysis
+
+5. For Phase 1, implement Option A with metrics:
+   - Configure `ReactStocksFunction` with maximum required resources (2048MB, 120s)
+   - Add CloudWatch Logs Insights queries to track actual memory/duration per endpoint
+   - Document queries in `backend/docs/monitoring.md` for future optimization
+
+6. Update `Globals.Function` section if using Option A:
+   - Set `MemorySize: !Ref PredictMemory` (highest requirement)
+   - Set `Timeout: !Ref PredictTimeout` (longest requirement)
+   - Add comment explaining this is conservative provisioning pending per-endpoint splitting
+
+**Verification Checklist:**
+- [ ] SAM template parameters added for all endpoint memory/timeout values
+- [ ] Template validates successfully (`sam validate`)
+- [ ] Lambda function(s) deploy with correct memory/timeout configuration
+- [ ] CloudWatch Logs show actual memory usage per endpoint type
+- [ ] Lightweight endpoints (search) don't timeout despite conservative provisioning
+- [ ] CPU-intensive endpoints (sentiment, predict) complete within timeout
+
+**Testing Instructions:**
+- **Unit tests:** Not applicable (CloudFormation configuration)
+- **Integration tests** (`__tests__/integration/lambda-config.test.ts`):
+  - Mock Lambda SDK to verify memory/timeout settings applied
+  - Test handler execution with mocked AWS SDK
+  - Verify no timeouts for typical workloads
+- **Manual verification** (post-deployment):
+  - Deploy with optimized settings
+  - Invoke each endpoint type (stocks, news, search, sentiment, predict)
+  - Check CloudWatch Logs → Lambda Insights for "Max Memory Used"
+  - Verify sentiment/predict endpoints complete within timeout
+  - Compare memory usage to allocated memory (should be <80% utilization)
+  - Document actual usage for future optimization
+
+**Commit Message Template:**
+```text
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+perf(lambda): add per-endpoint memory and timeout parameters
+
+Add SAM parameters for endpoint-specific Lambda configuration
+Configure conservative provisioning (2048MB, 120s) for all endpoints
+Add CloudWatch monitoring for actual memory/duration per endpoint
+Document optimization path for future per-function splitting
+```
+
+---
+
+### Task 4: DynamoDB TTL Optimization Utility
+
+**Goal:** Create utility function to calculate variable TTL based on data type and date. This reduces storage costs for volatile data and extends caching for immutable historical data.
+
+**Files to Modify/Create:**
+- `backend/src/utils/cache.util.ts` - Add `calculateTTLByDataType` function
+- `backend/__tests__/utils/cache.util.test.ts` - Add tests for new TTL logic
+
+**Prerequisites:**
+- Understand ADR-003 TTL optimization strategy
+- Review existing `calculateTTL` function in `cache.util.ts`
+
+**Implementation Steps:**
+1. Design `calculateTTLByDataType` function signature:
+   ```typescript
+   export function calculateTTLByDataType(
+     dataType: 'stock' | 'news' | 'sentiment' | 'metadata' | 'job',
+     date?: string // ISO format YYYY-MM-DD, optional
+   ): number
    ```
 
-2. **Create type definitions** in `types/prediction.types.ts`:
-   ```typescript
-   export interface PredictionRequest {
-       ticker: string;
-       days: number;
-   }
+2. Implement date-aware TTL calculation for stock prices:
+   - Parse `date` parameter to Date object
+   - Get today's date (UTC, normalized to midnight)
+   - If `date < today` (historical data): return `calculateTTL(90)` (90 days)
+   - If `date >= today` (current day): return `calculateTTL(1)` (1 day)
+   - Handle edge case: market not yet closed today - still consider "current"
 
-   export interface PredictionResponse {
-       ticker: string;
-       predictions: {
-           nextDay: { direction: 'up' | 'down'; probability: number };
-           twoWeek: { direction: 'up' | 'down'; probability: number };
-           oneMonth: { direction: 'up' | 'down'; probability: number };
+3. Implement fixed TTL for other data types:
+   - `'news'`: 7 days (moderate volatility)
+   - `'sentiment'`: 30 days (expensive to recompute)
+   - `'metadata'`: 30 days (company info rarely changes)
+   - `'job'`: 1 day (temporary job status)
+
+4. Add date normalization helper:
+   ```typescript
+   function normalizeDateToUTC(dateString: string): Date {
+     const date = new Date(dateString);
+     return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+   }
+   ```
+
+5. Handle invalid inputs gracefully:
+   - If `date` is invalid, log warning and use conservative default (1 day)
+   - If `dataType` is unknown, log error and use 1 day default
+   - Never throw exceptions (TTL calculation shouldn't break cache writes)
+
+6. Add comprehensive unit tests:
+   - Historical stock date (2020-01-15) → 90 days TTL
+   - Today's stock date → 1 day TTL
+   - Future stock date (edge case) → 1 day TTL
+   - News data → 7 days TTL
+   - Sentiment data → 30 days TTL
+   - Metadata → 30 days TTL
+   - Job status → 1 day TTL
+   - Invalid date string → 1 day TTL (default)
+   - Unknown data type → 1 day TTL (default)
+
+**Verification Checklist:**
+- [ ] Function correctly identifies historical vs current dates
+- [ ] TTL values match ADR-003 specifications
+- [ ] Invalid inputs return safe defaults (1 day)
+- [ ] No exceptions thrown for malformed dates
+- [ ] Unit tests cover all data types and edge cases
+- [ ] Tests use mocked Date.now() for consistent "today" reference
+
+**Testing Instructions:**
+- **Unit tests** (`__tests__/utils/cache.util.test.ts`):
+  ```typescript
+  describe('calculateTTLByDataType', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2025-01-20T12:00:00Z')); // Mock "today"
+    });
+
+    test('historical stock date returns 90 days TTL', () => {
+      const ttl = calculateTTLByDataType('stock', '2025-01-15');
+      const expectedTTL = calculateTTL(90);
+      expect(ttl).toBe(expectedTTL);
+    });
+
+    test('current stock date returns 1 day TTL', () => {
+      const ttl = calculateTTLByDataType('stock', '2025-01-20');
+      const expectedTTL = calculateTTL(1);
+      expect(ttl).toBe(expectedTTL);
+    });
+
+    test('news data returns 7 days TTL', () => {
+      const ttl = calculateTTLByDataType('news');
+      expect(ttl).toBe(calculateTTL(7));
+    });
+
+    // ... more tests
+  });
+  ```
+- **Integration tests:** Not required (pure utility function)
+- **CI compatibility:** Tests use mocked timers, no external dependencies
+
+**Commit Message Template:**
+```text
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+feat(cache): add data-type-aware TTL calculation
+
+Implement calculateTTLByDataType for variable cache expiration
+Historical stock prices: 90 days (immutable data)
+Current-day stock prices: 1 day (intraday updates)
+Sentiment cache: 30 days (expensive to recompute)
+News: 7 days, metadata: 30 days, jobs: 1 day
+Add comprehensive tests with mocked timers
+```
+
+---
+
+### Task 5: Update Repositories to Use Variable TTL
+
+**Goal:** Integrate new TTL calculation logic into all DynamoDB repository methods. This applies the optimization strategy from Task 4 to actual cache writes.
+
+**Files to Modify/Create:**
+- `backend/src/repositories/stocksCache.repository.ts` - Update `putStock`, `batchPutStocks`
+- `backend/src/repositories/newsCache.repository.ts` - Update `putNews`, `batchPutNews`
+- `backend/src/repositories/sentimentCache.repository.ts` - Update put methods
+- `backend/__tests__/repositories/*.repository.test.ts` - Update tests to verify TTL
+
+**Prerequisites:**
+- Task 4 complete (TTL utility function implemented)
+- Understand repository pattern from Phase-0
+
+**Implementation Steps:**
+1. Update `stocksCache.repository.ts`:
+   - Import `calculateTTLByDataType` from `cache.util`
+   - Modify `putStock` function:
+     ```typescript
+     export async function putStock(item: Omit<StockCacheItem, 'ttl'>): Promise<void> {
+       const ttl = calculateTTLByDataType('stock', item.date);
+       const stockItem: StockCacheItem = {
+         ...item,
+         ticker: item.ticker.toUpperCase(),
+         ttl,
+         fetchedAt: item.fetchedAt || Date.now(),
        };
-   }
-
-   export const MODEL_CONFIG = {
-       inputDim: 14,
-       learningRate: 0.01,
-       epochs: 100,
-       batchSize: 32,
-       validationSplit: 0.2,
-       horizons: [1, 14, 30],
-       labelThreshold: 0.01  // ±1%
-   } as const;
-   ```
-
-3. **Create minimal handler** `handlers/prediction.handler.ts`:
-   ```typescript
-   import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-   import { PredictionRequest, PredictionResponse } from '../types/prediction.types';
-
-   export async function predictionHandler(
-       event: APIGatewayProxyEvent
-   ): Promise<APIGatewayProxyResult> {
-       console.log('[PredictionHandler] Request received:', event.body);
-
-       try {
-           // Parse request
-           const request: PredictionRequest = JSON.parse(event.body || '{}');
-
-           // Validate
-           if (!request.ticker || !request.days || request.days < 30) {
-               return {
-                   statusCode: 400,
-                   body: JSON.stringify({ error: 'Invalid request' })
-               };
-           }
-
-           // TODO: Implement prediction logic (Tasks 5-11)
-           const response: PredictionResponse = {
-               ticker: request.ticker,
-               predictions: {
-                   nextDay: { direction: 'up', probability: 0.5 },
-                   twoWeek: { direction: 'up', probability: 0.5 },
-                   oneMonth: { direction: 'down', probability: 0.5 }
-               }
-           };
-
-           return {
-               statusCode: 200,
-               headers: {
-                   'Content-Type': 'application/json',
-                   'Access-Control-Allow-Origin': '*'
-               },
-               body: JSON.stringify(response)
-           };
-       } catch (error) {
-           console.error('[PredictionHandler] Error:', error);
-           return {
-               statusCode: 500,
-               body: JSON.stringify({ error: 'Internal server error' })
-           };
-       }
-   }
-   ```
-
-4. **Update route mapping** in `index.ts`:
-   ```typescript
-   import { predictionHandler } from './handlers/prediction.handler';
-
-   export const handler = async (event: APIGatewayProxyEvent) => {
-       const path = event.requestContext.http.path;
-
-       switch (path) {
-           case '/stocks':
-               return stocksHandler(event);
-           case '/news':
-               return newsHandler(event);
-           case '/sentiment':
-               return sentimentHandler(event);
-           case '/predict':  // NEW
-               return predictionHandler(event);
-           default:
-               return { statusCode: 404, body: 'Not Found' };
-       }
-   };
-   ```
-
-5. **Update SAM template** `template.yaml`:
-   - Add new HttpApi event to ReactStocksFunction:
-     ```yaml
-     PredictApi:
-       Type: HttpApi
-       Properties:
-         ApiId: !Ref ReactStocksApi
-         Path: /predict
-         Method: POST
+       // ... existing DynamoDB put logic
+     }
      ```
-   - **NO new Lambda function** (reuses existing ReactStocksFunction)
-
-6. **Write handler test**:
-   ```typescript
-   import { predictionHandler } from '../../../src/handlers/prediction.handler';
-   import { APIGatewayProxyEvent } from 'aws-lambda';
-
-   describe('predictionHandler', () => {
-       it('should return 400 for invalid request', async () => {
-           const event = {
-               body: JSON.stringify({ ticker: 'AAPL' })  // Missing days
-           } as APIGatewayProxyEvent;
-
-           const response = await predictionHandler(event);
-
-           expect(response.statusCode).toBe(400);
-       });
-
-       it('should return 200 with valid request', async () => {
-           const event = {
-               body: JSON.stringify({ ticker: 'AAPL', days: 30 })
-           } as APIGatewayProxyEvent;
-
-           const response = await predictionHandler(event);
-
-           expect(response.statusCode).toBe(200);
-           const body = JSON.parse(response.body);
-           expect(body.ticker).toBe('AAPL');
-           expect(body.predictions).toBeDefined();
-       });
-   });
-   ```
-
-**Verification Checklist**:
-- [x] TensorFlow.js added to package.json
-- [x] prediction.handler.ts follows existing handler pattern
-- [x] Type definitions created in types/ directory
-- [x] Route mapping added to index.ts
-- [x] SAM template adds /predict route (NOT new Lambda)
-- [x] Handler compiles without TypeScript errors
-- [x] Jest tests pass
-- [x] SAM validates: `sam validate`
-
-**Testing Instructions**:
-- Unit test: Handler with valid request
-- Unit test: Handler with invalid request (missing fields)
-- Unit test: Handler error handling
-- Integration test: SAM build succeeds
-- Run: `npm test -- prediction.handler.test.ts`
-- Build: `cd backend && sam build`
-
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
-
-feat(handlers): add prediction handler with /predict route
-
-- Create prediction.handler.ts following existing pattern
-- Add PredictionRequest and PredictionResponse types
-- Define MODEL_CONFIG constants in types file
-- Add /predict route mapping to index.ts
-- Update SAM template with HttpApi event for /predict
-- Add TensorFlow.js to package.json dependencies
-- Write Jest unit tests for handler validation
-```
-
----
-
-### Task 5: Data Fetching Layer - Historical Data Retrieval
-
-**Goal**: Implement functions to fetch historical stock price data, news articles, sentiment scores, event classifications, and aspect scores from the backend database (DynamoDB/RDS). This layer provides raw data to the feature engineering pipeline.
-
-**Files to Modify/Create**:
-- `backend/src/dataFetcher.ts` - Data fetching module
-- `backend/src/types/prediction.types.ts` - Data models (Pydantic or dataclasses)
-- `__tests__/backend/services/test_dataFetcher.ts` - Unit tests
-
-**Prerequisites**:
-- Task 4 completed (Lambda structure ready)
-- Understanding that prediction Lambda is **invoked BY sentiment Lambda** after aspect/sentiment processing completes
-- Backend database (DynamoDB/RDS) contains completed sentiment and aspect data
-
-**Implementation Steps**:
-1. Create `types/prediction.types.ts` with data classes:
-   - `StockPrice` (date, open, high, low, close, volume)
-   - `NewsArticle` (hash, date, ticker, title, etc.)
-   - `ArticleSentiment` (hash, date, eventType, aspectScore, distilFinBERTScore, materialityScore)
-   - `HistoricalData` (aggregate container for all fetched data)
-2. Create `dataFetcher.ts` with functions:
-   - `fetch_price_data(ticker: str, start_date: str, end_date: str) -> List[StockPrice]`
-     - Use boto3 to query DynamoDB (or appropriate DB client for RDS)
-     - Query stock_details table with ticker + date range filter
-     - Return OHLCV data sorted by date
-   - `fetch_sentiment_data(ticker: str, start_date: str, end_date: str) -> List[ArticleSentiment]`
-     - Use boto3 to query word_count_details table (with new fields)
-     - Return per-article sentiment with event type, aspect, FinBERT scores
-     - Include materiality scores for weighting
-     - **Note**: This data is already complete (populated by sentiment Lambda before prediction invocation)
-   - `fetch_historical_data(ticker: str, days: int) -> HistoricalData`
-     - Calculate start_date from days parameter
-     - Call fetch_price_data and fetch_sentiment_data
-     - Combine into HistoricalData object
-     - Validate minimum data requirements (30 days)
-3. Configure database access:
-   - Use environment variables for table names (DynamoDB) or connection strings (RDS)
-   - Ensure IAM role has read permissions (configured in SAM template)
-   - Handle boto3 client initialization
-4. Implement error handling:
-   - Raise exception if insufficient data (<30 days)
-   - Log warnings for missing fields (null values)
-   - Handle database connection errors gracefully
-5. Write unit tests with mocked boto3:
-   - Mock boto3 DynamoDB client
-   - Test fetch_price_data returns correct structure
-   - Test fetch_sentiment_data includes new fields
-   - Test fetch_historical_data validates minimum days
-   - Test error handling for missing data
-
-**Verification Checklist**:
-- [ ] Data models defined with proper types
-- [ ] boto3 client configured for DynamoDB/RDS access
-- [ ] Fetch functions return correct data structures
-- [ ] Minimum 30-day validation enforced
-- [ ] Environment variables used for table names/connections
-- [ ] IAM permissions noted for SAM template configuration
-- [ ] Error handling for database failures
-- [ ] Logging configured for debugging
-- [ ] Unit tests cover happy path and errors
-- [ ] boto3 mocked correctly (no real AWS calls in tests)
-
-**Testing Instructions**:
-- Unit test: Fetch price data (mocked boto3 DynamoDB)
-- Unit test: Fetch sentiment data with new fields (mocked boto3)
-- Unit test: Validate minimum days requirement
-- Unit test: Handle missing data and connection errors gracefully
-- Run: `npm test -- backend/__tests__/prediction/test_dataFetcher.ts`
-
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
-
-feat(prediction): implement historical data fetching layer
-
-- Add data models for price, sentiment, and historical data
-- Implement fetch_price_data for OHLCV retrieval
-- Implement fetch_sentiment_data with event/aspect/FinBERT scores
-- Add fetch_historical_data with 30-day minimum validation
-- Include comprehensive error handling and logging
-```
-
----
-
-### Task 6: Feature Engineering - Daily Aggregation with Materiality Weighting
-
-**Goal**: Implement the core feature engineering pipeline that aggregates per-article data to daily level using materiality score weighting. This produces the training dataset for the logistic regression model.
-
-**Files to Modify/Create**:
-- `backend/src/featureEngineering.ts` - Feature engineering module
-- `backend/src/types/prediction.types.ts` - Add `DailyFeatures` model
-- `__tests__/backend/services/test_featureEngineering.ts` - Unit tests
-
-**Prerequisites**:
-- Task 5 completed (data fetching works)
-- Understanding of materiality weighting logic (Phase 0, ADR-3)
-- Knowledge of one-hot encoding for categorical variables
-
-**Implementation Steps**:
-1. Update `types/prediction.types.ts` with `DailyFeatures` class:
-   - `date: str`
-   - `ticker: str`
-   - `open, high, low, close, volume: float` (price features)
-   - `event_earnings, event_ma, event_guidance, event_analyst, event_product, event_general: float` (one-hot weighted)
-   - `aspect_score: float` (weighted average)
-   - `finbert_score: float` (weighted average)
-   - `label: Optional[int]` (0=down, 1=up, None=excluded)
-2. Create `featureEngineering.ts` with functions:
-   - `aggregate_daily_features(price_data: List[StockPrice], sentiment_data: List[ArticleSentiment]) -> List[DailyFeatures]`
-     - Group articles by date
-     - For each date with articles:
-       - Compute weighted average aspect score (using materiality weights)
-       - Compute weighted average FinBERT score (using materiality weights)
-       - Compute weighted sum for each event type (one-hot → weighted aggregation)
-       - Attach corresponding price data (OHLCV)
-     - Return list of daily feature rows
-   - `compute_materiality_weighted_avg(values: List[float], weights: List[float]) -> float`
-     - Calculate: Σ(value * weight) / Σ(weight)
-     - Handle edge case: zero total weight (return 0.0 or null)
-   - `compute_event_one_hot_weighted(articles: List[ArticleSentiment], weights: List[float]) -> dict`
-     - For each event type, sum weights where article.eventType matches
-     - Return dict with 6 event features
-3. Implement edge case handling:
-   - Days with no news: Skip (no features generated)
-   - Null aspect scores: Treat as 0 in weighted average
-   - Null FinBERT scores: Treat as 0 (non-material events)
-   - Zero materiality weight: Use 0.01 minimum to avoid division by zero
-4. Write comprehensive unit tests:
-   - Test single article aggregation (weights = materiality score)
-   - Test multiple articles with different weights
-   - Test event one-hot aggregation (multiple event types same day)
-   - Test weighted averages (aspect, FinBERT)
-   - Test edge cases (null values, zero weights, no articles)
-
-**Verification Checklist**:
-- [ ] Daily features contain all 13 input features (OHLCV + events + aspect + FinBERT)
-- [ ] Materiality weighting formula matches ADR-3
-- [ ] One-hot encoding produces 6 event features
-- [ ] Weighted averages mathematically correct
-- [ ] Edge cases handled gracefully (nulls, zeros)
-- [ ] Output format matches DailyFeatures model
-- [ ] Unit tests achieve 90%+ coverage
-
-**Testing Instructions**:
-- Unit test: Single article → daily features
-- Unit test: Multiple articles → weighted aggregation
-- Unit test: Event one-hot encoding with mixed events
-- Unit test: Null value handling
-- Unit test: Zero weight edge case
-- Run: `npm test -- backend/__tests__/prediction/test_featureEngineering.ts -v`
-
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
-
-feat(prediction): implement daily feature aggregation with materiality weighting
-
-- Add DailyFeatures model for training dataset
-- Implement aggregate_daily_features with weighted averages
-- Add compute_materiality_weighted_avg for aspect/FinBERT scores
-- Implement event one-hot encoding with weighted sums
-- Handle null values and edge cases gracefully
-```
-
----
-
-### Task 7: Label Generation - Same-Day Price Movement Classification
-
-**Goal**: Implement label generation logic that classifies each historical day as "up" (1) or "down" (0) based on same-day price movement, using a ±1% threshold to filter noise.
-
-**Files to Modify/Create**:
-- `backend/src/featureEngineering.ts` - Add label generation function
-- `__tests__/backend/services/test_featureEngineering.ts` - Add label tests
-
-**Prerequisites**:
-- Task 6 completed (daily features generated)
-- Understanding of labeling strategy (Phase 0, ADR-4)
-
-**Implementation Steps**:
-1. Add function to `featureEngineering.ts`:
-   - `generate_label(previous_close: float, current_close: float, threshold: float = 0.01) -> Optional[int]`
-     - Calculate: `price_change = (current_close - previous_close) / previous_close`
-     - If `price_change > threshold`: return 1 (up)
-     - Else if `price_change < -threshold`: return 0 (down)
-     - Else: return None (exclude from training - noise)
-2. Update `aggregate_daily_features()` to include label generation:
-   - For each daily feature row, look up previous day's close price
-   - Call `generate_label(previous_close, current_close)`
-   - Attach label to `DailyFeatures.label`
-   - Skip days where label is None (noise exclusion)
-3. Handle edge cases:
-   - First day has no previous close: label = None (exclude)
-   - Missing price data: label = None (exclude)
-   - Zero or negative prices: raise validation error
-4. Write unit tests:
-   - Test upward movement >1% → label=1
-   - Test downward movement <-1% → label=0
-   - Test small movement ±0.5% → label=None
-   - Test exact threshold boundary (1.0%) → label=1
-   - Test negative threshold boundary (-1.0%) → label=0
-   - Test first day (no previous close) → label=None
-
-**Verification Checklist**:
-- [ ] Label generation uses previous_close → current_close calculation
-- [ ] Threshold of ±1% correctly applied
-- [ ] Noise range (-1% to +1%) excluded (label=None)
-- [ ] First day of data excluded (no previous close)
-- [ ] Invalid data raises errors (negative prices)
-- [ ] Unit tests cover all boundary conditions
-- [ ] Label distribution logged (% up, % down, % excluded)
-
-**Testing Instructions**:
-- Unit test: Upward movement exceeds threshold
-- Unit test: Downward movement exceeds threshold
-- Unit test: Movement within noise range
-- Unit test: Boundary conditions (exactly ±1%)
-- Unit test: Edge cases (first day, missing data)
-- Run: `npm test -- backend/__tests__/prediction/test_featureEngineering.ts::test_generate_label -v`
-
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
-
-feat(prediction): implement same-day label generation with ±1% threshold
-
-- Add generate_label function for binary classification
-- Integrate label generation into daily feature aggregation
-- Exclude noise range (-1% to +1%) from training set
-- Handle edge cases (first day, missing data)
-- Add comprehensive unit tests for boundary conditions
-```
-
----
-
-### Task 8: Feature Normalization and Preprocessing
-
-**Goal**: Implement feature scaling/normalization using scikit-learn's StandardScaler to ensure all features are on comparable scales before training. This improves logistic regression convergence and performance.
-
-**Files to Modify/Create**:
-- `backend/src/preprocessing.ts` - Preprocessing module
-- `__tests__/backend/services/test_preprocessing.ts` - Unit tests
-
-**Prerequisites**:
-- Task 7 completed (labeled daily features available)
-- Understanding of feature scaling (StandardScaler: mean=0, std=1)
-
-**Implementation Steps**:
-1. Create `preprocessing.ts` with functions:
-   - `prepare_training_data(daily_features: List[DailyFeatures]) -> Tuple[np.ndarray, np.ndarray]`
-     - Extract feature matrix X (13 features: OHLCV + events + aspect + FinBERT, excluding horizon)
-     - Extract label vector y (0 or 1)
-     - Filter out rows where label is None
-     - Return (X, y) as numpy arrays
-   - `create_scaler(X: np.ndarray) -> StandardScaler`
-     - Fit StandardScaler on training data
-     - Return fitted scaler object
-   - `normalize_features(X: np.ndarray, scaler: StandardScaler) -> np.ndarray`
-     - Transform features using scaler
-     - Return normalized X
-2. Implement feature extraction:
-   - Define feature order (important for consistency):
-     1. open, high, low, close, volume (5 features)
-     2. event_earnings, event_ma, event_guidance, event_analyst, event_product, event_general (6 features)
-     3. aspect_score (1 feature)
-     4. finbert_score (1 feature)
-   - Extract features in this exact order for every row
-3. Handle edge cases:
-   - Zero variance features (all same value): StandardScaler handles this (std=1)
-   - Missing labels: Filter out before creating X, y
-   - NaN values: Raise error (should not occur if Task 6 handled nulls)
-4. Write unit tests:
-   - Test prepare_training_data extracts correct shape (N x 13)
-   - Test labels extracted correctly (binary 0/1)
-   - Test rows with None labels excluded
-   - Test scaler fitting and transformation
-   - Test normalized features have mean~0, std~1
-
-**Verification Checklist**:
-- [ ] Feature matrix shape is (num_samples, 13)
-- [ ] Label vector shape is (num_samples,)
-- [ ] Rows with None labels excluded
-- [ ] StandardScaler fitted on training data
-- [ ] Normalized features have mean≈0, std≈1
-- [ ] Feature order consistent and documented
-- [ ] Unit tests verify correct extraction and scaling
-
-**Testing Instructions**:
-- Unit test: Extract features from DailyFeatures list
-- Unit test: Filter None labels correctly
-- Unit test: Scaler normalization (mean, std)
-- Unit test: Feature matrix dimensions
-- Run: `npm test -- backend/__tests__/prediction/test_preprocessing.ts -v`
-
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
-
-feat(prediction): implement feature normalization with StandardScaler
-
-- Add prepare_training_data to extract feature matrix and labels
-- Create create_scaler and normalize_features functions
-- Define consistent feature order (OHLCV, events, aspect, FinBERT)
-- Filter out training examples with None labels
-- Add unit tests for extraction and normalization
-```
-
----
-
-### Task 9: TensorFlow.js Logistic Regression Model Training ⭐ CRITICAL EXAMPLE
-
-**Goal**: Implement the core ML training logic using TensorFlow.js sequential model with sigmoid activation (logistic regression). Train the model on normalized tensors and historical labels, then validate predictions work correctly.
-
-**🔗 Reference**: See [Conversion Guide](./PYTHON_TO_TYPESCRIPT_GUIDE.md#scikit-learn--tensorflowjs) for detailed scikit-learn → TensorFlow.js patterns.
-
-**Files to Modify/Create**:
-- `backend/src/services/mlModel.ts` - Model training module (TypeScript)
-- `backend/src/types/prediction.types.ts` - Type definitions
-- `__tests__/backend/services/mlModel.test.ts` - Unit tests (Jest)
-- `backend/package.json` - Add `@tensorflow/tfjs-node` dependency
-
-**Prerequisites**:
-- Task 8 completed (normalized features ready as tensors)
-- TensorFlow.js installed: `npm install @tensorflow/tfjs-node`
-- Understanding of TensorFlow.js Sequential API
-- Knowledge of tensor memory management (`tf.tidy()`, `dispose()`)
-
-**Implementation Steps**:
-
-1. **Install TensorFlow.js** (if not already):
-   ```bash
-   cd backend
-   npm install --save @tensorflow/tfjs-node
-   ```
-
-2. **Create type definitions** in `prediction.types.ts`:
-   ```typescript
-   export interface ModelTrainingConfig {
-       inputDim: number;
-       learningRate: number;
-       epochs: number;
-       batchSize: number;
-       validationSplit: number;
-   }
-
-   export interface TrainingMetrics {
-       accuracy: number;
-       loss: number;
-       epochs: number;
-   }
-   ```
-
-3. **Create `mlModel.ts`** with functions:
-
-   **`createLogisticRegressionModel(inputDim: number): tf.Sequential`**
-   - Create sequential model with single dense layer:
+   - Modify `batchPutStocks` similarly (calculate TTL per item, not globally)
+
+2. Update `newsCache.repository.ts`:
+   - Modify `putNews` to use `calculateTTLByDataType('news')`
+   - News doesn't have date-specific logic (always 7 days)
+   - Remove hardcoded `calculateTTL(7)` call
+
+3. Update `sentimentCache.repository.ts`:
+   - Modify sentiment put methods to use `calculateTTLByDataType('sentiment')`
+   - Sentiment cache: 30 days (expensive FinBERT inference)
+   - Jobs table: `calculateTTLByDataType('job')` - 1 day
+
+4. Add logging for TTL calculations (debugging):
+   - Log when historical vs current date is detected
+   - Example: `console.log('[StocksCacheRepository] Using 90-day TTL for historical date:', date)`
+   - Keep logging minimal (avoid performance impact)
+
+5. Update repository tests to verify TTL:
+   - Mock `calculateTTLByDataType` in tests
+   - Verify correct data type passed ('stock', 'news', 'sentiment')
+   - Verify date parameter passed for stock items
+   - Verify TTL from mock is used in DynamoDB PutCommand
+   - Example:
      ```typescript
-     const model = tf.sequential({
-         layers: [
-             tf.layers.dense({
-                 inputShape: [inputDim],  // 14 features
-                 units: 1,
-                 activation: 'sigmoid',
-                 kernelInitializer: 'glorotUniform'
-             })
-         ]
+     jest.mock('../utils/cache.util', () => ({
+       calculateTTLByDataType: jest.fn((type, date) => {
+         if (type === 'stock' && date === '2025-01-15') return 123456789; // 90 days
+         return 987654321; // Default
+       })
+     }));
+
+     test('putStock uses date-aware TTL', async () => {
+       await putStock({ ticker: 'AAPL', date: '2025-01-15', ... });
+       expect(calculateTTLByDataType).toHaveBeenCalledWith('stock', '2025-01-15');
+       // Verify DynamoDB PutCommand called with ttl: 123456789
      });
      ```
-   - Compile with binary cross-entropy loss:
-     ```typescript
-     model.compile({
-         optimizer: tf.train.adam(0.01),  // Learning rate
-         loss: 'binaryCrossentropy',
-         metrics: ['accuracy']
-     });
-     ```
-   - Return compiled model
 
-   **`trainModel(X: tf.Tensor2D, y: tf.Tensor2D, config: ModelTrainingConfig): Promise<{ model: tf.Sequential, metrics: TrainingMetrics }>`**
-   - Validate inputs (shape checks, min samples)
-   - Calculate class weights for balanced training:
-     ```typescript
-     const yArray = await y.array();
-     const classWeights = calculateClassWeights(yArray.flat());
-     ```
-   - Train model with configuration:
-     ```typescript
-     const history = await model.fit(X, y, {
-         epochs: config.epochs,
-         batchSize: config.batchSize,
-         validationSplit: config.validationSplit,
-         classWeight: classWeights,
-         verbose: 0,
-         callbacks: {
-             onEpochEnd: (epoch, logs) => {
-                 if (epoch % 10 === 0) {
-                     console.log(`Epoch ${epoch}: loss=${logs?.loss}, acc=${logs?.acc}`);
-                 }
-             }
-         }
-     });
-     ```
-   - Extract final metrics from history
-   - Return model and metrics
+**Verification Checklist:**
+- [ ] Stock repository passes date to TTL calculator
+- [ ] News repository uses 'news' data type (no date)
+- [ ] Sentiment repository uses 'sentiment' data type
+- [ ] Jobs repository uses 'job' data type (1 day)
+- [ ] Batch operations calculate TTL per item, not once for entire batch
+- [ ] Repository tests verify correct data type and date parameters
+- [ ] No breaking changes to repository interfaces (same function signatures)
 
-   **`calculateClassWeights(labels: number[]): { 0: number; 1: number }`**
-   - Count occurrences of each class (0 and 1)
-   - Calculate balanced weights:
-     ```typescript
-     const total = labels.length;
-     const count0 = labels.filter(l => l === 0).length;
-     const count1 = labels.filter(l => l === 1).length;
+**Testing Instructions:**
+- **Unit tests** (`__tests__/repositories/*.test.ts`):
+  - Mock `calculateTTLByDataType` function
+  - Test `putStock` with historical date → verify 'stock' and date passed to TTL calc
+  - Test `putStock` with current date → verify 'stock' and date passed
+  - Test `putNews` → verify 'news' passed (no date)
+  - Test `putSentiment` → verify 'sentiment' passed
+  - Test batch operations → verify TTL calculated per item
+- **Integration tests:** Not required (covered by unit tests with mocked TTL calc)
+- **CI compatibility:** All tests mock `calculateTTLByDataType`, no AWS dependencies
 
-     return {
-         0: total / (2 * count0),
-         1: total / (2 * count1)
-     };
-     ```
+**Commit Message Template:**
+```text
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-   **`validateModel(model: tf.Sequential, X: tf.Tensor2D, y: tf.Tensor2D): Promise<TrainingMetrics>`**
-   - Evaluate model on data:
-     ```typescript
-     const evaluation = model.evaluate(X, y) as tf.Scalar[];
-     const loss = await evaluation[0].data();
-     const accuracy = await evaluation[1].data();
-     ```
-   - Log metrics to CloudWatch
-   - Warn if accuracy < 50%
-   - Return metrics object
-   - Clean up tensors: `evaluation.forEach(t => t.dispose())`
+refactor(repositories): integrate variable TTL calculation
 
-4. **Memory Management** (CRITICAL):
-   - Use `tf.tidy()` to auto-dispose intermediate tensors:
-     ```typescript
-     const result = tf.tidy(() => {
-         const normalized = X.sub(mean).div(std);
-         return normalized;
-     });
-     ```
-   - Manually dispose tensors that escape scope
-   - Check memory usage: `console.log(tf.memory())`
+Update stock repository to pass date for TTL calculation
+Update news repository to use 'news' data type (7 days)
+Update sentiment repository to use 'sentiment' type (30 days)
+Calculate TTL per item in batch operations
+Add tests to verify correct data type and date parameters
+```
 
-5. **Error Handling**:
-   - Insufficient data (<10 samples): throw `Error('Insufficient training data')`
-   - Invalid shapes (X.shape[0] !== y.shape[0]): throw `Error('Shape mismatch')`
-   - Single class detected: Log warning, attempt training anyway
-   - NaN values in data: throw `Error('Invalid data contains NaN')`
+---
 
-6. **Write Jest unit tests**:
-   ```typescript
-   describe('mlModel', () => {
-       describe('trainModel', () => {
-           it('should train model with valid synthetic data', async () => {
-               const X = tf.tensor2d([[1, 0], [0, 1], [1, 1], [0, 0]]);
-               const y = tf.tensor2d([[1], [1], [0], [0]]);
-               const config = {
-                   inputDim: 2,
-                   learningRate: 0.01,
-                   epochs: 50,
-                   batchSize: 2,
-                   validationSplit: 0.2
-               };
+### Task 6: Enable Response Compression in API Gateway
 
-               const { model, metrics } = await trainModel(X, y, config);
+**Goal:** Enable gzip compression for API Gateway responses to reduce data transfer costs and improve mobile network performance.
 
-               expect(model).toBeDefined();
-               expect(metrics.accuracy).toBeGreaterThan(0.5);
-               expect(metrics.loss).toBeLessThan(1.0);
+**Files to Modify/Create:**
+- `backend/template.yaml` - Add compression configuration to API Gateway
 
-               // Cleanup
-               model.dispose();
-               X.dispose();
-               y.dispose();
-           });
+**Prerequisites:**
+- Understand ADR-004 compression rationale
+- Review API Gateway v2 HTTP API compression support (AWS docs)
 
-           it('should handle class imbalance with weights', async () => {
-               // Test with 80% class 0, 20% class 1
-               const X = tf.tensor2d([[1, 2], [2, 3], [3, 4], [4, 5], [5, 6]]);
-               const y = tf.tensor2d([[0], [0], [0], [0], [1]]);
+**Implementation Steps:**
+1. Add SAM template parameter for compression:
+   - `EnableCompression` (String, AllowedValues: ['true', 'false'], Default: 'true')
+   - `MinimumCompressionSize` (Number, Default: 1024, Min: 0, Max: 10485760)
+   - 1024 bytes = 1KB minimum (ADR-004 recommendation)
 
-               const { model } = await trainModel(X, y, defaultConfig);
+2. Add compression configuration to `ReactStocksApi` resource:
+   - API Gateway v2 HTTP API doesn't have direct `MinimumCompressionSize` property
+   - Compression is automatic if client sends `Accept-Encoding: gzip` header
+   - **Note:** HTTP API automatically compresses responses >1KB when client supports it
+   - No explicit configuration needed in SAM template (verify in AWS docs)
 
-               // Model should still learn despite imbalance
-               const predictions = model.predict(X) as tf.Tensor2D;
-               const predArray = await predictions.array();
+3. Verify frontend axios client behavior:
+   - Axios automatically sends `Accept-Encoding: gzip, deflate` header
+   - Check `src/services/api/tiingo.service.ts` axios configuration
+   - No changes needed (already configured for compression)
 
-               expect(predArray[4][0]).toBeGreaterThan(0.5);  // Minority class
+4. Document compression behavior:
+   - Add comment in `template.yaml` explaining automatic compression
+   - Update `backend/README.md` with compression details
+   - Note: API Gateway v2 handles compression transparently (unlike REST API v1)
 
-               model.dispose();
-               predictions.dispose();
-           });
+5. Add CloudWatch metric for data transfer monitoring:
+   - Track `DataProcessed` metric before/after deployment
+   - Calculate compression ratio: `(UncompressedSize - CompressedSize) / UncompressedSize * 100`
+   - Document how to query this metric in CloudWatch
 
-           it('should throw error for insufficient data', async () => {
-               const X = tf.tensor2d([[1, 2]]);
-               const y = tf.tensor2d([[1]]);
+**Verification Checklist:**
+- [ ] API Gateway v2 HTTP API automatic compression documented
+- [ ] Frontend axios client sends `Accept-Encoding: gzip` header
+- [ ] CloudWatch metrics configured to track data transfer
+- [ ] README updated with compression details
+- [ ] No breaking changes to API responses
 
-               await expect(trainModel(X, y, defaultConfig))
-                   .rejects
-                   .toThrow('Insufficient training data');
-           });
-       });
-   });
+**Testing Instructions:**
+- **Unit tests:** Not applicable (API Gateway feature, client-side behavior)
+- **Integration tests** (`__tests__/integration/compression.test.ts`):
+  - Mock axios to verify `Accept-Encoding` header sent
+  - Mock API Gateway response with `Content-Encoding: gzip` header
+  - Verify axios automatically decompresses response
+- **Manual verification** (post-deployment):
+  - Deploy changes
+  - Use curl to test compression:
+    ```bash
+    curl -H "Accept-Encoding: gzip" https://{api-id}.execute-api.us-east-1.amazonaws.com/stocks?ticker=AAPL&startDate=2025-01-01 --compressed -v
+    ```
+  - Verify response header: `Content-Encoding: gzip`
+  - Check CloudWatch Logs for compressed response size
+  - Compare data transfer metrics before/after deployment
+
+**Commit Message Template:**
+```text
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
+
+feat(api-gateway): document automatic response compression
+
+API Gateway v2 automatically compresses responses >1KB with gzip
+Frontend axios client already sends Accept-Encoding header
+Add CloudWatch metrics to monitor data transfer reduction
+Document compression behavior in README and template comments
+```
+
+---
+
+### Task 7: Provisioned Concurrency Configuration (Optional)
+
+**Goal:** Configure provisioned concurrency for Lambda function with market-hour scheduling to eliminate cold starts during peak traffic. This task is **optional** for Phase 1 and can be deferred if cost is a concern.
+
+**Files to Modify/Create:**
+- `backend/template.yaml` - Add provisioned concurrency and auto-scaling
+- `backend/.deploy-config.json` (example) - Add provisioned concurrency settings
+
+**Prerequisites:**
+- Understand ADR-005 provisioned concurrency rationale
+- Review Lambda provisioned concurrency pricing (AWS docs)
+- Task 1 complete (config schema supports provisioned concurrency)
+
+**Implementation Steps:**
+1. Add SAM template parameters:
+   - `EnableProvisionedConcurrency` (String, AllowedValues: ['true', 'false'], Default: 'false')
+   - `ProvisionedConcurrencyMarketHours` (Number, Default: 5, Min: 0, Max: 100)
+   - `ProvisionedConcurrencyPreMarket` (Number, Default: 2, Min: 0, Max: 100)
+
+2. Add provisioned concurrency configuration to Lambda function:
+   ```yaml
+   ReactStocksFunction:
+     Type: AWS::Serverless::Function
+     Properties:
+       # ... existing properties
+       ProvisionedConcurrencyConfig:
+         ProvisionedConcurrentExecutions: !If
+           - EnableProvisioning
+           - !Ref ProvisionedConcurrencyMarketHours
+           - !Ref AWS::NoValue
    ```
 
-**Verification Checklist**:
-- [ ] TensorFlow.js installed in `package.json`
-- [ ] Model creates with correct input shape (14 features)
-- [ ] Training completes without errors
-- [ ] Accuracy logged and reasonable (>50% on synthetic data)
-- [ ] Class weights calculated and applied correctly
-- [ ] Memory management implemented (no leaks)
-- [ ] Error handling covers edge cases
-- [ ] Unit tests pass with Jest
-- [ ] `tf.memory()` shows stable memory usage (no growth)
+3. Create Application Auto Scaling target:
+   - Resource: `AWS::ApplicationAutoScaling::ScalableTarget`
+   - ServiceNamespace: `lambda`
+   - ScalableDimension: `lambda:function:ProvisionedConcurrentExecutions`
+   - MinCapacity: 0
+   - MaxCapacity: `!Ref ProvisionedConcurrencyMarketHours`
 
-**Testing Instructions**:
-- Unit test: Train on synthetic linearly separable data
-- Unit test: Verify model.predict() returns valid probabilities (0-1 range)
-- Unit test: Validate class weight calculation
-- Unit test: Handle insufficient data (error thrown)
-- Unit test: Memory cleanup (check `tf.memory().numTensors` before/after)
-- Run: `npm test -- mlModel.test.ts`
-- Memory check: `console.log(tf.memory())` before and after training
+4. Create scheduled scaling policies:
+   - **Pre-market scaling** (9:00 AM ET):
+     - EventBridge rule triggers at 9:00 AM ET daily
+     - Scale provisioned concurrency to `!Ref ProvisionedConcurrencyPreMarket`
+   - **Market-hours scaling** (9:30 AM ET):
+     - EventBridge rule triggers at 9:30 AM ET daily
+     - Scale provisioned concurrency to `!Ref ProvisionedConcurrencyMarketHours`
+   - **After-hours scaling** (4:00 PM ET):
+     - EventBridge rule triggers at 4:00 PM ET daily
+     - Scale provisioned concurrency to 0
 
-**Common Pitfalls to Avoid**:
-1. ❌ Forgetting to dispose tensors → memory leak
-2. ❌ Not reshaping `y` to 2D (shape must be `[numSamples, 1]`)
-3. ❌ Using `.dataSync()` on large tensors → blocking
-4. ❌ Not awaiting `.fit()` → incomplete training
-5. ❌ Hardcoding input dimension instead of using config
+5. Add conditions for weekends and holidays:
+   - EventBridge rules should only trigger Monday-Friday
+   - Use cron expression: `cron(0 14 ? * MON-FRI *)` for 9:00 AM ET (14:00 UTC)
+   - Consider market holidays (requires manual updates or external calendar API)
 
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
+6. Document cost implications:
+   - Provisioned concurrency costs ~$0.015 per GB-hour
+   - Example: 5 instances × 2048MB × 6.5 hours/day × $0.0000041667/GB-second = ~$9.50/day
+   - Document in README with cost calculator link
 
-feat(prediction): implement TensorFlow.js logistic regression training
+7. Add monitoring and alarms:
+   - CloudWatch alarm for `ProvisionedConcurrencySpilloverInvocations` (cold starts still happening)
+   - Alarm if spillover >5% of total invocations during market hours
+   - SNS topic for notifications (optional)
 
-- Add createLogisticRegressionModel with sigmoid activation
-- Implement trainModel with class-balanced weights
-- Add validateModel for accuracy evaluation
-- Configure Adam optimizer with 0.01 learning rate
-- Implement calculateClassWeights for imbalanced datasets
-- Add comprehensive memory management with tf.tidy()
-- Handle edge cases (insufficient data, shape mismatches, NaN values)
-- Add Jest unit tests with synthetic data and memory checks
-```
+**Verification Checklist:**
+- [ ] Provisioned concurrency only enabled when parameter is 'true'
+- [ ] Auto-scaling configuration targets Lambda function alias (not $LATEST)
+- [ ] EventBridge rules trigger at correct times (9:00 AM, 9:30 AM, 4:00 PM ET)
+- [ ] Rules only run Monday-Friday (weekdays)
+- [ ] Provisioned concurrency scales to 0 after market hours
+- [ ] CloudWatch alarm configured for spillover invocations
+- [ ] Cost implications documented in README
 
----
+**Testing Instructions:**
+- **Unit tests:** Not applicable (CloudFormation configuration)
+- **Integration tests:** Difficult to test (requires time-based triggers)
+- **Manual verification** (post-deployment, expensive):
+  - Deploy with `EnableProvisionedConcurrency=true`
+  - Wait for EventBridge rule to trigger (or manually invoke)
+  - Check Lambda console → Configuration → Provisioned Concurrency
+  - Verify instances are warm (invoke function, check CloudWatch for no cold start)
+  - **Important:** Disable after testing to avoid ongoing costs (~$10/day)
+- **CI compatibility:** Not applicable (requires live AWS resources and time-based triggers)
 
-### Task 10: Prediction Generation with Horizon Feature
+**Recommendation:**
+- **Defer to Phase 2** unless cold starts are a critical issue
+- Collect cold start metrics first (Task 8) to justify cost
+- Start with small provisioned counts (2/5) and scale based on data
 
-**Goal**: Implement the prediction generation logic that runs the trained model three times (horizon=1, 14, 30) to produce three sets of predictions (direction + probability) for each time horizon.
+**Commit Message Template:**
+```text
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-**Files to Modify/Create**:
-- `backend/src/mlModel.ts` - Add prediction functions
-- `backend/src/types/prediction.types.ts` - Add `PredictionResult` model
-- `__tests__/backend/services/test_mlModel.ts` - Add prediction tests
+feat(lambda): add provisioned concurrency with market-hour scheduling
 
-**Prerequisites**:
-- Task 9 completed (model training works)
-- Understanding that horizon is the 14th feature (Phase 0, ADR-2)
-
-**Implementation Steps**:
-1. Update `types/prediction.types.ts` with `PredictionResult` class:
-   - `direction: str` ('up' or 'down')
-   - `probability: float` (0-1 range, confidence)
-   - `horizon: int` (1, 14, or 30 days)
-2. Add to `mlModel.ts`:
-   - `generate_predictions(model: LogisticRegression, scaler: StandardScaler, latest_features: DailyFeatures) -> List[PredictionResult]`
-     - Extract latest day's features (13 base features)
-     - For each horizon in [1, 14, 30]:
-       - Create feature vector: [base_features..., horizon] (14 total)
-       - Normalize using scaler
-       - Predict class: `model.predict(X_horizon)` → 0 or 1
-       - Get probability: `model.predict_proba(X_horizon)[:, 1]` → probability of class 1 (up)
-       - Map class to direction: 0='down', 1='up'
-       - Create PredictionResult(direction, probability, horizon)
-     - Return list of 3 PredictionResult objects
-3. Implement probability interpretation:
-   - If predicted class is 1 (up): probability = prob_class_1
-   - If predicted class is 0 (down): probability = 1 - prob_class_1 (or prob_class_0)
-   - Ensure probability always represents confidence in predicted direction
-4. Add logging:
-   - Log predictions for each horizon
-   - Log probabilities (for debugging)
-5. Write unit tests:
-   - Test prediction generation returns 3 results
-   - Test each result has correct horizon
-   - Test direction is 'up' or 'down'
-   - Test probability in 0-1 range
-   - Test feature vector includes horizon as 14th feature
-   - Test normalization applied correctly
-
-**Verification Checklist**:
-- [ ] Three predictions generated (1-day, 2-week, 1-month)
-- [ ] Each prediction has direction and probability
-- [ ] Probability represents confidence in predicted direction
-- [ ] Horizon feature correctly appended to feature vector
-- [ ] Feature normalization applied before prediction
-- [ ] Unit tests verify prediction structure and values
-- [ ] Logged predictions match returned results
-
-**Testing Instructions**:
-- Unit test: Generate predictions with mock model
-- Unit test: Verify 3 PredictionResult objects returned
-- Unit test: Check horizon values (1, 14, 30)
-- Unit test: Validate probability range (0-1)
-- Unit test: Direction maps correctly (0→down, 1→up)
-- Run: `npm test -- backend/__tests__/prediction/test_mlModel.ts::test_generate_predictions -v`
-
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
-
-feat(prediction): implement three-horizon prediction generation
-
-- Add generate_predictions function with horizon as 14th feature
-- Create PredictionResult model for structured output
-- Run model 3 times with horizon values 1, 14, 30
-- Map predicted class to direction (up/down) with probability
-- Add unit tests for prediction generation and validation
+Configure auto-scaling for Lambda provisioned concurrency
+Schedule pre-market: 2 instances at 9:00 AM ET
+Schedule market-hours: 5 instances at 9:30 AM ET
+Schedule after-hours: 0 instances at 4:00 PM ET
+Add CloudWatch alarm for spillover invocations (cold starts)
+Document cost implications (~$10/day during market hours)
+Feature disabled by default (EnableProvisionedConcurrency=false)
 ```
 
 ---
 
-### Task 11: Lambda Handler Integration - End-to-End Pipeline
+### Task 8: CloudWatch Metrics and Logging for Optimization Tracking
 
-**Goal**: Integrate all components (data fetching, feature engineering, training, prediction) into the Lambda handler. Implement the complete prediction pipeline that can be invoked via API Gateway.
+**Goal:** Implement comprehensive CloudWatch metrics to track optimization impact (cache hit rates, Lambda performance, cost savings). This provides data-driven validation of optimizations.
 
-**Files to Modify/Create**:
-- `backend/src/prediction.handler.ts` - Complete handler implementation
-- `backend/src/pipeline.py` - Orchestration module
-- `__tests__/backend/services/test_prediction.handler.ts` - Integration tests
+**Files to Modify/Create:**
+- `backend/src/utils/metrics.util.ts` - Extend metrics utility
+- `backend/src/handlers/*.handler.ts` - Add optimization-specific metrics
+- `backend/docs/monitoring.md` - Document metrics and queries
 
-**Prerequisites**:
-- Tasks 5-10 completed (all pipeline components ready)
-- Understanding of Lambda event/context structure
+**Prerequisites:**
+- Understand existing `logMetrics` utility from Phase-0
+- Review CloudWatch Logs Insights query language
 
-**Implementation Steps**:
-1. Create `pipeline.py` with orchestration function:
-   - `run_prediction_pipeline(ticker: str, days: int) -> List[PredictionResult]`
-     - Step 1: Fetch historical data (data_fetcher.fetch_historical_data)
-     - Step 2: Aggregate daily features (feature_engineering.aggregate_daily_features)
-     - Step 3: Generate labels (feature_engineering.generate_label)
-     - Step 4: Prepare training data (preprocessing.prepare_training_data)
-     - Step 5: Normalize features (preprocessing.create_scaler, normalize_features)
-     - Step 6: Train model (model.train_model)
-     - Step 7: Generate predictions (model.generate_predictions)
-     - Return list of 3 PredictionResult objects
-     - Log each step with timing
-2. Update `prediction.handler.ts`:
-   - Parse event (extract ticker, days from query params or body)
-   - Validate inputs (ticker format, days >= 30)
-   - Call `run_prediction_pipeline(ticker, days)`
-   - Format response:
-     - Success: `{ statusCode: 200, body: JSON with predictions }`
-     - Error: `{ statusCode: 400/500, body: error message }`
-   - Add CloudWatch logging for debugging
-   - Handle exceptions gracefully (log + return error response)
-3. Implement error handling:
-   - Catch data fetching errors (insufficient data)
-   - Catch training errors (convergence, insufficient samples)
-   - Catch prediction errors
-   - Return appropriate HTTP status codes
-4. Write integration tests:
-   - Test end-to-end pipeline with mocked data fetcher
-   - Test handler with valid event
-   - Test handler with invalid inputs (missing ticker, days<30)
-   - Test error handling (data fetch failure)
-   - Verify response structure
+**Implementation Steps:**
+1. Extend `metrics.util.ts` with optimization-specific metrics:
+   - `ApiGatewayCacheHit` - Count (dimension: Endpoint)
+   - `ApiGatewayCacheMiss` - Count (dimension: Endpoint)
+   - `LambdaColdStart` - Count (dimension: Endpoint)
+   - `LambdaWarmStart` - Count (dimension: Endpoint)
+   - `DynamoDBCacheHitRate` - Percent (dimension: Ticker)
+   - `ResponseCompressionRatio` - Percent (dimension: Endpoint)
 
-**Verification Checklist**:
-- [ ] Handler parses event correctly
-- [ ] Pipeline orchestrates all steps in correct order
-- [ ] Each step logged with timing information
-- [ ] Predictions returned in expected format
-- [ ] Error handling returns appropriate status codes
-- [ ] Integration tests verify end-to-end flow
-- [ ] Mocked data fetcher used in tests (no real DB calls)
+2. Update handlers to log cache hit/miss for API Gateway:
+   - Check for `X-Cache` header in Lambda event (API Gateway sets this)
+   - If `X-Cache: Hit` → log `ApiGatewayCacheHit`
+   - If `X-Cache: Miss` → log `ApiGatewayCacheMiss`
+   - Note: HTTP API v2 doesn't expose `X-Cache` to Lambda - use CloudWatch API Gateway metrics instead
 
-**Testing Instructions**:
-- Integration test: End-to-end pipeline with mocked data
-- Integration test: Handler invocation with valid event
-- Integration test: Handler error handling (invalid inputs)
-- Integration test: Response structure validation
-- Run: `npm test -- backend/__tests__/prediction/test_prediction.handler.ts -v`
+3. Add cold start detection to Lambda handlers:
+   - Track global initialization timestamp
+   - If `Date.now() - initTimestamp < 10000` (10 seconds) → cold start
+   - Log `LambdaColdStart` metric on first invocation
+   - Log `LambdaWarmStart` metric on subsequent invocations
+   - Example:
+     ```typescript
+     let initTimestamp = Date.now();
 
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
+     export async function handler(event: APIGatewayProxyEventV2) {
+       const isColdStart = Date.now() - initTimestamp < 10000;
+       logMetrics([{
+         name: isColdStart ? 'LambdaColdStart' : 'LambdaWarmStart',
+         value: 1,
+         unit: MetricUnit.Count
+       }], { Endpoint: event.rawPath });
 
-feat(prediction): integrate end-to-end prediction pipeline in Lambda handler
+       // ... rest of handler logic
+     }
+     ```
 
-- Add run_prediction_pipeline orchestration function
-- Update handler to parse event and invoke pipeline
-- Implement error handling with appropriate HTTP status codes
-- Add CloudWatch logging for each pipeline step with timing
-- Write integration tests with mocked data fetcher
-```
+4. Create CloudWatch Logs Insights queries document:
+   - Query: Cache hit rate by endpoint
+     ```
+     filter @type = "REPORT"
+     | fields @timestamp, @message
+     | stats count(*) as TotalRequests,
+             sum(ApiGatewayCacheHit) as CacheHits,
+             (sum(ApiGatewayCacheHit) / count(*) * 100) as CacheHitRate
+       by Endpoint
+     ```
+   - Query: Cold start percentage
+     ```
+     filter @type = "REPORT"
+     | stats sum(LambdaColdStart) as ColdStarts,
+             sum(LambdaWarmStart) as WarmStarts,
+             (sum(LambdaColdStart) / (sum(LambdaColdStart) + sum(LambdaWarmStart)) * 100) as ColdStartPercentage
+     ```
+   - Query: Average Lambda duration by endpoint
+   - Query: DynamoDB cache hit rate per ticker
 
----
+5. Create `backend/docs` directory and `monitoring.md` documentation:
+   - Create directory if it doesn't exist: `mkdir -p backend/docs`
+   - Create `backend/docs/monitoring.md` file
+   - List all custom metrics with descriptions
+   - Provide CloudWatch Logs Insights query examples
+   - Document how to create CloudWatch dashboard (Phase 2)
+   - Include cost analysis queries (Lambda invocations, DynamoDB reads)
 
-### Task 12: Unit Test Suite Completion and Coverage Analysis
+6. Add structured logging for debugging:
+   - Log cache decisions: "Using API Gateway cache (TTL: 300s)" vs "Cache bypassed (POST request)"
+   - Log Lambda initialization: "Cold start detected, duration: 1200ms"
+   - Log optimization impact: "Compression reduced response size from 12KB to 3KB (75% reduction)"
 
-**Goal**: Ensure comprehensive unit test coverage (80%+) across all prediction modules. Identify gaps, write missing tests, and verify CI compatibility (tests run without AWS dependencies).
+**Verification Checklist:**
+- [ ] Metrics utility supports all optimization-specific metrics
+- [ ] Handlers log cold start detection correctly
+- [ ] CloudWatch Logs Insights queries return expected results
+- [ ] Monitoring documentation is comprehensive and accurate
+- [ ] Structured logging doesn't impact performance (minimal overhead)
+- [ ] Metrics include relevant dimensions (Endpoint, Ticker, Cached)
 
-**Files to Modify/Create**:
-- `__tests__/backend/services/` - All test files reviewed and completed
-- `backend/pytest.ini` - Pytest configuration (if needed)
-- `backend/coverage.xml` - Coverage report output
+**Testing Instructions:**
+- **Unit tests** (`__tests__/utils/metrics.util.test.ts`):
+  - Test new metric logging functions
+  - Verify correct metric names and dimensions
+  - Mock CloudWatch SDK to verify putMetricData calls
+- **Integration tests** (`__tests__/integration/metrics.test.ts`):
+  - Test cold start detection logic
+  - Verify metrics logged on handler invocation
+  - Mock CloudWatch Logs to verify log format
+- **Manual verification** (post-deployment):
+  - Deploy changes
+  - Invoke endpoints multiple times
+  - Run CloudWatch Logs Insights queries
+  - Verify cache hit rate calculations are correct
+  - Check cold start percentage matches expectations
 
-**Prerequisites**:
-- Tasks 5-11 completed (all modules implemented)
-- Understanding of pytest and coverage tools
+**Commit Message Template:**
+```text
+Author & Commiter: HatmanStack
+Email: 82614182+HatmanStack@users.noreply.github.com
 
-**Implementation Steps**:
-1. Run coverage analysis:
-   - Execute: `pytest --cov=src/functions/prediction --cov-report=html --cov-report=term`
-   - Review coverage report (identify uncovered lines)
-2. Write missing unit tests:
-   - For each module (data_fetcher, feature_engineering, preprocessing, model, pipeline), ensure:
-     - All functions have at least one test
-     - Edge cases covered (null values, empty lists, boundaries)
-     - Error paths tested (exceptions raised)
-     - Integration points mocked (database, API)
-3. Ensure CI compatibility:
-   - No live AWS calls (mock boto3, database connections)
-   - Deterministic test data (no random values without seed)
-   - Fast execution (<30s total for unit tests)
-   - No external dependencies (network calls)
-4. Add test fixtures:
-   - Create reusable test data (sample prices, sentiment, features)
-   - Use pytest fixtures for common setup
-   - Store fixtures in `__tests__/backend/services/fixtures.py`
-5. Verify test isolation:
-   - Each test can run independently
-   - No shared state between tests
-   - Teardown cleans up resources
+feat(monitoring): add CloudWatch metrics for optimization tracking
 
-**Verification Checklist**:
-- [ ] Code coverage >= 80% for all prediction modules
-- [ ] All functions have unit tests
-- [ ] Edge cases and error paths tested
-- [ ] Tests run successfully in CI environment (no AWS dependencies)
-- [ ] Test execution time <30s
-- [ ] Coverage report generated and reviewed
-- [ ] No warnings or errors in test output
-
-**Testing Instructions**:
-- Run full test suite: `pytest backend/__tests__/prediction/ -v`
-- Run with coverage: `pytest --cov=src/functions/prediction --cov-report=term-missing`
-- Verify coverage: Check report shows 80%+ coverage
-- CI simulation: Run tests without AWS credentials configured
-
-**Commit Message Template**:
-```
-Author & Commiter : HatmanStack
-Email : 82614182+HatmanStack@users.noreply.github.com
-
-test(prediction): achieve 80%+ unit test coverage
-
-- Add missing unit tests for all prediction modules
-- Create test fixtures for reusable test data
-- Ensure CI compatibility (no AWS dependencies)
-- Verify test isolation and fast execution
-- Generate coverage report (80%+ achieved)
+Add API Gateway cache hit/miss metrics
+Add Lambda cold start detection and logging
+Add DynamoDB cache hit rate tracking
+Create CloudWatch Logs Insights query examples
+Document all optimization metrics in monitoring.md
+Add structured logging for cache decisions and performance
 ```
 
 ---
 
 ## Phase Verification
 
-### How to Verify Phase 1 Completion
+### Comprehensive Verification Checklist
 
-Run the following checks to confirm Phase 1 is complete:
+Before proceeding to Phase 2, ensure all tasks are complete:
 
-1. **Database Migrations**:
-   - [ ] Run `npm test -- migrations/` (all tests pass)
-   - [ ] Verify new columns exist in SQLite database
-   - [ ] Verify localStorage schema includes new fields
+**Task 1: Deployment Configuration**
+- [x] `.deploy-config.json` schema includes all optimization parameters
+- [x] Interactive prompts work for missing values
+- [x] Config validation prevents invalid values
+- [x] `samconfig.toml` generates correctly
 
-2. **Repository Layer**:
-   - [ ] Run `npm test -- repositories/` (all tests pass)
-   - [ ] Insert and query operations work with new fields
-   - [ ] Backward compatibility verified (old data readable)
+**Task 2: API Gateway Caching**
+- [ ] SAM template includes cache configuration
+- [ ] Per-route TTL settings match ADR-001
+- [ ] POST endpoints have caching disabled
+- [ ] Template deploys without errors
 
-3. **Lambda Backend**:
-   - [ ] Run `cd backend && sam validate` (template valid)
-   - [ ] Run `cd backend && sam build` (build succeeds)
-   - [ ] Run `pytest backend/__tests__/prediction/ -v` (all tests pass)
-   - [ ] Coverage >= 80%: `pytest --cov=src/functions/prediction --cov-report=term`
+**Task 3: Lambda Configuration**
+- [ ] SAM template includes per-endpoint memory/timeout parameters
+- [ ] Lambda function deploys with correct settings
+- [ ] CloudWatch Logs show actual usage per endpoint
 
-4. **Integration Tests**:
-   - [ ] Run integration tests with mocked dependencies
-   - [ ] Verify end-to-end pipeline produces predictions
-   - [ ] Confirm no live AWS calls in test suite
+**Task 4: TTL Utility**
+- [ ] `calculateTTLByDataType` function implemented
+- [ ] Historical vs current date detection works
+- [ ] All data types have correct TTL values
+- [ ] Unit tests pass with mocked timers
 
-5. **Code Quality**:
-   - [ ] Run `npm run lint` (no errors)
-   - [ ] Run `npm run type-check` (TypeScript compiles)
-   - [ ] Python linting: `flake8 backend/src/` (if configured)
+**Task 5: Repository Updates**
+- [ ] All repositories use variable TTL calculation
+- [ ] Stock repository passes date parameter
+- [ ] Batch operations calculate TTL per item
+- [ ] Repository tests verify TTL parameters
 
-### Integration Points to Test
+**Task 6: Compression**
+- [ ] Compression behavior documented
+- [ ] Frontend axios sends Accept-Encoding header
+- [ ] CloudWatch metrics configured for data transfer
 
-- **Database ↔ Repositories**: Insert and query new fields correctly
-- **Data Fetcher ↔ Database**: Fetch historical data with new fields
-- **Feature Engineering ↔ Data Fetcher**: Aggregate per-article to daily
-- **Preprocessing ↔ Feature Engineering**: Normalize features correctly
-- **Model ↔ Preprocessing**: Train on normalized data
-- **Pipeline ↔ All Components**: End-to-end flow produces predictions
+**Task 7: Provisioned Concurrency (Optional)**
+- [ ] Configuration added to SAM template
+- [ ] Feature disabled by default
+- [ ] Cost implications documented
+- [ ] OR: Deferred to Phase 2 (recommended)
+
+**Task 8: Metrics and Logging**
+- [ ] Optimization metrics implemented
+- [ ] Cold start detection working
+- [ ] CloudWatch Logs Insights queries documented
+- [ ] Monitoring.md created
+
+### Integration Testing
+
+**Full Deployment Test:**
+1. Run `cd backend && npm run deploy`
+2. Verify prompts for optimization settings
+3. Verify SAM deployment succeeds
+4. Verify CloudFormation outputs include API Gateway URL
+5. Verify frontend `.env` updated with API URL
+
+**API Testing:**
+1. Make identical requests (same ticker, same date range)
+2. Verify second request is faster (API Gateway cache hit)
+3. Check CloudWatch Logs for cache hit metrics
+4. Verify Lambda invocation count doesn't increase on cached requests
+
+**Performance Testing:**
+1. Invoke each endpoint type (stocks, news, search, sentiment)
+2. Check CloudWatch Logs for memory usage per endpoint
+3. Verify no timeouts occur
+4. Verify cold start percentage <10% (or <1% with provisioned concurrency)
+
+**Cost Analysis:**
+1. Run CloudWatch Logs Insights queries for invocation counts
+2. Compare Lambda invocations before/after optimization
+3. Calculate estimated cost savings based on reduced invocations
+4. Verify DynamoDB read units decreased (longer TTL = fewer cache misses)
 
 ### Known Limitations
 
-**Accepted for Phase 1**:
-- Lambda not deployed yet (Phase 2)
-- No API Gateway integration (Phase 2)
-- No frontend integration (Phase 2)
-- No UI updates (Phase 2)
-- Data fetcher may use placeholder/mock database access (clarify in Task 5)
+1. **API Gateway cache hit detection:** HTTP API v2 doesn't expose `X-Cache` header to Lambda handlers
+   - **Workaround:** Use CloudWatch API Gateway metrics for cache hit rate
+   - **Future improvement:** Add CloudWatch Logs Insights query to parse API Gateway logs
 
-**Technical Debt**:
-- Model performance metrics not stored (accuracy, precision, recall)
-- No cross-validation implemented (fast iteration prioritized)
-- No feature importance logging (planned for future F-testing)
+2. **Provisioned concurrency cost:** ~$10/day during market hours
+   - **Mitigation:** Feature disabled by default, enable only if cold starts are critical issue
+   - **Recommendation:** Collect cold start metrics first, then decide
+
+3. **Single Lambda function:** All endpoints share same memory/timeout
+   - **Trade-off:** Simpler deployment but some over-provisioning
+   - **Future optimization:** Split into per-endpoint functions in Phase 2 if cost warrants
+
+4. **Cache warming not implemented:** First request of day is still slow
+   - **Deferred to Phase 2:** EventBridge-triggered cache warming
+
+### Success Metrics Validation
+
+Verify these improvements after deployment:
+
+**Performance:**
+- [ ] API Gateway cache hit rate >50% (target: 70%) for stable endpoints
+- [ ] Average response latency <500ms (p50) for cached requests
+- [ ] Cold start frequency <10% (target: <1% with provisioned concurrency)
+
+**Cost:**
+- [ ] Lambda invocations reduced by 30-40% (API Gateway caching)
+- [ ] DynamoDB read units reduced by 15-20% (longer TTL for historical data)
+- [ ] Data transfer costs reduced by 20-30% (compression)
+
+**Reliability:**
+- [ ] All existing API tests pass (no breaking changes)
+- [ ] No new errors in CloudWatch Logs
+- [ ] Frontend functionality unchanged
 
 ---
 
 ## Next Steps
 
-Once Phase 1 verification is complete and all tests pass:
-
-1. Review Phase 1 implementation with team
-2. Ensure CI pipeline passes (GitHub Actions lint + unit tests)
-3. Proceed to **[Phase 2: Deployment & Frontend Integration](./Phase-2.md)**
-
----
-
-## Estimated Token Breakdown
-
-- Task 1: Database migration (per-article fields) - ~8,000 tokens
-- Task 2: Database migration (prediction fields) - ~8,000 tokens
-- Task 3: Repository updates - ~10,000 tokens
-- Task 4: Lambda setup - ~6,000 tokens
-- Task 5: Data fetching layer - ~12,000 tokens (includes CLARIFICATION)
-- Task 6: Feature engineering - ~15,000 tokens
-- Task 7: Label generation - ~8,000 tokens
-- Task 8: Feature normalization - ~9,000 tokens
-- Task 9: Model training - ~10,000 tokens
-- Task 10: Prediction generation - ~9,000 tokens
-- Task 11: Handler integration - ~12,000 tokens
-- Task 12: Test suite completion - ~8,000 tokens
-
-**Total Estimated**: ~115,000 tokens (within target range, allows for clarifications)
+Proceed to **[Phase 2: Application Optimizations](./Phase-2.md)** to implement:
+- Request batching for multi-ticker support
+- Cache warming system for pre-market preparation
+- CloudWatch dashboard for monitoring
+- Performance benchmarking suite

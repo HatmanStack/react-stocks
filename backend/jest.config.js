@@ -1,7 +1,9 @@
 export default {
   testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/__tests__'],
-  testMatch: ['**/__tests__/**/*.test.ts', '**/*.test.ts'],
+  rootDir: '.',
+  roots: ['<rootDir>/src', '<rootDir>/../tests/backend'],
+  testMatch: ['**/*.test.ts', '**/*.test.js'],
+  modulePaths: ['<rootDir>/node_modules'],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
@@ -17,6 +19,8 @@ export default {
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@tensorflow/tfjs-node$': '<rootDir>/node_modules/@tensorflow/tfjs-node',
+    '^@aws-sdk/(.*)$': '<rootDir>/node_modules/@aws-sdk/$1',
   },
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
@@ -24,10 +28,7 @@ export default {
       'ts-jest',
       {
         useESM: true,
-        tsconfig: {
-          esModuleInterop: true,
-          allowSyntheticDefaultImports: true,
-        },
+        tsconfig: '../tests/backend/tsconfig.json',
       },
     ],
   },

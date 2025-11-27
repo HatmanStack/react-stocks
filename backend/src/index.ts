@@ -6,6 +6,10 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { errorResponse, type APIGatewayResponse } from './utils/response.util';
 import { logError, getStatusCodeFromError, getErrorMessage } from './utils/error.util';
+import { logLambdaStartStatus } from './utils/metrics.util';
+
+// Track cold start - only the first invocation is a cold start
+let isFirstInvocation = true;
 
 /**
  * Main Lambda handler function
@@ -20,10 +24,16 @@ export async function handler(
   const path = event.rawPath;
   const method = event.requestContext.http.method;
 
+  // Cold Start Detection - only first invocation per container is cold
+  const isColdStart = isFirstInvocation;
+  isFirstInvocation = false;
+  logLambdaStartStatus(isColdStart, path);
+
   console.log('[Lambda] Incoming request:', {
     requestId,
     path,
     method,
+    isColdStart
   });
 
   try {
@@ -76,6 +86,33 @@ export async function handler(
         }
         const { predictionHandler } = await import('./handlers/prediction.handler');
         return predictionHandler(event);
+      }
+
+      case '/batch/stocks': {
+        // POST only
+        if (method !== 'POST') {
+          return errorResponse(`Method ${method} not allowed for /batch/stocks`, 405);
+        }
+        const { handleBatchStocksRequest } = await import('./handlers/batch.handler');
+        return handleBatchStocksRequest(event);
+      }
+
+      case '/batch/news': {
+        // POST only
+        if (method !== 'POST') {
+          return errorResponse(`Method ${method} not allowed for /batch/news`, 405);
+        }
+        const { handleBatchNewsRequest } = await import('./handlers/batch.handler');
+        return handleBatchNewsRequest(event);
+      }
+
+      case '/batch/sentiment': {
+        // POST only
+        if (method !== 'POST') {
+          return errorResponse(`Method ${method} not allowed for /batch/sentiment`, 405);
+        }
+        const { handleBatchSentimentRequest } = await import('./handlers/batch.handler');
+        return handleBatchSentimentRequest(event);
       }
 
       default: {

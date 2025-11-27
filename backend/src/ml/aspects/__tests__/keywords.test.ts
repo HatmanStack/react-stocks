@@ -2,6 +2,7 @@
  * Tests for aspect keyword library
  */
 
+import { describe, it, expect } from '@jest/globals';
 import {
   ASPECT_KEYWORDS,
   NEGATION_WORDS,
