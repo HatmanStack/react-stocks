@@ -5,6 +5,7 @@
  * and ambiguous article scenarios.
  */
 
+import { describe, it, expect } from '@jest/globals';
 import { classifyEvent } from '../eventClassification.service';
 import type { NewsArticle } from '../../repositories/newsCache.repository';
 

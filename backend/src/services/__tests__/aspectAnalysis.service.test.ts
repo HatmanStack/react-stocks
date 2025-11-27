@@ -2,6 +2,7 @@
  * Tests for aspect analysis service
  */
 
+import { describe, it, expect } from '@jest/globals';
 import { analyzeAspects, getRelevantAspects } from '../aspectAnalysis.service';
 import { ASPECT_WEIGHTS } from '../../types/aspect.types';
 
