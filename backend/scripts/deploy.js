@@ -67,6 +67,23 @@ export function validateConfig(config) {
     }
   }
 
+  // Validate provisioned concurrency (0-100)
+  if (config.provisionedConcurrency) {
+    const { marketHours, preMarket } = config.provisionedConcurrency;
+    if (marketHours !== undefined) {
+      const val = parseInt(marketHours, 10);
+      if (isNaN(val) || val < 0 || val > 100) {
+        errors.push(`Invalid provisionedConcurrency.marketHours: ${marketHours}. Must be between 0-100.`);
+      }
+    }
+    if (preMarket !== undefined) {
+      const val = parseInt(preMarket, 10);
+      if (isNaN(val) || val < 0 || val > 100) {
+        errors.push(`Invalid provisionedConcurrency.preMarket: ${preMarket}. Must be between 0-100.`);
+      }
+    }
+  }
+
   return {
     valid: errors.length === 0,
     errors
@@ -140,7 +157,14 @@ export async function loadOrPromptConfig(rl) {
       config.enableProvisionedConcurrency = defaults.enableProvisionedConcurrency;
   }
   if (!config.provisionedConcurrency) {
-      config.provisionedConcurrency = defaults.provisionedConcurrency;
+      config.provisionedConcurrency = {};
+  }
+  // Fill missing provisioned concurrency fields from defaults
+  if (config.provisionedConcurrency.marketHours === undefined) {
+      config.provisionedConcurrency.marketHours = defaults.provisionedConcurrency.marketHours;
+  }
+  if (config.provisionedConcurrency.preMarket === undefined) {
+      config.provisionedConcurrency.preMarket = defaults.provisionedConcurrency.preMarket;
   }
 
   // 4. Lambda Configuration (Per Endpoint)
