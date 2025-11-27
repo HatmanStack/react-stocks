@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 /**
  * Tests for error utilities
  */

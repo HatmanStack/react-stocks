@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { aggregate_daily_features, compute_materiality_weighted_avg, compute_event_one_hot_weighted } from '../../../backend/src/services/featureEngineering';
 import { StockPrice, ArticleSentiment } from '../../../backend/src/types/prediction.types';
 

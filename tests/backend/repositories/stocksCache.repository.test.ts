@@ -4,7 +4,7 @@
 
 // Let's use jest.unstable_mockModule again as it's the recommended way for ESM.
 
-import { jest } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 jest.unstable_mockModule('../../../backend/src/utils/cache.util.js', () => ({
   calculateTTLByDataType: jest.fn(),

@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { StockHistoricalDataItem, ArticleAnalysisDataItem } from '../../../backend/src/types/dynamodb.types';
 
 // 1. Hoist mocks

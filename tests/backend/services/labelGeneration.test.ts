@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { generate_label, aggregate_daily_features } from '../../../backend/src/services/featureEngineering';
 import { StockPrice, ArticleSentiment } from '../../../backend/src/types/prediction.types';
 
