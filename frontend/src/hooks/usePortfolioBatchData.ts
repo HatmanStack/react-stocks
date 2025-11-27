@@ -3,9 +3,6 @@ import {
   fetchBatchStocks,
   fetchBatchNews,
   fetchBatchSentiment,
-  BatchStocksResponse,
-  BatchNewsResponse,
-  BatchSentimentResponse
 } from '../services/api/batch.service';
 
 // Helper to chunk array into smaller arrays
@@ -62,12 +59,13 @@ export function usePortfolioBatchData(tickers: string[]): UsePortfolioBatchDataR
           ]);
 
           return {
+            tickers: batchTickers,
             stocks: stocksRes.status === 'fulfilled' ? stocksRes.value : null,
             news: newsRes.status === 'fulfilled' ? newsRes.value : null,
             sentiment: sentimentRes.status === 'fulfilled' ? sentimentRes.value : null,
-            stocksError: stocksRes.status === 'rejected' ? stocksRes.reason : null,
-            newsError: newsRes.status === 'rejected' ? newsRes.reason : null,
-            sentimentError: sentimentRes.status === 'rejected' ? sentimentRes.reason : null,
+            stocksError: stocksRes.status === 'rejected' ? String(stocksRes.reason) : null,
+            newsError: newsRes.status === 'rejected' ? String(newsRes.reason) : null,
+            sentimentError: sentimentRes.status === 'rejected' ? String(sentimentRes.reason) : null,
           };
         })
       );
@@ -80,35 +78,42 @@ export function usePortfolioBatchData(tickers: string[]): UsePortfolioBatchDataR
         errors: {}
       };
 
+      // Helper to append error for a ticker
+      const appendError = (ticker: string, error: string) => {
+        if (result.errors[ticker]) {
+          result.errors[ticker] += `; ${error}`;
+        } else {
+          result.errors[ticker] = error;
+        }
+      };
+
       batchResults.forEach((batch) => {
+        // Handle stocks data or HTTP-level error
         if (batch.stocks) {
           Object.assign(result.stocks, batch.stocks.data);
           Object.assign(result.errors, batch.stocks.errors);
+        } else if (batch.stocksError) {
+          batch.tickers.forEach(ticker => appendError(ticker, `Stocks: ${batch.stocksError}`));
         }
+
+        // Handle news data or HTTP-level error
         if (batch.news) {
           Object.assign(result.news, batch.news.data);
-          // Merge errors, careful not to overwrite existing ones if possible,
-          // but tickers are unique per batch so it's fine.
-          // However, same ticker might fail in stocks AND news.
-          // So we might want to key errors by "ticker-type" or just accumulate.
-          // For simplicity, last write wins for now, or we append.
           Object.entries(batch.news.errors).forEach(([ticker, err]) => {
-            if (result.errors[ticker]) {
-              result.errors[ticker] += `; News: ${err}`;
-            } else {
-              result.errors[ticker] = `News: ${err}`;
-            }
+            appendError(ticker, `News: ${err}`);
           });
+        } else if (batch.newsError) {
+          batch.tickers.forEach(ticker => appendError(ticker, `News: ${batch.newsError}`));
         }
+
+        // Handle sentiment data or HTTP-level error
         if (batch.sentiment) {
           Object.assign(result.sentiment, batch.sentiment.data);
           Object.entries(batch.sentiment.errors).forEach(([ticker, err]) => {
-            if (result.errors[ticker]) {
-              result.errors[ticker] += `; Sentiment: ${err}`;
-            } else {
-              result.errors[ticker] = `Sentiment: ${err}`;
-            }
+            appendError(ticker, `Sentiment: ${err}`);
           });
+        } else if (batch.sentimentError) {
+          batch.tickers.forEach(ticker => appendError(ticker, `Sentiment: ${batch.sentimentError}`));
         }
       });
 

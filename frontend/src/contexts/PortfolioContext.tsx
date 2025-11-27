@@ -39,21 +39,8 @@ export function PortfolioProvider({ children }: PortfolioProviderProps) {
     return portfolioHook.portfolio.map((item) => item.ticker);
   }, [portfolioHook.portfolio]);
 
-  // Use batch loading if we have more than 3 tickers
-  // (For small portfolios, individual queries might be fine or handled by existing logic,
-  // but using batch for >3 is consistent with the plan)
+  // Use batch loading for portfolios with >3 tickers to reduce API calls
   const shouldUseBatch = tickers.length > 3;
-
-  // Always call the hook, but it will be disabled if empty.
-  // Note: We can pass `tickers` directly. The hook handles empty array.
-  // However, we want to conditionally enable it based on portfolio size?
-  // The plan says: "When portfolio >3 tickers, use batch loading"
-  // But we can just use it for all sizes if efficient.
-  // Let's stick to the plan: "When portfolio <=3 tickers, use existing single-ticker loading (less overhead)"
-  // Wait, if we don't call batch hook, we don't get batchData.
-  // If we use single-ticker loading in components, they need to know whether to look at batchData or fetch individually.
-  // Components will consume PortfolioContext.
-
   const { data: batchData, isLoading: isLoadingBatch } = usePortfolioBatchData(shouldUseBatch ? tickers : []);
 
   const isInPortfolio = (ticker: string): boolean => {
