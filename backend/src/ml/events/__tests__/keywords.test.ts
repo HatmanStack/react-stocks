@@ -5,6 +5,7 @@
  * duplicate keywords across event types.
  */
 
+import { describe, it, expect } from '@jest/globals';
 import { EVENT_KEYWORDS, getAllPrimaryKeywords } from '../keywords';
 
 describe('Event Keywords', () => {
