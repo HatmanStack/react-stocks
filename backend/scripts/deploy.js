@@ -1,19 +1,3 @@
-// Convert to ES module or keep CommonJS but don't mix up unless intentional
-// Since the project is type: module in package.json, we should stick to ESM or use createRequire.
-// However, scripts/deploy.js is written as CJS (require/module.exports).
-// If the package.json says "type": "module", then .js files are ESM.
-// But scripts/deploy.js uses 'require'.
-
-// Let's check package.json again.
-// It says "type": "module".
-
-// So backend/scripts/deploy.js using `require` is actually invalid if it is .js and type is module.
-// But I ran `npm run deploy` via `node scripts/deploy.js` earlier (implied) and it worked?
-// Or maybe I haven't run it yet.
-
-// I should fix scripts/deploy.js to be ESM or rename to .cjs if I want to keep CJS.
-// Given the project is TS and ESM, I should probably migrate deploy.js to ESM.
-
 import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
@@ -178,18 +162,9 @@ export async function loadOrPromptConfig(rl) {
 }
 
 export function generateSamConfig(config) {
-  // Convert config to SAM parameter overrides
+  // Build SAM parameter overrides from config
+  // Note: API keys are not stored in config for security - SAM will prompt if missing
   const overrides = [
-    // Basic
-    // TiingoApiKey and FinnhubApiKey should be in config or passed via environment,
-    // but the original script didn't handle them explicitly in the config object saving part,
-    // assuming they might be passed otherwise or relying on SAM to prompt if missing?
-    // The original script didn't save API keys to config, which is good security practice.
-    // However, `deploy.js` in Phase-0 spec says "Prompt user for missing values" and "Save inputs".
-    // But safely. The current `deploy.js` I read didn't seem to prompt for API keys.
-    // I will stick to what's in the file and extend it.
-
-    // Lambda Configuration
     `StocksMemory=${config.lambdaMemory.stocks}`,
     `StocksTimeout=${config.lambdaTimeout.stocks}`,
     `NewsMemory=${config.lambdaMemory.news}`,
@@ -200,13 +175,6 @@ export function generateSamConfig(config) {
     `SentimentTimeout=${config.lambdaTimeout.sentiment}`,
     `PredictMemory=${config.lambdaMemory.predict}`,
     `PredictTimeout=${config.lambdaTimeout.predict}`,
-
-    // API Gateway Caching Removed
-    // `EnableApiGatewayCaching=${config.enableApiGatewayCaching}`,
-    // `ApiGatewayCacheSize=${config.enableApiGatewayCaching ? config.apiGatewayCacheSize : '0.5'}`,
-    `EnableCompression=true`, // Defaulting to true as per ADR-004
-
-    // Provisioned Concurrency
     `EnableProvisionedConcurrency=${config.enableProvisionedConcurrency}`,
     `ProvisionedConcurrencyMarketHours=${config.provisionedConcurrency.marketHours}`,
     `ProvisionedConcurrencyPreMarket=${config.provisionedConcurrency.preMarket}`

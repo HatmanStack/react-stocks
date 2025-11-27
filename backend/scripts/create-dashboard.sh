@@ -8,8 +8,8 @@ fi
 
 # Load configuration
 if [ -f ".deploy-config.json" ]; then
-    STACK_NAME=$(grep -o '"stackName": "[^"]*"' .deploy-config.json | cut -d'"' -f4)
-    REGION=$(grep -o '"region": "[^"]*"' .deploy-config.json | cut -d'"' -f4)
+    STACK_NAME=$(jq -r '.stackName // "react-stocks-backend"' .deploy-config.json)
+    REGION=$(jq -r '.region // "us-east-1"' .deploy-config.json)
 else
     echo "Config file .deploy-config.json not found. Using defaults."
     STACK_NAME="react-stocks-backend"
@@ -19,7 +19,7 @@ fi
 echo "Fetching CloudFormation outputs for stack: $STACK_NAME in region: $REGION..."
 
 # Fetch CloudFormation outputs
-OUTPUTS=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region $REGION --query "Stacks[0].Outputs" --output json)
+OUTPUTS=$(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region "$REGION" --query "Stacks[0].Outputs" --output json)
 
 if [ $? -ne 0 ]; then
     echo "Failed to fetch stack outputs. Check your credentials and stack name."
@@ -70,7 +70,7 @@ echo "Creating CloudWatch dashboard: ReactStocksOptimization..."
 aws cloudwatch put-dashboard \
     --dashboard-name "ReactStocksOptimization" \
     --dashboard-body "$DASHBOARD_BODY" \
-    --region $REGION
+    --region "$REGION"
 
 if [ $? -eq 0 ]; then
     echo "Dashboard created successfully!"

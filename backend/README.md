@@ -162,11 +162,11 @@ npm run create-dashboard   # Create CloudWatch dashboard
 |---------|--------------|-------|
 | DynamoDB | ~$9 | 80% cache hit rate, pay-per-request |
 | Lambda | ~$0 | Free tier covers most usage (reduced by caching) |
-| API Gateway | ~$1 | HTTP API + Caching (~$0.02/hour for cache) |
+| API Gateway | ~$1 | HTTP API (DynamoDB handles caching) |
 | CloudWatch | ~$1 | Logs + custom metrics |
 
 **Cost optimization:**
-- API Gateway Response Caching (reduces Lambda calls)
+- DynamoDB Response Caching (reduces Lambda and external API calls)
 - Response Compression (reduces data transfer)
 - DynamoDB TTL Optimization (reduces storage)
 - Target >80% cache hit rate

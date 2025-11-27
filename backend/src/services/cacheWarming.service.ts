@@ -3,7 +3,7 @@
  * Pre-warms DynamoDB cache for popular tickers
  */
 
-import { fetchStockPrices, fetchSymbolMetadata } from './tiingo.service';
+import { fetchStockPrices } from './tiingo.service';
 import { fetchCompanyNews } from './finnhub.service';
 import { batchPutStocks } from '../repositories/stocksCache.repository';
 import { batchPutArticles } from '../repositories/newsCache.repository';
@@ -26,10 +26,30 @@ export async function getTopTickers(): Promise<string[]> {
   return HARDCODED_TOP_TICKERS;
 }
 
+interface WarmCacheResult {
+  stocks: boolean;
+  news: boolean;
+}
+
 /**
  * Warm cache for a single ticker
+ * Returns result indicating which operations succeeded
  */
-export async function warmCache(ticker: string): Promise<void> {
+export async function warmCache(ticker: string): Promise<WarmCacheResult> {
+  const result: WarmCacheResult = { stocks: false, news: false };
+
+  const tiingoApiKey = process.env.TIINGO_API_KEY;
+  const finnhubApiKey = process.env.FINNHUB_API_KEY;
+
+  if (!tiingoApiKey) {
+    logError('CacheWarming', new Error('TIINGO_API_KEY not configured'), { ticker });
+    return result;
+  }
+  if (!finnhubApiKey) {
+    logError('CacheWarming', new Error('FINNHUB_API_KEY not configured'), { ticker });
+    return result;
+  }
+
   const now = new Date();
   const endDate = now.toISOString().split('T')[0];
   const startDateDate = new Date();
@@ -38,12 +58,13 @@ export async function warmCache(ticker: string): Promise<void> {
 
   // 1. Warm Stock Prices
   try {
-    const prices = await fetchStockPrices(ticker, startDate, endDate, process.env.TIINGO_API_KEY || '');
+    const prices = await fetchStockPrices(ticker, startDate, endDate, tiingoApiKey);
     if (prices.length > 0) {
       const cacheItems = transformTiingoToCache(ticker, prices);
       await batchPutStocks(cacheItems);
       console.log(`[CacheWarming] Warmed stock prices for ${ticker}: ${prices.length} records`);
     }
+    result.stocks = true;
   } catch (error) {
     logError('CacheWarming', error, { ticker, action: 'warmStocks' });
   }
@@ -54,7 +75,7 @@ export async function warmCache(ticker: string): Promise<void> {
     newsStartDateDate.setDate(now.getDate() - 7);
     const newsStartDate = newsStartDateDate.toISOString().split('T')[0];
 
-    const articles = await fetchCompanyNews(ticker, newsStartDate, endDate, process.env.FINNHUB_API_KEY || '');
+    const articles = await fetchCompanyNews(ticker, newsStartDate, endDate, finnhubApiKey);
     if (articles.length > 0) {
       const cacheItems = articles.map(article =>
         transformFinnhubToCache(ticker, article, generateArticleHash(article.url))
@@ -62,17 +83,12 @@ export async function warmCache(ticker: string): Promise<void> {
       await batchPutArticles(cacheItems);
       console.log(`[CacheWarming] Warmed news for ${ticker}: ${articles.length} articles`);
     }
+    result.news = true;
   } catch (error) {
     logError('CacheWarming', error, { ticker, action: 'warmNews' });
   }
 
-  // 3. Warm Metadata (Optional, if we had a metadata cache)
-  try {
-    await fetchSymbolMetadata(ticker, process.env.TIINGO_API_KEY || '');
-    // console.log(`[CacheWarming] Warmed metadata for ${ticker}`);
-  } catch (error) {
-    logError('CacheWarming', error, { ticker, action: 'warmMetadata' });
-  }
+  return result;
 }
 
 /**
@@ -82,10 +98,11 @@ export async function warmAllTopTickers(): Promise<{ success: number; failure: n
   const tickers = await getTopTickers();
   console.log(`[CacheWarming] Starting warming for ${tickers.length} tickers`);
 
-  const results = await Promise.allSettled(tickers.map(ticker => warmCache(ticker)));
+  const results = await Promise.all(tickers.map(ticker => warmCache(ticker)));
 
-  const success = results.filter(r => r.status === 'fulfilled').length;
-  const failure = results.filter(r => r.status === 'rejected').length;
+  // Count as success only if both stocks and news succeeded
+  const success = results.filter(r => r.stocks && r.news).length;
+  const failure = results.filter(r => !r.stocks || !r.news).length;
 
   return { success, failure };
 }

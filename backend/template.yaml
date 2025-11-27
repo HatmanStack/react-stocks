@@ -18,12 +18,6 @@ Parameters:
 
   # --- Optimization Parameters ---
 
-  EnableCompression:
-    Type: String
-    AllowedValues: ['true', 'false']
-    Default: 'true'
-    Description: "Enable response compression (gzip) for API Gateway. HTTP API automatically compresses if client sends Accept-Encoding."
-
   # Lambda Configuration Parameters
   StocksMemory:
     Type: Number

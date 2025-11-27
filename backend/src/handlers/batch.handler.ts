@@ -245,10 +245,10 @@ export async function handleBatchNewsRequest(
       return errorResponse('Invalid limit. Must be between 1 and 50.', 400);
     }
 
-    // Validate ticker format
+    // Validate ticker format (allow dots and hyphens for tickers like BRK.A, BF-B)
     for (const ticker of tickers) {
-      if (typeof ticker !== 'string' || !/^[A-Z0-9]+$/.test(ticker.toUpperCase())) {
-        return errorResponse(`Invalid ticker format: ${ticker}. Must be alphanumeric.`, 400);
+      if (typeof ticker !== 'string' || !/^[A-Z0-9.-]+$/.test(ticker.toUpperCase())) {
+        return errorResponse(`Invalid ticker format: ${ticker}. Must contain only letters, numbers, dots, and hyphens.`, 400);
       }
     }
 
