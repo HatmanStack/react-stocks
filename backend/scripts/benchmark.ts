@@ -33,16 +33,21 @@ interface Stats {
 }
 
 function calculateStats(results: BenchmarkResult[]): Stats {
+  if (results.length === 0) {
+    return { min: 0, max: 0, mean: 0, median: 0, p95: 0, p99: 0 };
+  }
+
   const durations = results.map(r => r.duration).sort((a, b) => a - b);
   const sum = durations.reduce((a, b) => a + b, 0);
+  const n = durations.length;
 
   return {
     min: durations[0],
-    max: durations[durations.length - 1],
-    mean: sum / durations.length,
-    median: durations[Math.floor(durations.length / 2)],
-    p95: durations[Math.floor(durations.length * 0.95)],
-    p99: durations[Math.floor(durations.length * 0.99)],
+    max: durations[n - 1],
+    mean: sum / n,
+    median: durations[Math.floor((n - 1) / 2)],
+    p95: durations[Math.floor((n - 1) * 0.95)],
+    p99: durations[Math.floor((n - 1) * 0.99)],
   };
 }
 
@@ -93,11 +98,11 @@ async function main() {
   }
 
   if (scenario === 'all' || scenario === 'single-ticker-warm') {
-    // Warm cache test: Make request twice, measure second (cached) response
+    // Warm cache test: Make request to warm cache, then measure cached response
+    // First request warms cache (outside timing)
+    await axios.get(`${API_URL}/stocks?ticker=${TEST_TICKER}&startDate=${date}`);
+    // Measure only the cached response
     scenarios['Single Ticker (Warm)'] = await runBenchmark('Single Ticker (Warm)', async () => {
-      // First request warms cache
-      await axios.get(`${API_URL}/stocks?ticker=${TEST_TICKER}&startDate=${date}`);
-      // Second request should hit cache
       await axios.get(`${API_URL}/stocks?ticker=${TEST_TICKER}&startDate=${date}`);
     });
   }

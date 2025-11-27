@@ -81,6 +81,9 @@ function normalizeDateToUTC(dateString: string): Date {
   // Parse YYYY-MM-DD as UTC midnight to avoid timezone issues
   // Split the date string and create UTC date directly
   const parts = dateString.split('-');
+  if (parts.length !== 3) {
+    return new Date(NaN); // Signal invalid date
+  }
   const year = parseInt(parts[0], 10);
   const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
   const day = parseInt(parts[2], 10);

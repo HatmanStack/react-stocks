@@ -4,21 +4,7 @@
       "type": "log",
       "x": 0,
       "y": 0,
-      "width": 8,
-      "height": 6,
-      "properties": {
-        "query": "SOURCE '/aws/lambda/${ReactStocksFunction}'\n| filter @type = 'REPORT'\n| stats sum(ApiGatewayCacheHit) / (sum(ApiGatewayCacheHit) + sum(ApiGatewayCacheMiss)) * 100 as CacheHitRate by bin(5m)",
-        "region": "${AWS_REGION}",
-        "title": "API Gateway Cache Hit Rate (%)",
-        "view": "timeSeries",
-        "stacked": false
-      }
-    },
-    {
-      "type": "log",
-      "x": 8,
-      "y": 0,
-      "width": 8,
+      "width": 12,
       "height": 6,
       "properties": {
         "query": "SOURCE '/aws/lambda/${ReactStocksFunction}'\n| filter @type = 'REPORT'\n| stats sum(DynamoDBCacheHit) / (sum(DynamoDBCacheHit) + sum(DynamoDBCacheMiss)) * 100 as CacheHitRate by bin(5m)",
@@ -86,7 +72,7 @@
       "width": 8,
       "height": 6,
       "properties": {
-        "query": "SOURCE '/aws/lambda/${ReactStocksFunction}'\n| filter @type = 'REPORT'\n| stats count(*) as ColdStarts by bin(5m) | filter @initDuration > 0",
+        "query": "SOURCE '/aws/lambda/${ReactStocksFunction}'\n| filter @type = 'REPORT'\n| filter @initDuration > 0\n| stats count(*) as ColdStarts by bin(5m)",
         "region": "${AWS_REGION}",
         "title": "Cold Start Count",
         "view": "timeSeries",

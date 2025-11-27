@@ -10,8 +10,6 @@ All metrics are logged using CloudWatch Embedded Metric Format (EMF) under the `
 
 | Metric Name | Unit | Dimensions | Description |
 |-------------|------|------------|-------------|
-| `ApiGatewayCacheHit` | Count | `Endpoint` | Number of requests served from API Gateway cache (inferred) |
-| `ApiGatewayCacheMiss` | Count | `Endpoint` | Number of requests missed by API Gateway cache |
 | `LambdaColdStart` | Count | `Endpoint` | Number of Lambda cold starts |
 | `LambdaWarmStart` | Count | `Endpoint` | Number of Lambda warm starts |
 | `DynamoDBCacheHit` | Count | `Ticker` | Number of successful cache lookups in DynamoDB |
@@ -29,13 +27,13 @@ All metrics are logged using CloudWatch Embedded Metric Format (EMF) under the `
 
 ### 1. Cache Hit Rate by Endpoint
 
-Calculates the percentage of requests served from API Gateway cache (if visible) or DynamoDB cache.
+Calculates the percentage of requests served from DynamoDB cache.
 
 ```sql
 filter @type = "REPORT"
-| stats count(*) as TotalRequests,
-        sum(ApiGatewayCacheHit) as CacheHits,
-        (sum(ApiGatewayCacheHit) / count(*) * 100) as CacheHitRate
+| stats sum(DynamoDBCacheHit) as CacheHits,
+        sum(DynamoDBCacheMiss) as CacheMisses,
+        (sum(DynamoDBCacheHit) / (sum(DynamoDBCacheHit) + sum(DynamoDBCacheMiss)) * 100) as CacheHitRate
   by Endpoint
 ```
 
