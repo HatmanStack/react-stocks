@@ -72,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </Text>
 
             <Text style={[styles.message, { color: theme.colors.onSurfaceVariant }]}>
-              We're sorry, but something unexpected happened. The app has encountered an error.
+              We&apos;re sorry, but something unexpected happened. The app has encountered an error.
             </Text>
 
             {__DEV__ && this.state.error && (
