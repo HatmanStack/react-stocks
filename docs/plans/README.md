@@ -1,117 +1,134 @@
-# Multi-Signal Stock Prediction Model - Implementation Plan
+# API Gateway Performance & Cost Optimization Plan
 
-## Feature Overview
+## Overview
 
-This feature replaces the existing bag-of-words prediction model with a sophisticated multi-signal logistic regression system. The new model combines OHLCV price data, event classification, aspect analysis, and DistilFinBERT sentiment scores to predict stock price movements across three time horizons (1-day, 2-week, 1-month). The system leverages Lambda-based asynchronous processing for consistent performance and cross-user caching, following the same architectural patterns established for sentiment analysis.
+This plan implements comprehensive performance and cost optimizations for the existing API Gateway v2 HTTP API infrastructure. The project currently uses API Gateway v2 with DynamoDB caching and Lambda functions, and is working well for moderate traffic (100-10K requests/day with market-hour spikes). This optimization plan proactively prepares the infrastructure for growth while reducing operational costs.
 
-The model trains on-the-fly using TensorFlow.js for Node.js (@tensorflow/tfjs-node), incorporating 14 features including price metrics, one-hot encoded event types, aggregated aspect scores, sentiment scores, and prediction horizon. Training data is labeled using same-day price movements with a ±1% threshold to filter market noise. The system implements smart refresh logic to minimize compute costs by only recomputing predictions when new news articles are available.
+**Current Architecture:**
+- API Gateway v2 HTTP API with CORS and throttling
+- Single Lambda function (1024MB, 60s timeout) handling all endpoints
+- DynamoDB caching (7-day TTL) for stocks, news, sentiment
+- X-Ray tracing enabled
+- 80% cache hit rate threshold
 
-Predictions are displayed as directional indicators (↑/↓) with probability percentages in both the sentiment tab's daily aggregate view and portfolio items, replacing the current percentage return format. The feature maintains backward compatibility during migration and follows strict test-driven development practices throughout implementation.
+**Optimization Goals:**
+1. **Reduce Lambda invocations** through API Gateway response caching
+2. **Minimize response latency** through compression and Lambda tuning
+3. **Lower DynamoDB costs** through intelligent TTL and access pattern optimization
+4. **Eliminate cold starts** during market hours with strategic provisioning
+5. **Enable request batching** to reduce frontend round-trips
+6. **Implement cache warming** for predictable market-hour traffic
+
+This plan maintains strict test-driven development practices and ensures all changes are validated through comprehensive unit and integration tests with mocking for CI compatibility.
 
 ## Prerequisites
 
-### Environment Requirements
-- **Node.js**: v24 LTS (managed via nvm)
-- **TypeScript**: 5.x (for Lambda runtime and build)
-- **AWS CLI**: Configured with appropriate credentials
-- **AWS SAM CLI**: For Lambda deployment
-- **Package Managers**: npm (frontend and backend)
+### Required Tools
+- **AWS CLI** (v2.x) - Configured with credentials (`aws configure`)
+- **AWS SAM CLI** (v1.100+) - For local testing and deployment
+- **Node.js** (v20.x) - LTS version via nvm
+- **npm** (v10.x) - Package manager
 
-### Development Tools
-- TypeScript 5.x
-- Expo SDK (current project version)
-- React Native testing libraries
-- Jest test framework
-- AWS SDK for JavaScript v3
+### Environment Setup
+- Active AWS account with CloudFormation permissions
+- Tiingo API key (for stock data)
+- Finnhub API key (for news data)
+- Existing deployment of react-stocks backend
 
-### External Dependencies
-- **Existing Services**: Lambda sentiment service (DistilFinBERT), Aspect score service
-- **Database**: SQLite (native), localStorage (web)
-- **APIs**: Backend Lambda (Tiingo/Finnhub proxies)
-- **ML Library**: scikit-learn 1.3+ (Lambda Python environment)
-
-### Knowledge Prerequisites
-- Familiarity with repository pattern (see `src/database/repositories/`)
-- Understanding of React Query caching patterns
-- Experience with SAM template configuration
-- Async polling patterns (reference: `src/services/api/lambdaSentiment.service.ts`)
+### Current Stack Resources
+- `ReactStocksApi` - API Gateway v2 HTTP API
+- `ReactStocksFunction` - Lambda function (all endpoints)
+- `StocksCacheTable` - DynamoDB table (stocks)
+- `NewsCacheTable` - DynamoDB table (news)
+- `SentimentCacheTable` - DynamoDB table (sentiment)
+- `SentimentJobsTable` - DynamoDB table (async jobs)
 
 ## Phase Summary
 
-| Phase | Goal | Estimated Tokens | Status |
-|-------|------|-----------------|--------|
-| **Phase 0** | Architecture & Foundation | N/A (Reference) | 📋 Pending |
-| **Phase 1** | Backend Infrastructure & ML Model | ~101,000 | 📋 Pending |
-| **Phase 2** | Deployment & Frontend Integration | ~104,000 | 📋 Pending |
+| Phase | Goal | Est. Tokens | Deployment Impact |
+|-------|------|-------------|-------------------|
+| **Phase 0** | Foundation & Architecture | N/A | None - planning only |
+| **Phase 1** | Infrastructure Optimizations | ~95,000 | Backend deployment required |
+| **Phase 2** | Application Optimizations | ~85,000 | Backend + frontend deployment |
 
 ### Phase Breakdown
 
-**Phase 0: Architecture & Foundation** (see [Phase-0.md](./Phase-0.md))
+**Phase 0: Foundation** (This document establishes the "law")
 - Architecture Decision Records (ADRs)
-- Tech stack and design rationale
+- Design patterns and conventions
 - Deployment script specifications
-- Testing strategy and mocking approach
-- Shared patterns and conventions
+- Testing strategy and CI configuration
 
-**Phase 1: Backend Infrastructure & ML Model** (see [Phase-1.md](./Phase-1.md))
-- Database schema migrations (4 new fields + prediction format updates)
-- Repository pattern updates for new schema
-- Lambda function structure and data fetching layer
-- Feature engineering with materiality-weighted aggregation
-- Logistic regression implementation with on-the-fly training
-- Comprehensive unit testing
+**Phase 1: Infrastructure Optimizations** (~95,000 tokens)
+- API Gateway response caching configuration
+- Lambda memory/timeout tuning per endpoint
+- DynamoDB TTL optimization by data type
+- Response compression (gzip) enablement
+- Provisioned concurrency for market hours
+- Connection pooling optimization
 
-**Phase 2: Deployment & Frontend Integration** (see [Phase-2.md](./Phase-2.md))
-- API Gateway configuration and async job processing
-- SAM template and deployment automation
-- Frontend API client with polling mechanism
-- Sync orchestration and smart refresh logic
-- UI updates (sentiment tab + portfolio)
-- Integration tests and end-to-end verification
+**Phase 2: Application Optimizations** (~85,000 tokens)
+- Request batching endpoint (multi-ticker support)
+- Cache warming system (pre-market preparation)
+- CloudWatch dashboard for monitoring
+- Cost analysis and alerting
+- Performance benchmarking suite
 
 ## Navigation
 
-- **[Phase 0: Architecture & Foundation](./Phase-0.md)** - Start here to understand design decisions
-- **[Phase 1: Backend Infrastructure & ML Model](./Phase-1.md)** - Database and Lambda ML implementation
-- **[Phase 2: Deployment & Frontend Integration](./Phase-2.md)** - API, frontend, and UI completion
+- **[Phase 0: Foundation](./Phase-0.md)** - Architecture, patterns, deployment specs
+- **[Phase 1: Infrastructure Optimizations](./Phase-1.md)** - API Gateway, Lambda, DynamoDB
+- **[Phase 2: Application Optimizations](./Phase-2.md)** - Batching, warming, monitoring
+
+## Token Allocation Strategy
+
+Each phase is designed to fit within a ~100k token context window, allowing an implementation engineer to load the entire phase plan along with relevant source files without exceeding context limits.
+
+**Token Budget Breakdown:**
+- Phase 0 (Foundation): Documentation only, no token budget
+- Phase 1 (Infrastructure): ~95,000 tokens
+  - API Gateway caching: ~15,000 tokens
+  - Lambda optimization: ~20,000 tokens
+  - DynamoDB optimization: ~15,000 tokens
+  - Response compression: ~10,000 tokens
+  - Provisioned concurrency: ~20,000 tokens
+  - Testing & validation: ~15,000 tokens
+
+- Phase 2 (Application): ~85,000 tokens
+  - Request batching: ~25,000 tokens
+  - Cache warming: ~25,000 tokens
+  - Monitoring dashboard: ~20,000 tokens
+  - Benchmarking: ~15,000 tokens
 
 ## Development Workflow
 
-1. **Read Phase 0** completely to understand architecture decisions
-2. **Execute Phase 1** sequentially, following TDD practices
-3. **Verify Phase 1** completion via test suite before proceeding
-4. **Execute Phase 2** with integration focus
-5. **Final verification** using end-to-end tests
+Each phase follows this workflow:
+1. **Review Phase-0** - Understand patterns, deployment, testing strategy
+2. **Read Phase-N** - Load phase plan and prerequisites
+3. **Implement Tasks** - Follow TDD, atomic commits, conventional commit format
+4. **Verify Phase** - Run test suite, integration tests, deployment validation
+5. **Deploy** - Use `npm run deploy` to update infrastructure
+6. **Monitor** - Verify metrics, cache hit rates, performance improvements
 
-## Branch Strategy
+## Success Metrics
 
-This plan is branch-agnostic. Create feature branches as needed following project conventions. All phases should be implemented with atomic commits using conventional commit format.
+**Performance Improvements:**
+- API Gateway cache hit rate: >70% for stable data
+- Average response latency: <500ms (p50), <1000ms (p99)
+- Cold start frequency: <1% of requests during market hours
+- Cache hit rate (DynamoDB): >85% (up from 80%)
 
-## Testing Strategy Overview
+**Cost Reductions:**
+- Lambda invocations: -40% (API Gateway caching)
+- DynamoDB read units: -20% (TTL optimization)
+- Data transfer: -30% (compression)
+- Total monthly cost: -25-35% reduction
 
-- **Unit Tests**: Every function, repository, and service method
-- **Integration Tests**: Mocked Lambda responses, no live AWS dependencies
-- **CI Compatibility**: All tests must pass in isolated CI environment (GitHub Actions)
-- **E2E Tests**: Local verification only, not required for CI
+**Reliability:**
+- Zero breaking changes during deployment
+- 100% backward compatibility with existing frontend
+- All tests passing in CI (unit + mocked integration)
 
-## Success Criteria
+---
 
-- [ ] All Phase 1 tasks complete with passing tests
-- [ ] All Phase 2 tasks complete with passing tests
-- [ ] CI pipeline passes (lint + unit tests + mocked integration tests)
-- [ ] Local deployment successful via `npm run deploy`
-- [ ] UI displays predictions in sentiment tab and portfolio
-- [ ] Smart refresh logic prevents unnecessary recomputation
-- [ ] Predictions match expected format (↑ 72% or ↓ 38%)
-- [ ] Legacy bag-of-words code removed
-
-## Token Budget Management
-
-Each phase is designed to fit within a ~100k token context window for efficient implementation. If context becomes constrained, prioritize:
-
-1. Core implementation guidance
-2. Test specifications
-3. Verification criteria
-4. Architectural patterns
-
-Detailed code examples are intentionally minimal - engineers should reference existing patterns in the codebase.
+**Next Steps:** Review [Phase-0: Foundation](./Phase-0.md) to understand architecture decisions and deployment strategy.

@@ -220,6 +220,88 @@ export async function handleSentimentJobStatusRequest(
 }
 
 /**
+ * Core logic to fetch sentiment results
+ */
+export async function getSentimentResults(
+  ticker: string,
+  startDate?: string,
+  endDate?: string
+): Promise<{
+  ticker: string;
+  startDate: string | null;
+  endDate: string | null;
+  dailySentiment: any[]; // Use proper type if available
+  cached: boolean;
+  predictions?: any;
+}> {
+  // Fetch all sentiments for ticker
+  const allSentiments = await SentimentCacheRepository.querySentimentsByTicker(ticker);
+
+  if (allSentiments.length === 0) {
+    return {
+      ticker: ticker.toUpperCase(),
+      startDate: startDate || null,
+      endDate: endDate || null,
+      dailySentiment: [],
+      cached: false,
+    };
+  }
+
+  // Fetch all news articles to get dates
+  const allArticles = await NewsCacheRepository.queryArticlesByTicker(ticker);
+
+  // Filter articles by date range if provided
+  const articlesInRange = allArticles.filter((article) => {
+    if (startDate && article.article.date < startDate) return false;
+    if (endDate && article.article.date > endDate) return false;
+    return true;
+  });
+
+  // Aggregate daily sentiment using shared utility
+  const dailySentiment = aggregateDailySentiment(allSentiments, articlesInRange);
+
+  // Fetch latest prediction (if available)
+  let predictions = undefined;
+  try {
+      const latestAggregate = await DailySentimentAggregateRepository.getLatestDailyAggregate(ticker.toUpperCase());
+      if (latestAggregate && latestAggregate.nextDayDirection && latestAggregate.nextDayProbability !== undefined) {
+          predictions = {
+              nextDay: {
+                  direction: latestAggregate.nextDayDirection,
+                  probability: latestAggregate.nextDayProbability
+              },
+              // Only include twoWeek if both direction and probability are defined
+              ...(latestAggregate.twoWeekDirection && latestAggregate.twoWeekProbability !== undefined ? {
+                  twoWeek: {
+                      direction: latestAggregate.twoWeekDirection,
+                      probability: latestAggregate.twoWeekProbability
+                  }
+              } : {}),
+              // Only include oneMonth if both direction and probability are defined
+              ...(latestAggregate.oneMonthDirection && latestAggregate.oneMonthProbability !== undefined ? {
+                  oneMonth: {
+                      direction: latestAggregate.oneMonthDirection,
+                      probability: latestAggregate.oneMonthProbability
+                  }
+              } : {})
+          };
+      }
+  } catch (predError) {
+      console.error('[SentimentHandler] Error fetching predictions:', predError);
+      // Continue without predictions
+  }
+
+  return {
+    ticker: ticker.toUpperCase(),
+    startDate: startDate || null,
+    endDate: endDate || null,
+    dailySentiment,
+    cached: true,
+    predictions
+  };
+}
+
+/**
  * GET /sentiment - Get cached sentiment results
  *
  * Query parameters: ticker (required), startDate, endDate
@@ -257,72 +339,9 @@ export async function handleSentimentResultsRequest(
       return errorResponse('startDate must be before or equal to endDate', 400);
     }
 
-    // Fetch all sentiments for ticker
-    const allSentiments = await SentimentCacheRepository.querySentimentsByTicker(ticker);
+    const result = await getSentimentResults(ticker, startDate, endDate);
 
-    if (allSentiments.length === 0) {
-      return successResponse({
-        ticker: ticker.toUpperCase(),
-        startDate: startDate || null,
-        endDate: endDate || null,
-        dailySentiment: [],
-        cached: false,
-      });
-    }
-
-    // Fetch all news articles to get dates
-    const allArticles = await NewsCacheRepository.queryArticlesByTicker(ticker);
-
-    // Filter articles by date range if provided
-    const articlesInRange = allArticles.filter((article) => {
-      if (startDate && article.article.date < startDate) return false;
-      if (endDate && article.article.date > endDate) return false;
-      return true;
-    });
-
-    // Aggregate daily sentiment using shared utility
-    // This ensures consistent thresholds and classification logic across handlers and services
-    const dailySentiment = aggregateDailySentiment(allSentiments, articlesInRange);
-
-    // Fetch latest prediction (if available)
-    let predictions = undefined;
-    try {
-        const latestAggregate = await DailySentimentAggregateRepository.getLatestDailyAggregate(ticker.toUpperCase());
-        if (latestAggregate && latestAggregate.nextDayDirection && latestAggregate.nextDayProbability !== undefined) {
-            predictions = {
-                nextDay: {
-                    direction: latestAggregate.nextDayDirection,
-                    probability: latestAggregate.nextDayProbability
-                },
-                // Only include twoWeek if both direction and probability are defined
-                ...(latestAggregate.twoWeekDirection && latestAggregate.twoWeekProbability !== undefined ? {
-                    twoWeek: {
-                        direction: latestAggregate.twoWeekDirection,
-                        probability: latestAggregate.twoWeekProbability
-                    }
-                } : {}),
-                // Only include oneMonth if both direction and probability are defined
-                ...(latestAggregate.oneMonthDirection && latestAggregate.oneMonthProbability !== undefined ? {
-                    oneMonth: {
-                        direction: latestAggregate.oneMonthDirection,
-                        probability: latestAggregate.oneMonthProbability
-                    }
-                } : {})
-            };
-        }
-    } catch (predError) {
-        console.error('[SentimentHandler] Error fetching predictions:', predError);
-        // Continue without predictions
-    }
-
-    return successResponse({
-      ticker: ticker.toUpperCase(),
-      startDate: startDate || null,
-      endDate: endDate || null,
-      dailySentiment,
-      cached: true,
-      predictions
-    });
+    return successResponse(result);
   } catch (error) {
     console.error('[SentimentHandler] Error getting sentiment results:', error, {
       requestId: event.requestContext.requestId,

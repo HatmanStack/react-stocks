@@ -2,6 +2,7 @@
  * Tests for aspect type definitions and weight configuration
  */
 
+import { describe, it, expect } from '@jest/globals';
 import { ASPECT_WEIGHTS, AspectType } from '../aspect.types';
 
 describe('Aspect Type Definitions', () => {

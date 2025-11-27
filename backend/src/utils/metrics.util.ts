@@ -209,6 +209,57 @@ export async function measureDuration<T>(
   }
 }
 
+// --- Optimization Metrics (Phase 1) ---
+
+/**
+ * Log API Gateway cache hit/miss (inferred)
+ * Note: Actual X-Cache header is not visible to Lambda in HTTP API v2,
+ * but we can log based on application-level logic if needed.
+ * For now, this is a placeholder if we find a way to pass it.
+ */
+export function logApiGatewayCacheStatus(
+  status: 'Hit' | 'Miss',
+  endpoint: string
+): void {
+  logMetric(
+    status === 'Hit' ? 'ApiGatewayCacheHit' : 'ApiGatewayCacheMiss',
+    1,
+    MetricUnit.Count,
+    { Endpoint: endpoint }
+  );
+}
+
+/**
+ * Log Lambda cold/warm start status
+ */
+export function logLambdaStartStatus(
+  isColdStart: boolean,
+  endpoint: string
+): void {
+  logMetric(
+    isColdStart ? 'LambdaColdStart' : 'LambdaWarmStart',
+    1,
+    MetricUnit.Count,
+    { Endpoint: endpoint }
+  );
+}
+
+/**
+ * Log DynamoDB cache hit rate for a ticker
+ */
+export function logDynamoDBCacheHit(
+  ticker: string,
+  hit: boolean
+): void {
+  // We log count, and can calculate rate in CloudWatch
+  logMetric(
+    hit ? 'DynamoDBCacheHit' : 'DynamoDBCacheMiss',
+    1,
+    MetricUnit.Count,
+    { Ticker: ticker }
+  );
+}
+
 /**
  * DistilFinBERT metrics tracking
  *

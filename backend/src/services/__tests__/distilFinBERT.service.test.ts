@@ -10,20 +10,32 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { getDistilFinBERTSentiment, getDistilFinBERTHealth } from '../distilFinBERT.service';
 
-// Mock axios module with ESM-compatible mocking
+// Mock axios module with ESM-compatible mocking using unstable_mockModule
 const mockAxiosPost = jest.fn<any>();
 const mockAxiosGet = jest.fn<any>();
 
-jest.mock('axios', () => ({
+jest.unstable_mockModule('axios', () => ({
   default: {
     post: mockAxiosPost,
     get: mockAxiosGet,
+    isAxiosError: (payload: any) => payload?.isAxiosError === true,
   },
   post: mockAxiosPost,
   get: mockAxiosGet,
+  isAxiosError: (payload: any) => payload?.isAxiosError === true,
+  AxiosError: class AxiosError extends Error {
+    isAxiosError = true;
+    code?: string;
+    response?: any;
+    constructor(message: string) {
+      super(message);
+    }
+  }
 }));
+
+// Import the module under test AFTER mocking
+const { getDistilFinBERTSentiment, getDistilFinBERTHealth } = await import('../distilFinBERT.service.js');
 
 describe('DistilFinBERT Service', () => {
   // Store original env

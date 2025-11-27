@@ -10,7 +10,7 @@ import {
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { dynamoDb, batchPutItems } from '../utils/dynamodb.util.js';
-import { calculateTTL } from '../utils/cache.util.js';
+import { calculateTTLByDataType } from '../utils/cache.util.js';
 
 const TABLE_NAME = process.env.NEWS_CACHE_TABLE || 'NewsCache';
 
@@ -75,7 +75,7 @@ export async function getArticle(
 
 /**
  * Cache news article
- * Automatically sets TTL to 30 days from now
+ * Automatically sets TTL to 7 days from now (was 30 days)
  *
  * @param item - News cache item to store
  *
@@ -97,7 +97,7 @@ export async function putArticle(item: Omit<NewsCacheItem, 'ttl'>): Promise<void
     const newsItem: NewsCacheItem = {
       ...item,
       ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTL(30), // 30 days expiration
+      ttl: calculateTTLByDataType('news'), // 7 days expiration
       fetchedAt: item.fetchedAt || Date.now(),
     };
 
@@ -166,7 +166,7 @@ export async function batchPutArticles(
     const newsItems: NewsCacheItem[] = items.map((item) => ({
       ...item,
       ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTL(30),
+      ttl: calculateTTLByDataType('news'),
       fetchedAt: item.fetchedAt || Date.now(),
     }));
 

@@ -4,6 +4,7 @@
  * Tests for HTTP handler for event classification API.
  */
 
+import { describe, it, expect } from '@jest/globals';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { handleEventClassification } from '../events.handler';
 import type { NewsArticle } from '../../repositories/newsCache.repository';

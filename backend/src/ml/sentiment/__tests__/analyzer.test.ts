@@ -2,6 +2,7 @@
  * Tests for Lambda Sentiment Analyzer
  */
 
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import {
   SentimentAnalyzer,
   getSentimentAnalyzer,

@@ -16,10 +16,107 @@ Parameters:
     Description: Comma-separated list of allowed CORS origins (e.g., https://example.com,https://www.example.com). Use '*' for development only.
     Default: '*'
 
+  # --- Optimization Parameters ---
+
+  # Lambda Configuration Parameters
+  StocksMemory:
+    Type: Number
+    Default: 512
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for stocks endpoint (I/O bound)
+
+  StocksTimeout:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for stocks endpoint
+
+  NewsMemory:
+    Type: Number
+    Default: 512
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for news endpoint (I/O bound)
+
+  NewsTimeout:
+    Type: Number
+    Default: 30
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for news endpoint
+
+  SearchMemory:
+    Type: Number
+    Default: 256
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for search endpoint (Lightweight)
+
+  SearchTimeout:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for search endpoint
+
+  SentimentMemory:
+    Type: Number
+    Default: 1536
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for sentiment endpoint (CPU intensive)
+
+  SentimentTimeout:
+    Type: Number
+    Default: 120
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for sentiment endpoint
+
+  PredictMemory:
+    Type: Number
+    Default: 2048
+    MinValue: 128
+    MaxValue: 10240
+    Description: Memory for predict endpoint (ML Training)
+
+  PredictTimeout:
+    Type: Number
+    Default: 120
+    MinValue: 1
+    MaxValue: 900
+    Description: Timeout for predict endpoint
+
+  EnableProvisionedConcurrency:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'false'
+    Description: Enable provisioned concurrency for Lambda
+
+  ProvisionedConcurrencyMarketHours:
+    Type: Number
+    Default: 5
+    MinValue: 0
+    MaxValue: 100
+    Description: Number of provisioned instances during market hours
+
+  ProvisionedConcurrencyPreMarket:
+    Type: Number
+    Default: 2
+    MinValue: 0
+    MaxValue: 100
+    Description: Number of provisioned instances during pre-market
+
+Conditions:
+  EnableProvisioning: !Equals [!Ref EnableProvisionedConcurrency, 'true']
+
 Globals:
   Function:
-    Timeout: 60
-    MemorySize: 1024
+    # Set to max required for now since we use single function
+    Timeout: !Ref PredictTimeout
+    MemorySize: !Ref PredictMemory
     Runtime: nodejs20.x
     Architectures:
       - x86_64
@@ -54,6 +151,26 @@ Resources:
           Value: react-stocks
         - Key: CacheType
           Value: stocks
+
+  TopTickersCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-TopTickersCache'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: listType
+          AttributeType: S
+      KeySchema:
+        - AttributeName: listType
+          KeyType: HASH
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: ttl
+      Tags:
+        - Key: Project
+          Value: react-stocks
+        - Key: CacheType
+          Value: top-tickers
 
   NewsCacheTable:
     Type: AWS::DynamoDB::Table
@@ -191,10 +308,6 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       CorsConfiguration:
-        # CORS Configuration - Configurable via AllowedOrigins parameter
-        # Security Note: Default is '*' for development convenience
-        # For production, deploy with: --parameter-overrides AllowedOrigins=https://your-domain.com
-        # Multiple origins: AllowedOrigins='https://prod.com,https://staging.com'
         AllowOrigins: !Split [',', !Ref AllowedOrigins]
         AllowMethods:
           - GET
@@ -204,31 +317,54 @@ Resources:
           - Content-Type
           - Authorization
         MaxAge: 300
-      # API Gateway Throttling - Prevents DDoS and excessive costs
-      # BurstLimit: Maximum concurrent requests
-      # RateLimit: Steady-state requests per second
-      RouteSettings:
-        'GET /stocks':
-          ThrottlingBurstLimit: 100
-          ThrottlingRateLimit: 50
-        'GET /news':
-          ThrottlingBurstLimit: 100
-          ThrottlingRateLimit: 50
-        'POST /sentiment':
-          ThrottlingBurstLimit: 50
-          ThrottlingRateLimit: 20
-        'GET /sentiment':
-          ThrottlingBurstLimit: 100
-          ThrottlingRateLimit: 50
-        'GET /sentiment/job/{jobId}':
-          ThrottlingBurstLimit: 200
-          ThrottlingRateLimit: 100
-        'GET /search':
-          ThrottlingBurstLimit: 100
-          ThrottlingRateLimit: 50
-        'POST /predict':
-          ThrottlingBurstLimit: 20
-          ThrottlingRateLimit: 10
+
+      # API Gateway Throttling
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+        DataTraceEnabled: true
+        DetailedMetricsEnabled: true
+
+  CacheWarmingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/handlers/cacheWarming.handler
+      Description: Pre-warms cache for popular tickers
+      Timeout: 300
+      MemorySize: 512
+      Runtime: nodejs20.x
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          TIINGO_API_KEY: !Ref TiingoApiKey
+          FINNHUB_API_KEY: !Ref FinnhubApiKey
+          STOCKS_CACHE_TABLE: !Ref StocksCacheTable
+          NEWS_CACHE_TABLE: !Ref NewsCacheTable
+          TOP_TICKERS_CACHE_TABLE: !Ref TopTickersCacheTable
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Query
+                - dynamodb:BatchGetItem
+                - dynamodb:BatchWriteItem
+              Resource:
+                - !GetAtt StocksCacheTable.Arn
+                - !GetAtt NewsCacheTable.Arn
+                - !GetAtt TopTickersCacheTable.Arn
+      Events:
+        ScheduledWarming:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 14 ? * MON-FRI *) # 9:00 AM ET (14:00 UTC)
+            Description: Warm cache for top tickers 30 minutes before market open
+            Enabled: true
 
   ReactStocksFunction:
     Type: AWS::Serverless::Function
@@ -236,6 +372,13 @@ Resources:
       CodeUri: ./
       Handler: dist/index.handler
       Description: Backend proxy for Tiingo and Finnhub APIs
+      AutoPublishAlias: live
+      # Provisioned Concurrency (Optional)
+      ProvisionedConcurrencyConfig:
+        ProvisionedConcurrentExecutions: !If
+          - EnableProvisioning
+          - !Ref ProvisionedConcurrencyMarketHours
+          - !Ref AWS::NoValue
       Environment:
         Variables:
           TIINGO_API_KEY: !Ref TiingoApiKey
@@ -314,6 +457,24 @@ Resources:
             ApiId: !Ref ReactStocksApi
             Path: /predict
             Method: POST
+        BatchStocksApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /batch/stocks
+            Method: POST
+        BatchNewsApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /batch/news
+            Method: POST
+        BatchSentimentApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ReactStocksApi
+            Path: /batch/sentiment
+            Method: POST
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -326,6 +487,121 @@ Resources:
           - aws-sdk
           - '@aws-sdk/client-dynamodb'
           - '@aws-sdk/lib-dynamodb'
+
+  # Scheduled Scaling for Provisioned Concurrency
+  ConcurrencyScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Condition: EnableProvisioning
+    Properties:
+      MaxCapacity: !Ref ProvisionedConcurrencyMarketHours
+      MinCapacity: 0
+      ResourceId: !Sub function:${ReactStocksFunction}:live
+      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/lambda.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_LambdaTable
+      ScalableDimension: lambda:function:ProvisionedConcurrentExecutions
+      ServiceNamespace: lambda
+
+  # SNS Topic for Cost Anomaly Notifications
+  CostAnomalySNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AWS::StackName}-CostAnomalyAlerts'
+      DisplayName: 'React Stocks Cost Alerts'
+      Tags:
+        - Key: Project
+          Value: react-stocks
+
+  # CloudWatch Alarms
+  LambdaInvocationsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Lambda invocations exceeded expected threshold"
+      MetricName: Invocations
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReactStocksFunction
+      Statistic: Sum
+      Period: 86400 # 1 day
+      EvaluationPeriods: 1
+      Threshold: 10000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
+
+  DynamoDBReadUnitsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "DynamoDB read units exceeded expected threshold"
+      MetricName: ConsumedReadCapacityUnits
+      Namespace: AWS/DynamoDB
+      Dimensions:
+        - Name: TableName
+          Value: !Ref StocksCacheTable
+      Statistic: Sum
+      Period: 86400 # 1 day
+      EvaluationPeriods: 1
+      Threshold: 50000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
+      OKActions:
+        - !Ref CostAnomalySNSTopic
+
+  LambdaDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Lambda average duration exceeded threshold - potential cold starts or performance issues"
+      MetricName: Duration
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReactStocksFunction
+      Statistic: Average
+      Period: 300 # 5 minutes
+      EvaluationPeriods: 3
+      Threshold: 5000 # 5 seconds average indicates issues
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
+
+  LambdaErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Lambda errors exceeded threshold"
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReactStocksFunction
+      Statistic: Sum
+      Period: 300 # 5 minutes
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
+
+  LambdaThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: "Lambda throttles detected - consider increasing concurrency"
+      MetricName: Throttles
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ReactStocksFunction
+      Statistic: Sum
+      Period: 300 # 5 minutes
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref CostAnomalySNSTopic
 
 Outputs:
   ReactStocksApiUrl:
@@ -340,12 +616,6 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-FunctionArn'
 
-  ReactStocksFunctionIamRole:
-    Description: IAM Role for Lambda Function
-    Value: !GetAtt ReactStocksFunctionRole.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-FunctionRole'
-
   StocksCacheTableArn:
     Description: ARN of StocksCache DynamoDB table
     Value: !GetAtt StocksCacheTable.Arn
@@ -358,32 +628,8 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-NewsCacheTableArn'
 
-  SentimentCacheTableArn:
-    Description: ARN of SentimentCache DynamoDB table
-    Value: !GetAtt SentimentCacheTable.Arn
+  CostAnomalySNSTopicArn:
+    Description: SNS Topic ARN for cost anomaly alerts
+    Value: !Ref CostAnomalySNSTopic
     Export:
-      Name: !Sub '${AWS::StackName}-SentimentCacheTableArn'
-
-  SentimentJobsTableArn:
-    Description: ARN of SentimentJobs DynamoDB table
-    Value: !GetAtt SentimentJobsTable.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-SentimentJobsTableArn'
-
-  StockHistoricalDataArn:
-    Description: ARN of StockHistoricalData DynamoDB table
-    Value: !GetAtt StockHistoricalData.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-StockHistoricalDataArn'
-
-  ArticleAnalysisDataArn:
-    Description: ARN of ArticleAnalysisData DynamoDB table
-    Value: !GetAtt ArticleAnalysisData.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-ArticleAnalysisDataArn'
-
-  DailySentimentAggregateArn:
-    Description: ARN of DailySentimentAggregate DynamoDB table
-    Value: !GetAtt DailySentimentAggregate.Arn
-    Export:
-      Name: !Sub '${AWS::StackName}-DailySentimentAggregateArn'
+      Name: !Sub '${AWS::StackName}-CostAnomalySNSTopicArn'

@@ -4,6 +4,7 @@
  * Tests for keyword matching, context validation, and event scoring.
  */
 
+import { describe, it, expect } from '@jest/globals';
 import {
   normalizeText,
   matchKeywords,
