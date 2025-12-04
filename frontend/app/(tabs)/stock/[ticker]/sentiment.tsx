@@ -8,13 +8,16 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams } from 'expo-router';
 import { useTheme, Chip } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useStockDetail } from '@/contexts/StockDetailContext';
+import { useSentimentData, useArticleSentiment } from '@/hooks/useSentimentData';
 import { SentimentToggle } from '@/components/sentiment/SentimentToggle';
 import { SentimentChart } from '@/components/charts/SentimentChart';
 import { CombinedWordItem } from '@/components/sentiment/CombinedWordItem';
 import { SingleWordItem } from '@/components/sentiment/SingleWordItem';
+import { TimeRangeSelector, getTimeRangeDays } from '@/components/common/TimeRangeSelector';
+import type { TimeRange } from '@/components/common/TimeRangeSelector';
 import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -25,19 +28,27 @@ const EVENT_TYPES: EventType[] = ['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING
 const FILTER_STORAGE_KEY = '@sentiment_event_filter';
 
 export default function SentimentScreen() {
+  const { ticker } = useLocalSearchParams<{ ticker: string }>();
   const theme = useTheme();
   const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>('aggregate');
   const [selectedEventTypes, setSelectedEventTypes] = useState<Set<EventType>>(new Set(EVENT_TYPES));
+  const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
 
-  // Get sentiment data from context (already fetched at layout level)
+  // Calculate days based on selected range
+  const days = useMemo(() => getTimeRangeDays(selectedRange), [selectedRange]);
+
+  // Fetch sentiment data based on selected time range
   const {
-    sentimentData: aggregateData,
-    sentimentLoading: isAggregateLoading,
-    sentimentError: aggregateError,
-    articleSentimentData: articleData,
-    articleSentimentLoading: isArticleLoading,
-    articleSentimentError: articleError,
-  } = useStockDetail();
+    data: aggregateData,
+    isLoading: isAggregateLoading,
+    error: aggregateError,
+  } = useSentimentData(ticker as string, { days });
+
+  const {
+    data: articleData,
+    isLoading: isArticleLoading,
+    error: articleError,
+  } = useArticleSentiment(ticker as string, { days });
 
   // Load filter selection from storage on mount
   useEffect(() => {
@@ -232,6 +243,12 @@ export default function SentimentScreen() {
                   <SentimentChart data={filteredAggregateData} />
                 ) : null}
               </View>
+              <View style={styles.timeRangeRow}>
+                <TimeRangeSelector
+                  selectedRange={selectedRange}
+                  onRangeChange={setSelectedRange}
+                />
+              </View>
             </>
           )}
           contentContainerStyle={styles.listContent}
@@ -307,6 +324,13 @@ const styles = StyleSheet.create({
   },
   chartSkeleton: {
     alignSelf: 'center',
+  },
+  timeRangeRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    marginTop: -50,
+    marginBottom: 8,
   },
   listContent: {
     paddingVertical: 8,
