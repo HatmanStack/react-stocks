@@ -71,9 +71,12 @@ export function useStockData(
         endDate
       );
 
-      // If missing or insufficient data, trigger sync
-      if (data.length === 0) {
-        console.log(`[useStockData] No data found, triggering sync for ${ticker}`);
+      // Check if we have enough data - expect roughly 5 trading days per week
+      const expectedMinRecords = Math.floor(days * 5 / 7 * 0.5); // 50% of expected trading days
+      const needsSync = data.length === 0 || data.length < expectedMinRecords;
+
+      if (needsSync) {
+        console.log(`[useStockData] Insufficient data (${data.length}/${expectedMinRecords} min), triggering sync for ${ticker}`);
         await syncStockData(ticker, startDate, endDate);
 
         // Fetch again after sync

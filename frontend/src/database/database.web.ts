@@ -321,7 +321,18 @@ class WebDatabase {
 
   private getStocks(params: any[]): any[] {
     const ticker = params[0];
-    return this.data.stocks[ticker] || [];
+    let stocks = this.data.stocks[ticker] || [];
+
+    // If date range params provided, filter by date
+    if (params.length === 3) {
+      const startDate = params[1];
+      const endDate = params[2];
+      stocks = stocks.filter(
+        (stock) => stock.date >= startDate && stock.date <= endDate
+      );
+    }
+
+    return stocks;
   }
 
   // News operations
