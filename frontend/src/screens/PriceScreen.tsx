@@ -1,33 +1,36 @@
 /**
  * Price Screen
- * Displays price chart and OHLCV data for a stock
+ * Displays OHLCV price data for a stock
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { StockDetailTabScreenProps } from '../navigation/navigationTypes';
 import { useStockData } from '@/hooks/useStockData';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
+import { useStock } from '@/contexts/StockContext';
 import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
-import { PriceChart } from '@/components/charts/PriceChart';
-import { TimeRangeSelector, getTimeRangeDays } from '@/components/common/TimeRangeSelector';
-import type { TimeRange } from '@/components/common/TimeRangeSelector';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import type { StockDetails } from '@/types/database.types';
+import { differenceInDays } from 'date-fns';
 
 type Props = StockDetailTabScreenProps<'Price'>;
 
 export default function PriceScreen({ route }: Props) {
   const { ticker } = route.params;
-  const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
+  const { startDate, endDate } = useStock();
 
-  // Calculate number of days based on selected range
-  const days = useMemo(() => getTimeRangeDays(selectedRange), [selectedRange]);
+  // Calculate number of days for the date range
+  const days = useMemo(() => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    return Math.abs(differenceInDays(end, start)) + 1;
+  }, [startDate, endDate]);
 
   // Fetch symbol details for metadata card
   const {
@@ -100,17 +103,11 @@ export default function PriceScreen({ route }: Props) {
         keyExtractor={keyExtractor}
         ListHeaderComponent={() => (
           <View>
-            <View style={styles.chartContainer}>
-              <PriceChart data={stockData || []} />
-            </View>
-            <TimeRangeSelector
-              selectedRange={selectedRange}
-              onRangeChange={setSelectedRange}
-            />
             <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
             <PriceListHeader />
           </View>
         )}
+        stickyHeaderIndices={[0]}
         removeClippedSubviews={true}
         maxToRenderPerBatch={15}
         updateCellsBatchingPeriod={50}
@@ -125,10 +122,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  chartContainer: {
-    alignItems: 'center',
-    paddingVertical: 16,
   },
   emptyContainer: {
     flex: 1,
