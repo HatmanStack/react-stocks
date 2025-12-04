@@ -168,16 +168,18 @@ export async function triggerSentimentAnalysis(
       `[LambdaSentiment] Triggering sentiment analysis for ${request.ticker} from ${request.startDate} to ${request.endDate}`
     );
 
-    const response = await client.post<SentimentJobResponse>(
+    const response = await client.post<{ data: SentimentJobResponse }>(
       '/sentiment',
       request
     );
 
+    const result = response.data.data;
+
     console.log(
-      `[LambdaSentiment] Sentiment job ${response.data.jobId} created with status: ${response.data.status}`
+      `[LambdaSentiment] Sentiment job ${result.jobId} created with status: ${result.status}`
     );
 
-    return response.data;
+    return result;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
@@ -236,13 +238,15 @@ export async function getSentimentJobStatus(
   try {
     console.log(`[LambdaSentiment] Checking status for job ${jobId}`);
 
-    const response = await client.get<SentimentJobStatus>(
+    const response = await client.get<{ data: SentimentJobStatus }>(
       `/sentiment/job/${jobId}`
     );
 
-    console.log(`[LambdaSentiment] Job ${jobId} status: ${response.data.status}`);
+    const result = response.data.data;
 
-    return response.data;
+    console.log(`[LambdaSentiment] Job ${jobId} status: ${result.status}`);
+
+    return result;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
@@ -286,15 +290,17 @@ export async function getSentimentResults(
       `[LambdaSentiment] Fetching sentiment results for ${ticker} from ${startDate} to ${endDate}`
     );
 
-    const response = await client.get<SentimentResultsResponse>('/sentiment', {
+    const response = await client.get<{ data: SentimentResultsResponse }>('/sentiment', {
       params: { ticker, startDate, endDate },
     });
 
+    const result = response.data.data;
+
     console.log(
-      `[LambdaSentiment] Fetched ${response.data.dailySentiment.length} daily sentiment records for ${ticker}`
+      `[LambdaSentiment] Fetched ${result.dailySentiment.length} daily sentiment records for ${ticker}`
     );
 
-    return response.data;
+    return result;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
