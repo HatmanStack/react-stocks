@@ -3,7 +3,6 @@
  * Fetches stock prices and company metadata from Tiingo API
  */
 
-import axios, { AxiosInstance } from 'axios';
 import type { TiingoStockPrice, TiingoSymbolMetadata, TiingoSearchResult, TiingoNewsArticle } from '../types/tiingo.types';
 import { APIError } from '../utils/error.util';
 
@@ -12,16 +11,25 @@ const TIINGO_BASE_URL = 'https://api.tiingo.com';
 const TIINGO_TIMEOUT = 10000; // 10 seconds
 
 /**
- * Create axios instance for Tiingo API
+ * Make a fetch request with timeout
  */
-function createTiingoClient(): AxiosInstance {
-  return axios.create({
-    baseURL: TIINGO_BASE_URL,
-    timeout: TIINGO_TIMEOUT,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIINGO_TIMEOUT);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**
@@ -41,14 +49,6 @@ async function retryWithBackoff<T>(
       return await fn();
     } catch (error) {
       lastError = error as Error;
-
-      // Don't retry on client errors (400-499, except 429)
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        if (status && status >= 400 && status < 500 && status !== 429) {
-          throw error;
-        }
-      }
 
       // Don't retry APIError instances with non-retryable status codes
       if (error instanceof APIError) {
@@ -74,6 +74,22 @@ async function retryWithBackoff<T>(
 }
 
 /**
+ * Handle HTTP response errors
+ */
+function handleResponseError(status: number, ticker: string): never {
+  if (status === 404) {
+    throw new APIError(`Ticker '${ticker}' not found`, 404);
+  }
+  if (status === 429) {
+    throw new APIError('Rate limit exceeded. Please try again in a moment.', 429);
+  }
+  if (status === 401) {
+    throw new APIError('Invalid API key. Please check your Tiingo API key.', 401);
+  }
+  throw new APIError(`API request failed with status ${status}`, status);
+}
+
+/**
  * Fetch stock prices from Tiingo API
  * @param ticker - Stock ticker symbol (e.g., "AAPL")
  * @param startDate - Start date in YYYY-MM-DD format
@@ -88,48 +104,28 @@ export async function fetchStockPrices(
   endDate: string | undefined,
   apiKey: string
 ): Promise<TiingoStockPrice[]> {
-  const client = createTiingoClient();
-
   const fetchFn = async () => {
-    try {
-      const params: Record<string, string> = {
-        startDate,
-        token: apiKey,
-      };
+    const params = new URLSearchParams({
+      startDate,
+      token: apiKey,
+    });
 
-      if (endDate) {
-        params.endDate = endDate;
-      }
-
-      console.log(`[TiingoService] Fetching prices for ${ticker} from ${startDate} to ${endDate || 'today'}`);
-
-      const response = await client.get<TiingoStockPrice[]>(
-        `/tiingo/daily/${ticker}/prices`,
-        { params }
-      );
-
-      console.log(`[TiingoService] Fetched ${response.data.length} price records for ${ticker}`);
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-
-        if (status === 404) {
-          throw new APIError(`Ticker '${ticker}' not found`, 404);
-        }
-
-        if (status === 429) {
-          throw new APIError('Rate limit exceeded. Please try again in a moment.', 429);
-        }
-
-        if (status === 401) {
-          throw new APIError('Invalid API key. Please check your Tiingo API key.', 401);
-        }
-      }
-
-      console.error('[TiingoService] Error fetching stock prices:', error);
-      throw new APIError(`Failed to fetch stock prices for ${ticker}`, 500);
+    if (endDate) {
+      params.set('endDate', endDate);
     }
+
+    console.log(`[TiingoService] Fetching prices for ${ticker} from ${startDate} to ${endDate || 'today'}`);
+
+    const url = `${TIINGO_BASE_URL}/tiingo/daily/${ticker}/prices?${params}`;
+    const response = await fetchWithTimeout(url);
+
+    if (!response.ok) {
+      handleResponseError(response.status, ticker);
+    }
+
+    const data = await response.json() as TiingoStockPrice[];
+    console.log(`[TiingoService] Fetched ${data.length} price records for ${ticker}`);
+    return data;
   };
 
   return retryWithBackoff(fetchFn);
@@ -146,41 +142,20 @@ export async function fetchSymbolMetadata(
   ticker: string,
   apiKey: string
 ): Promise<TiingoSymbolMetadata> {
-  const client = createTiingoClient();
-
   const fetchFn = async () => {
-    try {
-      console.log(`[TiingoService] Fetching metadata for ${ticker}`);
+    console.log(`[TiingoService] Fetching metadata for ${ticker}`);
 
-      const response = await client.get<TiingoSymbolMetadata>(
-        `/tiingo/daily/${ticker}`,
-        {
-          params: { token: apiKey },
-        }
-      );
+    const params = new URLSearchParams({ token: apiKey });
+    const url = `${TIINGO_BASE_URL}/tiingo/daily/${ticker}?${params}`;
+    const response = await fetchWithTimeout(url);
 
-      console.log(`[TiingoService] Fetched metadata for ${ticker}: ${response.data.name}`);
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-
-        if (status === 404) {
-          throw new APIError(`Ticker '${ticker}' not found`, 404);
-        }
-
-        if (status === 429) {
-          throw new APIError('Rate limit exceeded. Please try again in a moment.', 429);
-        }
-
-        if (status === 401) {
-          throw new APIError('Invalid API key. Please check your Tiingo API key.', 401);
-        }
-      }
-
-      console.error('[TiingoService] Error fetching symbol metadata:', error);
-      throw new APIError(`Failed to fetch metadata for ${ticker}`, 500);
+    if (!response.ok) {
+      handleResponseError(response.status, ticker);
     }
+
+    const data = await response.json() as TiingoSymbolMetadata;
+    console.log(`[TiingoService] Fetched metadata for ${ticker}: ${data.name}`);
+    return data;
   };
 
   return retryWithBackoff(fetchFn);
@@ -197,46 +172,27 @@ export async function searchTickers(
   query: string,
   apiKey: string
 ): Promise<TiingoSearchResult[]> {
-  const client = createTiingoClient();
-
   const fetchFn = async () => {
-    try {
-      console.log(`[TiingoService] Searching for: ${query}`);
+    console.log(`[TiingoService] Searching for: ${query}`);
 
-      const response = await client.get<TiingoSearchResult[]>(
-        `/tiingo/utilities/search`,
-        {
-          params: {
-            query: query.trim(),
-            token: apiKey
-          },
-        }
-      );
+    const params = new URLSearchParams({
+      query: query.trim(),
+      token: apiKey,
+    });
+    const url = `${TIINGO_BASE_URL}/tiingo/utilities/search?${params}`;
+    const response = await fetchWithTimeout(url);
 
-      console.log(`[TiingoService] Found ${response.data.length} results for query: ${query}`);
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-
-        if (status === 404) {
-          // No results found - return empty array instead of error
-          console.log(`[TiingoService] No results found for query: ${query}`);
-          return [];
-        }
-
-        if (status === 429) {
-          throw new APIError('Rate limit exceeded. Please try again in a moment.', 429);
-        }
-
-        if (status === 401) {
-          throw new APIError('Invalid API key. Please check your Tiingo API key.', 401);
-        }
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log(`[TiingoService] No results found for query: ${query}`);
+        return [];
       }
-
-      console.error('[TiingoService] Error searching tickers:', error);
-      throw new APIError(`Failed to search for tickers with query: ${query}`, 500);
+      handleResponseError(response.status, query);
     }
+
+    const data = await response.json() as TiingoSearchResult[];
+    console.log(`[TiingoService] Found ${data.length} results for query: ${query}`);
+    return data;
   };
 
   return retryWithBackoff(fetchFn);
@@ -255,46 +211,28 @@ export async function fetchNews(
   limit: number = 100,
   apiKey: string
 ): Promise<TiingoNewsArticle[]> {
-  const client = createTiingoClient();
-
   const fetchFn = async () => {
-    try {
-      console.log(`[TiingoService] Fetching news for ${ticker}, limit: ${limit}`);
+    console.log(`[TiingoService] Fetching news for ${ticker}, limit: ${limit}`);
 
-      const response = await client.get<TiingoNewsArticle[]>(
-        `/tiingo/news`,
-        {
-          params: {
-            tickers: ticker,
-            limit: Math.min(limit, 1000), // Tiingo max is 1000
-            token: apiKey
-          },
-        }
-      );
+    const params = new URLSearchParams({
+      tickers: ticker,
+      limit: String(Math.min(limit, 1000)),
+      token: apiKey,
+    });
+    const url = `${TIINGO_BASE_URL}/tiingo/news?${params}`;
+    const response = await fetchWithTimeout(url);
 
-      console.log(`[TiingoService] Fetched ${response.data.length} news articles for ${ticker}`);
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-
-        if (status === 404) {
-          console.log(`[TiingoService] No news found for ${ticker}`);
-          return [];
-        }
-
-        if (status === 429) {
-          throw new APIError('Rate limit exceeded. Please try again in a moment.', 429);
-        }
-
-        if (status === 401) {
-          throw new APIError('Invalid API key. Please check your Tiingo API key.', 401);
-        }
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log(`[TiingoService] No news found for ${ticker}`);
+        return [];
       }
-
-      console.error('[TiingoService] Error fetching news:', error);
-      throw new APIError(`Failed to fetch news for ${ticker}`, 500);
+      handleResponseError(response.status, ticker);
     }
+
+    const data = await response.json() as TiingoNewsArticle[];
+    console.log(`[TiingoService] Fetched ${data.length} news articles for ${ticker}`);
+    return data;
   };
 
   return retryWithBackoff(fetchFn);

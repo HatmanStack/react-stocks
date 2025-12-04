@@ -1,9 +1,8 @@
 import { DailyFeatures } from '../types/prediction.types';
-import * as tf from '@tensorflow/tfjs-node';
 
 export interface Scaler {
-    mean: tf.Tensor1D;
-    std: tf.Tensor1D;
+    mean: number[];
+    std: number[];
 }
 
 /**
@@ -18,36 +17,10 @@ export interface Scaler {
  * 13: finbert_score
  * 14: horizon
  *
- * ⚠️ MEMORY MANAGEMENT WARNING:
- * This function returns TensorFlow.js tensors (X, y) that are NOT automatically
- * disposed. The caller MUST manually dispose these tensors to prevent memory leaks.
- *
- * The function uses tf.tidy() internally to clean up intermediate tensors, but the
- * returned tensors escape the tidy scope and become the caller's responsibility.
- *
- * @example
- * // Recommended pattern: Use try/finally to ensure disposal
- * const { X, y } = prepare_training_data(features);
- * try {
- *   const normalized = normalize_features(X, scaler);
- *   // ... use tensors ...
- * } finally {
- *   X.dispose();
- *   y.dispose();
- * }
- *
- * @example
- * // Alternative: Explicit disposal after use
- * const { X, y } = prepare_training_data(features);
- * const result = await trainModel(X, y, config);
- * X.dispose();
- * y.dispose();
- *
  * @param dailyFeatures List of daily features.
- * @returns Object containing X (feature matrix) and y (label vector) as Tensors.
- *          Caller must dispose both tensors after use.
+ * @returns Object containing X (feature matrix) and y (label vector) as arrays.
  */
-export function prepare_training_data(dailyFeatures: DailyFeatures[]): { X: tf.Tensor2D, y: tf.Tensor2D } {
+export function prepare_training_data(dailyFeatures: DailyFeatures[]): { X: number[][]; y: number[] } {
     const validFeatures = dailyFeatures.filter(f => f.label !== null);
 
     if (validFeatures.length === 0) {
@@ -55,7 +28,7 @@ export function prepare_training_data(dailyFeatures: DailyFeatures[]): { X: tf.T
     }
 
     const X_array: number[][] = [];
-    const y_array: number[][] = [];
+    const y_array: number[] = [];
 
     const horizons = [1, 14, 30];
 
@@ -69,33 +42,50 @@ export function prepare_training_data(dailyFeatures: DailyFeatures[]): { X: tf.T
 
         for (const horizon of horizons) {
             X_array.push([...baseFeatures, horizon]);
-            y_array.push([f.label!]);
+            y_array.push(f.label!);
         }
     }
 
-    return tf.tidy(() => {
-        const X = tf.tensor2d(X_array);
-        const y = tf.tensor2d(y_array);
-        return { X, y };
-    });
+    return { X: X_array, y: y_array };
 }
 
 /**
- * Creates a StandardScaler (mean, std) from the input tensor X.
+ * Creates a StandardScaler (mean, std) from the input matrix X.
  * @param X Feature matrix (N x features).
- * @returns Scaler object containing mean and std tensors.
+ * @returns Scaler object containing mean and std arrays.
  */
-export function create_scaler(X: tf.Tensor2D): Scaler {
-    return tf.tidy(() => {
-        const moments = tf.moments(X, 0);
-        const mean = moments.mean;
-        const variance = moments.variance;
-        const std = tf.sqrt(variance).add(tf.scalar(1e-8)); // Add epsilon to avoid division by zero
-        return {
-            mean: mean as tf.Tensor1D,
-            std: std as tf.Tensor1D
-        };
-    });
+export function create_scaler(X: number[][]): Scaler {
+    const numSamples = X.length;
+    const numFeatures = X[0]?.length || 0;
+
+    if (numSamples === 0) {
+        throw new Error('Cannot create scaler from empty data');
+    }
+
+    // Calculate mean for each feature
+    const mean: number[] = Array(numFeatures).fill(0);
+    for (let i = 0; i < numSamples; i++) {
+        for (let j = 0; j < numFeatures; j++) {
+            mean[j] += X[i][j];
+        }
+    }
+    for (let j = 0; j < numFeatures; j++) {
+        mean[j] /= numSamples;
+    }
+
+    // Calculate std for each feature
+    const std: number[] = Array(numFeatures).fill(0);
+    for (let i = 0; i < numSamples; i++) {
+        for (let j = 0; j < numFeatures; j++) {
+            const diff = X[i][j] - mean[j];
+            std[j] += diff * diff;
+        }
+    }
+    for (let j = 0; j < numFeatures; j++) {
+        std[j] = Math.sqrt(std[j] / numSamples) + 1e-8; // Add epsilon to avoid division by zero
+    }
+
+    return { mean, std };
 }
 
 /**
@@ -105,8 +95,14 @@ export function create_scaler(X: tf.Tensor2D): Scaler {
  * @param scaler Scaler object.
  * @returns Normalized feature matrix.
  */
-export function normalize_features(X: tf.Tensor2D, scaler: Scaler): tf.Tensor2D {
-    return tf.tidy(() => {
-        return X.sub(scaler.mean).div(scaler.std) as tf.Tensor2D;
+export function normalize_features(X: number[][], scaler: Scaler): number[][] {
+    const numFeatures = scaler.mean.length;
+
+    return X.map(row => {
+        const normalized: number[] = [];
+        for (let j = 0; j < numFeatures; j++) {
+            normalized.push((row[j] - scaler.mean[j]) / scaler.std[j]);
+        }
+        return normalized;
     });
 }

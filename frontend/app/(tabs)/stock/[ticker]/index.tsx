@@ -3,18 +3,20 @@
  * Displays OHLCV price data for a stock
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
-import { useStockDetail } from '@/contexts/StockDetailContext';
+import { useStockData } from '@/hooks/useStockData';
 import { useResponsive } from '@/hooks/useResponsive';
 import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
 import { PriceChart } from '@/components/charts/PriceChart';
+import { TimeRangeSelector, getTimeRangeDays } from '@/components/common/TimeRangeSelector';
+import type { TimeRange } from '@/components/common/TimeRangeSelector';
 import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
@@ -25,9 +27,13 @@ export default function PriceScreen() {
   const { ticker } = useLocalSearchParams<{ ticker: string }>();
   const theme = useTheme();
   const { isDesktop, isTablet } = useResponsive();
+  const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
 
-  // Get stock data from context (already fetched at layout level)
-  const { stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
+  // Calculate days based on selected range
+  const days = useMemo(() => getTimeRangeDays(selectedRange), [selectedRange]);
+
+  // Fetch stock data based on selected time range
+  const { data: stockData, isLoading: isPriceLoading, error: priceError } = useStockData(ticker as string, { days });
 
   // Fetch symbol details for metadata card
   const {
@@ -97,6 +103,14 @@ export default function PriceScreen() {
             ) : null}
           </View>
 
+          {/* Time Range Selector - right aligned */}
+          <View style={styles.timeRangeRow}>
+            <TimeRangeSelector
+              selectedRange={selectedRange}
+              onRangeChange={setSelectedRange}
+            />
+          </View>
+
           {/* Two-column layout: Prices (left) and Metadata (right) */}
           <View style={styles.desktopLayout}>
             {/* Left column: Price list */}
@@ -136,6 +150,14 @@ export default function PriceScreen() {
                 ) : null}
               </View>
 
+              {/* Time Range Selector - right aligned */}
+              <View style={styles.timeRangeRow}>
+                <TimeRangeSelector
+                  selectedRange={selectedRange}
+                  onRangeChange={setSelectedRange}
+                />
+              </View>
+
               {/* Metadata card */}
               <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
 
@@ -166,6 +188,14 @@ export default function PriceScreen() {
           ) : null}
         </View>
 
+        {/* Time Range Selector - right aligned */}
+        <View style={styles.timeRangeRow}>
+          <TimeRangeSelector
+            selectedRange={selectedRange}
+            onRangeChange={setSelectedRange}
+          />
+        </View>
+
         {/* Two-column layout: Prices (left) and Metadata (right) */}
         <View style={styles.contentRow}>
           {/* Left: Price List */}
@@ -176,7 +206,7 @@ export default function PriceScreen() {
             ))}
           </View>
 
-          {/* Right: Metadata Card (sticky to top of this row) */}
+          {/* Right: Metadata Card */}
           <View style={styles.metadataColumn}>
             <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
           </View>
@@ -218,6 +248,14 @@ const styles = StyleSheet.create({
   metadataColumn: {
     width: '40%',
     paddingLeft: 8,
+  },
+  // Time range selector row
+  timeRangeRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    marginTop: -50,
+    marginBottom: 8,
   },
   // Desktop responsive layout
   desktopLayout: {

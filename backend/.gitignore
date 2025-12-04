@@ -1,4 +1,5 @@
 .deploy-config.json
+.env.deploy
 samconfig.toml
 dist/
 coverage/
