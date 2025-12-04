@@ -7,8 +7,6 @@
  * @see docs/plans/Phase-3.md for integration details
  */
 
-import axios, { AxiosError } from 'axios';
-
 /**
  * DistilFinBERT API configuration
  *
@@ -41,30 +39,65 @@ interface DistilFinBERTResponse {
 }
 
 /**
+ * Make a fetch request with timeout
+ */
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Determine if an error/response is retryable
+ */
+function shouldRetry(error: unknown, status?: number): boolean {
+  // Abort/timeout errors - retry
+  if (error instanceof Error && error.name === 'AbortError') {
+    return true;
+  }
+
+  // Network errors - retry
+  if (error instanceof TypeError) {
+    return true;
+  }
+
+  // Server errors (5xx) - retry
+  if (status && status >= 500) {
+    return true;
+  }
+
+  // Client errors (4xx) - don't retry
+  if (status && status >= 400 && status < 500) {
+    return false;
+  }
+
+  return false;
+}
+
+/**
+ * Sleep utility for exponential backoff
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
  * Get sentiment score from DistilFinBERT service
  *
  * Calls external DistilFinBERT API with retry logic and error handling.
  * Returns sentiment score from -1 (very negative) to +1 (very positive).
  *
- * **Retry Strategy:**
- * - Retries on network errors, timeouts, and 5xx server errors
- * - Exponential backoff: 1s, 2s, 4s between retries
- * - Does not retry on 4xx client errors (bad request)
- *
- * **Fallback:**
- * - Returns null on all errors to trigger bag-of-words fallback
- * - Logs detailed error information for debugging
- *
  * @param text - Financial news text to analyze
  * @returns Sentiment score -1 to +1, or null on error
- *
- * @example
- * const score = await getDistilFinBERTSentiment('Earnings beat expectations');
- * // Returns: 0.75 (positive sentiment)
- *
- * @example
- * const score = await getDistilFinBERTSentiment('Service unavailable text');
- * // Returns: null (service error, will use bag-of-words fallback)
  */
 export async function getDistilFinBERTSentiment(
   text: string
@@ -86,12 +119,13 @@ export async function getDistilFinBERTSentiment(
 
   // Truncate very long texts (API has max length)
   const MAX_TEXT_LENGTH = 5000;
+  let processedText = text;
   if (text.length > MAX_TEXT_LENGTH) {
     console.warn('[DistilFinBERTService] Text truncated', {
       originalLength: text.length,
       truncatedLength: MAX_TEXT_LENGTH,
     });
-    text = text.substring(0, MAX_TEXT_LENGTH);
+    processedText = text.substring(0, MAX_TEXT_LENGTH);
   }
 
   // Retry loop
@@ -99,32 +133,49 @@ export async function getDistilFinBERTSentiment(
     try {
       console.log('[DistilFinBERTService] Calling DistilFinBERT API', {
         attempt,
-        textLength: text.length,
+        textLength: processedText.length,
         url: apiUrl,
       });
 
-      // Make HTTP request
-      const response = await axios.post<DistilFinBERTResponse>(
-        `${apiUrl}/sentiment`,
-        { text },
-        {
-          timeout: TIMEOUT_MS,
-          headers: {
-            'Content-Type': 'application/json',
-          },
+      const response = await fetchWithTimeout(`${apiUrl}/sentiment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: processedText }),
+      });
+
+      if (!response.ok) {
+        const isLastAttempt = attempt === MAX_RETRIES;
+        const canRetry = shouldRetry(null, response.status);
+
+        console.error('[DistilFinBERTService] HTTP request failed', {
+          attempt,
+          isLastAttempt,
+          canRetry,
+          status: response.status,
+          statusText: response.statusText,
+        });
+
+        if (isLastAttempt || !canRetry) {
+          return null;
         }
-      );
+
+        const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        await sleep(delay);
+        continue;
+      }
+
+      const data = await response.json() as DistilFinBERTResponse;
 
       // Validate response structure
-      if (!response.data || typeof response.data.sentiment !== 'number') {
-        console.error('[DistilFinBERTService] Invalid response format', {
-          data: response.data,
-        });
+      if (!data || typeof data.sentiment !== 'number') {
+        console.error('[DistilFinBERTService] Invalid response format', { data });
         throw new Error('Invalid response format from DistilFinBERT API');
       }
 
       // Validate sentiment score range
-      const sentimentScore = response.data.sentiment;
+      const sentimentScore = data.sentiment;
       if (sentimentScore < -1 || sentimentScore > 1) {
         console.error('[DistilFinBERTService] Sentiment score out of range', {
           score: sentimentScore,
@@ -132,50 +183,31 @@ export async function getDistilFinBERTSentiment(
         throw new Error(`Invalid sentiment score: ${sentimentScore}`);
       }
 
-      // Success!
       console.log('[DistilFinBERTService] Analysis successful', {
         sentiment: sentimentScore,
-        label: response.data.label,
-        confidence: response.data.confidence,
+        label: data.label,
+        confidence: data.confidence,
       });
 
       return sentimentScore;
     } catch (error) {
       const isLastAttempt = attempt === MAX_RETRIES;
-      const shouldRetry = shouldRetryError(error);
+      const canRetry = shouldRetry(error);
 
-      // Log error details
-      if (error instanceof AxiosError) {
-        console.error('[DistilFinBERTService] HTTP request failed', {
-          attempt,
-          isLastAttempt,
-          shouldRetry,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          message: error.message,
-          code: error.code,
-        });
-      } else {
-        console.error('[DistilFinBERTService] Unexpected error', {
-          attempt,
-          isLastAttempt,
-          shouldRetry,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+      console.error('[DistilFinBERTService] Request error', {
+        attempt,
+        isLastAttempt,
+        canRetry,
+        error: error instanceof Error ? error.message : String(error),
+      });
 
-      // If last attempt or non-retryable error, return null (fallback)
-      if (isLastAttempt || !shouldRetry) {
+      if (isLastAttempt || !canRetry) {
         console.warn(
-          '[DistilFinBERTService] All retries exhausted or non-retryable error, using fallback',
-          {
-            totalAttempts: attempt,
-          }
+          '[DistilFinBERTService] All retries exhausted or non-retryable error, using fallback'
         );
         return null;
       }
 
-      // Wait before retry (exponential backoff)
       const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
       console.log('[DistilFinBERTService] Retrying after delay', {
         attempt,
@@ -186,75 +218,11 @@ export async function getDistilFinBERTSentiment(
     }
   }
 
-  // Should never reach here, but return null as fallback
   return null;
 }
 
 /**
- * Determine if an error is retryable
- *
- * Retryable errors:
- * - Network errors (no response)
- * - Timeouts (ECONNABORTED, ETIMEDOUT)
- * - 5xx server errors (service temporarily unavailable)
- *
- * Non-retryable errors:
- * - 4xx client errors (bad request, not found, etc.)
- * - Invalid response format (logic error, not transient)
- *
- * @param error - Error from axios request
- * @returns true if error is retryable, false otherwise
- */
-function shouldRetryError(error: unknown): boolean {
-  // Check if it's an AxiosError (either instance or has isAxiosError property for test mocks)
-  const isAxiosError = error instanceof AxiosError || (error as any)?.isAxiosError === true;
-
-  if (!isAxiosError) {
-    // Unknown error type - don't retry
-    return false;
-  }
-
-  const axiosError = error as AxiosError;
-
-  // Network error (no response received)
-  if (!axiosError.response) {
-    return true;
-  }
-
-  // Timeout errors
-  if (axiosError.code === 'ECONNABORTED' || axiosError.code === 'ETIMEDOUT') {
-    return true;
-  }
-
-  // Server errors (5xx) - retry
-  if (axiosError.response.status >= 500) {
-    return true;
-  }
-
-  // Client errors (4xx) - don't retry (won't succeed)
-  if (axiosError.response.status >= 400 && axiosError.response.status < 500) {
-    return false;
-  }
-
-  // Default: don't retry
-  return false;
-}
-
-/**
- * Sleep utility for exponential backoff
- *
- * @param ms - Milliseconds to sleep
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
  * Get DistilFinBERT service health status
- *
- * Useful for monitoring and diagnostics.
- *
- * @returns Health status or null on error
  */
 export async function getDistilFinBERTHealth(): Promise<{
   status: string;
@@ -266,11 +234,20 @@ export async function getDistilFinBERTHealth(): Promise<{
   }
 
   try {
-    const response = await axios.get(`${apiUrl}/health`, {
-      timeout: 3000,
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const response = await fetch(`${apiUrl}/health`, {
+      signal: controller.signal,
     });
 
-    return response.data;
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('[DistilFinBERTService] Health check failed', {
       error: error instanceof Error ? error.message : String(error),

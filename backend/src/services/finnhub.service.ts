@@ -3,7 +3,6 @@
  * Fetches news from Finnhub API
  */
 
-import axios, { AxiosInstance } from 'axios';
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
 import { APIError } from '../utils/error.util';
 
@@ -12,16 +11,25 @@ const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
 const FINNHUB_TIMEOUT = 10000; // 10 seconds
 
 /**
- * Create axios instance for Finnhub API
+ * Make a fetch request with timeout
  */
-function createFinnhubClient(): AxiosInstance {
-  return axios.create({
-    baseURL: FINNHUB_BASE_URL,
-    timeout: FINNHUB_TIMEOUT,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FINNHUB_TIMEOUT);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**
@@ -41,14 +49,6 @@ async function retryWithBackoff<T>(
       return await fn();
     } catch (error) {
       lastError = error as Error;
-
-      // Don't retry on client errors (400-499, except 429)
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        if (status && status >= 400 && status < 500 && status !== 429) {
-          throw error;
-        }
-      }
 
       // Don't retry APIError instances with non-retryable status codes
       if (error instanceof APIError) {
@@ -70,7 +70,6 @@ async function retryWithBackoff<T>(
     }
   }
 
-  // TypeScript safety: lastError should always be set, but provide fallback
   throw lastError || new Error('Request failed after retries');
 }
 
@@ -89,47 +88,40 @@ export async function fetchCompanyNews(
   to: string,
   apiKey: string
 ): Promise<FinnhubNewsArticle[]> {
-  const client = createFinnhubClient();
-
   const fetchFn = async () => {
-    try {
-      console.log(`[FinnhubService] Fetching news for ${ticker} from ${from} to ${to}`);
+    console.log(`[FinnhubService] Fetching news for ${ticker} from ${from} to ${to}`);
 
-      const response = await client.get<FinnhubNewsArticle[]>(
-        '/company-news',
-        {
-          params: {
-            symbol: ticker,
-            from,
-            to,
-            token: apiKey
-          },
-        }
-      );
+    const params = new URLSearchParams({
+      symbol: ticker,
+      from,
+      to,
+      token: apiKey,
+    });
+    const url = `${FINNHUB_BASE_URL}/company-news?${params}`;
+    const response = await fetchWithTimeout(url);
 
-      console.log(`[FinnhubService] Fetched ${response.data.length} news articles for ${ticker}`);
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
+    if (!response.ok) {
+      const status = response.status;
 
-        if (status === 404) {
-          console.log(`[FinnhubService] No news found for ${ticker}`);
-          return [];
-        }
-
-        if (status === 429) {
-          throw new APIError('Rate limit exceeded. Please try again in a moment.', 429);
-        }
-
-        if (status === 401 || status === 403) {
-          throw new APIError('Invalid API key. Please check your Finnhub API key.', 401);
-        }
+      if (status === 404) {
+        console.log(`[FinnhubService] No news found for ${ticker}`);
+        return [];
       }
 
-      console.error('[FinnhubService] Error fetching news:', error);
-      throw new APIError(`Failed to fetch news for ${ticker}`, 500);
+      if (status === 429) {
+        throw new APIError('Rate limit exceeded. Please try again in a moment.', 429);
+      }
+
+      if (status === 401 || status === 403) {
+        throw new APIError('Invalid API key. Please check your Finnhub API key.', 401);
+      }
+
+      throw new APIError(`Failed to fetch news for ${ticker}`, status);
     }
+
+    const data = await response.json() as FinnhubNewsArticle[];
+    console.log(`[FinnhubService] Fetched ${data.length} news articles for ${ticker}`);
+    return data;
   };
 
   return retryWithBackoff(fetchFn);

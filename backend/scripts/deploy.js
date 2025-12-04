@@ -221,6 +221,14 @@ resolve_s3 = true
 }
 
 async function buildAndDeploy() {
+  console.log('Building TypeScript...');
+  try {
+    execSync('npm run build', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+  } catch (e) {
+    console.error('TypeScript build failed.');
+    process.exit(1);
+  }
+
   console.log('Building SAM application...');
   try {
     execSync('sam build', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
