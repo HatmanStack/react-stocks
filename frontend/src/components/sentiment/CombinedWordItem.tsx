@@ -175,7 +175,7 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
                       ]}
                       textStyle={{ color: getEventColor(eventType, theme), fontSize: 11 }}
                     >
-                      {getEventLabel(eventType)}: {count}
+                      {`${getEventLabel(eventType)}: ${count}`}
                     </Chip>
                   ))}
               </View>
@@ -206,8 +206,7 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
                         fontWeight: 'bold',
                       }}
                     >
-                      {item.avgAspectScore >= 0 ? '+' : ''}
-                      {item.avgAspectScore.toFixed(2)}
+                      {`${item.avgAspectScore >= 0 ? '+' : ''}${item.avgAspectScore.toFixed(2)}`}
                     </Text>
                     <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {getScoreLabel(item.avgAspectScore)}
@@ -228,8 +227,7 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
                         fontWeight: 'bold',
                       }}
                     >
-                      {item.avgFinBERTScore >= 0 ? '+' : ''}
-                      {item.avgFinBERTScore.toFixed(2)}
+                      {`${item.avgFinBERTScore >= 0 ? '+' : ''}${item.avgFinBERTScore.toFixed(2)}`}
                     </Text>
                     <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {getScoreLabel(item.avgFinBERTScore)}
@@ -261,7 +259,7 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
         <TouchableOpacity onPress={() => setShowLegacyMetrics(!showLegacyMetrics)}>
           <View style={styles.section}>
             <Text variant="labelMedium" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-              Legacy Metrics {showLegacyMetrics ? '▼' : '▶'}
+              {`Legacy Metrics ${showLegacyMetrics ? '▼' : '▶'}`}
             </Text>
           </View>
         </TouchableOpacity>
