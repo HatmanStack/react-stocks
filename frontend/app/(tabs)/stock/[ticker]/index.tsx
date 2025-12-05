@@ -6,34 +6,38 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from 'react-native-paper';
+import { useStockDetail } from '@/contexts/StockDetailContext';
+import { useStock } from '@/contexts/StockContext';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
-import { useStockData } from '@/hooks/useStockData';
 import { useResponsive } from '@/hooks/useResponsive';
 import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
 import { PriceChart } from '@/components/charts/PriceChart';
-import { TimeRangeSelector, getTimeRangeDays } from '@/components/common/TimeRangeSelector';
+import { TimeRangeSelector, getTimeRangeStartDate } from '@/components/common/TimeRangeSelector';
 import type { TimeRange } from '@/components/common/TimeRangeSelector';
 import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
+import { formatDateForDB } from '@/utils/date/dateUtils';
 import type { StockDetails } from '@/types/database.types';
 
 export default function PriceScreen() {
-  const { ticker } = useLocalSearchParams<{ ticker: string }>();
+  const { ticker, stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
+  const { setDateRange } = useStock();
   const theme = useTheme();
   const { isDesktop, isTablet } = useResponsive();
   const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
 
-  // Calculate days based on selected range
-  const days = useMemo(() => getTimeRangeDays(selectedRange), [selectedRange]);
-
-  // Fetch stock data based on selected time range
-  const { data: stockData, isLoading: isPriceLoading, error: priceError } = useStockData(ticker as string, { days });
+  // Handle time range change - update context so all tabs use same range
+  const handleRangeChange = useCallback((range: TimeRange) => {
+    setSelectedRange(range);
+    const endDate = formatDateForDB(new Date());
+    const startDate = formatDateForDB(getTimeRangeStartDate(range));
+    setDateRange(startDate, endDate);
+  }, [setDateRange]);
 
   // Fetch symbol details for metadata card
   const {
@@ -107,7 +111,7 @@ export default function PriceScreen() {
           <View style={styles.timeRangeRow}>
             <TimeRangeSelector
               selectedRange={selectedRange}
-              onRangeChange={setSelectedRange}
+              onRangeChange={handleRangeChange}
             />
           </View>
 
@@ -154,7 +158,7 @@ export default function PriceScreen() {
               <View style={styles.timeRangeRow}>
                 <TimeRangeSelector
                   selectedRange={selectedRange}
-                  onRangeChange={setSelectedRange}
+                  onRangeChange={handleRangeChange}
                 />
               </View>
 
@@ -192,7 +196,7 @@ export default function PriceScreen() {
         <View style={styles.timeRangeRow}>
           <TimeRangeSelector
             selectedRange={selectedRange}
-            onRangeChange={setSelectedRange}
+            onRangeChange={handleRangeChange}
           />
         </View>
 
@@ -254,7 +258,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
-    marginTop: -50,
+    marginTop: -20,
     marginBottom: 8,
   },
   // Desktop responsive layout

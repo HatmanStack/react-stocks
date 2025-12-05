@@ -8,52 +8,49 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
 import { useTheme, Chip } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSentimentData, useArticleSentiment } from '@/hooks/useSentimentData';
+import { useStockDetail } from '@/contexts/StockDetailContext';
+import { useStock } from '@/contexts/StockContext';
 import { SentimentToggle } from '@/components/sentiment/SentimentToggle';
 import { SentimentChart } from '@/components/charts/SentimentChart';
 import { CombinedWordItem } from '@/components/sentiment/CombinedWordItem';
 import { SingleWordItem } from '@/components/sentiment/SingleWordItem';
-import { TimeRangeSelector, getTimeRangeDays } from '@/components/common/TimeRangeSelector';
+import { TimeRangeSelector, getTimeRangeStartDate } from '@/components/common/TimeRangeSelector';
 import type { TimeRange } from '@/components/common/TimeRangeSelector';
 import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
+import { formatDateForDB } from '@/utils/date/dateUtils';
 import type { CombinedWordDetails, WordCountDetails, EventType } from '@/types/database.types';
 
 const EVENT_TYPES: EventType[] = ['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING', 'PRODUCT_LAUNCH', 'GENERAL'];
 const FILTER_STORAGE_KEY = '@sentiment_event_filter';
 
 export default function SentimentScreen() {
-  const { ticker } = useLocalSearchParams<{ ticker: string }>();
+  const {
+    ticker,
+    sentimentData: aggregateData,
+    sentimentLoading: isAggregateLoading,
+    sentimentError: aggregateError,
+    articleSentimentData: articleData,
+    articleSentimentLoading: isArticleLoading,
+    articleSentimentError: articleError,
+  } = useStockDetail();
+  const { setDateRange } = useStock();
   const theme = useTheme();
   const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>('aggregate');
   const [selectedEventTypes, setSelectedEventTypes] = useState<Set<EventType>>(new Set(EVENT_TYPES));
   const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
 
-  // Calculate days based on selected range
-  const days = useMemo(() => getTimeRangeDays(selectedRange), [selectedRange]);
-
-  // Fetch sentiment data based on selected time range
-  const {
-    data: aggregateData,
-    isLoading: isAggregateLoading,
-    error: aggregateError,
-  } = useSentimentData(ticker as string, { days });
-
-  const {
-    data: articleData,
-    isLoading: isArticleLoading,
-    error: articleError,
-  } = useArticleSentiment(ticker as string, { days });
-
-  // Load filter selection from storage on mount
-  useEffect(() => {
-    loadFilterSelection();
-  }, []);
+  // Handle time range change - update context so all tabs use same range
+  const handleRangeChange = useCallback((range: TimeRange) => {
+    setSelectedRange(range);
+    const endDate = formatDateForDB(new Date());
+    const startDate = formatDateForDB(getTimeRangeStartDate(range));
+    setDateRange(startDate, endDate);
+  }, [setDateRange]);
 
   const saveFilterSelection = useCallback(async () => {
     try {
@@ -66,41 +63,26 @@ export default function SentimentScreen() {
     }
   }, [selectedEventTypes]);
 
+  // Load filter selection from storage on mount
+  useEffect(() => {
+    const loadFilterSelection = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(FILTER_STORAGE_KEY);
+        if (stored) {
+          const eventTypes = JSON.parse(stored) as EventType[];
+          setSelectedEventTypes(new Set(eventTypes));
+        }
+      } catch (error) {
+        console.warn('[SentimentScreen] Failed to load filter selection:', error);
+      }
+    };
+    loadFilterSelection();
+  }, []);
+
   // Save filter selection to storage whenever it changes
   useEffect(() => {
     saveFilterSelection();
   }, [saveFilterSelection]);
-
-  const loadFilterSelection = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(FILTER_STORAGE_KEY);
-      if (stored) {
-        const eventTypes = JSON.parse(stored) as EventType[];
-        setSelectedEventTypes(new Set(eventTypes));
-      }
-    } catch (error) {
-      console.warn('[SentimentScreen] Failed to load filter selection:', error);
-    }
-  };
-
-
-  const toggleEventType = (eventType: EventType) => {
-    const newSelection = new Set(selectedEventTypes);
-    if (newSelection.has(eventType)) {
-      newSelection.delete(eventType);
-      // Ensure at least one event type is selected
-      if (newSelection.size === 0) {
-        newSelection.add(eventType);
-      }
-    } else {
-      newSelection.add(eventType);
-    }
-    setSelectedEventTypes(newSelection);
-  };
-
-  const selectAllEventTypes = () => {
-    setSelectedEventTypes(new Set(EVENT_TYPES));
-  };
 
   // Filter and sort data based on selected event types
   const filteredAggregateData = useMemo(() => {
@@ -165,6 +147,34 @@ export default function SentimentScreen() {
     return counts;
   }, [aggregateData]);
 
+  const toggleEventType = (eventType: EventType) => {
+    const newSelection = new Set(selectedEventTypes);
+    if (newSelection.has(eventType)) {
+      newSelection.delete(eventType);
+      // Ensure at least one event type is selected
+      if (newSelection.size === 0) {
+        newSelection.add(eventType);
+      }
+    } else {
+      newSelection.add(eventType);
+    }
+    setSelectedEventTypes(newSelection);
+  };
+
+  const selectAllEventTypes = () => {
+    setSelectedEventTypes(new Set(EVENT_TYPES));
+  };
+
+  // Debug logging
+  console.log('[SentimentScreen] Render state:', {
+    ticker,
+    isAggregateLoading,
+    isArticleLoading,
+    aggregateDataLength: aggregateData?.length ?? 0,
+    filteredAggregateDataLength: filteredAggregateData.length,
+    viewMode,
+  });
+
   const renderAggregateItem = ({ item }: { item: CombinedWordDetails }) => (
     <CombinedWordItem item={item} />
   );
@@ -187,7 +197,7 @@ export default function SentimentScreen() {
           style={styles.filterChip}
           mode="outlined"
         >
-          All ({Object.values(eventTypeCounts).reduce((sum, count) => sum + count, 0)})
+          {`All (${Object.values(eventTypeCounts).reduce((sum, count) => sum + count, 0)})`}
         </Chip>
         {EVENT_TYPES.map((eventType) => (
           <Chip
@@ -197,7 +207,7 @@ export default function SentimentScreen() {
             style={styles.filterChip}
             mode="outlined"
           >
-            {eventType.replace('_', ' ')} ({eventTypeCounts[eventType]})
+            {`${eventType.replace('_', ' ')} (${eventTypeCounts[eventType]})`}
           </Chip>
         ))}
       </ScrollView>
@@ -246,7 +256,7 @@ export default function SentimentScreen() {
               <View style={styles.timeRangeRow}>
                 <TimeRangeSelector
                   selectedRange={selectedRange}
-                  onRangeChange={setSelectedRange}
+                  onRangeChange={handleRangeChange}
                 />
               </View>
             </>
@@ -329,7 +339,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
-    marginTop: -50,
+    marginTop: -20,
     marginBottom: 8,
   },
   listContent: {

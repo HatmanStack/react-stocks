@@ -102,7 +102,7 @@ export default function StockDetailLayout() {
             tabBarStyle: { backgroundColor: theme.colors.surface },
             swipeEnabled: true,
             animationEnabled: true,
-            lazy: true, // Performance optimization
+            lazy: false, // Disabled for web compatibility
           }}
         >
           <MaterialTopTabs.Screen name="index" options={{ title: 'Price' }} />

@@ -24,9 +24,9 @@ describe('useLayoutDensity', () => {
     expect(result.current.isDense).toBe(true);
     expect(result.current.cardSpacing).toBe(6);
     expect(result.current.cardPadding).toBe(12);
-    expect(result.current.fontSize.title).toBe(14);
-    expect(result.current.fontSize.subtitle).toBe(12);
-    expect(result.current.fontSize.caption).toBe(10);
+    expect(result.current.fontSize.title).toBe(18);
+    expect(result.current.fontSize.subtitle).toBe(16);
+    expect(result.current.fontSize.caption).toBe(14);
   });
 
   it('returns dense layout for screens just below breakpoint', () => {
@@ -56,9 +56,9 @@ describe('useLayoutDensity', () => {
     expect(result.current.isDense).toBe(false);
     expect(result.current.cardSpacing).toBe(12);
     expect(result.current.cardPadding).toBe(16);
-    expect(result.current.fontSize.title).toBe(16);
-    expect(result.current.fontSize.subtitle).toBe(14);
-    expect(result.current.fontSize.caption).toBe(12);
+    expect(result.current.fontSize.title).toBe(22);
+    expect(result.current.fontSize.subtitle).toBe(20);
+    expect(result.current.fontSize.caption).toBe(16);
   });
 
   it('returns spacious layout for screens at breakpoint', () => {
@@ -127,5 +127,39 @@ describe('useLayoutDensity', () => {
 
     rerender({});
     expect(result.current.isDense).toBe(false);
+  });
+
+  it('scales font sizes based on user fontScale preference', () => {
+    mockUseWindowDimensions.mockReturnValue({
+      width: 1024,
+      height: 768,
+      scale: 1,
+      fontScale: 1.5,
+    });
+
+    const { result } = renderHook(() => useLayoutDensity());
+
+    // Base sizes for desktop: title=22, subtitle=20, caption=16
+    // With fontScale 1.5: title=33, subtitle=30, caption=24
+    expect(result.current.fontSize.title).toBe(33);
+    expect(result.current.fontSize.subtitle).toBe(30);
+    expect(result.current.fontSize.caption).toBe(24);
+  });
+
+  it('handles fontScale for mobile layout', () => {
+    mockUseWindowDimensions.mockReturnValue({
+      width: 375,
+      height: 667,
+      scale: 2,
+      fontScale: 2,
+    });
+
+    const { result } = renderHook(() => useLayoutDensity());
+
+    // Base sizes for mobile: title=18, subtitle=16, caption=14
+    // With fontScale 2: title=36, subtitle=32, caption=28
+    expect(result.current.fontSize.title).toBe(36);
+    expect(result.current.fontSize.subtitle).toBe(32);
+    expect(result.current.fontSize.caption).toBe(28);
   });
 });
