@@ -18,7 +18,7 @@ export {
 } from './useSentimentData';
 
 // Portfolio hooks
-export { usePortfolio, useIsInPortfolio, usePortfolioCount } from './usePortfolio';
+export { usePortfolio } from './usePortfolio';
 
 // Symbol search hooks
 export { useSymbolSearch, useSymbolDetails, useAllSymbols } from './useSymbolSearch';

@@ -7,7 +7,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Card, Text, useTheme, Chip } from 'react-native-paper';
 import type { WordCountDetails } from '@/types/database.types';
-import { formatShortDate } from '@/utils/formatting/dateFormatting';
+import { formatShortDate } from '@/utils/date/dateUtils';
 
 interface SingleWordItemProps {
   item: WordCountDetails;

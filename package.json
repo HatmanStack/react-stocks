@@ -9,7 +9,7 @@
     "test:backend": "cd backend && npm test",
     "test:ml": "PYTHONPATH=backend/services/ml pytest tests/backend/ml/test_model.py -v --tb=short",
     "lint": "cd frontend && expo lint",
-    "lint:backend": "cd backend && npx tsc --noEmit",
+    "lint:backend": "cd backend && npm run lint && npm run type-check",
     "lint:ml": "uvx ruff check backend/services/ml",
     "check": "npm run lint && npm run lint:backend && npm run lint:ml && npm run test && npm run test:backend -- --ci --forceExit && npm run test:ml",
     "deploy": "./backend/scripts/deploy.sh"

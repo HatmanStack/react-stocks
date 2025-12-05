@@ -1,6 +1,5 @@
 /**
- * Price Screen
- * Displays OHLCV price data for a stock
+ * Price Screen - Displays OHLCV price data for a stock
  */
 
 import React, { useMemo, useState, useCallback } from 'react';
@@ -23,6 +22,31 @@ import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import type { StockDetails } from '@/types/database.types';
+
+interface ChartSectionProps {
+  data: StockDetails[];
+  isLoading: boolean;
+  selectedRange: TimeRange;
+  onRangeChange: (range: TimeRange) => void;
+  chartHeight?: number;
+}
+
+function ChartSection({ data, isLoading, selectedRange, onRangeChange, chartHeight = 250 }: ChartSectionProps) {
+  return (
+    <>
+      <View style={styles.chartContainer}>
+        {isLoading ? (
+          <Skeleton width="90%" height={chartHeight} style={styles.chartSkeleton} />
+        ) : data.length > 0 ? (
+          <PriceChart data={data} />
+        ) : null}
+      </View>
+      <View style={styles.timeRangeRow}>
+        <TimeRangeSelector selectedRange={selectedRange} onRangeChange={onRangeChange} />
+      </View>
+    </>
+  );
+}
 
 export default function PriceScreen() {
   const { ticker, stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
@@ -93,39 +117,23 @@ export default function PriceScreen() {
 
   const keyExtractor = (item: StockDetails) => `${item.ticker}-${item.date}`;
 
-  // Desktop layout: chart full width on top, then two-column below
   if (isDesktop) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
         <ScrollView>
-          {/* Chart - Full Width */}
-          <View style={styles.chartContainer}>
-            {isPriceLoading ? (
-              <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
-            ) : sortedStockData && sortedStockData.length > 0 ? (
-              <PriceChart data={sortedStockData} />
-            ) : null}
-          </View>
-
-          {/* Time Range Selector - right aligned */}
-          <View style={styles.timeRangeRow}>
-            <TimeRangeSelector
-              selectedRange={selectedRange}
-              onRangeChange={handleRangeChange}
-            />
-          </View>
-
-          {/* Two-column layout: Prices (left) and Metadata (right) */}
+          <ChartSection
+            data={sortedStockData}
+            isLoading={isPriceLoading}
+            selectedRange={selectedRange}
+            onRangeChange={handleRangeChange}
+          />
           <View style={styles.desktopLayout}>
-            {/* Left column: Price list */}
             <View style={styles.desktopLeftColumn}>
               <PriceListHeader />
               {sortedStockData.map((item) => (
                 <PriceListItem key={keyExtractor(item)} item={item} />
               ))}
             </View>
-
-            {/* Right column: Metadata */}
             <View style={styles.desktopRightColumn}>
               <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
             </View>
@@ -135,7 +143,6 @@ export default function PriceScreen() {
     );
   }
 
-  // Tablet layout: chart on top, metadata below in optimized layout
   if (isTablet) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
@@ -145,33 +152,19 @@ export default function PriceScreen() {
           keyExtractor={keyExtractor}
           ListHeaderComponent={() => (
             <View>
-              {/* Chart full width */}
-              <View style={styles.chartContainer}>
-                {isPriceLoading ? (
-                  <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
-                ) : sortedStockData && sortedStockData.length > 0 ? (
-                  <PriceChart data={sortedStockData} />
-                ) : null}
-              </View>
-
-              {/* Time Range Selector - right aligned */}
-              <View style={styles.timeRangeRow}>
-                <TimeRangeSelector
-                  selectedRange={selectedRange}
-                  onRangeChange={handleRangeChange}
-                />
-              </View>
-
-              {/* Metadata card */}
+              <ChartSection
+                data={sortedStockData}
+                isLoading={isPriceLoading}
+                selectedRange={selectedRange}
+                onRangeChange={handleRangeChange}
+              />
               <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
-
               <PriceListHeader />
             </View>
           )}
           stickyHeaderIndices={[0]}
           removeClippedSubviews={true}
           maxToRenderPerBatch={15}
-          updateCellsBatchingPeriod={50}
           initialNumToRender={15}
           windowSize={21}
         />
@@ -179,38 +172,24 @@ export default function PriceScreen() {
     );
   }
 
-  // Mobile layout: chart on top, metadata on right, prices below/left
+  // Mobile layout
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <ScrollView style={styles.mobileLayout}>
-        {/* Price Chart - Full Width */}
-        <View style={styles.chartContainer}>
-          {isPriceLoading ? (
-            <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
-          ) : sortedStockData && sortedStockData.length > 0 ? (
-            <PriceChart data={sortedStockData} />
-          ) : null}
-        </View>
-
-        {/* Time Range Selector - right aligned */}
-        <View style={styles.timeRangeRow}>
-          <TimeRangeSelector
-            selectedRange={selectedRange}
-            onRangeChange={handleRangeChange}
-          />
-        </View>
-
-        {/* Two-column layout: Prices (left) and Metadata (right) */}
+        <ChartSection
+          data={sortedStockData}
+          isLoading={isPriceLoading}
+          selectedRange={selectedRange}
+          onRangeChange={handleRangeChange}
+          chartHeight={220}
+        />
         <View style={styles.contentRow}>
-          {/* Left: Price List */}
           <View style={styles.priceColumn}>
             <PriceListHeader />
             {sortedStockData.map((item) => (
               <PriceListItem key={keyExtractor(item)} item={item} />
             ))}
           </View>
-
-          {/* Right: Metadata Card */}
           <View style={styles.metadataColumn}>
             <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
           </View>

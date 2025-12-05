@@ -16,7 +16,6 @@ import { enGB, registerTranslation } from 'react-native-paper-dates';
 
 // Contexts
 import { StockProvider } from '../src/contexts/StockContext';
-import { PortfolioProvider } from '../src/contexts/PortfolioContext';
 
 // Theme
 import { theme } from '../src/theme/theme';
@@ -139,10 +138,8 @@ export default function RootLayout() {
             <Portal.Host>
               <QueryClientProvider client={queryClient}>
                 <StockProvider>
-                  <PortfolioProvider>
-                    <Slot />
-                    <StatusBar style="light" />
-                  </PortfolioProvider>
+                  <Slot />
+                  <StatusBar style="light" />
                 </StockProvider>
               </QueryClientProvider>
             </Portal.Host>

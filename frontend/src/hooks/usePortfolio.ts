@@ -1,207 +1,83 @@
 /**
  * React Query Hook for Portfolio Management
- * Fetches user's portfolio (watchlist) with add/remove mutations
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as PortfolioRepository from '@/database/repositories/portfolio.repository';
+import { logger } from '@/utils/logger';
 import type { PortfolioDetails } from '@/types/database.types';
 
-/**
- * Hook to manage user's portfolio (watchlist)
- * Provides portfolio data and add/remove functions
- *
- * @returns Portfolio data, loading state, and mutation functions
- *
- * @example
- * ```tsx
- * function WatchlistScreen() {
- *   const {
- *     portfolio,
- *     isLoading,
- *     error,
- *     addToPortfolio,
- *     removeFromPortfolio,
- *     updatePortfolio,
- *   } = usePortfolio();
- *
- *   const handleAddStock = async () => {
- *     await addToPortfolio.mutateAsync({
- *       ticker: 'AAPL',
- *       name: 'Apple Inc.',
- *       next: '+2.5%',
- *       wks: '+5.0%',
- *       mnth: '+10.0%',
- *     });
- *   };
- *
- *   const handleRemoveStock = async (ticker: string) => {
- *     await removeFromPortfolio.mutateAsync(ticker);
- *   };
- *
- *   if (isLoading) return <ActivityIndicator />;
- *
- *   return (
- *     <FlatList
- *       data={portfolio}
- *       renderItem={({ item }) => (
- *         <StockCard
- *           stock={item}
- *           onRemove={() => handleRemoveStock(item.ticker)}
- *         />
- *       )}
- *     />
- *   );
- * }
- * ```
- */
 export function usePortfolio() {
   const queryClient = useQueryClient();
 
-  // Query to fetch all portfolio items
   const {
-    data: portfolio,
+    data: portfolio = [],
     isLoading,
     error,
     refetch,
   } = useQuery({
     queryKey: ['portfolio'],
     queryFn: async (): Promise<PortfolioDetails[]> => {
-      console.log('[usePortfolio] Fetching portfolio');
-      const data = await PortfolioRepository.findAll();
-      console.log(`[usePortfolio] Retrieved ${data.length} portfolio items`);
-      return data;
+      logger.debug('[usePortfolio] Fetching portfolio');
+      return await PortfolioRepository.findAll();
     },
   });
 
-  // Mutation to add stock to portfolio
-  const addToPortfolio = useMutation({
-    mutationFn: async (stock: PortfolioDetails) => {
-      console.log(`[usePortfolio] Adding ${stock.ticker} to portfolio`);
-      return await PortfolioRepository.upsert(stock);
-    },
-    onSuccess: (_, variables) => {
-      console.log(`[usePortfolio] Successfully added ${variables.ticker}`);
-      // Invalidate and refetch portfolio
-      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
-    },
-    onError: (error, variables) => {
-      console.error(`[usePortfolio] Error adding ${variables.ticker}:`, error);
-    },
-  });
-
-  // Mutation to remove stock from portfolio
-  const removeFromPortfolio = useMutation({
+  const addMutation = useMutation({
     mutationFn: async (ticker: string) => {
-      console.log(`[usePortfolio] Removing ${ticker} from portfolio`);
+      logger.debug(`[usePortfolio] Adding ${ticker}`);
+      const entry: Omit<PortfolioDetails, 'id'> = {
+        ticker,
+        name: ticker,
+        next: '0',
+        wks: '0',
+        mnth: '0',
+      };
+      return await PortfolioRepository.upsert(entry as PortfolioDetails);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['portfolio'] }),
+    onError: (err, ticker) => logger.error(`[usePortfolio] Error adding ${ticker}:`, err),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: async (ticker: string) => {
+      logger.debug(`[usePortfolio] Removing ${ticker}`);
       return await PortfolioRepository.deleteByTicker(ticker);
     },
-    onSuccess: (_, ticker) => {
-      console.log(`[usePortfolio] Successfully removed ${ticker}`);
-      // Invalidate and refetch portfolio
-      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
-    },
-    onError: (error, ticker) => {
-      console.error(`[usePortfolio] Error removing ${ticker}:`, error);
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['portfolio'] }),
+    onError: (err, ticker) => logger.error(`[usePortfolio] Error removing ${ticker}:`, err),
   });
 
-  // Mutation to update portfolio item (e.g., update predictions)
-  const updatePortfolio = useMutation({
+  const updateMutation = useMutation({
     mutationFn: async (stock: PortfolioDetails) => {
-      console.log(`[usePortfolio] Updating ${stock.ticker} in portfolio`);
+      logger.debug(`[usePortfolio] Updating ${stock.ticker}`);
       return await PortfolioRepository.upsert(stock);
     },
-    onSuccess: (_, variables) => {
-      console.log(`[usePortfolio] Successfully updated ${variables.ticker}`);
-      // Invalidate and refetch portfolio
-      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
-    },
-    onError: (error, variables) => {
-      console.error(`[usePortfolio] Error updating ${variables.ticker}:`, error);
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['portfolio'] }),
+    onError: (err, stock) => logger.error(`[usePortfolio] Error updating ${stock.ticker}:`, err),
   });
 
+  const isInPortfolio = (ticker: string): boolean => {
+    return portfolio.some((item) => item.ticker === ticker);
+  };
+
+  const addToPortfolio = async (ticker: string): Promise<void> => {
+    await addMutation.mutateAsync(ticker);
+  };
+
+  const removeFromPortfolio = async (ticker: string): Promise<void> => {
+    await removeMutation.mutateAsync(ticker);
+  };
+
   return {
-    portfolio: portfolio || [],
+    portfolio,
     isLoading,
     error,
     refetch,
+    isInPortfolio,
     addToPortfolio,
     removeFromPortfolio,
-    updatePortfolio,
+    updatePortfolio: updateMutation,
   };
 }
 
-/**
- * Hook to check if a ticker is in the portfolio
- * Useful for toggle buttons and conditional UI
- *
- * @param ticker - Stock ticker symbol
- * @returns React Query result with boolean indicating if ticker is in portfolio
- *
- * @example
- * ```tsx
- * function AddToWatchlistButton({ ticker }: { ticker: string }) {
- *   const { data: isInPortfolio, isLoading } = useIsInPortfolio(ticker);
- *   const { addToPortfolio, removeFromPortfolio } = usePortfolio();
- *
- *   const handleToggle = () => {
- *     if (isInPortfolio) {
- *       removeFromPortfolio.mutate(ticker);
- *     } else {
- *       addToPortfolio.mutate({ ticker, name: 'Stock Name', ... });
- *     }
- *   };
- *
- *   return (
- *     <Button onPress={handleToggle}>
- *       {isInPortfolio ? 'Remove from Watchlist' : 'Add to Watchlist'}
- *     </Button>
- *   );
- * }
- * ```
- */
-export function useIsInPortfolio(ticker: string) {
-  return useQuery({
-    queryKey: ['isInPortfolio', ticker],
-    queryFn: async (): Promise<boolean> => {
-      const stock = await PortfolioRepository.findByTicker(ticker);
-      return !!stock;
-    },
-    enabled: !!ticker,
-  });
-}
-
-/**
- * Hook to get portfolio count
- * Useful for displaying badge count in navigation
- *
- * @returns React Query result with portfolio count
- *
- * @example
- * ```tsx
- * function PortfolioTab() {
- *   const { data: count } = usePortfolioCount();
- *
- *   return (
- *     <Tab.Screen
- *       name="Portfolio"
- *       component={PortfolioScreen}
- *       options={{
- *         tabBarBadge: count > 0 ? count : undefined,
- *       }}
- *     />
- *   );
- * }
- * ```
- */
-export function usePortfolioCount() {
-  return useQuery({
-    queryKey: ['portfolioCount'],
-    queryFn: async (): Promise<number> => {
-      const portfolio = await PortfolioRepository.findAll();
-      return portfolio.length;
-    },
-  });
-}

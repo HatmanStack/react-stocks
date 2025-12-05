@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text, useTheme, Chip, Divider } from 'react-native-paper';
 import type { CombinedWordDetails, EventType } from '@/types/database.types';
-import { formatShortDate } from '@/utils/formatting/dateFormatting';
+import { formatShortDate } from '@/utils/date/dateUtils';
 import { formatPercentage } from '@/utils/formatting/numberFormatting';
 
 interface CombinedWordItemProps {
