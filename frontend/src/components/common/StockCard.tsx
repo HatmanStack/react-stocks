@@ -8,7 +8,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Card, useTheme } from 'react-native-paper';
 import type { StockDetails } from '@/types/database.types';
 import { formatCurrency, formatVolume } from '@/utils/formatting/numberFormatting';
-import { formatShortDate } from '@/utils/formatting/dateFormatting';
+import { formatShortDate } from '@/utils/date/dateUtils';
 
 interface StockCardProps {
   stock: StockDetails;

@@ -10,10 +10,11 @@ import { Appbar, useTheme } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
-import { usePortfolioContext } from '@/contexts/PortfolioContext';
+import { usePortfolio } from '@/hooks/usePortfolio';
 import { useStock } from '@/contexts/StockContext';
 import { StockDetailProvider } from '@/contexts/StockDetailContext';
 import { OfflineIndicator } from '@/components/common/OfflineIndicator';
+import { logger } from '@/utils/logger';
 
 const { Navigator } = createMaterialTopTabNavigator();
 const MaterialTopTabs = withLayoutContext(Navigator);
@@ -23,7 +24,7 @@ export default function StockDetailLayout() {
   const navigation = useNavigation();
   const theme = useTheme();
   const { data: symbolInfo, isLoading } = useSymbolDetails(ticker || 'AAPL');
-  const { isInPortfolio, addToPortfolio, removeFromPortfolio } = usePortfolioContext();
+  const { isInPortfolio, addToPortfolio, removeFromPortfolio } = usePortfolio();
   const { setSelectedTicker } = useStock();
 
   const inPortfolio = isInPortfolio(ticker || 'AAPL');
@@ -66,8 +67,8 @@ export default function StockDetailLayout() {
         // Add to portfolio with basic info
         await addToPortfolio(ticker);
       }
-    } catch (error) {
-      console.error('[StockDetailLayout] Error toggling portfolio:', error);
+    } catch (err) {
+      logger.error('[StockDetailLayout] Error toggling portfolio:', err);
       Alert.alert('Error', 'Failed to update portfolio');
     }
   }, [inPortfolio, ticker, addToPortfolio, removeFromPortfolio]);

@@ -1,47 +1,50 @@
 /**
  * Mock Tiingo API Service for Development/Testing
- * Returns realistic mock data without making actual API calls
  */
 
 import type { TiingoStockPrice, TiingoSymbolMetadata } from '../api/tiingo.types';
-import { generateMockStockPrices } from '@/utils/mockData/stockMock';
 
-/**
- * Mock implementation of fetchStockPrices
- * Generates realistic stock price data using the random walk algorithm
- */
+function generateMockPrices(ticker: string, startDate: string, endDate: string): TiingoStockPrice[] {
+  const prices: TiingoStockPrice[] = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  let price = ticker === 'AAPL' ? 180 : ticker === 'GOOGL' ? 140 : 100;
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    if (d.getDay() === 0 || d.getDay() === 6) continue; // Skip weekends
+    const change = (Math.random() - 0.5) * 4;
+    price = Math.max(10, price + change);
+    const high = price + Math.random() * 2;
+    const low = price - Math.random() * 2;
+    const volume = Math.floor(Math.random() * 10000000) + 1000000;
+
+    prices.push({
+      date: `${d.toISOString().substring(0, 10)}T00:00:00.000Z`,
+      open: price - change / 2,
+      high,
+      low,
+      close: price,
+      volume,
+      adjOpen: price - change / 2,
+      adjHigh: high,
+      adjLow: low,
+      adjClose: price,
+      adjVolume: volume,
+      divCash: 0,
+      splitFactor: 1,
+    });
+  }
+  return prices;
+}
+
 export async function fetchStockPrices(
   ticker: string,
   startDate: string,
   endDate?: string
 ): Promise<TiingoStockPrice[]> {
-  // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 300));
-
   const end = endDate || new Date().toISOString().substring(0, 10);
-
-  // Generate mock stock data
-  const mockStockData = generateMockStockPrices(ticker, startDate, end);
-
-  // Transform to Tiingo format
-  const tiingoData: TiingoStockPrice[] = mockStockData.map((stock) => ({
-    date: `${stock.date}T00:00:00.000Z`,
-    open: stock.open,
-    high: stock.high,
-    low: stock.low,
-    close: stock.close,
-    volume: stock.volume,
-    adjOpen: stock.adjOpen,
-    adjHigh: stock.adjHigh,
-    adjLow: stock.adjLow,
-    adjClose: stock.adjClose,
-    adjVolume: stock.adjVolume,
-    divCash: stock.divCash,
-    splitFactor: stock.splitFactor,
-  }));
-
-  console.log(`[MockTiingoService] Generated ${tiingoData.length} mock prices for ${ticker}`);
-  return tiingoData;
+  return generateMockPrices(ticker, startDate, end);
 }
 
 /**

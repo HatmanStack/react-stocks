@@ -247,7 +247,7 @@ export async function getDistilFinBERTHealth(): Promise<{
       return null;
     }
 
-    return await response.json();
+    return await response.json() as { status: string; model_loaded: boolean };
   } catch (error) {
     console.error('[DistilFinBERTService] Health check failed', {
       error: error instanceof Error ? error.message : String(error),

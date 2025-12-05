@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-unresolved
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { APIGatewayResponse } from '../utils/response.util';
 import { PredictionRequest, PredictionResponse } from '../types/prediction.types';
