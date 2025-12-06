@@ -452,6 +452,7 @@ Resources:
         Variables:
           TIINGO_API_KEY: !Ref TiingoApiKey
           FINNHUB_API_KEY: !Ref FinnhubApiKey
+          ALLOWED_ORIGINS: !Ref AllowedOrigins
           STOCKS_CACHE_TABLE: !Ref StocksCacheTable
           NEWS_CACHE_TABLE: !Ref NewsCacheTable
           SENTIMENT_CACHE_TABLE: !Ref SentimentCacheTable
