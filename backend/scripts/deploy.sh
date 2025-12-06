@@ -72,8 +72,10 @@ TIINGO_API_KEY=$TIINGO_API_KEY
 FINNHUB_API_KEY=$FINNHUB_API_KEY
 ALLOWED_ORIGINS=$ALLOWED_ORIGINS
 EOF
+# Restrict file permissions - contains sensitive API keys
+chmod 600 "$ENV_DEPLOY_FILE"
 echo ""
-echo "Configuration saved to $ENV_DEPLOY_FILE"
+echo "Configuration saved to $ENV_DEPLOY_FILE (permissions: owner read/write only)"
 
 echo ""
 echo "Using configuration:"
@@ -216,12 +218,13 @@ echo "Main API URL: $API_URL"
 echo "ML API URL: $ML_API_URL"
 echo ""
 
-# Update frontend .env file
+# Update frontend .env file (cross-platform sed)
 FRONTEND_ENV="../frontend/.env"
 if [ -f "$FRONTEND_ENV" ]; then
     # Update EXPO_PUBLIC_BACKEND_URL
     if grep -q "^EXPO_PUBLIC_BACKEND_URL=" "$FRONTEND_ENV"; then
-        sed -i "s|^EXPO_PUBLIC_BACKEND_URL=.*|EXPO_PUBLIC_BACKEND_URL=$API_URL|" "$FRONTEND_ENV"
+        # Use temp file for cross-platform compatibility (macOS sed -i requires extension)
+        sed "s|^EXPO_PUBLIC_BACKEND_URL=.*|EXPO_PUBLIC_BACKEND_URL=$API_URL|" "$FRONTEND_ENV" > "$FRONTEND_ENV.tmp" && mv "$FRONTEND_ENV.tmp" "$FRONTEND_ENV"
     else
         echo "EXPO_PUBLIC_BACKEND_URL=$API_URL" >> "$FRONTEND_ENV"
     fi
