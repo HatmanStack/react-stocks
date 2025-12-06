@@ -15,6 +15,12 @@ const API_BASE_URL = process.env.API_GATEWAY_URL;
 
 const describeIfDeployed = API_BASE_URL ? describe : describe.skip;
 
+/** Response type for API calls */
+interface ApiResponse {
+  data?: unknown;
+  error?: string;
+}
+
 /** Helper to build URL with query params */
 function buildUrl(path: string, params?: Record<string, string>): string {
   const url = new URL(path, API_BASE_URL);
@@ -44,7 +50,7 @@ describeIfDeployed('Backend API Integration Tests', () => {
         endDate: '2024-01-31',
       });
       const response = await fetch(url);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
 
       expect(response.status).toBe(200);
       expect(data).toHaveProperty('data');
@@ -57,7 +63,7 @@ describeIfDeployed('Backend API Integration Tests', () => {
         type: 'metadata',
       });
       const response = await fetch(url);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
 
       expect(response.status).toBe(200);
       expect(data).toHaveProperty('data');
@@ -68,7 +74,7 @@ describeIfDeployed('Backend API Integration Tests', () => {
     it('should return 400 for missing ticker', async () => {
       const url = buildUrl('/stocks', { startDate: '2024-01-01' });
       const response = await fetch(url);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
 
       expect(response.status).toBe(400);
       expect(data.error).toContain('ticker');
@@ -80,7 +86,7 @@ describeIfDeployed('Backend API Integration Tests', () => {
         startDate: '2024/01/01', // Invalid format
       });
       const response = await fetch(url);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
 
       expect(response.status).toBe(400);
       expect(data.error).toContain('startDate');
@@ -95,7 +101,7 @@ describeIfDeployed('Backend API Integration Tests', () => {
         to: '2024-01-31',
       });
       const response = await fetch(url);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
 
       expect(response.status).toBe(200);
       expect(data).toHaveProperty('data');
@@ -105,7 +111,7 @@ describeIfDeployed('Backend API Integration Tests', () => {
     it('should return 400 for missing ticker', async () => {
       const url = buildUrl('/news');
       const response = await fetch(url);
-      const data = await response.json();
+      const data = await response.json() as ApiResponse;
 
       expect(response.status).toBe(400);
       expect(data.error).toBeDefined();

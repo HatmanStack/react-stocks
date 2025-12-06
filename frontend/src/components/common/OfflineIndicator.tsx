@@ -6,11 +6,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from 'react-native-paper';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export function OfflineIndicator() {
-  const theme = useTheme();
+  const theme = useAppTheme();
   const { isConnected } = useNetworkStatus();
 
   if (isConnected) {

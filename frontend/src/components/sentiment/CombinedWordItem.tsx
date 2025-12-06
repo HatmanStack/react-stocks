@@ -7,7 +7,8 @@
 
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, Text, useTheme, Chip, Divider } from 'react-native-paper';
+import { Card, Text, Chip, Divider } from 'react-native-paper';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import type { CombinedWordDetails, EventType } from '@/types/database.types';
 import { formatShortDate } from '@/utils/date/dateUtils';
 import { formatPercentage } from '@/utils/formatting/numberFormatting';
@@ -67,7 +68,7 @@ function getScoreLabel(score: number): string {
 }
 
 export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ item }) => {
-  const theme = useTheme();
+  const theme = useAppTheme();
   const [showLegacyMetrics, setShowLegacyMetrics] = useState(false);
 
   // Parse eventCounts from JSON string

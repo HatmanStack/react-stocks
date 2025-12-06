@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { View, useWindowDimensions, LayoutChangeEvent } from 'react-native';
-import { useTheme, Text as PaperText } from 'react-native-paper';
+import { Text as PaperText } from 'react-native-paper';
 import { AreaChart, Grid, XAxis, YAxis } from 'react-native-svg-charts';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import * as shape from 'd3-shape';
 import { format, parseISO } from 'date-fns';
@@ -16,7 +17,7 @@ interface PriceChartProps {
 }
 
 const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceChartProps) => {
-  const theme = useTheme();
+  const theme = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
   const { fontSize } = useLayoutDensity();
   const [containerWidth, setContainerWidth] = useState<number | null>(null);

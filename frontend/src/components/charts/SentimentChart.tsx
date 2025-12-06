@@ -9,8 +9,9 @@
 
 import React, { useMemo, useState } from 'react';
 import { View, useWindowDimensions, StyleSheet, LayoutChangeEvent } from 'react-native';
-import { useTheme, Chip, Text as PaperText } from 'react-native-paper';
+import { Chip, Text as PaperText } from 'react-native-paper';
 import { LineChart, Grid, XAxis, YAxis } from 'react-native-svg-charts';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import { Rect, Line } from 'react-native-svg';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import * as shape from 'd3-shape';
@@ -33,7 +34,7 @@ interface ChartSeries {
 }
 
 const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: SentimentChartProps) => {
-  const theme = useTheme();
+  const theme = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
   const { fontSize } = useLayoutDensity();
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
