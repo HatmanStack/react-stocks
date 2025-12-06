@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
-import { useTheme } from 'react-native-paper';
 import { LineChart } from 'react-native-svg-charts';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import * as shape from 'd3-shape';
 import type { ChartDataPoint } from '@/hooks/useChartData';
@@ -19,7 +19,7 @@ const MiniChartComponent = ({
   height = 28,
   positive = false,
 }: MiniChartProps) => {
-  const theme = useTheme();
+  const theme = useAppTheme();
 
   // Extract y-values for the chart
   const chartData = useMemo(() => {

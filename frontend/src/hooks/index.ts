@@ -34,3 +34,7 @@ export type { ChartDataPoint, PriceChange } from './useChartData';
 // Responsive hooks
 export { useResponsive } from './useResponsive';
 export type { ResponsiveValues } from './useResponsive';
+
+// Theme hook with extended types
+export { useAppTheme } from './useAppTheme';
+export type { AppTheme, AppColors } from './useAppTheme';

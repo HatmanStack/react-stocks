@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import type { StockDetails } from '@/types/database.types';
 import { formatCurrency, formatVolume } from '@/utils/formatting/numberFormatting';
 import { formatShortDate } from '@/utils/date/dateUtils';
@@ -16,7 +17,7 @@ interface PriceListItemProps {
 }
 
 export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item }) => {
-  const theme = useTheme();
+  const theme = useAppTheme();
 
   // Determine row color based on close vs open (use surfaceVariant for dark theme compatibility)
   const getRowColor = (): string => {

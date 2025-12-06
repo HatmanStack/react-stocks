@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Card, Text, useTheme, Chip } from 'react-native-paper';
+import { Card, Text, Chip } from 'react-native-paper';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import type { WordCountDetails } from '@/types/database.types';
 import { formatShortDate } from '@/utils/date/dateUtils';
 
@@ -14,7 +15,7 @@ interface SingleWordItemProps {
 }
 
 export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item }) => {
-  const theme = useTheme();
+  const theme = useAppTheme();
 
   // Get sentiment color
   const getSentimentColor = (sentiment: string): string => {

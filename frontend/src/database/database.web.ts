@@ -17,7 +17,7 @@ interface StorageData {
 class WebDatabase {
   private storageKey = `${DB_NAME}_data`;
   private data: StorageData;
-  private saveTimeout: NodeJS.Timeout | null = null;
+  private saveTimeout: ReturnType<typeof setTimeout> | null = null;
   private pendingSave = false;
 
   constructor() {

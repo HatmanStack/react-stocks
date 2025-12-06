@@ -6,8 +6,8 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import type { SymbolDetails } from '@/types/database.types';
 import { useLayoutDensity } from '@/hooks';
 import { AnimatedCard } from '@/components/common';
@@ -20,7 +20,7 @@ interface SearchResultItemProps {
 }
 
 export function SearchResultItem({ symbol, onPress, disabled = false, subtitle }: SearchResultItemProps) {
-  const theme = useTheme();
+  const theme = useAppTheme();
   const { cardSpacing, cardPadding, fontSize } = useLayoutDensity();
 
   return (

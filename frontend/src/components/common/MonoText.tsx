@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Text, TextProps } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { useAppTheme } from '@/hooks/useAppTheme';
 
 export interface MonoTextProps extends TextProps {
   variant?: 'price' | 'percentage' | 'volume';
@@ -22,7 +22,7 @@ export function MonoText({
   children,
   ...props
 }: MonoTextProps) {
-  const theme = useTheme();
+  const theme = useAppTheme();
 
   // Determine color based on positive/negative
   const color = positive
