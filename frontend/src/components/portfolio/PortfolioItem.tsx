@@ -6,8 +6,9 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { IconButton, useTheme } from 'react-native-paper';
+import { IconButton } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import type { PortfolioDetails } from '@/types/database.types';
@@ -24,7 +25,7 @@ interface PortfolioItemProps {
 }
 
 export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
-  const theme = useTheme();
+  const theme = useAppTheme();
   const { cardSpacing, cardPadding, fontSize } = useLayoutDensity();
 
   // Fetch latest stock price for current price and change

@@ -11,7 +11,8 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useSymbolSearch } from '@/hooks/useSymbolSearch';
-import { usePortfolioContext } from '@/contexts/PortfolioContext';
+import { usePortfolio } from '@/hooks/usePortfolio';
+import { logger } from '@/utils/logger';
 import type { SymbolDetails } from '@/types/database.types';
 
 interface AddStockModalProps {
@@ -22,7 +23,7 @@ interface AddStockModalProps {
 export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
-  const { addToPortfolio, isInPortfolio } = usePortfolioContext();
+  const { addToPortfolio, isInPortfolio } = usePortfolio();
 
   // Search for symbols
   const {
@@ -41,23 +42,16 @@ export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
 
   const handleSelectStock = useCallback(async (symbol: SymbolDetails) => {
     try {
-      // Check if already in portfolio
       if (isInPortfolio(symbol.ticker)) {
-        console.log(`[AddStockModal] ${symbol.ticker} already in portfolio`);
-        // Still close the modal
         setSearchQuery('');
         onDismiss();
         return;
       }
-
-      console.log(`[AddStockModal] Adding ${symbol.ticker} to portfolio`);
       await addToPortfolio(symbol.ticker);
-
-      // Clear search and close modal
       setSearchQuery('');
       onDismiss();
     } catch (error) {
-      console.error('[AddStockModal] Error adding stock:', error);
+      logger.error('[AddStockModal] Error adding stock:', error);
     }
   }, [addToPortfolio, isInPortfolio, onDismiss]);
 

@@ -49,7 +49,7 @@ export function extractSentences(text: string): string[] {
   if (!text) return [];
 
   // Replace common abbreviations to prevent false sentence breaks
-  let processed = text
+  const processed = text
     .replace(/\bU\.S\./g, 'US')
     .replace(/\bInc\./g, 'Inc')
     .replace(/\bCorp\./g, 'Corp')

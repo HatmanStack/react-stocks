@@ -17,9 +17,10 @@ import { AddStockModal } from '@/components/portfolio/AddStockModal';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { OfflineIndicator } from '@/components/common/OfflineIndicator';
-import { usePortfolioContext } from '@/contexts/PortfolioContext';
+import { usePortfolio } from '@/hooks/usePortfolio';
 import { useStock } from '@/contexts/StockContext';
 import { syncAllData } from '@/services/sync/syncOrchestrator';
+import { logger } from '@/utils/logger';
 import type { PortfolioDetails } from '@/types/database.types';
 import { differenceInDays } from 'date-fns';
 
@@ -27,7 +28,7 @@ export default function PortfolioScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const theme = useTheme();
-  const { portfolio, isLoading, error, refetch, removeFromPortfolio } = usePortfolioContext();
+  const { portfolio, isLoading, error, refetch, removeFromPortfolio } = usePortfolio();
   const { setSelectedTicker, startDate, endDate } = useStock();
 
   const handleStockPress = useCallback((item: PortfolioDetails) => {
@@ -50,8 +51,8 @@ export default function PortfolioScreen() {
           onPress: async () => {
             try {
               await removeFromPortfolio(item.ticker);
-            } catch (error) {
-              console.error('[PortfolioScreen] Error removing stock:', error);
+            } catch (err) {
+              logger.error('[PortfolioScreen] Error removing stock:', err);
               Alert.alert('Error', 'Failed to remove stock from portfolio');
             }
           },
@@ -80,24 +81,20 @@ export default function PortfolioScreen() {
       // Calculate number of days to sync
       const days = Math.abs(differenceInDays(new Date(endDate), new Date(startDate))) + 1;
 
-      // Refresh all stocks in portfolio
-      console.log(`[PortfolioScreen] Refreshing ${portfolio.length} stocks`);
+      logger.debug(`[PortfolioScreen] Refreshing ${portfolio.length} stocks`);
 
       for (const item of portfolio) {
         try {
           await syncAllData(item.ticker, days);
-          console.log(`[PortfolioScreen] Refreshed ${item.ticker}`);
-        } catch (error) {
-          console.error(`[PortfolioScreen] Error refreshing ${item.ticker}:`, error);
+        } catch (err) {
+          logger.error(`[PortfolioScreen] Error refreshing ${item.ticker}:`, err);
         }
       }
 
-      // Refetch portfolio data
       await refetch();
-
       setRefreshing(false);
-    } catch (error) {
-      console.error('[PortfolioScreen] Error during refresh:', error);
+    } catch (err) {
+      logger.error('[PortfolioScreen] Error during refresh:', err);
       setRefreshing(false);
     }
   }, [portfolio, startDate, endDate, refetch]);

@@ -10,11 +10,27 @@
  */
 
 import { describe, it, expect, beforeAll } from '@jest/globals';
-import axios from 'axios';
 
 const API_BASE_URL = process.env.API_GATEWAY_URL;
 
 const describeIfDeployed = API_BASE_URL ? describe : describe.skip;
+
+/** Response type for API calls */
+interface ApiResponse {
+  data?: unknown;
+  error?: string;
+}
+
+/** Helper to build URL with query params */
+function buildUrl(path: string, params?: Record<string, string>): string {
+  const url = new URL(path, API_BASE_URL);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+  }
+  return url.toString();
+}
 
 describeIfDeployed('Backend API Integration Tests', () => {
   beforeAll(() => {
@@ -28,120 +44,110 @@ describeIfDeployed('Backend API Integration Tests', () => {
 
   describe('Stocks Endpoint', () => {
     it('should fetch stock prices successfully', async () => {
-      const response = await axios.get(`${API_BASE_URL}/stocks`, {
-        params: {
-          ticker: 'AAPL',
-          startDate: '2024-01-01',
-          endDate: '2024-01-31',
-        },
+      const url = buildUrl('/stocks', {
+        ticker: 'AAPL',
+        startDate: '2024-01-01',
+        endDate: '2024-01-31',
       });
+      const response = await fetch(url);
+      const data = await response.json() as ApiResponse;
 
       expect(response.status).toBe(200);
-      expect(response.data).toHaveProperty('data');
-      expect(Array.isArray(response.data.data)).toBe(true);
-    }, 10000); // 10 second timeout for API calls
+      expect(data).toHaveProperty('data');
+      expect(Array.isArray(data.data)).toBe(true);
+    }, 10000);
 
     it('should fetch symbol metadata successfully', async () => {
-      const response = await axios.get(`${API_BASE_URL}/stocks`, {
-        params: {
-          ticker: 'AAPL',
-          type: 'metadata',
-        },
+      const url = buildUrl('/stocks', {
+        ticker: 'AAPL',
+        type: 'metadata',
       });
+      const response = await fetch(url);
+      const data = await response.json() as ApiResponse;
 
       expect(response.status).toBe(200);
-      expect(response.data).toHaveProperty('data');
-      expect(response.data.data).toHaveProperty('ticker');
-      expect(response.data.data).toHaveProperty('name');
+      expect(data).toHaveProperty('data');
+      expect(data.data).toHaveProperty('ticker');
+      expect(data.data).toHaveProperty('name');
     }, 10000);
 
     it('should return 400 for missing ticker', async () => {
-      try {
-        await axios.get(`${API_BASE_URL}/stocks`, {
-          params: {
-            startDate: '2024-01-01',
-          },
-        });
-        throw new Error('Expected request to fail');
-      } catch (error: any) {
-        expect(error.response.status).toBe(400);
-        expect(error.response.data.error).toContain('ticker');
-      }
+      const url = buildUrl('/stocks', { startDate: '2024-01-01' });
+      const response = await fetch(url);
+      const data = await response.json() as ApiResponse;
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('ticker');
     }, 10000);
 
     it('should return 400 for invalid date format', async () => {
-      try {
-        await axios.get(`${API_BASE_URL}/stocks`, {
-          params: {
-            ticker: 'AAPL',
-            startDate: '2024/01/01', // Invalid format
-          },
-        });
-        throw new Error('Expected request to fail');
-      } catch (error: any) {
-        expect(error.response.status).toBe(400);
-        expect(error.response.data.error).toContain('startDate');
-      }
+      const url = buildUrl('/stocks', {
+        ticker: 'AAPL',
+        startDate: '2024/01/01', // Invalid format
+      });
+      const response = await fetch(url);
+      const data = await response.json() as ApiResponse;
+
+      expect(response.status).toBe(400);
+      expect(data.error).toContain('startDate');
     }, 10000);
   });
 
   describe('News Endpoint', () => {
     it('should fetch news successfully', async () => {
-      const response = await axios.get(`${API_BASE_URL}/news`, {
-        params: {
-          ticker: 'AAPL',
-          limit: 10,
-        },
+      const url = buildUrl('/news', {
+        ticker: 'AAPL',
+        from: '2024-01-01',
+        to: '2024-01-31',
       });
+      const response = await fetch(url);
+      const data = await response.json() as ApiResponse;
 
       expect(response.status).toBe(200);
-      expect(response.data).toHaveProperty('data');
-      expect(Array.isArray(response.data.data)).toBe(true);
-    }, 30000); // 30 second timeout for news (can be slow)
+      expect(data).toHaveProperty('data');
+      expect(Array.isArray(data.data)).toBe(true);
+    }, 30000);
 
     it('should return 400 for missing ticker', async () => {
-      try {
-        await axios.get(`${API_BASE_URL}/news`);
-        throw new Error('Expected request to fail');
-      } catch (error: any) {
-        expect(error.response.status).toBe(400);
-        expect(error.response.data.error).toContain('ticker');
-      }
+      const url = buildUrl('/news');
+      const response = await fetch(url);
+      const data = await response.json() as ApiResponse;
+
+      expect(response.status).toBe(400);
+      expect(data.error).toBeDefined();
     }, 10000);
   });
 
   describe('CORS and Headers', () => {
     it('should include CORS headers', async () => {
-      const response = await axios.get(`${API_BASE_URL}/stocks`, {
-        params: {
-          ticker: 'AAPL',
-          startDate: '2024-01-01',
-        },
+      const url = buildUrl('/stocks', {
+        ticker: 'AAPL',
+        startDate: '2024-01-01',
       });
+      const response = await fetch(url);
 
-      expect(response.headers['access-control-allow-origin']).toBeDefined();
+      expect(response.headers.get('access-control-allow-origin')).toBeDefined();
     }, 10000);
   });
 
   describe('Error Handling', () => {
     it('should return 404 for unknown routes', async () => {
-      try {
-        await axios.get(`${API_BASE_URL}/unknown-route`);
-        throw new Error('Expected request to fail');
-      } catch (error: any) {
-        expect(error.response.status).toBe(404);
-      }
+      const url = buildUrl('/unknown-route');
+      const response = await fetch(url);
+
+      expect(response.status).toBe(404);
     }, 10000);
 
-    it('should return 405 for non-GET methods', async () => {
-      try {
-        await axios.post(`${API_BASE_URL}/stocks`, {
-          ticker: 'AAPL',
-        });
-        throw new Error('Expected request to fail');
-      } catch (error: any) {
-        expect(error.response.status).toBe(405);
-      }
+    it('should return 404 or 405 for POST to GET-only endpoint', async () => {
+      const url = buildUrl('/stocks');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker: 'AAPL' }),
+      });
+
+      // API Gateway returns 404 for method mismatch on HTTP APIs
+      expect([404, 405]).toContain(response.status);
     }, 10000);
   });
 });

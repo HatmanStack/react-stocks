@@ -3,7 +3,7 @@
  * Uses date-fns for all date operations
  */
 
-import { format, parseISO, addDays, subDays, isValid } from 'date-fns';
+import { format, parseISO, addDays, subDays, isValid, formatDistanceToNow } from 'date-fns';
 
 /**
  * Format a Date object for database storage (ISO 8601: YYYY-MM-DD)
@@ -104,4 +104,28 @@ export function getTodayISO(): string {
  */
 export function getYesterdayISO(): string {
   return formatDateForDB(subDays(new Date(), 1));
+}
+
+// Display formatting functions (consolidated from dateFormatting.ts)
+
+function toDate(date: Date | string): Date {
+  return typeof date === 'string' ? parseISO(date) : date;
+}
+
+export function formatShortDate(date: Date | string): string {
+  return format(toDate(date), 'MMM dd');
+}
+
+export function formatLongDate(date: Date | string): string {
+  return format(toDate(date), 'MMMM dd, yyyy');
+}
+
+export function formatRelativeDate(date: Date | string): string {
+  return formatDistanceToNow(toDate(date), { addSuffix: true });
+}
+
+export const formatNewsDate = (date: Date | string): string => formatDisplayDate(date);
+
+export function formatDateTime(date: Date | string): string {
+  return format(toDate(date), "MMM dd, yyyy 'at' h:mm a");
 }

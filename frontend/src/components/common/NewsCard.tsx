@@ -7,7 +7,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Linking } from 'react-native';
 import { Card, useTheme } from 'react-native-paper';
 import type { NewsDetails } from '@/types/database.types';
-import { formatNewsDate } from '@/utils/formatting/dateFormatting';
+import { formatNewsDate } from '@/utils/date/dateUtils';
 
 interface NewsCardProps {
   article: NewsDetails;

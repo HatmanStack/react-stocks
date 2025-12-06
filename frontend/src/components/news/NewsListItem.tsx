@@ -8,7 +8,7 @@ import React from 'react';
 import { View, StyleSheet, Linking, Alert } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import type { NewsDetails } from '@/types/database.types';
-import { formatNewsDate } from '@/utils/formatting/dateFormatting';
+import { formatNewsDate } from '@/utils/date/dateUtils';
 import { useLayoutDensity } from '@/hooks';
 import { AnimatedCard } from '@/components/common';
 

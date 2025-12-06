@@ -219,6 +219,7 @@ export function useSentimentData(
     },
     enabled: enabled && !!ticker,
     staleTime,
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 }
 
@@ -276,6 +277,7 @@ export function useArticleSentiment(
     },
     enabled: enabled && !!ticker,
     staleTime,
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 }
 

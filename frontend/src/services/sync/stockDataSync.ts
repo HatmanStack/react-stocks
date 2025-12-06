@@ -37,12 +37,22 @@ export async function syncStockData(
       endDate
     );
 
-    if (existingData.length > 0) {
+    // Calculate expected trading days (roughly 5 per week, use 50% threshold)
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const expectedMinRecords = Math.floor(daysDiff * 5 / 7 * 0.5);
+
+    if (existingData.length >= expectedMinRecords) {
       console.log(
-        `[StockDataSync] Found ${existingData.length} existing records for ${ticker}, skipping fetch`
+        `[StockDataSync] Found ${existingData.length} existing records for ${ticker} (min: ${expectedMinRecords}), skipping fetch`
       );
       return 0;
     }
+
+    console.log(
+      `[StockDataSync] Found ${existingData.length} records but need ${expectedMinRecords}, fetching more for ${ticker}`
+    );
 
     // Fetch stock prices from Tiingo
     const tiingoData = await fetchStockPrices(ticker, startDate, endDate);

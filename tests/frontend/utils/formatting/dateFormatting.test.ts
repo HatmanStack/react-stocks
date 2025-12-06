@@ -8,7 +8,7 @@ import {
   formatNewsDate,
   formatRelativeDate,
   formatDateTime,
-} from '@/utils/formatting/dateFormatting';
+} from '@/utils/date/dateUtils';
 
 describe('dateFormatting', () => {
   describe('formatShortDate', () => {

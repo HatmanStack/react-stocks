@@ -7,9 +7,10 @@
 
 import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, Text, useTheme, Chip, Divider } from 'react-native-paper';
+import { Card, Text, Chip, Divider } from 'react-native-paper';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import type { CombinedWordDetails, EventType } from '@/types/database.types';
-import { formatShortDate } from '@/utils/formatting/dateFormatting';
+import { formatShortDate } from '@/utils/date/dateUtils';
 import { formatPercentage } from '@/utils/formatting/numberFormatting';
 
 interface CombinedWordItemProps {
@@ -67,7 +68,7 @@ function getScoreLabel(score: number): string {
 }
 
 export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ item }) => {
-  const theme = useTheme();
+  const theme = useAppTheme();
   const [showLegacyMetrics, setShowLegacyMetrics] = useState(false);
 
   // Parse eventCounts from JSON string
@@ -175,7 +176,7 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
                       ]}
                       textStyle={{ color: getEventColor(eventType, theme), fontSize: 11 }}
                     >
-                      {getEventLabel(eventType)}: {count}
+                      {`${getEventLabel(eventType)}: ${count}`}
                     </Chip>
                   ))}
               </View>
@@ -206,8 +207,7 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
                         fontWeight: 'bold',
                       }}
                     >
-                      {item.avgAspectScore >= 0 ? '+' : ''}
-                      {item.avgAspectScore.toFixed(2)}
+                      {`${item.avgAspectScore >= 0 ? '+' : ''}${item.avgAspectScore.toFixed(2)}`}
                     </Text>
                     <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {getScoreLabel(item.avgAspectScore)}
@@ -228,8 +228,7 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
                         fontWeight: 'bold',
                       }}
                     >
-                      {item.avgFinBERTScore >= 0 ? '+' : ''}
-                      {item.avgFinBERTScore.toFixed(2)}
+                      {`${item.avgFinBERTScore >= 0 ? '+' : ''}${item.avgFinBERTScore.toFixed(2)}`}
                     </Text>
                     <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {getScoreLabel(item.avgFinBERTScore)}
@@ -261,7 +260,7 @@ export const CombinedWordItem: React.FC<CombinedWordItemProps> = React.memo(({ i
         <TouchableOpacity onPress={() => setShowLegacyMetrics(!showLegacyMetrics)}>
           <View style={styles.section}>
             <Text variant="labelMedium" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-              Legacy Metrics {showLegacyMetrics ? '▼' : '▶'}
+              {`Legacy Metrics ${showLegacyMetrics ? '▼' : '▶'}`}
             </Text>
           </View>
         </TouchableOpacity>
