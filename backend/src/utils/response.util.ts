@@ -13,16 +13,20 @@ export interface APIGatewayResponse {
 }
 
 /**
+ * Get allowed origins from environment variable
+ * Defaults to '*' for development, should be set to specific domains in production
+ */
+function getAllowedOrigin(): string {
+  return process.env.ALLOWED_ORIGINS || '*';
+}
+
+/**
  * CORS headers for all responses
- *
- * TODO: BEFORE PRODUCTION - Replace hardcoded '*' with environment variable
- * Current: Allows all origins (acceptable for MVP/development)
- * Production: Should restrict to specific domains via ALLOWED_ORIGINS env var
- * Example: process.env.ALLOWED_ORIGINS || '*'
+ * Uses ALLOWED_ORIGINS environment variable for production security
  */
 const CORS_HEADERS = {
   'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*', // TODO: Restrict in production
+  'Access-Control-Allow-Origin': getAllowedOrigin(),
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };

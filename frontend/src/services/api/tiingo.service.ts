@@ -1,20 +1,29 @@
 /**
  * Tiingo API Service
  * Fetches stock prices and company metadata from Lambda backend
- * Backend proxies requests to Tiingo API (API keys secured in Lambda)
  */
 
 import axios, { AxiosInstance } from 'axios';
 import type { TiingoStockPrice, TiingoSymbolMetadata, TiingoSearchResult } from './tiingo.types';
 import type { StockDetails, SymbolDetails } from '@/types/database.types';
 import { Environment } from '@/config/environment';
+import { logger } from '@/utils/logger';
 
-// Backend API configuration
-const BACKEND_TIMEOUT = 30000; // 30 seconds (Lambda handles retries)
+const BACKEND_TIMEOUT = 30000;
 
-/**
- * Create axios instance for backend API
- */
+function handleApiError(error: unknown, context: string, ticker?: string): never {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    const errorData = error.response?.data as { error?: string };
+    if (status === 404) throw new Error(ticker ? `Ticker '${ticker}' not found` : 'Not found');
+    if (status === 429) throw new Error('Rate limit exceeded. Please try again in a moment.');
+    if (status === 400) throw new Error(errorData?.error || 'Invalid request');
+    if (status === 500) throw new Error(errorData?.error || 'Server error');
+  }
+  logger.error(`[TiingoService] ${context}:`, error);
+  throw new Error(`${context}: ${error}`);
+}
+
 function createBackendClient(): AxiosInstance {
   if (!Environment.BACKEND_URL) {
     throw new Error(
@@ -31,12 +40,6 @@ function createBackendClient(): AxiosInstance {
   });
 }
 
-/**
- * Retry logic with exponential backoff
- * @param fn - Function to retry
- * @param retries - Number of retries (default: 3, 0 in test mode)
- * @returns Promise with result
- */
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   retries: number = process.env.NODE_ENV === 'test' ? 0 : 3
@@ -48,38 +51,19 @@ async function retryWithBackoff<T>(
       return await fn();
     } catch (error) {
       lastError = error as Error;
-
-      // Don't retry on client errors (400, 404, etc.)
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
-        if (status && status >= 400 && status < 500 && status !== 429) {
-          throw error;
-        }
+        if (status && status >= 400 && status < 500 && status !== 429) throw error;
       }
-
-      // Last attempt failed
-      if (i === retries) {
-        break;
-      }
-
-      // Exponential backoff: 2s, 4s, 8s
+      if (i === retries) break;
       const delay = Math.pow(2, i + 1) * 1000;
-      console.log(`[TiingoService] Retry ${i + 1}/${retries} after ${delay}ms...`);
+      logger.debug(`[TiingoService] Retry ${i + 1}/${retries} after ${delay}ms...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
-
   throw lastError;
 }
 
-/**
- * Fetch stock prices from Lambda backend (proxies to Tiingo API)
- * @param ticker - Stock ticker symbol (e.g., "AAPL")
- * @param startDate - Start date in YYYY-MM-DD format
- * @param endDate - End date in YYYY-MM-DD format (optional, defaults to today)
- * @returns Array of stock price data
- * @throws Error if ticker not found or API request fails
- */
 export async function fetchStockPrices(
   ticker: string,
   startDate: string,
@@ -89,128 +73,44 @@ export async function fetchStockPrices(
 
   const fetchFn = async () => {
     try {
-      const params: Record<string, string> = {
-        ticker,
-        startDate,
-        type: 'prices',
-      };
+      const params: Record<string, string> = { ticker, startDate, type: 'prices' };
+      if (endDate) params.endDate = endDate;
 
-      if (endDate) {
-        params.endDate = endDate;
-      }
-
-      console.log(`[TiingoService] Fetching prices for ${ticker} from ${startDate} to ${endDate || 'today'}`);
-
-      const response = await client.get<{ data: TiingoStockPrice[] }>(
-        '/stocks',
-        { params }
-      );
-
-      console.log(`[TiingoService] Fetched ${response.data.data.length} price records for ${ticker}`);
+      logger.debug(`[TiingoService] Fetching prices for ${ticker} from ${startDate}`);
+      const response = await client.get<{ data: TiingoStockPrice[] }>('/stocks', { params });
+      logger.debug(`[TiingoService] Fetched ${response.data.data.length} records for ${ticker}`);
       return response.data.data;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const errorData = error.response?.data as { error?: string };
-
-        if (status === 404) {
-          throw new Error(`Ticker '${ticker}' not found`);
-        }
-
-        if (status === 429) {
-          throw new Error('Rate limit exceeded. Please try again in a moment.');
-        }
-
-        if (status === 400) {
-          throw new Error(errorData?.error || 'Invalid request parameters');
-        }
-
-        if (status === 500) {
-          throw new Error(errorData?.error || 'Backend service error');
-        }
-      }
-
-      console.error('[TiingoService] Error fetching stock prices:', error);
-      throw new Error(`Failed to fetch stock prices for ${ticker}: ${error}`);
+      handleApiError(error, `Failed to fetch prices for ${ticker}`, ticker);
     }
   };
 
   return retryWithBackoff(fetchFn);
 }
 
-/**
- * Fetch company metadata from Lambda backend (proxies to Tiingo API)
- * @param ticker - Stock ticker symbol (e.g., "AAPL")
- * @returns Company metadata
- * @throws Error if ticker not found or API request fails
- */
-export async function fetchSymbolMetadata(
-  ticker: string
-): Promise<TiingoSymbolMetadata> {
+export async function fetchSymbolMetadata(ticker: string): Promise<TiingoSymbolMetadata> {
   const client = createBackendClient();
 
   const fetchFn = async () => {
     try {
-      console.log(`[TiingoService] Fetching metadata for ${ticker}`);
-
-      const response = await client.get<{ data: TiingoSymbolMetadata }>(
-        '/stocks',
-        {
-          params: { ticker, type: 'metadata' },
-        }
-      );
-
-      console.log(`[TiingoService] Fetched metadata for ${ticker}: ${response.data.data.name}`);
+      logger.debug(`[TiingoService] Fetching metadata for ${ticker}`);
+      const response = await client.get<{ data: TiingoSymbolMetadata }>('/stocks', {
+        params: { ticker, type: 'metadata' },
+      });
       return response.data.data;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const errorData = error.response?.data as { error?: string };
-
-        if (status === 404) {
-          throw new Error(`Ticker '${ticker}' not found`);
-        }
-
-        if (status === 429) {
-          throw new Error('Rate limit exceeded. Please try again in a moment.');
-        }
-
-        if (status === 400) {
-          throw new Error(errorData?.error || 'Invalid request parameters');
-        }
-
-        if (status === 500) {
-          throw new Error(errorData?.error || 'Backend service error');
-        }
-      }
-
-      console.error('[TiingoService] Error fetching symbol metadata:', error);
-      throw new Error(`Failed to fetch metadata for ${ticker}: ${error}`);
+      handleApiError(error, `Failed to fetch metadata for ${ticker}`, ticker);
     }
   };
 
   return retryWithBackoff(fetchFn);
 }
 
-/**
- * Transform Tiingo API response to StockDetails database format
- * @param price - Tiingo stock price data
- * @param ticker - Stock ticker symbol
- * @returns StockDetails object ready for database insertion
- */
-export function transformTiingoToStockDetails(
-  price: TiingoStockPrice,
-  ticker: string
-): StockDetails {
-  // Extract date (first 10 characters: YYYY-MM-DD)
-  const date = price.date.substring(0, 10);
-
-  // Round prices to 2 decimal places (matching Android logic)
+export function transformTiingoToStockDetails(price: TiingoStockPrice, ticker: string): StockDetails {
   const round = (num: number) => Math.round(num * 100) / 100;
-
   return {
     ticker,
-    date,
+    date: price.date.substring(0, 10),
     close: round(price.close),
     high: round(price.high),
     low: round(price.low),
@@ -223,7 +123,6 @@ export function transformTiingoToStockDetails(
     adjVolume: price.adjVolume,
     divCash: price.divCash,
     splitFactor: price.splitFactor,
-    // Additional fields (set to default values for now)
     hash: 0,
     marketCap: 0,
     enterpriseVal: 0,
@@ -233,14 +132,7 @@ export function transformTiingoToStockDetails(
   };
 }
 
-/**
- * Transform Tiingo symbol metadata to SymbolDetails database format
- * @param metadata - Tiingo symbol metadata
- * @returns SymbolDetails object ready for database insertion
- */
-export function transformTiingoToSymbolDetails(
-  metadata: TiingoSymbolMetadata
-): SymbolDetails {
+export function transformTiingoToSymbolDetails(metadata: TiingoSymbolMetadata): SymbolDetails {
   return {
     ticker: metadata.ticker,
     name: metadata.name,
@@ -251,60 +143,23 @@ export function transformTiingoToSymbolDetails(
   };
 }
 
-/**
- * Search for stock tickers by ticker symbol or company name
- * @param query - Search query (ticker or company name, e.g., "tesla" or "TSLA")
- * @returns Array of matching ticker symbols
- * @throws Error if API request fails
- */
 export async function searchTickers(query: string): Promise<TiingoSearchResult[]> {
   const client = createBackendClient();
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return [];
 
   const fetchFn = async () => {
     try {
-      const trimmedQuery = query.trim();
-
-      if (!trimmedQuery) {
-        return [];
-      }
-
-      console.log(`[TiingoService] Searching for: ${trimmedQuery}`);
-
-      const response = await client.get<{ data: TiingoSearchResult[] }>(
-        '/search',
-        {
-          params: { query: trimmedQuery },
-        }
-      );
-
-      console.log(`[TiingoService] Found ${response.data.data.length} results for query: ${trimmedQuery}`);
+      logger.debug(`[TiingoService] Searching for: ${trimmedQuery}`);
+      const response = await client.get<{ data: TiingoSearchResult[] }>('/search', {
+        params: { query: trimmedQuery },
+      });
       return response.data.data;
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status;
-        const errorData = error.response?.data as { error?: string };
-
-        if (status === 404) {
-          // No results found
-          console.log(`[TiingoService] No results found for query: ${query}`);
-          return [];
-        }
-
-        if (status === 429) {
-          throw new Error('Rate limit exceeded. Please try again in a moment.');
-        }
-
-        if (status === 400) {
-          throw new Error(errorData?.error || 'Invalid search query');
-        }
-
-        if (status === 500) {
-          throw new Error(errorData?.error || 'Backend service error');
-        }
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return []; // No results
       }
-
-      console.error('[TiingoService] Error searching tickers:', error);
-      throw new Error(`Failed to search for tickers: ${error}`);
+      handleApiError(error, 'Failed to search tickers');
     }
   };
 

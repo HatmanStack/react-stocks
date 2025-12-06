@@ -1,33 +1,67 @@
 /**
- * Price Screen
- * Displays OHLCV price data for a stock
+ * Price Screen - Displays OHLCV price data for a stock
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
 import { useTheme } from 'react-native-paper';
-import { useSymbolDetails } from '@/hooks/useSymbolSearch';
 import { useStockDetail } from '@/contexts/StockDetailContext';
+import { useStock } from '@/contexts/StockContext';
+import { useSymbolDetails } from '@/hooks/useSymbolSearch';
 import { useResponsive } from '@/hooks/useResponsive';
 import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
 import { PriceChart } from '@/components/charts/PriceChart';
+import { TimeRangeSelector, getTimeRangeStartDate } from '@/components/common/TimeRangeSelector';
+import type { TimeRange } from '@/components/common/TimeRangeSelector';
 import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
+import { formatDateForDB } from '@/utils/date/dateUtils';
 import type { StockDetails } from '@/types/database.types';
 
+interface ChartSectionProps {
+  data: StockDetails[];
+  isLoading: boolean;
+  selectedRange: TimeRange;
+  onRangeChange: (range: TimeRange) => void;
+  chartHeight?: number;
+}
+
+function ChartSection({ data, isLoading, selectedRange, onRangeChange, chartHeight = 250 }: ChartSectionProps) {
+  return (
+    <>
+      <View style={styles.chartContainer}>
+        {isLoading ? (
+          <Skeleton width="90%" height={chartHeight} style={styles.chartSkeleton} />
+        ) : data.length > 0 ? (
+          <PriceChart data={data} />
+        ) : null}
+      </View>
+      <View style={styles.timeRangeRow}>
+        <TimeRangeSelector selectedRange={selectedRange} onRangeChange={onRangeChange} />
+      </View>
+    </>
+  );
+}
+
 export default function PriceScreen() {
-  const { ticker } = useLocalSearchParams<{ ticker: string }>();
+  const { ticker, stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
+  const { setDateRange } = useStock();
   const theme = useTheme();
   const { isDesktop, isTablet } = useResponsive();
+  const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
 
-  // Get stock data from context (already fetched at layout level)
-  const { stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
+  // Handle time range change - update context so all tabs use same range
+  const handleRangeChange = useCallback((range: TimeRange) => {
+    setSelectedRange(range);
+    const endDate = formatDateForDB(new Date());
+    const startDate = formatDateForDB(getTimeRangeStartDate(range));
+    setDateRange(startDate, endDate);
+  }, [setDateRange]);
 
   // Fetch symbol details for metadata card
   const {
@@ -83,31 +117,23 @@ export default function PriceScreen() {
 
   const keyExtractor = (item: StockDetails) => `${item.ticker}-${item.date}`;
 
-  // Desktop layout: chart full width on top, then two-column below
   if (isDesktop) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
         <ScrollView>
-          {/* Chart - Full Width */}
-          <View style={styles.chartContainer}>
-            {isPriceLoading ? (
-              <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
-            ) : sortedStockData && sortedStockData.length > 0 ? (
-              <PriceChart data={sortedStockData} />
-            ) : null}
-          </View>
-
-          {/* Two-column layout: Prices (left) and Metadata (right) */}
+          <ChartSection
+            data={sortedStockData}
+            isLoading={isPriceLoading}
+            selectedRange={selectedRange}
+            onRangeChange={handleRangeChange}
+          />
           <View style={styles.desktopLayout}>
-            {/* Left column: Price list */}
             <View style={styles.desktopLeftColumn}>
               <PriceListHeader />
               {sortedStockData.map((item) => (
                 <PriceListItem key={keyExtractor(item)} item={item} />
               ))}
             </View>
-
-            {/* Right column: Metadata */}
             <View style={styles.desktopRightColumn}>
               <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
             </View>
@@ -117,7 +143,6 @@ export default function PriceScreen() {
     );
   }
 
-  // Tablet layout: chart on top, metadata below in optimized layout
   if (isTablet) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
@@ -127,25 +152,19 @@ export default function PriceScreen() {
           keyExtractor={keyExtractor}
           ListHeaderComponent={() => (
             <View>
-              {/* Chart full width */}
-              <View style={styles.chartContainer}>
-                {isPriceLoading ? (
-                  <Skeleton width="90%" height={250} style={styles.chartSkeleton} />
-                ) : sortedStockData && sortedStockData.length > 0 ? (
-                  <PriceChart data={sortedStockData} />
-                ) : null}
-              </View>
-
-              {/* Metadata card */}
+              <ChartSection
+                data={sortedStockData}
+                isLoading={isPriceLoading}
+                selectedRange={selectedRange}
+                onRangeChange={handleRangeChange}
+              />
               <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
-
               <PriceListHeader />
             </View>
           )}
           stickyHeaderIndices={[0]}
           removeClippedSubviews={true}
           maxToRenderPerBatch={15}
-          updateCellsBatchingPeriod={50}
           initialNumToRender={15}
           windowSize={21}
         />
@@ -153,30 +172,24 @@ export default function PriceScreen() {
     );
   }
 
-  // Mobile layout: chart on top, metadata on right, prices below/left
+  // Mobile layout
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <ScrollView style={styles.mobileLayout}>
-        {/* Price Chart - Full Width */}
-        <View style={styles.chartContainer}>
-          {isPriceLoading ? (
-            <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
-          ) : sortedStockData && sortedStockData.length > 0 ? (
-            <PriceChart data={sortedStockData} />
-          ) : null}
-        </View>
-
-        {/* Two-column layout: Prices (left) and Metadata (right) */}
+        <ChartSection
+          data={sortedStockData}
+          isLoading={isPriceLoading}
+          selectedRange={selectedRange}
+          onRangeChange={handleRangeChange}
+          chartHeight={220}
+        />
         <View style={styles.contentRow}>
-          {/* Left: Price List */}
           <View style={styles.priceColumn}>
             <PriceListHeader />
             {sortedStockData.map((item) => (
               <PriceListItem key={keyExtractor(item)} item={item} />
             ))}
           </View>
-
-          {/* Right: Metadata Card (sticky to top of this row) */}
           <View style={styles.metadataColumn}>
             <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
           </View>
@@ -218,6 +231,14 @@ const styles = StyleSheet.create({
   metadataColumn: {
     width: '40%',
     paddingLeft: 8,
+  },
+  // Time range selector row
+  timeRangeRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    marginTop: -20,
+    marginBottom: 8,
   },
   // Desktop responsive layout
   desktopLayout: {

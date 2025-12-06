@@ -16,6 +16,11 @@ Parameters:
     Description: Comma-separated list of allowed CORS origins (e.g., https://example.com,https://www.example.com). Use '*' for development only.
     Default: '*'
 
+  DistilFinBERTApiUrl:
+    Type: String
+    Description: URL of the DistilFinBERT ML service API
+    Default: ''
+
   # --- Optimization Parameters ---
 
   # Lambda Configuration Parameters
@@ -89,35 +94,12 @@ Parameters:
     MaxValue: 900
     Description: Timeout for predict endpoint
 
-  EnableProvisionedConcurrency:
-    Type: String
-    AllowedValues: ['true', 'false']
-    Default: 'false'
-    Description: Enable provisioned concurrency for Lambda
-
-  ProvisionedConcurrencyMarketHours:
-    Type: Number
-    Default: 5
-    MinValue: 0
-    MaxValue: 100
-    Description: Number of provisioned instances during market hours
-
-  ProvisionedConcurrencyPreMarket:
-    Type: Number
-    Default: 2
-    MinValue: 0
-    MaxValue: 100
-    Description: Number of provisioned instances during pre-market
-
-Conditions:
-  EnableProvisioning: !Equals [!Ref EnableProvisionedConcurrency, 'true']
-
 Globals:
   Function:
     # Set to max required for now since we use single function
     Timeout: !Ref PredictTimeout
     MemorySize: !Ref PredictMemory
-    Runtime: nodejs20.x
+    Runtime: nodejs24.x
     Architectures:
       - x86_64
     Environment:
@@ -304,9 +286,12 @@ Resources:
         - Key: DataType
           Value: daily-sentiment
 
+  # API Gateway v2 HTTP API
   ReactStocksApi:
-    Type: AWS::Serverless::HttpApi
+    Type: AWS::ApiGatewayV2::Api
     Properties:
+      Name: !Sub '${AWS::StackName}-api'
+      ProtocolType: HTTP
       CorsConfiguration:
         AllowOrigins: !Split [',', !Ref AllowedOrigins]
         AllowMethods:
@@ -317,13 +302,105 @@ Resources:
           - Content-Type
           - Authorization
         MaxAge: 300
+      Tags:
+        Project: react-stocks
 
-      # API Gateway Throttling
-      DefaultRouteSettings:
-        ThrottlingBurstLimit: 100
-        ThrottlingRateLimit: 50
-        DataTraceEnabled: true
-        DetailedMetricsEnabled: true
+  # API Gateway Stage
+  ReactStocksApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      StageName: $default
+      AutoDeploy: true
+
+  # Lambda Integration
+  ReactStocksIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ReactStocksFunction.Arn
+      PayloadFormatVersion: '2.0'
+
+  # Routes
+  StocksRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'GET /stocks'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  NewsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'GET /news'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  SearchRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'GET /search'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  SentimentPostRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'POST /sentiment'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  SentimentGetRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'GET /sentiment'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  SentimentJobRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'GET /sentiment/job/{jobId}'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  PredictRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'POST /predict'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  BatchStocksRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'POST /batch/stocks'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  BatchNewsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'POST /batch/news'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  BatchSentimentRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'POST /batch/sentiment'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
+  # Lambda Permission for API Gateway
+  ApiGatewayInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ReactStocksFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ReactStocksApi}/*'
 
   CacheWarmingFunction:
     Type: AWS::Serverless::Function
@@ -333,9 +410,7 @@ Resources:
       Description: Pre-warms cache for popular tickers
       Timeout: 300
       MemorySize: 512
-      Runtime: nodejs20.x
-      Architectures:
-        - x86_64
+      Runtime: nodejs24.x
       Environment:
         Variables:
           TIINGO_API_KEY: !Ref TiingoApiKey
@@ -369,20 +444,15 @@ Resources:
   ReactStocksFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: !Sub '${AWS::StackName}-api'
       CodeUri: ./
       Handler: dist/index.handler
       Description: Backend proxy for Tiingo and Finnhub APIs
-      AutoPublishAlias: live
-      # Provisioned Concurrency (Optional)
-      ProvisionedConcurrencyConfig:
-        ProvisionedConcurrentExecutions: !If
-          - EnableProvisioning
-          - !Ref ProvisionedConcurrencyMarketHours
-          - !Ref AWS::NoValue
       Environment:
         Variables:
           TIINGO_API_KEY: !Ref TiingoApiKey
           FINNHUB_API_KEY: !Ref FinnhubApiKey
+          ALLOWED_ORIGINS: !Ref AllowedOrigins
           STOCKS_CACHE_TABLE: !Ref StocksCacheTable
           NEWS_CACHE_TABLE: !Ref NewsCacheTable
           SENTIMENT_CACHE_TABLE: !Ref SentimentCacheTable
@@ -390,7 +460,8 @@ Resources:
           STOCK_HISTORICAL_TABLE: !Ref StockHistoricalData
           ARTICLE_ANALYSIS_TABLE: !Ref ArticleAnalysisData
           DAILY_SENTIMENT_TABLE: !Ref DailySentimentAggregate
-          PREDICTION_FUNCTION_NAME: !Ref ReactStocksFunction
+          PREDICTION_FUNCTION_NAME: !Sub '${AWS::StackName}-api'
+          DISTILFINBERT_API_URL: !Ref DistilFinBERTApiUrl
       Policies:
         - Statement:
             - Effect: Allow
@@ -413,92 +484,7 @@ Resources:
             - Effect: Allow
               Action:
                 - lambda:InvokeFunction
-              Resource: !GetAtt ReactStocksFunction.Arn
-      Events:
-        StocksApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /stocks
-            Method: GET
-        NewsApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /news
-            Method: GET
-        SearchApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /search
-            Method: GET
-        SentimentPostApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /sentiment
-            Method: POST
-        SentimentGetApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /sentiment
-            Method: GET
-        SentimentJobApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /sentiment/job/{jobId}
-            Method: GET
-        PredictApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /predict
-            Method: POST
-        BatchStocksApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /batch/stocks
-            Method: POST
-        BatchNewsApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /batch/news
-            Method: POST
-        BatchSentimentApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref ReactStocksApi
-            Path: /batch/sentiment
-            Method: POST
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: true
-        Target: node20
-        Sourcemap: false
-        EntryPoints:
-          - src/index.ts
-        External:
-          - aws-sdk
-          - '@aws-sdk/client-dynamodb'
-          - '@aws-sdk/lib-dynamodb'
-
-  # Scheduled Scaling for Provisioned Concurrency
-  ConcurrencyScalableTarget:
-    Type: AWS::ApplicationAutoScaling::ScalableTarget
-    Condition: EnableProvisioning
-    Properties:
-      MaxCapacity: !Ref ProvisionedConcurrencyMarketHours
-      MinCapacity: 0
-      ResourceId: !Sub function:${ReactStocksFunction}:live
-      RoleARN: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/lambda.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_LambdaTable
-      ScalableDimension: lambda:function:ProvisionedConcurrentExecutions
-      ServiceNamespace: lambda
+              Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-api'
 
   # SNS Topic for Cost Anomaly Notifications
   CostAnomalySNSTopic:
@@ -519,7 +505,7 @@ Resources:
       Namespace: AWS/Lambda
       Dimensions:
         - Name: FunctionName
-          Value: !Ref ReactStocksFunction
+          Value: !Sub '${AWS::StackName}-api'
       Statistic: Sum
       Period: 86400 # 1 day
       EvaluationPeriods: 1
@@ -557,7 +543,7 @@ Resources:
       Namespace: AWS/Lambda
       Dimensions:
         - Name: FunctionName
-          Value: !Ref ReactStocksFunction
+          Value: !Sub '${AWS::StackName}-api'
       Statistic: Average
       Period: 300 # 5 minutes
       EvaluationPeriods: 3
@@ -575,7 +561,7 @@ Resources:
       Namespace: AWS/Lambda
       Dimensions:
         - Name: FunctionName
-          Value: !Ref ReactStocksFunction
+          Value: !Sub '${AWS::StackName}-api'
       Statistic: Sum
       Period: 300 # 5 minutes
       EvaluationPeriods: 2
@@ -593,7 +579,7 @@ Resources:
       Namespace: AWS/Lambda
       Dimensions:
         - Name: FunctionName
-          Value: !Ref ReactStocksFunction
+          Value: !Sub '${AWS::StackName}-api'
       Statistic: Sum
       Period: 300 # 5 minutes
       EvaluationPeriods: 1

@@ -10,6 +10,14 @@ module.exports = {
     '!src/**/*.d.ts',
     '!src/**/*.test.{ts,tsx}',
   ],
+  coverageThreshold: {
+    global: {
+      branches: 30,
+      functions: 30,
+      lines: 30,
+      statements: 30,
+    },
+  },
   setupFiles: ['<rootDir>/jest.setup.js'],
   setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect'],
   testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/'],

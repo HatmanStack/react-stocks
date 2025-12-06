@@ -5,10 +5,11 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Card, useTheme } from 'react-native-paper';
+import { Card } from 'react-native-paper';
+import { useAppTheme } from '@/hooks/useAppTheme';
 import type { StockDetails } from '@/types/database.types';
 import { formatCurrency, formatVolume } from '@/utils/formatting/numberFormatting';
-import { formatShortDate } from '@/utils/formatting/dateFormatting';
+import { formatShortDate } from '@/utils/date/dateUtils';
 
 interface StockCardProps {
   stock: StockDetails;
@@ -16,7 +17,7 @@ interface StockCardProps {
 }
 
 export function StockCard({ stock, onPress }: StockCardProps) {
-  const theme = useTheme();
+  const theme = useAppTheme();
 
   // Determine if stock went up or down
   const isPositive = stock.close >= stock.open;

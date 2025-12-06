@@ -18,7 +18,7 @@ export {
 } from './useSentimentData';
 
 // Portfolio hooks
-export { usePortfolio, useIsInPortfolio, usePortfolioCount } from './usePortfolio';
+export { usePortfolio } from './usePortfolio';
 
 // Symbol search hooks
 export { useSymbolSearch, useSymbolDetails, useAllSymbols } from './useSymbolSearch';
@@ -34,3 +34,7 @@ export type { ChartDataPoint, PriceChange } from './useChartData';
 // Responsive hooks
 export { useResponsive } from './useResponsive';
 export type { ResponsiveValues } from './useResponsive';
+
+// Theme hook with extended types
+export { useAppTheme } from './useAppTheme';
+export type { AppTheme, AppColors } from './useAppTheme';

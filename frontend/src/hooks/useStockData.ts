@@ -12,10 +12,20 @@ import type { StockDetails } from '@/types/database.types';
 
 export interface UseStockDataOptions {
   /**
-   * Number of days of historical data to fetch
+   * Number of days of historical data to fetch (used if startDate/endDate not provided)
    * Default: 30 days
    */
   days?: number;
+
+  /**
+   * Start date in YYYY-MM-DD format (takes precedence over days)
+   */
+  startDate?: string;
+
+  /**
+   * End date in YYYY-MM-DD format (takes precedence over days)
+   */
+  endDate?: string;
 
   /**
    * Whether to enable the query
@@ -54,13 +64,15 @@ export function useStockData(
   ticker: string,
   options: UseStockDataOptions = {}
 ) {
-  const { days = 30, enabled = true, staleTime } = options;
+  const { days = 30, startDate: optStartDate, endDate: optEndDate, enabled = true, staleTime } = options;
+
+  // Use provided dates or calculate from days
+  const endDate = optEndDate || formatDateForDB(new Date());
+  const startDate = optStartDate || formatDateForDB(subDays(new Date(), days));
 
   return useQuery({
-    queryKey: ['stockData', ticker, days],
+    queryKey: ['stockData', ticker, startDate, endDate],
     queryFn: async (): Promise<StockDetails[]> => {
-      const endDate = formatDateForDB(new Date());
-      const startDate = formatDateForDB(subDays(new Date(), days));
 
       console.log(`[useStockData] Fetching stock data for ${ticker} from ${startDate} to ${endDate}`);
 
@@ -71,9 +83,12 @@ export function useStockData(
         endDate
       );
 
-      // If missing or insufficient data, trigger sync
-      if (data.length === 0) {
-        console.log(`[useStockData] No data found, triggering sync for ${ticker}`);
+      // Check if we have enough data - expect roughly 5 trading days per week
+      const expectedMinRecords = Math.floor(days * 5 / 7 * 0.5); // 50% of expected trading days
+      const needsSync = data.length === 0 || data.length < expectedMinRecords;
+
+      if (needsSync) {
+        console.log(`[useStockData] Insufficient data (${data.length}/${expectedMinRecords} min), triggering sync for ${ticker}`);
         await syncStockData(ticker, startDate, endDate);
 
         // Fetch again after sync
@@ -89,6 +104,7 @@ export function useStockData(
     },
     enabled: enabled && !!ticker, // Only run if ticker is provided and enabled
     staleTime,
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 }
 

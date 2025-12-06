@@ -4,17 +4,18 @@
  * All themes using these augmented types must provide these fields.
  * See frontend/src/theme/theme.ts for the implementation.
  */
-import 'react-native-paper';
 
+// This augments the react-native-paper module's types
 declare module 'react-native-paper' {
-  // Sentiment indicator colors added to the base MD3 palette
-  interface MD3Colors {
+  // Extend MD3Colors with our custom sentiment colors
+  export interface MD3Colors {
     positive: string;
     negative: string;
     neutral: string;
   }
 
-  interface MD3Typescale {
+  // Extend MD3Typescale with custom mono font
+  export interface MD3Typescale {
     mono: {
       fontFamily: string;
       fontWeight: string;
@@ -24,7 +25,8 @@ declare module 'react-native-paper' {
     };
   }
 
-  interface MD3Theme {
+  // Extend MD3Theme with custom properties
+  export interface MD3Theme {
     custom: {
       colors: {
         primary: string;
@@ -103,3 +105,5 @@ declare module 'react-native-paper' {
   }
 }
 
+// Ensure this file is treated as a module
+export {};
