@@ -162,6 +162,10 @@ export function validateModel(
     X: number[][],
     y: number[]
 ): TrainingMetrics {
+    if (X.length === 0) {
+        throw new Error('Empty validation set: cannot compute metrics with zero samples');
+    }
+
     let totalLoss = 0;
     let correct = 0;
 

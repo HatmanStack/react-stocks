@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, useWindowDimensions, LayoutChangeEvent } from 'react-native';
+import { View, LayoutChangeEvent } from 'react-native';
 import { Text as PaperText } from 'react-native-paper';
 import { AreaChart, Grid, XAxis, YAxis } from 'react-native-svg-charts';
 import { useAppTheme } from '@/hooks/useAppTheme';
@@ -18,12 +18,9 @@ interface PriceChartProps {
 
 const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceChartProps) => {
   const theme = useAppTheme();
-  const { width: screenWidth } = useWindowDimensions();
   const { fontSize } = useLayoutDensity();
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
 
-  // Use measured container width, fallback to screen width calculation
-  const width = customWidth || containerWidth || screenWidth - 32;
   // Use subtitle size for axis labels, respects user's fontScale
   const axisLabelSize = fontSize.subtitle;
 

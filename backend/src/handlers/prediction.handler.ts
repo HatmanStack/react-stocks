@@ -176,7 +176,7 @@ export async function predictionHandler(
         return {
             statusCode: 500,
             headers: getCorsHeaders(),
-            body: JSON.stringify({ error: 'Internal server error', details: errorMessage })
+            body: JSON.stringify({ error: 'Internal server error' })
         };
     }
 }

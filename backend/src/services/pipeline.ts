@@ -42,6 +42,10 @@ export async function runPredictionPipeline(ticker: string, days: number = 90): 
 
     // 6. Prediction Generation
     // Use the latest available day for prediction
+    if (dailyFeatures.length === 0) {
+        console.warn(`[Pipeline] No daily features available for ${ticker}. Returning empty predictions.`);
+        return [];
+    }
     const latestFeatures = dailyFeatures[dailyFeatures.length - 1];
     const predictions = generate_predictions(model, scaler, latestFeatures);
     console.log(`[Pipeline] Generated ${predictions.length} predictions.`);
