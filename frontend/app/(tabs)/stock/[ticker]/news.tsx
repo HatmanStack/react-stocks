@@ -7,6 +7,7 @@ import React, { useMemo, useCallback } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
+import { useContentWidth } from '@/hooks/useContentWidth';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useStockDetail } from '@/contexts/StockDetailContext';
 import { NewsListItem } from '@/components/news/NewsListItem';
@@ -17,6 +18,7 @@ import type { NewsDetails } from '@/types/database.types';
 
 export default function NewsScreen() {
   const theme = useTheme();
+  const { contentWidth } = useContentWidth();
   // Get news data from context (already fetched at layout level)
   const { newsData, newsLoading: isLoading, newsError: error } = useStockDetail();
 
@@ -50,12 +52,14 @@ export default function NewsScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-        <FlatList
-          data={Array.from({ length: 5 })}
-          renderItem={renderSkeletonItem}
-          keyExtractor={(_, index) => `skeleton-${index}`}
-          contentContainerStyle={styles.listContent}
-        />
+        <View style={[styles.centeredContent, { width: contentWidth }]}>
+          <FlatList
+            data={Array.from({ length: 5 })}
+            renderItem={renderSkeletonItem}
+            keyExtractor={(_, index) => `skeleton-${index}`}
+            contentContainerStyle={styles.listContent}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -64,9 +68,11 @@ export default function NewsScreen() {
   if (error) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <ErrorDisplay
-          error={error || 'Failed to load news articles'}
-        />
+        <View style={[styles.centeredContent, { width: contentWidth }]}>
+          <ErrorDisplay
+            error={error || 'Failed to load news articles'}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -75,12 +81,14 @@ export default function NewsScreen() {
   if (!sortedNewsData || sortedNewsData.length === 0) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.emptyContainer}>
-          <EmptyState
-            message="No news articles available for the selected date range"
-            icon="newspaper-outline"
-            description="Try expanding your date range to see more articles"
-          />
+        <View style={[styles.centeredContent, { width: contentWidth }]}>
+          <View style={styles.emptyContainer}>
+            <EmptyState
+              message="No news articles available for the selected date range"
+              icon="newspaper-outline"
+              description="Try expanding your date range to see more articles"
+            />
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -88,23 +96,31 @@ export default function NewsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      <FlatList
-        data={sortedNewsData}
-        renderItem={renderNewsItem}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={styles.listContent}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={21}
-      />
+      <View style={[styles.centeredContent, { width: contentWidth }]}>
+        <FlatList
+          data={sortedNewsData}
+          renderItem={renderNewsItem}
+          keyExtractor={keyExtractor}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={21}
+        />
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  centeredContent: {
     flex: 1,
   },
   listContent: {

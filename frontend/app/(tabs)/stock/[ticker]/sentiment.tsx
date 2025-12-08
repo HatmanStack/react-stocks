@@ -1,20 +1,19 @@
 /**
  * Sentiment Screen
- * Displays sentiment analysis data for a stock
- *
- * **Phase 5 Enhancement (Task 6):** Event type filtering with filter chips
+ * Displays sentiment analysis data for a stock in a compact table format
  */
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme, Chip } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from 'react-native-paper';
+import { useContentWidth } from '@/hooks/useContentWidth';
 import { useStockDetail } from '@/contexts/StockDetailContext';
 import { useStock } from '@/contexts/StockContext';
 import { SentimentToggle } from '@/components/sentiment/SentimentToggle';
 import { SentimentChart } from '@/components/charts/SentimentChart';
-import { CombinedWordItem } from '@/components/sentiment/CombinedWordItem';
+import { SentimentListHeader } from '@/components/sentiment/SentimentListHeader';
+import { SentimentListItem } from '@/components/sentiment/SentimentListItem';
 import { SingleWordItem } from '@/components/sentiment/SingleWordItem';
 import { TimeRangeSelector, getTimeRangeStartDate } from '@/components/common/TimeRangeSelector';
 import type { TimeRange } from '@/components/common/TimeRangeSelector';
@@ -23,14 +22,10 @@ import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { formatDateForDB } from '@/utils/date/dateUtils';
-import type { CombinedWordDetails, WordCountDetails, EventType } from '@/types/database.types';
-
-const EVENT_TYPES: EventType[] = ['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING', 'PRODUCT_LAUNCH', 'GENERAL'];
-const FILTER_STORAGE_KEY = '@sentiment_event_filter';
+import type { CombinedWordDetails, WordCountDetails } from '@/types/database.types';
 
 export default function SentimentScreen() {
   const {
-    ticker,
     sentimentData: aggregateData,
     sentimentLoading: isAggregateLoading,
     sentimentError: aggregateError,
@@ -40,8 +35,8 @@ export default function SentimentScreen() {
   } = useStockDetail();
   const { setDateRange } = useStock();
   const theme = useTheme();
+  const { contentWidth } = useContentWidth();
   const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>('aggregate');
-  const [selectedEventTypes, setSelectedEventTypes] = useState<Set<EventType>>(new Set(EVENT_TYPES));
   const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
 
   // Handle time range change - update context so all tabs use same range
@@ -52,187 +47,45 @@ export default function SentimentScreen() {
     setDateRange(startDate, endDate);
   }, [setDateRange]);
 
-  const saveFilterSelection = useCallback(async () => {
-    try {
-      await AsyncStorage.setItem(
-        FILTER_STORAGE_KEY,
-        JSON.stringify(Array.from(selectedEventTypes))
-      );
-    } catch (error) {
-      console.warn('[SentimentScreen] Failed to save filter selection:', error);
-    }
-  }, [selectedEventTypes]);
-
-  // Load filter selection from storage on mount
-  useEffect(() => {
-    const loadFilterSelection = async () => {
-      try {
-        const stored = await AsyncStorage.getItem(FILTER_STORAGE_KEY);
-        if (stored) {
-          const eventTypes = JSON.parse(stored) as EventType[];
-          setSelectedEventTypes(new Set(eventTypes));
-        }
-      } catch (error) {
-        console.warn('[SentimentScreen] Failed to load filter selection:', error);
-      }
-    };
-    loadFilterSelection();
-  }, []);
-
-  // Save filter selection to storage whenever it changes
-  useEffect(() => {
-    saveFilterSelection();
-  }, [saveFilterSelection]);
-
-  // Filter and sort data based on selected event types
-  const filteredAggregateData = useMemo(() => {
+  // Sort data by date descending
+  const sortedAggregateData = useMemo(() => {
     if (!aggregateData) return [];
-
-    // If all event types are selected, don't filter
-    if (selectedEventTypes.size === EVENT_TYPES.length) {
-      return [...aggregateData].sort((a, b) => b.date.localeCompare(a.date));
-    }
-
-    // Filter by parsing eventCounts
-    return aggregateData
-      .filter((item) => {
-        if (!item.eventCounts) return true; // Include items without eventCounts
-
-        try {
-          const eventCounts = JSON.parse(item.eventCounts) as Record<string, number>;
-          // Check if any of the selected event types have count > 0
-          return Object.entries(eventCounts).some(
-            ([type, count]) => count > 0 && selectedEventTypes.has(type as EventType)
-          );
-        } catch {
-          return true; // Include items with parse errors
-        }
-      })
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [aggregateData, selectedEventTypes]);
+    return [...aggregateData].sort((a, b) => b.date.localeCompare(a.date));
+  }, [aggregateData]);
 
   const sortedArticleData = useMemo(() => {
     if (!articleData) return [];
     return [...articleData].sort((a, b) => b.date.localeCompare(a.date));
   }, [articleData]);
 
-  // Count events per type for display
-  const eventTypeCounts = useMemo(() => {
-    const counts: Record<EventType, number> = {
-      EARNINGS: 0,
-      'M&A': 0,
-      GUIDANCE: 0,
-      ANALYST_RATING: 0,
-      PRODUCT_LAUNCH: 0,
-      GENERAL: 0,
-    };
-
-    if (!aggregateData) return counts;
-
-    aggregateData.forEach((item) => {
-      if (!item.eventCounts) return;
-
-      try {
-        const eventCounts = JSON.parse(item.eventCounts) as Record<string, number>;
-        Object.entries(eventCounts).forEach(([type, count]) => {
-          if (type in counts) {
-            counts[type as EventType] += count;
-          }
-        });
-      } catch {
-        // Ignore parse errors
-      }
-    });
-
-    return counts;
-  }, [aggregateData]);
-
-  const toggleEventType = (eventType: EventType) => {
-    const newSelection = new Set(selectedEventTypes);
-    if (newSelection.has(eventType)) {
-      newSelection.delete(eventType);
-      // Ensure at least one event type is selected
-      if (newSelection.size === 0) {
-        newSelection.add(eventType);
-      }
-    } else {
-      newSelection.add(eventType);
-    }
-    setSelectedEventTypes(newSelection);
-  };
-
-  const selectAllEventTypes = () => {
-    setSelectedEventTypes(new Set(EVENT_TYPES));
-  };
-
-  // Debug logging
-  console.log('[SentimentScreen] Render state:', {
-    ticker,
-    isAggregateLoading,
-    isArticleLoading,
-    aggregateDataLength: aggregateData?.length ?? 0,
-    filteredAggregateDataLength: filteredAggregateData.length,
-    viewMode,
-  });
-
-  const renderAggregateItem = ({ item }: { item: CombinedWordDetails }) => (
-    <CombinedWordItem item={item} />
+  const renderAggregateItem = useCallback(
+    ({ item }: { item: CombinedWordDetails }) => <SentimentListItem item={item} />,
+    []
   );
 
-  const renderArticleItem = ({ item }: { item: WordCountDetails }) => (
-    <SingleWordItem item={item} />
+  const renderArticleItem = useCallback(
+    ({ item }: { item: WordCountDetails }) => <SingleWordItem item={item} />,
+    []
   );
 
   const keyExtractorAggregate = (item: CombinedWordDetails) => `${item.ticker}-${item.date}`;
   const keyExtractorArticle = (item: WordCountDetails, index: number) =>
-    `${item.ticker}-${item.date}-${item.hash || index}`; // Use date+hash for uniqueness
-
-  // Render event filter chips
-  const renderEventFilters = () => (
-    <View style={styles.filterContainer}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScrollContent}>
-        <Chip
-          selected={selectedEventTypes.size === EVENT_TYPES.length}
-          onPress={selectAllEventTypes}
-          style={styles.filterChip}
-          mode="outlined"
-        >
-          {`All (${Object.values(eventTypeCounts).reduce((sum, count) => sum + count, 0)})`}
-        </Chip>
-        {EVENT_TYPES.map((eventType) => (
-          <Chip
-            key={eventType}
-            selected={selectedEventTypes.has(eventType)}
-            onPress={() => toggleEventType(eventType)}
-            style={styles.filterChip}
-            mode="outlined"
-          >
-            {`${eventType.replace('_', ' ')} (${eventTypeCounts[eventType]})`}
-          </Chip>
-        ))}
-      </ScrollView>
-    </View>
-  );
+    `${item.ticker}-${item.date}-${item.hash || index}`;
 
   // Render content based on view mode
   const renderContent = () => {
     if (viewMode === 'aggregate') {
-      // Handle aggregate view
       if (isAggregateLoading) {
         return <LoadingIndicator message="Loading aggregated sentiment data..." />;
       }
       if (aggregateError) {
         return <ErrorDisplay error={aggregateError || 'Failed to load sentiment data'} />;
       }
-      if (!filteredAggregateData || filteredAggregateData.length === 0) {
+      if (!sortedAggregateData || sortedAggregateData.length === 0) {
         return (
           <View style={styles.emptyContainer}>
             <EmptyState
-              message={
-                selectedEventTypes.size < EVENT_TYPES.length
-                  ? 'No data for selected event types'
-                  : 'No aggregated sentiment data available'
-              }
+              message="No aggregated sentiment data available"
               icon="document-text-outline"
             />
           </View>
@@ -240,17 +93,18 @@ export default function SentimentScreen() {
       }
       return (
         <FlatList
-          data={filteredAggregateData}
+          data={sortedAggregateData}
           renderItem={renderAggregateItem}
           keyExtractor={keyExtractorAggregate}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           ListHeaderComponent={() => (
             <>
-              {renderEventFilters()}
               <View style={styles.chartContainer}>
                 {isAggregateLoading ? (
                   <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
-                ) : filteredAggregateData && filteredAggregateData.length > 0 ? (
-                  <SentimentChart data={filteredAggregateData} />
+                ) : sortedAggregateData.length > 0 ? (
+                  <SentimentChart data={sortedAggregateData} />
                 ) : null}
               </View>
               <View style={styles.timeRangeRow}>
@@ -259,13 +113,14 @@ export default function SentimentScreen() {
                   onRangeChange={handleRangeChange}
                 />
               </View>
+              <SentimentListHeader />
             </>
           )}
+          style={styles.list}
           contentContainerStyle={styles.listContent}
           removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
+          maxToRenderPerBatch={15}
+          initialNumToRender={15}
           windowSize={21}
         />
       );
@@ -292,10 +147,11 @@ export default function SentimentScreen() {
           data={sortedArticleData}
           renderItem={renderArticleItem}
           keyExtractor={keyExtractorArticle}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
           initialNumToRender={10}
           windowSize={21}
         />
@@ -305,8 +161,10 @@ export default function SentimentScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      <SentimentToggle value={viewMode} onValueChange={setViewMode} />
-      {renderContent()}
+      <View style={[styles.centeredContent, { width: contentWidth }]}>
+        <SentimentToggle value={viewMode} onValueChange={setViewMode} />
+        {renderContent()}
+      </View>
     </SafeAreaView>
   );
 }
@@ -314,23 +172,19 @@ export default function SentimentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: 'center',
+    overflow: 'visible',
   },
-  filterContainer: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e0e0e0',
+  centeredContent: {
+    flex: 1,
+    overflow: 'visible',
   },
-  filterScrollContent: {
-    paddingRight: 16,
-    gap: 8,
-  },
-  filterChip: {
-    marginRight: 8,
+  list: {
+    flex: 1,
+    overflow: 'visible',
   },
   chartContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   chartSkeleton: {
     alignSelf: 'center',
@@ -338,12 +192,10 @@ const styles = StyleSheet.create({
   timeRangeRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    paddingHorizontal: 16,
-    marginTop: -20,
     marginBottom: 8,
   },
   listContent: {
-    paddingVertical: 8,
+    paddingBottom: 8,
   },
   emptyContainer: {
     flex: 1,

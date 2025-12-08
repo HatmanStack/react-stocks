@@ -10,6 +10,7 @@ import { useStockDetail } from '@/contexts/StockDetailContext';
 import { useStock } from '@/contexts/StockContext';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
 import { useResponsive } from '@/hooks/useResponsive';
+import { useContentWidth } from '@/hooks/useContentWidth';
 import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
@@ -53,6 +54,7 @@ export default function PriceScreen() {
   const { setDateRange } = useStock();
   const theme = useTheme();
   const { isDesktop, isTablet } = useResponsive();
+  const { contentWidth } = useContentWidth();
   const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
 
   // Handle time range change - update context so all tabs use same range
@@ -79,8 +81,10 @@ export default function PriceScreen() {
   // Render loading state
   if (isSymbolLoading || isPriceLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <LoadingIndicator message="Loading price data..." />
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.centeredContent, { width: contentWidth }]}>
+          <LoadingIndicator message="Loading price data..." />
+        </View>
       </SafeAreaView>
     );
   }
@@ -88,10 +92,12 @@ export default function PriceScreen() {
   // Render error state
   if (symbolError || priceError) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ErrorDisplay
-          error={priceError || symbolError || 'Failed to load price data'}
-        />
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.centeredContent, { width: contentWidth }]}>
+          <ErrorDisplay
+            error={priceError || symbolError || 'Failed to load price data'}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -99,13 +105,15 @@ export default function PriceScreen() {
   // Render empty state
   if (!sortedStockData || sortedStockData.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StockMetadataCard symbol={symbol || null} />
-        <View style={styles.emptyContainer}>
-          <EmptyState
-            message="No price data available for the selected date range"
-            icon="bar-chart-outline"
-          />
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.centeredContent, { width: contentWidth }]}>
+          <StockMetadataCard symbol={symbol || null} />
+          <View style={styles.emptyContainer}>
+            <EmptyState
+              message="No price data available for the selected date range"
+              icon="bar-chart-outline"
+            />
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -120,25 +128,27 @@ export default function PriceScreen() {
   if (isDesktop) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-        <ScrollView>
-          <ChartSection
-            data={sortedStockData}
-            isLoading={isPriceLoading}
-            selectedRange={selectedRange}
-            onRangeChange={handleRangeChange}
-          />
-          <View style={styles.desktopLayout}>
-            <View style={styles.desktopLeftColumn}>
-              <PriceListHeader />
-              {sortedStockData.map((item) => (
-                <PriceListItem key={keyExtractor(item)} item={item} />
-              ))}
+        <View style={[styles.centeredContent, { width: contentWidth }]}>
+          <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
+            <ChartSection
+              data={sortedStockData}
+              isLoading={isPriceLoading}
+              selectedRange={selectedRange}
+              onRangeChange={handleRangeChange}
+            />
+            <View style={styles.desktopLayout}>
+              <View style={styles.desktopLeftColumn}>
+                <PriceListHeader />
+                {sortedStockData.map((item) => (
+                  <PriceListItem key={keyExtractor(item)} item={item} />
+                ))}
+              </View>
+              <View style={styles.desktopRightColumn}>
+                <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+              </View>
             </View>
-            <View style={styles.desktopRightColumn}>
-              <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
-            </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
       </SafeAreaView>
     );
   }
@@ -146,28 +156,32 @@ export default function PriceScreen() {
   if (isTablet) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-        <FlatList
-          data={sortedStockData}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          ListHeaderComponent={() => (
-            <View>
-              <ChartSection
-                data={sortedStockData}
-                isLoading={isPriceLoading}
-                selectedRange={selectedRange}
-                onRangeChange={handleRangeChange}
-              />
-              <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
-              <PriceListHeader />
-            </View>
-          )}
-          stickyHeaderIndices={[0]}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={15}
-          initialNumToRender={15}
-          windowSize={21}
-        />
+        <View style={[styles.centeredContent, { width: contentWidth }]}>
+          <FlatList
+            data={sortedStockData}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
+            ListHeaderComponent={() => (
+              <View>
+                <ChartSection
+                  data={sortedStockData}
+                  isLoading={isPriceLoading}
+                  selectedRange={selectedRange}
+                  onRangeChange={handleRangeChange}
+                />
+                <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+                <PriceListHeader />
+              </View>
+            )}
+            stickyHeaderIndices={[0]}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={15}
+            initialNumToRender={15}
+            windowSize={21}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -175,26 +189,28 @@ export default function PriceScreen() {
   // Mobile layout
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      <ScrollView style={styles.mobileLayout}>
-        <ChartSection
-          data={sortedStockData}
-          isLoading={isPriceLoading}
-          selectedRange={selectedRange}
-          onRangeChange={handleRangeChange}
-          chartHeight={220}
-        />
-        <View style={styles.contentRow}>
-          <View style={styles.priceColumn}>
-            <PriceListHeader />
-            {sortedStockData.map((item) => (
-              <PriceListItem key={keyExtractor(item)} item={item} />
-            ))}
+      <View style={[styles.centeredContent, { width: contentWidth }]}>
+        <ScrollView style={styles.mobileLayout} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
+          <ChartSection
+            data={sortedStockData}
+            isLoading={isPriceLoading}
+            selectedRange={selectedRange}
+            onRangeChange={handleRangeChange}
+            chartHeight={220}
+          />
+          <View style={styles.contentRow}>
+            <View style={styles.priceColumn}>
+              <PriceListHeader />
+              {sortedStockData.map((item) => (
+                <PriceListItem key={keyExtractor(item)} item={item} />
+              ))}
+            </View>
+            <View style={styles.metadataColumn}>
+              <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+            </View>
           </View>
-          <View style={styles.metadataColumn}>
-            <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -202,10 +218,13 @@ export default function PriceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: 'center',
+  },
+  centeredContent: {
+    flex: 1,
   },
   chartContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   chartSkeleton: {
     alignSelf: 'center',
@@ -236,8 +255,8 @@ const styles = StyleSheet.create({
   timeRangeRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    paddingHorizontal: 16,
-    marginTop: -20,
+    paddingHorizontal: 8,
+    marginTop: -16,
     marginBottom: 8,
   },
   // Desktop responsive layout

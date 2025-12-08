@@ -13,6 +13,21 @@ import { formatDateForDB } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
 import type { WordCountDetails, CombinedWordDetails } from '@/types/database.types';
 
+/** Process items in batches with concurrency limit */
+async function processBatched<T, R>(
+  items: T[],
+  processor: (item: T) => Promise<R>,
+  batchSize: number = 5
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const batchResults = await Promise.allSettled(batch.map(processor));
+    results.push(...batchResults);
+  }
+  return results;
+}
+
 interface Predictions {
     nextDay: { direction: 'up' | 'down'; probability: number };
     twoWeek: { direction: 'up' | 'down'; probability: number };
@@ -37,6 +52,15 @@ export interface UseSentimentDataOptions {
    * Default: uses React Query default (5 minutes)
    */
   staleTime?: number;
+}
+
+/**
+ * Classify sentiment score into POS/NEG/NEUT
+ */
+function classifySentiment(score: number): 'POS' | 'NEG' | 'NEUT' {
+  if (score > 0.1) return 'POS';
+  if (score < -0.1) return 'NEG';
+  return 'NEUT';
 }
 
 /**
@@ -71,11 +95,11 @@ function transformLambdaToLocal(
         date: day.date,
         ticker,
 
-        // Legacy fields (backward compatibility)
-        positive: day.positive,
-        negative: day.negative,
+        // Legacy fields (map from backend field names)
+        positive: day.positiveCount,
+        negative: day.negativeCount,
         sentimentNumber: day.sentimentScore,
-        sentiment: day.classification,
+        sentiment: classifySentiment(day.sentimentScore),
 
         // Legacy numeric predictions (deprecated but required by type)
         nextDay,
@@ -143,10 +167,44 @@ export function useSentimentData(
       const endDate = formatDateForDB(new Date());
       const startDate = formatDateForDB(subDays(new Date(), days));
 
-      console.log(`[useSentimentData] Fetching sentiment for ${ticker} from ${startDate} to ${endDate}`);
+      console.log(`[useSentimentData] Fetching sentiment for ${ticker} from ${startDate} to ${endDate} (${days} days)`);
 
-      // Tier 1: Check local DB (fastest, always check first)
-      let localData = await CombinedWordRepository.findByTickerAndDateRange(
+      // Always fetch from Lambda first to get the authoritative data
+      if (Environment.USE_LAMBDA_SENTIMENT) {
+        try {
+          console.log(`[useSentimentData] Fetching from Lambda for ${ticker}`);
+          const lambdaResults = await getSentimentResults(ticker, startDate, endDate);
+
+          if (lambdaResults.dailySentiment.length > 0) {
+            console.log(`[useSentimentData] Lambda returned ${lambdaResults.dailySentiment.length} records`);
+
+            // Transform Lambda format to local DB format
+            const transformed = transformLambdaToLocal(
+                lambdaResults.dailySentiment,
+                ticker,
+                lambdaResults.predictions
+            );
+
+            // Hydrate local DB for offline access (async, don't block)
+            Promise.all(transformed.map(record => CombinedWordRepository.upsert(record)))
+              .then(() => console.log(`[useSentimentData] Hydrated local DB`))
+              .catch(err => console.warn('[useSentimentData] Failed to hydrate local DB:', err));
+
+            // Update predictions if available
+            if (lambdaResults.predictions) {
+                updatePredictions(ticker, lambdaResults.predictions)
+                  .catch(err => console.warn('[useSentimentData] Failed to update predictions:', err));
+            }
+
+            return transformed;
+          }
+        } catch (error) {
+          console.warn('[useSentimentData] Lambda unavailable, falling back to local:', error);
+        }
+      }
+
+      // Fallback: Check local DB
+      const localData = await CombinedWordRepository.findByTickerAndDateRange(
         ticker,
         startDate,
         endDate
@@ -157,69 +215,22 @@ export function useSentimentData(
         return localData;
       }
 
-      // Tier 2: Check Lambda cache (shared across users)
-      if (Environment.USE_LAMBDA_SENTIMENT) {
-        try {
-          console.log(`[useSentimentData] Checking Lambda cache for ${ticker}`);
-          const lambdaResults = await getSentimentResults(ticker, startDate, endDate);
+      // Last resort: Trigger local sentiment analysis
+      console.log(`[useSentimentData] No data found, triggering local analysis for ${ticker}`);
 
-          if (lambdaResults.dailySentiment.length > 0) {
-            console.log(`[useSentimentData] Lambda cache hit: ${lambdaResults.dailySentiment.length} records`);
-
-            // Transform Lambda format to local DB format
-            // Pass predictions if available to be injected into the latest record
-            const transformed = transformLambdaToLocal(
-                lambdaResults.dailySentiment,
-                ticker,
-                lambdaResults.predictions
-            );
-
-            // Hydrate local DB for offline access
-            console.log(`[useSentimentData] Hydrating local DB with Lambda results`);
-            for (const record of transformed) {
-              await CombinedWordRepository.upsert(record);
-            }
-
-            // If predictions exist, also update PortfolioDetails (and ensure persistence)
-            if (lambdaResults.predictions) {
-                console.log(`[useSentimentData] Updating predictions for ${ticker}`);
-                await updatePredictions(ticker, lambdaResults.predictions);
-            }
-
-            return transformed;
-          }
-        } catch (error) {
-          console.warn('[useSentimentData] Lambda unavailable, falling back to local analysis:', error);
-          // Fall through to local analysis
-        }
-      }
-
-      // Tier 3: Fallback to local analysis (offline mode or Lambda unavailable)
-      console.log(`[useSentimentData] No cached data, triggering local sentiment analysis for ${ticker}`);
-
-      // Sync sentiment for each day in range
       const dates = [];
       for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
         dates.push(formatDateForDB(d));
       }
 
-      for (const date of dates) {
-        await syncSentimentData(ticker, date);
-      }
+      // Process dates in batches of 5 to avoid overwhelming the backend
+      await processBatched(dates, (date) => syncSentimentData(ticker, date), 5);
 
-      // Fetch again after local analysis
-      localData = await CombinedWordRepository.findByTickerAndDateRange(
-        ticker,
-        startDate,
-        endDate
-      );
-
-      console.log(`[useSentimentData] Retrieved ${localData.length} sentiment records after local analysis`);
-      return localData;
+      return CombinedWordRepository.findByTickerAndDateRange(ticker, startDate, endDate);
     },
     enabled: enabled && !!ticker,
     staleTime,
-    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnMount: 'always',
   });
 }
 

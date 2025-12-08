@@ -8,8 +8,8 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { View, useWindowDimensions, StyleSheet, LayoutChangeEvent } from 'react-native';
-import { Chip, Text as PaperText } from 'react-native-paper';
+import { View, useWindowDimensions, LayoutChangeEvent, StyleSheet } from 'react-native';
+import { Text as PaperText } from 'react-native-paper';
 import { LineChart, Grid, XAxis, YAxis } from 'react-native-svg-charts';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import { Rect, Line } from 'react-native-svg';
@@ -18,6 +18,7 @@ import * as shape from 'd3-shape';
 import { format, parseISO } from 'date-fns';
 import { transformSentimentData } from '@/hooks/useChartData';
 import { useLayoutDensity } from '@/hooks/useLayoutDensity';
+import { SMALL_SCREEN_BREAKPOINT } from '@/hooks/useContentWidth';
 import type { CombinedWordDetails } from '@/types/database.types';
 
 interface SentimentChartProps {
@@ -33,14 +34,25 @@ interface ChartSeries {
   visible: boolean;
 }
 
+// All series always visible (no toggle needed - data shown in table)
+const VISIBLE_SERIES = {
+  legacy: true,
+  aspect: true,
+  finbert: true,
+} as const;
+
 const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: SentimentChartProps) => {
   const theme = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
   const { fontSize } = useLayoutDensity();
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
 
-  // Use measured container width, fallback to screen width calculation
-  const width = customWidth || containerWidth || screenWidth - 32;
+  // Responsive chart width: full on small screens, 66% on larger
+  const defaultWidth = screenWidth < SMALL_SCREEN_BREAKPOINT
+    ? screenWidth - 16
+    : screenWidth * 0.66;
+  const chartWidth = customWidth || defaultWidth;
+
   // Use subtitle size for axis labels, respects user's fontScale
   const axisLabelSize = fontSize.subtitle;
 
@@ -50,13 +62,6 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
       setContainerWidth(layoutWidth);
     }
   };
-
-  // Track which series are visible
-  const [visibleSeries, setVisibleSeries] = useState({
-    legacy: true,
-    aspect: true,
-    finbert: true,
-  });
 
   // Extract dates
   const dates = useMemo(() => {
@@ -89,7 +94,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
             data: legacyData,
             color: theme.colors.primary,
             label: 'Sentiment',
-            visible: visibleSeries.legacy,
+            visible: VISIBLE_SERIES.legacy,
           },
         ],
         hasAspect: false,
@@ -122,7 +127,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
         data: transformed.map(point => point.y),
         color: theme.colors.primary,
         label: 'Legacy',
-        visible: visibleSeries.legacy,
+        visible: VISIBLE_SERIES.legacy,
       },
     ];
 
@@ -131,7 +136,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
         data: aspectData.map(v => v ?? NaN), // Use NaN for missing data points
         color: '#4CAF50', // Green
         label: 'Aspect',
-        visible: visibleSeries.aspect,
+        visible: VISIBLE_SERIES.aspect,
       });
     }
 
@@ -140,29 +145,35 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
         data: finbertData.map(v => v ?? NaN), // Use NaN for missing data points
         color: '#9C27B0', // Purple
         label: 'FinBERT',
-        visible: visibleSeries.finbert,
+        visible: VISIBLE_SERIES.finbert,
       });
     }
 
     return { series, hasAspect, hasFinBERT };
-  }, [data, theme, visibleSeries]);
+  }, [data, theme]);
 
-  // Toggle series visibility
-  const toggleSeries = (seriesName: 'legacy' | 'aspect' | 'finbert') => {
-    setVisibleSeries(prev => ({
-      ...prev,
-      [seriesName]: !prev[seriesName],
-    }));
-  };
 
-  // Format X-axis labels
-  // In react-native-svg-charts, formatLabel receives (value, index) where:
-  // - value: the data array index for this tick position
-  // - index: the tick number (0, 1, 2, ...)
-  const formatXAxis = (value: number, _index: number) => {
-    const dataIndex = Math.round(value);
-    if (dates.length === 0 || dataIndex >= dates.length || dataIndex < 0) return '';
-    const dateStr = dates[dataIndex];
+  // Compute evenly spaced tick indices across the full data range (inclusive of first and last)
+  const xTickIndices = useMemo(() => {
+    const len = dates.length;
+    if (len <= 1) return [0];
+    if (len <= 5) return Array.from({ length: len }, (_, i) => i);
+    // 5 ticks: first, 25%, 50%, 75%, last
+    return [
+      0,
+      Math.round((len - 1) * 0.25),
+      Math.round((len - 1) * 0.5),
+      Math.round((len - 1) * 0.75),
+      len - 1,
+    ];
+  }, [dates.length]);
+
+  // Format X-axis labels - only show label if index is in our tick indices
+  const formatXAxis = (value: number, index: number) => {
+    // value is the data point value, index is position in data array
+    if (!xTickIndices.includes(index)) return '';
+    if (dates.length === 0 || index >= dates.length || index < 0) return '';
+    const dateStr = dates[index];
     if (!dateStr) return '';
     try {
       return format(parseISO(dateStr), 'MMM dd');
@@ -186,7 +197,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
       return null;
     }
 
-    const chartWidth = width - 66;
+    const zoneWidth = chartWidth - 48;
 
     return (
       <>
@@ -194,7 +205,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
         <Rect
           x={x(0)}
           y={y(1.0)}
-          width={chartWidth}
+          width={zoneWidth}
           height={y(0.2) - y(1.0)}
           fill={theme.colors.positive}
           opacity={0.08}
@@ -204,7 +215,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
         <Rect
           x={x(0)}
           y={y(0.2)}
-          width={chartWidth}
+          width={zoneWidth}
           height={y(-0.2) - y(0.2)}
           fill={theme.colors.surfaceVariant}
           opacity={0.1}
@@ -214,7 +225,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
         <Rect
           x={x(0)}
           y={y(-0.2)}
-          width={chartWidth}
+          width={zoneWidth}
           height={y(-1.0) - y(-0.2)}
           fill={theme.colors.negative}
           opacity={0.08}
@@ -255,7 +266,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
   if (!containerWidth && !customWidth) {
     return (
       <View
-        style={{ flex: 1, minHeight: height + 90 }}
+        style={{ width: chartWidth, alignSelf: 'center', minHeight: height + 80 }}
         onLayout={handleLayout}
       />
     );
@@ -264,46 +275,9 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
   return (
     <Animated.View
       entering={FadeInUp.duration(300)}
-      style={{ flex: 1, minHeight: height + 90 }}
+      style={{ width: chartWidth, alignSelf: 'center', minHeight: height + 80 }}
       onLayout={handleLayout}
     >
-      {/* Legend with toggle chips */}
-      {(chartSeries.hasAspect || chartSeries.hasFinBERT) && (
-        <View style={styles.legend}>
-          <Chip
-            mode={visibleSeries.legacy ? 'flat' : 'outlined'}
-            selected={visibleSeries.legacy}
-            onPress={() => toggleSeries('legacy')}
-            style={[styles.legendChip, { borderColor: theme.colors.primary }]}
-            textStyle={{ fontSize: 11 }}
-          >
-            Legacy
-          </Chip>
-          {chartSeries.hasAspect && (
-            <Chip
-              mode={visibleSeries.aspect ? 'flat' : 'outlined'}
-              selected={visibleSeries.aspect}
-              onPress={() => toggleSeries('aspect')}
-              style={[styles.legendChip, { borderColor: '#4CAF50' }]}
-              textStyle={{ fontSize: 11 }}
-            >
-              Aspect
-            </Chip>
-          )}
-          {chartSeries.hasFinBERT && (
-            <Chip
-              mode={visibleSeries.finbert ? 'flat' : 'outlined'}
-              selected={visibleSeries.finbert}
-              onPress={() => toggleSeries('finbert')}
-              style={[styles.legendChip, { borderColor: '#9C27B0' }]}
-              textStyle={{ fontSize: 11 }}
-            >
-              FinBERT
-            </Chip>
-          )}
-        </View>
-      )}
-
       <View style={{ height, flexDirection: 'row' }}>
         {/* Y-Axis */}
         <YAxis
@@ -317,7 +291,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
           max={1}
           numberOfTicks={5}
           formatLabel={formatYAxis}
-          style={{ width: 65 }}
+          style={{ width: 40 }}
         />
 
         {/* Chart */}
@@ -366,34 +340,21 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
         </View>
       </View>
 
-      {/* X-Axis */}
+      {/* X-Axis with evenly distributed ticks */}
       <XAxis
         data={chartSeries.series[0].data}
         formatLabel={formatXAxis}
-        contentInset={{ left: 73, right: 16 }}
+        contentInset={{ left: 48, right: 30 }}
         svg={{
           fill: theme.colors.onSurfaceVariant,
           fontSize: axisLabelSize,
         }}
-        numberOfTicks={5}
         style={{ marginTop: 8 }}
       />
     </Animated.View>
   );
 };
 
-const styles = StyleSheet.create({
-  legend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  legendChip: {
-    height: 28,
-  },
-});
 
 // Memoize component to prevent unnecessary re-renders
 export const SentimentChart = React.memo(SentimentChartComponent);

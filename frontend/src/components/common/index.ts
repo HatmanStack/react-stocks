@@ -15,3 +15,4 @@ export { AnimatedCard } from './AnimatedCard';
 export type { AnimatedCardProps } from './AnimatedCard';
 export { AnimatedNumber } from './AnimatedNumber';
 export type { AnimatedNumberProps } from './AnimatedNumber';
+export { ContentContainer } from './ContentContainer';
