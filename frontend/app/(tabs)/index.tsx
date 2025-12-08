@@ -7,6 +7,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
+import { useContentWidth } from '@/hooks/useContentWidth';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -26,6 +27,7 @@ import { differenceInDays } from 'date-fns';
 
 export default function SearchScreen() {
   const theme = useTheme();
+  const { contentWidth } = useContentWidth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
@@ -181,43 +183,49 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <OfflineIndicator />
-      <SearchBar onSearchChange={handleSearchChange} />
+      <View style={[styles.centeredContent, { width: contentWidth }]}>
+        <SearchBar onSearchChange={handleSearchChange} />
 
-      {/* Show skeleton while searching */}
-      {isLoading && searchQuery.length > 0 ? (
-        <FlatList
-          ListHeaderComponent={renderListHeader}
-          data={Array.from({ length: 8 })}
-          renderItem={renderSkeletonItem}
-          keyExtractor={(_, index) => `skeleton-${index}`}
-        />
-      ) : (
-        <FlatList
-          data={searchResults}
-          renderItem={renderSearchResult}
-          keyExtractor={(item) => item.ticker}
-          ListHeaderComponent={renderListHeader}
-          ListEmptyComponent={renderEmptyState}
-          contentContainerStyle={searchResults.length === 0 ? styles.emptyContent : undefined}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
-          windowSize={21}
-        />
-      )}
+        {/* Show skeleton while searching */}
+        {isLoading && searchQuery.length > 0 ? (
+          <FlatList
+            ListHeaderComponent={renderListHeader}
+            data={Array.from({ length: 8 })}
+            renderItem={renderSkeletonItem}
+            keyExtractor={(_, index) => `skeleton-${index}`}
+          />
+        ) : (
+          <FlatList
+            data={searchResults}
+            renderItem={renderSearchResult}
+            keyExtractor={(item) => item.ticker}
+            ListHeaderComponent={renderListHeader}
+            ListEmptyComponent={renderEmptyState}
+            contentContainerStyle={searchResults.length === 0 ? styles.emptyContent : undefined}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={10}
+            windowSize={21}
+          />
+        )}
 
-      {isSyncing && (
-        <View style={[styles.syncOverlay, { backgroundColor: theme.colors.surface }]}>
-          <LoadingIndicator message={syncMessage} size="small" />
-        </View>
-      )}
+        {isSyncing && (
+          <View style={[styles.syncOverlay, { backgroundColor: theme.colors.surface }]}>
+            <LoadingIndicator message={syncMessage} size="small" />
+          </View>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  centeredContent: {
     flex: 1,
   },
   headerContainer: {
