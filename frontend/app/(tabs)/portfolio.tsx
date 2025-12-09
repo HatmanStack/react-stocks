@@ -4,9 +4,10 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { FlatList, StyleSheet, RefreshControl, Alert, Platform } from 'react-native';
+import { View, FlatList, StyleSheet, RefreshControl, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
+import { useContentWidth } from '@/hooks/useContentWidth';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -28,6 +29,7 @@ export default function PortfolioScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const theme = useTheme();
+  const { contentWidth } = useContentWidth();
   const { portfolio, isLoading, error, refetch, removeFromPortfolio } = usePortfolio();
   const { setSelectedTicker, startDate, endDate } = useStock();
 
@@ -140,12 +142,14 @@ export default function PortfolioScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <OfflineIndicator />
-        <FlatList
-          data={Array.from({ length: 6 })}
-          renderItem={renderSkeletonItem}
-          keyExtractor={(_, index) => `skeleton-${index}`}
-          contentContainerStyle={styles.listContent}
-        />
+        <View style={[styles.centeredContent, { width: contentWidth }]}>
+          <FlatList
+            data={Array.from({ length: 6 })}
+            renderItem={renderSkeletonItem}
+            keyExtractor={(_, index) => `skeleton-${index}`}
+            contentContainerStyle={styles.listContent}
+          />
+        </View>
         <AddStockButton onPress={handleAddStock} />
         <AddStockModal visible={modalVisible} onDismiss={handleCloseModal} />
       </SafeAreaView>
@@ -155,27 +159,29 @@ export default function PortfolioScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <OfflineIndicator />
-      <FlatList
-        data={portfolio}
-        renderItem={renderPortfolioItem}
-        keyExtractor={(item) => item.ticker}
-        ListEmptyComponent={renderEmptyState}
-        contentContainerStyle={portfolio.length === 0 ? styles.emptyContent : styles.listContent}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={21}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
-            progressBackgroundColor={theme.colors.surface}
-          />
-        }
-      />
+      <View style={[styles.centeredContent, { width: contentWidth }]}>
+        <FlatList
+          data={portfolio}
+          renderItem={renderPortfolioItem}
+          keyExtractor={(item) => item.ticker}
+          ListEmptyComponent={renderEmptyState}
+          contentContainerStyle={portfolio.length === 0 ? styles.emptyContent : styles.listContent}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={21}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.colors.primary}
+              colors={[theme.colors.primary]}
+              progressBackgroundColor={theme.colors.surface}
+            />
+          }
+        />
+      </View>
       <AddStockButton onPress={handleAddStock} />
       <AddStockModal visible={modalVisible} onDismiss={handleCloseModal} />
     </SafeAreaView>
@@ -184,6 +190,10 @@ export default function PortfolioScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  centeredContent: {
     flex: 1,
   },
   listContent: {

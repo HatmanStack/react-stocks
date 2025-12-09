@@ -71,14 +71,27 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
 
   const chartColor = priceChange.isPositive ? theme.colors.positive : theme.colors.negative;
 
-  // Format X-axis labels
-  // In react-native-svg-charts, formatLabel receives (value, index) where:
-  // - value: the data array index for this tick position
-  // - index: the tick number (0, 1, 2, ...)
-  const formatXAxis = (value: number, _index: number) => {
-    const dataIndex = Math.round(value);
-    if (dates.length === 0 || dataIndex >= dates.length || dataIndex < 0) return '';
-    const dateStr = dates[dataIndex];
+  // Compute evenly spaced tick indices across the full data range (inclusive of first and last)
+  const xTickIndices = useMemo(() => {
+    const len = chartData.length;
+    if (len <= 1) return [0];
+    if (len <= 5) return Array.from({ length: len }, (_, i) => i);
+    // 5 ticks: first, 25%, 50%, 75%, last
+    return [
+      0,
+      Math.round((len - 1) * 0.25),
+      Math.round((len - 1) * 0.5),
+      Math.round((len - 1) * 0.75),
+      len - 1,
+    ];
+  }, [chartData.length]);
+
+  // Format X-axis labels - only show label if index is in our tick indices
+  const formatXAxis = (value: number, index: number) => {
+    // value is the data point value, index is position in data array
+    if (!xTickIndices.includes(index)) return '';
+    if (dates.length === 0 || index >= dates.length || index < 0) return '';
+    const dateStr = dates[index];
     if (!dateStr) return '';
     try {
       return format(parseISO(dateStr), 'MMM dd');
@@ -145,7 +158,7 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
           }}
           numberOfTicks={5}
           formatLabel={formatYAxis}
-          style={{ width: 65 }}
+          style={{ width: 50 }}
         />
 
         {/* Chart */}
@@ -172,16 +185,15 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
         </View>
       </View>
 
-      {/* X-Axis */}
+      {/* X-Axis with evenly distributed ticks */}
       <XAxis
         data={chartData}
         formatLabel={formatXAxis}
-        contentInset={{ left: 73, right: 16 }}
+        contentInset={{ left: 58, right: 30 }}
         svg={{
           fill: theme.colors.onSurfaceVariant,
           fontSize: axisLabelSize,
         }}
-        numberOfTicks={5}
         style={{ marginTop: 8 }}
       />
     </Animated.View>

@@ -11,15 +11,33 @@ import { logLambdaStartStatus } from './utils/metrics.util';
 // Track cold start - only the first invocation is a cold start
 let isFirstInvocation = true;
 
+/** Direct Lambda invocation payload (for prediction trigger from sentiment handler) */
+interface DirectInvocationEvent {
+  ticker: string;
+  days?: number;
+}
+
+/** Type guard for direct invocation events */
+function isDirectInvocation(event: unknown): event is DirectInvocationEvent {
+  return typeof event === 'object' && event !== null && 'ticker' in event && !('requestContext' in event);
+}
+
 /**
  * Main Lambda handler function
  * Routes requests to appropriate sub-handlers based on path
- * @param event - API Gateway HTTP API event (v2 format)
+ * @param event - API Gateway HTTP API event (v2 format) or direct invocation payload
  * @returns API Gateway response
  */
 export async function handler(
-  event: APIGatewayProxyEventV2
+  event: APIGatewayProxyEventV2 | DirectInvocationEvent
 ): Promise<APIGatewayResponse> {
+  // Handle direct Lambda invocation (e.g., prediction trigger from sentiment handler)
+  if (isDirectInvocation(event)) {
+    console.log('[Lambda] Direct invocation detected, routing to prediction handler:', { ticker: event.ticker });
+    const { predictionHandler } = await import('./handlers/prediction.handler');
+    return predictionHandler(event);
+  }
+
   const requestId = event.requestContext.requestId;
   const path = event.rawPath;
   const method = event.requestContext.http.method;

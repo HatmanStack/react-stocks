@@ -67,8 +67,8 @@ export function StockDetailProvider({
     return Math.abs(differenceInDays(end, start)) + 1;
   }, [startDate, endDate]);
 
-  // Fetch all data at the provider level
-  const { data: stockData = [], isLoading: stockLoading, error: stockError } = useStockData(ticker, { days });
+  // Fetch all data at the provider level using actual date range
+  const { data: stockData = [], isLoading: stockLoading, error: stockError } = useStockData(ticker, { startDate, endDate, days });
   const { data: newsData = [], isLoading: newsLoading, error: newsError } = useNewsData(ticker, { days });
   const { data: sentimentData = [], isLoading: sentimentLoading, error: sentimentError } = useSentimentData(ticker, { days });
   const { data: articleSentimentData = [], isLoading: articleSentimentLoading, error: articleSentimentError } = useArticleSentiment(ticker, { days });

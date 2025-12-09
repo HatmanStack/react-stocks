@@ -58,7 +58,7 @@ export interface AspectBreakdown {
  * Daily sentiment data point with three-signal architecture
  *
  * **Schema Evolution:**
- * - Legacy: positive, negative, sentimentScore (kept for backward compatibility)
+ * - Legacy: positiveCount, negativeCount, sentimentScore (kept for backward compatibility)
  * - Phase 4: Added eventCounts, avgAspectScore, avgFinBERTScore, materialEventCount
  *
  * @see backend/src/types/sentiment.types.ts for backend equivalent
@@ -68,14 +68,12 @@ export interface DailySentiment {
   date: string;
 
   // Legacy sentiment metrics (backward compatibility)
-  /** @deprecated Total positive sentence count across all articles */
-  positive: number;
-  /** @deprecated Total negative sentence count across all articles */
-  negative: number;
-  /** Legacy overall sentiment score */
+  /** Total positive sentence count across all articles */
+  positiveCount: number;
+  /** Total negative sentence count across all articles */
+  negativeCount: number;
+  /** Overall sentiment score (-1 to 1) */
   sentimentScore: number;
-  /** Classification based on sentiment score */
-  classification: 'POS' | 'NEG' | 'NEUT';
 
   // Phase 4: Event distribution (NEW)
   /**

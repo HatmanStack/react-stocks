@@ -4,6 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as PortfolioRepository from '@/database/repositories/portfolio.repository';
+import * as SymbolRepository from '@/database/repositories/symbol.repository';
 import { logger } from '@/utils/logger';
 import type { PortfolioDetails } from '@/types/database.types';
 
@@ -26,9 +27,19 @@ export function usePortfolio() {
   const addMutation = useMutation({
     mutationFn: async (ticker: string) => {
       logger.debug(`[usePortfolio] Adding ${ticker}`);
+      // Look up company name from symbol details (best-effort)
+      let companyName = ticker;
+      try {
+        const symbol = await SymbolRepository.findByTicker(ticker);
+        if (symbol?.name) {
+          companyName = symbol.name;
+        }
+      } catch (err) {
+        logger.error(`[usePortfolio] Failed to look up symbol for ${ticker}, using ticker as name`, err);
+      }
       const entry: Omit<PortfolioDetails, 'id'> = {
         ticker,
-        name: ticker,
+        name: companyName,
         next: '0',
         wks: '0',
         mnth: '0',

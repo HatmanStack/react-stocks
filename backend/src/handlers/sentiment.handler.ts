@@ -232,10 +232,14 @@ export async function getSentimentResults(
   cached: boolean;
   predictions?: any;
 }> {
+  console.log('[SentimentHandler] getSentimentResults called:', { ticker, startDate, endDate });
+
   // Fetch all sentiments for ticker
   const allSentiments = await SentimentCacheRepository.querySentimentsByTicker(ticker);
+  console.log('[SentimentHandler] Fetched sentiments:', { ticker, count: allSentiments.length });
 
   if (allSentiments.length === 0) {
+    console.log('[SentimentHandler] No sentiments found, returning empty');
     return {
       ticker: ticker.toUpperCase(),
       startDate: startDate || null,
@@ -247,6 +251,7 @@ export async function getSentimentResults(
 
   // Fetch all news articles to get dates
   const allArticles = await NewsCacheRepository.queryArticlesByTicker(ticker);
+  console.log('[SentimentHandler] Fetched articles:', { ticker, count: allArticles.length });
 
   // Filter articles by date range if provided
   const articlesInRange = allArticles.filter((article) => {
@@ -254,9 +259,11 @@ export async function getSentimentResults(
     if (endDate && article.article.date > endDate) return false;
     return true;
   });
+  console.log('[SentimentHandler] Articles in range:', { ticker, count: articlesInRange.length, startDate, endDate });
 
   // Aggregate daily sentiment using shared utility
   const dailySentiment = aggregateDailySentiment(allSentiments, articlesInRange);
+  console.log('[SentimentHandler] Aggregated daily sentiment:', { ticker, days: dailySentiment.length });
 
   // Fetch latest prediction (if available)
   let predictions = undefined;
