@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Text, useTheme, MD3Theme } from 'react-native-paper';
+import { Text, useTheme } from 'react-native-paper';
 
 export const SentimentListHeader: React.FC = () => {
   const theme = useTheme();
@@ -55,7 +55,7 @@ export const SentimentListHeader: React.FC = () => {
   );
 };
 
-const createStyles = (theme: MD3Theme) => StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     paddingVertical: 10,
     paddingHorizontal: 12,
