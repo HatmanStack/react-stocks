@@ -102,9 +102,17 @@ export async function getStockPredictions(
       `[PredictionService] Generating predictions for ${ticker} (${closePrices.length} data points)` +
         (eventTypes ? ` with three-signal sentiment` : ` without sentiment signals`)
     );
+    console.log(`[PredictionService] Input validation:`);
+    console.log(`  - closePrices: ${closePrices.length} (first: ${closePrices[0]?.toFixed(2)}, last: ${closePrices[closePrices.length-1]?.toFixed(2)})`);
+    console.log(`  - volumes: ${volumes.length}`);
+    console.log(`  - eventTypes: ${eventTypes?.length || 0}`);
+    console.log(`  - aspectScores: ${aspectScores?.length || 0}`);
+    console.log(`  - mlScores: ${mlScores?.length || 0}`);
 
     // Build feature matrix (13 features with three-signal sentiment)
+    console.log(`[PredictionService] Building feature matrix...`);
     const features = buildFeatureMatrix(input);
+    console.log(`[PredictionService] Feature matrix built: ${features.length} rows x ${features[0]?.length || 0} cols`);
 
     // Make predictions for each horizon
     const predictions: { [key: string]: number } = {};

@@ -52,12 +52,16 @@ async function generateBrowserPredictions(
   ticker: string,
   sentimentData: CombinedWordDetails[]
 ): Promise<Predictions | null> {
+  console.log(`[Predictions] === Starting prediction generation for ${ticker} ===`);
+  console.log(`[Predictions] Sentiment data length: ${sentimentData.length}`);
+
   try {
     // Get stock price data from local SQLite
     const stockData = await StockRepository.findByTicker(ticker);
+    console.log(`[Predictions] Stock data length: ${stockData.length}`);
 
     if (stockData.length < MIN_PREDICTION_DATA) {
-      console.log(`[Predictions] Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_PREDICTION_DATA})`);
+      console.log(`[Predictions] FAIL: Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_PREDICTION_DATA})`);
       return null;
     }
 
@@ -94,9 +98,15 @@ async function generateBrowserPredictions(
       mlScores.push(day.avgMlScore ?? 0);
     }
 
-    console.log(`[Predictions] Generating predictions for ${ticker} with ${closePrices.length} price points`);
+    console.log(`[Predictions] Feature extraction complete:`);
+    console.log(`[Predictions]   - closePrices: ${closePrices.length} points, range: [${Math.min(...closePrices).toFixed(2)}, ${Math.max(...closePrices).toFixed(2)}]`);
+    console.log(`[Predictions]   - volumes: ${volumes.length} points`);
+    console.log(`[Predictions]   - eventTypes: ${eventTypes.length} (unique: ${[...new Set(eventTypes)].join(', ')})`);
+    console.log(`[Predictions]   - aspectScores: ${aspectScores.length} (non-zero: ${aspectScores.filter(s => s !== 0).length})`);
+    console.log(`[Predictions]   - mlScores: ${mlScores.length} (non-zero: ${mlScores.filter(s => s !== 0).length})`);
 
     // Run browser-based logistic regression
+    console.log(`[Predictions] Calling getStockPredictions...`);
     const response = await getStockPredictions(
       ticker,
       closePrices,
@@ -108,8 +118,10 @@ async function generateBrowserPredictions(
       aspectScores,
       mlScores
     );
+    console.log(`[Predictions] Raw response:`, response);
 
     const parsed = parsePredictionResponse(response);
+    console.log(`[Predictions] Parsed response:`, parsed);
 
     // Convert to Predictions format with direction and probability
     // The model outputs 0 (up) or 1 (down), we convert to probability
@@ -280,7 +292,11 @@ export function useSentimentData(
         endDate
       );
 
-      if (localData.length >= 10) {
+      // Check data quality - must have sentiment scores populated
+      const hasQualityData = localData.length >= 10 &&
+        localData.some(item => item.sentimentNumber !== undefined || item.avgMlScore !== undefined);
+
+      if (hasQualityData) {
         console.log(`[useSentimentData] Using ${localData.length} local records for ${ticker}`);
         sentimentData = localData;
       }
@@ -324,17 +340,25 @@ export function useSentimentData(
 
       // STEP 4: Generate predictions using browser-based logistic regression
       // Only if we have sentiment data and the latest record doesn't have predictions
+      console.log(`[useSentimentData] STEP 4: Checking if predictions needed...`);
+      console.log(`[useSentimentData]   - sentimentData.length: ${sentimentData.length}`);
+
       const latestRecord = sentimentData.length > 0
         ? sentimentData.sort((a, b) => b.date.localeCompare(a.date))[0]
         : null;
 
+      console.log(`[useSentimentData]   - latestRecord date: ${latestRecord?.date || 'none'}`);
+      console.log(`[useSentimentData]   - latestRecord.nextDayDirection: ${latestRecord?.nextDayDirection || 'undefined'}`);
+
       const needsPredictions = latestRecord && !latestRecord.nextDayDirection;
+      console.log(`[useSentimentData]   - needsPredictions: ${needsPredictions}`);
 
       if (needsPredictions && sentimentData.length > 0) {
-        console.log(`[useSentimentData] Generating browser-based predictions for ${ticker}`);
+        console.log(`[useSentimentData] GENERATING browser-based predictions for ${ticker}`);
         const predictions = await generateBrowserPredictions(ticker, sentimentData);
 
         if (predictions && latestRecord) {
+          console.log(`[useSentimentData] Predictions received:`, predictions);
           // Update latest record with predictions
           latestRecord.nextDayDirection = predictions.nextDay.direction;
           latestRecord.nextDayProbability = predictions.nextDay.probability;
@@ -343,6 +367,12 @@ export function useSentimentData(
           latestRecord.oneMonthDirection = predictions.oneMonth.direction;
           latestRecord.oneMonthProbability = predictions.oneMonth.probability;
           latestRecord.updateDate = formatDateForDB(new Date());
+          console.log(`[useSentimentData] Updated latestRecord with predictions:`, {
+            nextDayDirection: latestRecord.nextDayDirection,
+            nextDayProbability: latestRecord.nextDayProbability,
+            twoWeekDirection: latestRecord.twoWeekDirection,
+            oneMonthDirection: latestRecord.oneMonthDirection,
+          });
 
           // Store predictions in local SQLite (async, don't block)
           CombinedWordRepository.upsert(latestRecord)
@@ -352,7 +382,11 @@ export function useSentimentData(
           // Also update portfolio predictions
           updatePredictions(ticker, predictions)
             .catch(err => console.warn('[useSentimentData] Failed to update portfolio predictions:', err));
+        } else {
+          console.log(`[useSentimentData] Predictions generation returned null or latestRecord is null`);
         }
+      } else {
+        console.log(`[useSentimentData] Skipping prediction generation (needsPredictions=${needsPredictions}, dataLength=${sentimentData.length})`);
       }
 
       return sentimentData;
@@ -411,7 +445,11 @@ export function useArticleSentiment(
         (item) => item.date >= startDate && item.date <= endDate
       );
 
-      if (localData.length >= 5) {
+      // Check data quality - must have publisher/date/url fields populated
+      const hasQualityData = localData.length >= 5 &&
+        localData.some(item => item.publisher && item.url);
+
+      if (hasQualityData) {
         console.log(`[useArticleSentiment] Using ${localData.length} local articles for ${ticker}`);
         return localData;
       }
