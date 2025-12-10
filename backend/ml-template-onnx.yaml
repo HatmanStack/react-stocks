@@ -38,8 +38,8 @@ Resources:
       Environment:
         Variables:
           ML_MODEL_BUCKET: !Ref ModelBucket
-          ONNX_MODEL_KEY: !Sub '${ModelPrefix}/models/distilroberta-financial.onnx'
-          TOKENIZER_KEY: !Sub '${ModelPrefix}/models/tokenizer/tokenizer.json'
+          ONNX_MODEL_KEY: !Sub '${ModelPrefix}/distilroberta-financial.onnx'
+          TOKENIZER_KEY: !Sub '${ModelPrefix}/tokenizer/tokenizer.json'
           API_STAGE: !Ref Environment
           LOG_LEVEL: INFO
       Policies:
@@ -87,7 +87,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '/aws/lambda/${AWS::StackName}-sentiment'
-      RetentionInDays: 7
+      RetentionInDays: 14
 
   # CloudWatch Alarms
   SentimentErrorsAlarm:
@@ -140,3 +140,5 @@ Outputs:
   FunctionName:
     Description: Sentiment Lambda Function Name
     Value: !Ref SentimentFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-FunctionName'

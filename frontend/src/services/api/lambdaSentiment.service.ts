@@ -345,6 +345,10 @@ export async function getArticleSentiment(
         throw new Error(errorData?.error || 'Invalid request parameters');
       }
 
+      if (status === 429) {
+        throw new Error('Rate limit exceeded. Please try again in a moment.');
+      }
+
       if (status === 500) {
         throw new Error(errorData?.error || 'Backend service error');
       }

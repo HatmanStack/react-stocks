@@ -90,7 +90,7 @@ async function performLocalSentimentAnalysis(
 }
 
 /**
- * Sync all data for a ticker (prices, news, sentiment)
+ * Sync all data for a ticker (prices and sentiment)
  * @param ticker - Stock ticker symbol
  * @param days - Number of days to sync (default: 30)
  * @param onProgress - Optional progress callback for UI updates
@@ -108,6 +108,7 @@ export async function syncAllData(
     daysProcessed: 0,
     errors: [],
   };
+  let stockSyncFailed = false;
 
   try {
     console.log(`[SyncOrchestrator] Starting full sync for ${ticker} (${days} days)`);
@@ -128,6 +129,7 @@ export async function syncAllData(
       result.stockRecords = await syncStockData(ticker, startDate, endDate);
       console.log(`[SyncOrchestrator] Stock sync complete: ${result.stockRecords} records`);
     } catch (error) {
+      stockSyncFailed = true;
       const errorMsg = `Stock sync failed: ${error}`;
       console.error(`[SyncOrchestrator] ${errorMsg}`);
       result.errors.push(errorMsg);
@@ -137,9 +139,11 @@ export async function syncAllData(
       step: 'data-ready',
       progress: 1.5,
       total: 3,
-      message: result.stockRecords > 0
-        ? `Price data ready for ${ticker}`
-        : `Failed to fetch data for ${ticker}`,
+      message: stockSyncFailed
+        ? `Failed to sync price data for ${ticker}`
+        : result.stockRecords > 0
+          ? `Price data ready for ${ticker}`
+          : `No new price data for ${ticker} (using existing cache if available)`,
     });
 
     // Step 3: Trigger sentiment analysis (Lambda or local) - this can be async

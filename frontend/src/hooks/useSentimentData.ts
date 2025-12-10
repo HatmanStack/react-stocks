@@ -16,7 +16,7 @@ import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
 import type { WordCountDetails, CombinedWordDetails, EventType } from '@/types/database.types';
-import { getStockPredictions, parsePredictionResponse, getDefaultPredictions } from '@/ml/prediction/prediction.service';
+import { getStockPredictions, parsePredictionResponse } from '@/ml/prediction/prediction.service';
 
 /** Process items in batches with concurrency limit */
 async function processBatched<T, R>(
@@ -466,7 +466,7 @@ export function useArticleSentiment(
             // Transform backend format to local WordCountDetails format
             const transformed: WordCountDetails[] = lambdaResults.articles.map((article, index) => ({
               date: article.date,
-              hash: parseInt(article.hash.slice(0, 13), 16) || (Date.now() + index),
+              hash: parseInt(article.hash.slice(0, 12), 16) || (Date.now() + index),
               ticker: article.ticker,
               title: article.title,
               url: article.url,

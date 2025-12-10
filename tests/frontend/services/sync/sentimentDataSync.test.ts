@@ -6,7 +6,6 @@ import type { CombinedWordDetails } from '@/types/database.types';
 // Mock repositories
 jest.mock('@/database/repositories/combinedWord.repository');
 jest.mock('@/database/repositories/portfolio.repository');
-jest.mock('@/database/repositories/news.repository');
 jest.mock('@/database/repositories/wordCount.repository');
 
 // Mock dependencies

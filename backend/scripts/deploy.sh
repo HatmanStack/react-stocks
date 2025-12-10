@@ -101,7 +101,7 @@ echo ""
 
 # Check if model exists in S3
 MODEL_EXISTS=false
-if aws s3 ls "s3://${MODEL_BUCKET}/${MODEL_PREFIX}/${ML_MODEL_NAME}.onnx" --region "$AWS_REGION" 2>/dev/null; then
+if aws s3api head-object --bucket "${MODEL_BUCKET}" --key "${MODEL_PREFIX}/${ML_MODEL_NAME}.onnx" --region "$AWS_REGION" >/dev/null 2>&1; then
     echo "ML model already exists in S3: s3://${MODEL_BUCKET}/${MODEL_PREFIX}/${ML_MODEL_NAME}.onnx"
     MODEL_EXISTS=true
 fi
@@ -119,9 +119,9 @@ if [ "$MODEL_EXISTS" = false ]; then
             echo ""
             echo "Installing export dependencies..."
             if command -v uv &> /dev/null; then
-                uv pip install --system torch transformers onnx onnxruntime onnxscript
+                uv pip install --system torch==2.2.0 transformers==4.38.0 onnx==1.16.0 onnxruntime==1.17.0 onnxscript
             else
-                pip install torch transformers onnx onnxruntime onnxscript
+                pip install torch==2.2.0 transformers==4.38.0 onnx==1.16.0 onnxruntime==1.17.0 onnxscript
             fi
 
             echo "Exporting model to ONNX..."
@@ -201,7 +201,7 @@ else
         --parameter-overrides \
             Environment=prod \
             ModelBucket="$MODEL_BUCKET" \
-            ModelPrefix="$STACK_NAME" \
+            ModelPrefix="$MODEL_PREFIX" \
         --no-confirm-changeset \
         --no-fail-on-empty-changeset
 

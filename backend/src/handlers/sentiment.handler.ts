@@ -16,6 +16,7 @@ import * as DailySentimentAggregateRepository from '../repositories/dailySentime
 import { generateJobId } from '../utils/job.util.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
 import { aggregateDailySentiment } from '../utils/sentiment.util.js';
+import { logMlSentimentCacheHitRate } from '../utils/metrics.util.js';
 // Note: Predictions are now generated client-side using browser-based logistic regression.
 // This removes Lambda invocation complexity and provides instant predictions.
 
@@ -206,6 +207,7 @@ export async function getSentimentResults(
 
   if (allSentiments.length === 0) {
     console.log('[SentimentHandler] No sentiments found, returning empty');
+    logMlSentimentCacheHitRate(ticker, 0, 1); // 1 miss
     return {
       ticker: ticker.toUpperCase(),
       startDate: startDate || null,
@@ -214,6 +216,8 @@ export async function getSentimentResults(
       cached: false,
     };
   }
+
+  logMlSentimentCacheHitRate(ticker, 1, 0); // 1 hit (aggregate)
 
   // Fetch all news articles to get dates
   const allArticles = await NewsCacheRepository.queryArticlesByTicker(ticker);

@@ -7,6 +7,8 @@
  * @see docs/plans/Phase-3.md for integration details
  */
 
+import { logMlSentimentCall, logMlSentimentFallback } from '../utils/metrics.util.js';
+
 /**
  * MlSentiment API configuration
  *
@@ -131,6 +133,7 @@ export async function getMlSentiment(
 
   // Retry loop
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const startTime = Date.now();
     try {
       console.log('[MlSentimentService] Calling MlSentiment API', {
         attempt,
@@ -146,7 +149,10 @@ export async function getMlSentiment(
         body: JSON.stringify({ text: processedText }),
       });
 
+      const duration = Date.now() - startTime;
+
       if (!response.ok) {
+        logMlSentimentCall('UNKNOWN', duration, false, false); // Ticker not available here, use UNKNOWN
         const isLastAttempt = attempt === MAX_RETRIES;
         const canRetry = shouldRetry(null, response.status);
 
@@ -166,6 +172,8 @@ export async function getMlSentiment(
         await sleep(delay);
         continue;
       }
+
+      logMlSentimentCall('UNKNOWN', duration, true, false); // Success, no cache hit here
 
       const data = await response.json() as MlSentimentResponse;
 
@@ -192,6 +200,9 @@ export async function getMlSentiment(
 
       return sentimentScore;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      logMlSentimentCall('UNKNOWN', duration, false, false);
+
       const isLastAttempt = attempt === MAX_RETRIES;
       const canRetry = shouldRetry(error);
 
@@ -206,6 +217,7 @@ export async function getMlSentiment(
         console.warn(
           '[MlSentimentService] All retries exhausted or non-retryable error, using fallback'
         );
+        logMlSentimentFallback('UNKNOWN', 1, 1, error instanceof Error ? error.message : 'Unknown error');
         return null;
       }
 

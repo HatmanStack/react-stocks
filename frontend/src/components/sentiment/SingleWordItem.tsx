@@ -23,6 +23,9 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   PRODUCT_LAUNCH: 'Product',
 };
 
+const POSITIVE_THRESHOLD = 0.1;
+const NEGATIVE_THRESHOLD = -0.1;
+
 export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item }) => {
   const theme = useAppTheme();
 
@@ -32,8 +35,8 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
 
   // Get sentiment color from score
   const getSentimentColor = (score: number): string => {
-    if (score > 0.1) return theme.colors.positive;
-    if (score < -0.1) return theme.colors.negative;
+    if (score > POSITIVE_THRESHOLD) return theme.colors.positive;
+    if (score < NEGATIVE_THRESHOLD) return theme.colors.negative;
     return theme.colors.neutral;
   };
 
@@ -44,9 +47,13 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
   };
 
   // Open article URL
-  const handleOpenArticle = () => {
+  const handleOpenArticle = async () => {
     if (item.url) {
-      Linking.openURL(item.url);
+      try {
+        await Linking.openURL(item.url);
+      } catch (error) {
+        console.warn('Failed to open URL:', item.url, error);
+      }
     }
   };
 
