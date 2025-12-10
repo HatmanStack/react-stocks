@@ -58,8 +58,8 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
       <Card.Content>
         {/* Header Row: Source/Date | Sentiment | Event Chip | Aspect - evenly spaced */}
         <View style={styles.headerRow}>
-          {/* Column 1: Source/Date */}
-          <View style={styles.column}>
+          {/* Column 1: Source/Date - left aligned */}
+          <View style={styles.columnLeft}>
             {item.publisher && (
               <Text variant="labelMedium" style={[styles.publisher, { color: theme.colors.primary }]}>
                 {item.publisher}
@@ -101,16 +101,16 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
             )}
           </View>
 
-          {/* Column 4: Aspect Score */}
-          <View style={styles.column}>
+          {/* Column 4: Aspect Score - right aligned */}
+          <View style={styles.columnRight}>
             {hasAspectScore && (
               <>
-                <Text variant="labelSmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+                <Text variant="labelSmall" style={[styles.labelRight, { color: theme.colors.onSurfaceVariant }]}>
                   Aspect
                 </Text>
                 <Text
                   variant="titleMedium"
-                  style={[styles.score, { color: getSentimentColor(item.aspectScore!) }]}
+                  style={[styles.scoreRight, { color: getSentimentColor(item.aspectScore!) }]}
                 >
                   {formatScore(item.aspectScore!)}
                 </Text>
@@ -167,23 +167,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 8,
   },
+  columnLeft: {
+    flex: 1,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    minHeight: 36,
+  },
   column: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 36,
   },
+  columnRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minHeight: 36,
+  },
   publisher: {
     fontWeight: '600',
     marginBottom: 2,
-    textAlign: 'center',
   },
   label: {
     textAlign: 'center',
   },
+  labelRight: {
+    textAlign: 'right',
+  },
   score: {
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  scoreRight: {
+    fontWeight: 'bold',
+    textAlign: 'right',
   },
   eventChip: {
     height: 26,
