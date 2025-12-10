@@ -168,19 +168,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   columnLeft: {
-    flex: 1,
+    flex: 2,
     alignItems: 'flex-start',
     justifyContent: 'center',
     minHeight: 36,
   },
   column: {
-    flex: 1,
+    flex: 3,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 36,
   },
   columnRight: {
-    flex: 1,
+    flex: 2,
     alignItems: 'flex-end',
     justifyContent: 'center',
     minHeight: 36,
