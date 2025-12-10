@@ -15,7 +15,7 @@ import { analyzeSentimentBatch, analyzeSentiment } from '../ml/sentiment/analyze
 import { aggregateDailySentiment, type DailySentiment } from '../utils/sentiment.util.js';
 import { classifyEvent } from './eventClassification.service.js';
 import { analyzeAspects } from './aspectAnalysis.service.js';
-import { getMlSentimentSentiment } from './mlSentiment.service.js';
+import { getMlSentiment } from './mlSentiment.service.js';
 import { isMaterialEvent } from '../types/event.types.js';
 import type { EventType } from '../types/event.types.js';
 import type {
@@ -367,7 +367,7 @@ async function analyzeArticles(
       if (eventType && isMaterialEvent(eventType)) {
         try {
           const text = `${item.article.title || ''} ${item.article.description || ''}`.trim();
-          const score = await getMlSentimentSentiment(text);
+          const score = await getMlSentiment(text);
 
           return {
             articleHash: item.articleHash,

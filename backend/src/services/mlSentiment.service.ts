@@ -21,7 +21,8 @@ const INITIAL_RETRY_DELAY_MS = 1000; // Start with 1 second delay
  * @returns API URL or undefined if not configured
  */
 function getApiUrl(): string | undefined {
-  return process.env.ML_SENTIMENT_API_URL;
+  // Support both old and new env var names for backward compatibility
+  return process.env.ML_SENTIMENT_API_URL || process.env.DISTILFINBERT_API_URL;
 }
 
 /**
@@ -99,14 +100,14 @@ function sleep(ms: number): Promise<void> {
  * @param text - Financial news text to analyze
  * @returns Sentiment score -1 to +1, or null on error
  */
-export async function getMlSentimentSentiment(
+export async function getMlSentiment(
   text: string
 ): Promise<number | null> {
   // Validate configuration (read at runtime for testability)
   const apiUrl = getApiUrl();
   if (!apiUrl) {
     console.warn(
-      '[MlSentimentService] ML_SENTIMENT_API_URL not configured, skipping MlSentiment analysis'
+      '[MlSentimentService] ML_SENTIMENT_API_URL/DISTILFINBERT_API_URL not configured, skipping ML analysis'
     );
     return null;
   }
