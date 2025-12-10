@@ -70,7 +70,7 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
         </View>
 
         {/* Sentiment (ML Score) */}
-        <View style={styles.valueColumn}>
+        <View style={styles.centerColumn}>
           <MonoText
             variant="price"
             style={styles.text}
@@ -82,7 +82,7 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
         </View>
 
         {/* Aspect Score */}
-        <View style={styles.valueColumn}>
+        <View style={styles.centerColumn}>
           <MonoText
             variant="price"
             style={styles.text}
@@ -149,6 +149,11 @@ const styles = StyleSheet.create({
   dateColumn: {
     flex: 1.2,
     minWidth: 50,
+  },
+  centerColumn: {
+    flex: 1,
+    alignItems: 'center',
+    minWidth: 45,
   },
   valueColumn: {
     flex: 1,

@@ -28,13 +28,13 @@ export const SentimentListHeader: React.FC = () => {
             </Text>
           </View>
 
-          <View style={styles.valueColumn}>
+          <View style={styles.centerColumn}>
             <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
               Sentiment
             </Text>
           </View>
 
-          <View style={styles.valueColumn}>
+          <View style={styles.centerColumn}>
             <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
               Aspect
             </Text>
@@ -87,6 +87,11 @@ const styles = StyleSheet.create({
   dateColumn: {
     flex: 1.2,
     minWidth: 50,
+  },
+  centerColumn: {
+    flex: 1,
+    alignItems: 'center',
+    minWidth: 45,
   },
   valueColumn: {
     flex: 1,
