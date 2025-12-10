@@ -26,8 +26,8 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
 export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item }) => {
   const theme = useAppTheme();
 
-  // Check if we have ML scores
-  const hasAspectScore = item.aspectScore !== undefined && item.aspectScore !== null;
+  // Check if we have scores (only show aspect if non-zero)
+  const hasAspectScore = item.aspectScore !== undefined && item.aspectScore !== null && item.aspectScore !== 0;
   const hasMlScore = item.mlScore !== undefined && item.mlScore !== null;
 
   // Get sentiment color from score
@@ -50,16 +50,13 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
     }
   };
 
-  // Check if this is a material event (has ML model analysis)
-  const isMaterialEvent = item.eventType && ['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING'].includes(item.eventType);
-
   // Should show event type chip? Only for non-GENERAL events
   const showEventChip = item.eventType && item.eventType !== 'GENERAL' && EVENT_TYPE_LABELS[item.eventType];
 
   return (
     <Card style={styles.card}>
       <Card.Content>
-        {/* Header Row: Source/Date (left) | Event Chip (center-right) | Aspect Score (right) */}
+        {/* Header Row: Source/Date | Sentiment | Event Chip | Aspect */}
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             {item.publisher && (
@@ -71,6 +68,21 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
               {formatShortDate(item.date)}
             </Text>
           </View>
+
+          {/* Sentiment score (ML model) */}
+          {hasMlScore && (
+            <View style={styles.sentimentContainer}>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Sentiment
+              </Text>
+              <Text
+                variant="titleMedium"
+                style={[styles.sentimentScore, { color: getSentimentColor(item.mlScore!) }]}
+              >
+                {formatScore(item.mlScore!)}
+              </Text>
+            </View>
+          )}
 
           {/* Event type chip (only for material/notable events) */}
           {showEventChip && (
@@ -84,31 +96,21 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
             </Chip>
           )}
 
-          {/* Aspect Score - colored by sentiment */}
+          {/* Aspect Score - only show if non-zero */}
           {hasAspectScore && (
-            <Text
-              variant="titleMedium"
-              style={[styles.aspectScore, { color: getSentimentColor(item.aspectScore!) }]}
-            >
-              {formatScore(item.aspectScore!)}
-            </Text>
+            <View style={styles.aspectContainer}>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Aspect
+              </Text>
+              <Text
+                variant="titleMedium"
+                style={[styles.aspectScore, { color: getSentimentColor(item.aspectScore!) }]}
+              >
+                {formatScore(item.aspectScore!)}
+              </Text>
+            </View>
           )}
         </View>
-
-        {/* ML model score for material events */}
-        {hasMlScore && isMaterialEvent && (
-          <View style={styles.mlScoreRow}>
-            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              ML:
-            </Text>
-            <Text
-              variant="labelMedium"
-              style={[styles.mlScore, { color: getSentimentColor(item.mlScore!) }]}
-            >
-              {formatScore(item.mlScore!)}
-            </Text>
-          </View>
-        )}
 
         {/* Article Title & Body */}
         {item.title && (
@@ -159,7 +161,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
-    gap: 12,
+    gap: 8,
   },
   headerLeft: {
     flex: 1,
@@ -168,6 +170,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 2,
   },
+  sentimentContainer: {
+    alignItems: 'center',
+  },
+  sentimentScore: {
+    fontWeight: 'bold',
+  },
   eventChip: {
     height: 26,
   },
@@ -175,19 +183,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  aspectContainer: {
+    alignItems: 'center',
+  },
   aspectScore: {
     fontWeight: 'bold',
-    minWidth: 50,
-    textAlign: 'right',
-  },
-  mlScoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  mlScore: {
-    fontWeight: '600',
   },
   title: {
     fontWeight: '600',
