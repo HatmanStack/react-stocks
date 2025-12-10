@@ -205,10 +205,14 @@ const styles = StyleSheet.create({
   },
   eventChip: {
     height: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   chipText: {
     fontSize: 11,
     fontWeight: '600',
+    lineHeight: 14,
+    textAlignVertical: 'center',
   },
   title: {
     fontWeight: '600',
