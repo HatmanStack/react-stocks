@@ -56,9 +56,10 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
   return (
     <Card style={styles.card}>
       <Card.Content>
-        {/* Header Row: Source/Date | Sentiment | Event Chip | Aspect */}
+        {/* Header Row: Source/Date | Sentiment | Event Chip | Aspect - evenly spaced */}
         <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
+          {/* Column 1: Source/Date */}
+          <View style={styles.column}>
             {item.publisher && (
               <Text variant="labelMedium" style={[styles.publisher, { color: theme.colors.primary }]}>
                 {item.publisher}
@@ -69,47 +70,53 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
             </Text>
           </View>
 
-          {/* Sentiment score (ML model) */}
-          {hasMlScore && (
-            <View style={styles.sentimentContainer}>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                Sentiment
-              </Text>
-              <Text
-                variant="titleMedium"
-                style={[styles.sentimentScore, { color: getSentimentColor(item.mlScore!) }]}
-              >
-                {formatScore(item.mlScore!)}
-              </Text>
-            </View>
-          )}
+          {/* Column 2: Sentiment score (ML model) */}
+          <View style={styles.column}>
+            {hasMlScore && (
+              <>
+                <Text variant="labelSmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+                  Sentiment
+                </Text>
+                <Text
+                  variant="titleMedium"
+                  style={[styles.score, { color: getSentimentColor(item.mlScore!) }]}
+                >
+                  {formatScore(item.mlScore!)}
+                </Text>
+              </>
+            )}
+          </View>
 
-          {/* Event type chip (only for material/notable events) */}
-          {showEventChip && (
-            <Chip
-              mode="outlined"
-              compact
-              style={[styles.eventChip, { borderColor: theme.colors.outline }]}
-              textStyle={styles.chipText}
-            >
-              {EVENT_TYPE_LABELS[item.eventType!]}
-            </Chip>
-          )}
-
-          {/* Aspect Score - only show if non-zero */}
-          {hasAspectScore && (
-            <View style={styles.aspectContainer}>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                Aspect
-              </Text>
-              <Text
-                variant="titleMedium"
-                style={[styles.aspectScore, { color: getSentimentColor(item.aspectScore!) }]}
+          {/* Column 3: Event type chip */}
+          <View style={styles.column}>
+            {showEventChip && (
+              <Chip
+                mode="outlined"
+                compact
+                style={[styles.eventChip, { borderColor: theme.colors.outline }]}
+                textStyle={styles.chipText}
               >
-                {formatScore(item.aspectScore!)}
-              </Text>
-            </View>
-          )}
+                {EVENT_TYPE_LABELS[item.eventType!]}
+              </Chip>
+            )}
+          </View>
+
+          {/* Column 4: Aspect Score */}
+          <View style={styles.column}>
+            {hasAspectScore && (
+              <>
+                <Text variant="labelSmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+                  Aspect
+                </Text>
+                <Text
+                  variant="titleMedium"
+                  style={[styles.score, { color: getSentimentColor(item.aspectScore!) }]}
+                >
+                  {formatScore(item.aspectScore!)}
+                </Text>
+              </>
+            )}
+          </View>
         </View>
 
         {/* Article Title & Body */}
@@ -158,23 +165,25 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: 8,
-    gap: 8,
   },
-  headerLeft: {
+  column: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 36,
   },
   publisher: {
     fontWeight: '600',
     marginBottom: 2,
+    textAlign: 'center',
   },
-  sentimentContainer: {
-    alignItems: 'center',
+  label: {
+    textAlign: 'center',
   },
-  sentimentScore: {
+  score: {
     fontWeight: 'bold',
+    textAlign: 'center',
   },
   eventChip: {
     height: 26,
@@ -182,12 +191,6 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 11,
     fontWeight: '600',
-  },
-  aspectContainer: {
-    alignItems: 'center',
-  },
-  aspectScore: {
-    fontWeight: 'bold',
   },
   title: {
     fontWeight: '600',
