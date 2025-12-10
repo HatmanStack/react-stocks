@@ -2,7 +2,7 @@
  * Price Screen - Displays OHLCV price data for a stock
  */
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
@@ -15,13 +15,12 @@ import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
 import { PriceChart } from '@/components/charts/PriceChart';
-import { TimeRangeSelector, getTimeRangeStartDate } from '@/components/common/TimeRangeSelector';
+import { TimeRangeSelector } from '@/components/common/TimeRangeSelector';
 import type { TimeRange } from '@/components/common/TimeRangeSelector';
 import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
-import { formatDateForDB } from '@/utils/date/dateUtils';
 import type { StockDetails } from '@/types/database.types';
 
 interface ChartSectionProps {
@@ -51,19 +50,15 @@ function ChartSection({ data, isLoading, selectedRange, onRangeChange, chartHeig
 
 export default function PriceScreen() {
   const { ticker, stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
-  const { setDateRange } = useStock();
+  const { selectedTimeRange, setTimeRange } = useStock();
   const theme = useTheme();
   const { isDesktop, isTablet } = useResponsive();
   const { contentWidth } = useContentWidth();
-  const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
 
-  // Handle time range change - update context so all tabs use same range
+  // Time range is now shared via context - changing it updates both Price and Sentiment tabs
   const handleRangeChange = useCallback((range: TimeRange) => {
-    setSelectedRange(range);
-    const endDate = formatDateForDB(new Date());
-    const startDate = formatDateForDB(getTimeRangeStartDate(range));
-    setDateRange(startDate, endDate);
-  }, [setDateRange]);
+    setTimeRange(range);
+  }, [setTimeRange]);
 
   // Fetch symbol details for metadata card
   const {
@@ -133,7 +128,7 @@ export default function PriceScreen() {
             <ChartSection
               data={sortedStockData}
               isLoading={isPriceLoading}
-              selectedRange={selectedRange}
+              selectedRange={selectedTimeRange}
               onRangeChange={handleRangeChange}
             />
             <View style={styles.desktopLayout}>
@@ -168,7 +163,7 @@ export default function PriceScreen() {
                 <ChartSection
                   data={sortedStockData}
                   isLoading={isPriceLoading}
-                  selectedRange={selectedRange}
+                  selectedRange={selectedTimeRange}
                   onRangeChange={handleRangeChange}
                 />
                 <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
@@ -194,7 +189,7 @@ export default function PriceScreen() {
           <ChartSection
             data={sortedStockData}
             isLoading={isPriceLoading}
-            selectedRange={selectedRange}
+            selectedRange={selectedTimeRange}
             onRangeChange={handleRangeChange}
             chartHeight={220}
           />

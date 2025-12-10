@@ -3,7 +3,7 @@
  * Displays sentiment analysis data for a stock in a compact table format
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { View, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
@@ -15,13 +15,12 @@ import { SentimentChart } from '@/components/charts/SentimentChart';
 import { SentimentListHeader } from '@/components/sentiment/SentimentListHeader';
 import { SentimentListItem } from '@/components/sentiment/SentimentListItem';
 import { SingleWordItem } from '@/components/sentiment/SingleWordItem';
-import { TimeRangeSelector, getTimeRangeStartDate } from '@/components/common/TimeRangeSelector';
+import { TimeRangeSelector } from '@/components/common/TimeRangeSelector';
 import type { TimeRange } from '@/components/common/TimeRangeSelector';
 import { Skeleton } from '@/components/common/Skeleton';
 import { LoadingIndicator } from '@/components/common/LoadingIndicator';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
-import { formatDateForDB } from '@/utils/date/dateUtils';
 import type { CombinedWordDetails, WordCountDetails } from '@/types/database.types';
 
 export default function SentimentScreen() {
@@ -33,19 +32,15 @@ export default function SentimentScreen() {
     articleSentimentLoading: isArticleLoading,
     articleSentimentError: articleError,
   } = useStockDetail();
-  const { setDateRange } = useStock();
+  const { selectedTimeRange, setTimeRange } = useStock();
   const theme = useTheme();
   const { contentWidth } = useContentWidth();
   const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>('aggregate');
-  const [selectedRange, setSelectedRange] = useState<TimeRange>('1M');
 
-  // Handle time range change - update context so all tabs use same range
+  // Time range is now shared via context - changing it updates both Price and Sentiment tabs
   const handleRangeChange = useCallback((range: TimeRange) => {
-    setSelectedRange(range);
-    const endDate = formatDateForDB(new Date());
-    const startDate = formatDateForDB(getTimeRangeStartDate(range));
-    setDateRange(startDate, endDate);
-  }, [setDateRange]);
+    setTimeRange(range);
+  }, [setTimeRange]);
 
   // Sort data by date descending
   const sortedAggregateData = useMemo(() => {
@@ -112,7 +107,7 @@ export default function SentimentScreen() {
               </View>
               <View style={styles.timeRangeRow}>
                 <TimeRangeSelector
-                  selectedRange={selectedRange}
+                  selectedRange={selectedTimeRange}
                   onRangeChange={handleRangeChange}
                 />
               </View>

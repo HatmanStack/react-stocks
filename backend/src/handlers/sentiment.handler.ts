@@ -16,15 +16,8 @@ import * as DailySentimentAggregateRepository from '../repositories/dailySentime
 import { generateJobId } from '../utils/job.util.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
 import { aggregateDailySentiment } from '../utils/sentiment.util.js';
-import { shouldTriggerPrediction } from '../utils/smartRefresh.util.js';
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-
-// Validate required environment variable
-if (!process.env.AWS_REGION) {
-    throw new Error('AWS_REGION environment variable is required but not set');
-}
-
-const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
+// Note: Predictions are now generated client-side using browser-based logistic regression.
+// This removes Lambda invocation complexity and provides instant predictions.
 
 /**
  * POST /sentiment - Trigger sentiment analysis for a ticker
@@ -101,35 +94,8 @@ export async function handleSentimentRequest(
       // Mark job as completed
       await SentimentJobsRepository.markJobCompleted(jobId, result.articlesProcessed);
 
-      // Trigger prediction asynchronously (fire and forget)
-      // Smart refresh logic: trigger if new articles processed OR DB check says we should
-      const shouldTrigger = result.articlesProcessed > 0 || await shouldTriggerPrediction(ticker);
-
-      if (process.env.PREDICTION_FUNCTION_NAME && shouldTrigger) {
-          try {
-              // Minimal payload for prediction
-              const predictionPayload = {
-                  ticker: ticker.toUpperCase(),
-                  days: 90 // Default to 90 days history for training
-              };
-
-              console.log('[SentimentHandler] Invoking prediction lambda:', {
-                  functionName: process.env.PREDICTION_FUNCTION_NAME,
-                  payload: predictionPayload
-              });
-
-              await lambdaClient.send(new InvokeCommand({
-                  FunctionName: process.env.PREDICTION_FUNCTION_NAME,
-                  InvocationType: 'Event', // Asynchronous invocation
-                  Payload: JSON.stringify(predictionPayload)
-              }));
-          } catch (invokeError) {
-              console.error('[SentimentHandler] Failed to invoke prediction lambda:', invokeError);
-              // We don't fail the sentiment request if prediction trigger fails
-          }
-      } else if (!shouldTrigger) {
-          console.log(`[SentimentHandler] Skipping prediction trigger for ${ticker} (no new data needed)`);
-      }
+      // Note: Predictions are now generated client-side using browser-based logistic regression.
+      // This provides instant predictions without Lambda invocation latency.
 
       return successResponse({
         jobId,

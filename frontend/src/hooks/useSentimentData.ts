@@ -1,17 +1,22 @@
 /**
  * React Query Hooks for Sentiment Analysis Data
  * Fetches word count and aggregated sentiment data
+ *
+ * Data source hierarchy: Local SQLite → Backend API
+ * Predictions are generated client-side using browser-based logistic regression.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
+import * as StockRepository from '@/database/repositories/stock.repository';
 import { syncSentimentData, updatePredictions } from '@/services/sync/sentimentDataSync';
 import { getSentimentResults, getArticleSentiment, type DailySentiment } from '@/services/api/lambdaSentiment.service';
 import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
-import type { WordCountDetails, CombinedWordDetails } from '@/types/database.types';
+import type { WordCountDetails, CombinedWordDetails, EventType } from '@/types/database.types';
+import { getStockPredictions, parsePredictionResponse, getDefaultPredictions } from '@/ml/prediction/prediction.service';
 
 /** Process items in batches with concurrency limit */
 async function processBatched<T, R>(
@@ -32,6 +37,103 @@ interface Predictions {
     nextDay: { direction: 'up' | 'down'; probability: number };
     twoWeek: { direction: 'up' | 'down'; probability: number };
     oneMonth: { direction: 'up' | 'down'; probability: number };
+}
+
+/** Minimum data points needed for predictions (29 days for CV + horizon) */
+const MIN_PREDICTION_DATA = 29;
+
+/**
+ * Generate predictions using browser-based logistic regression
+ * @param ticker - Stock ticker symbol
+ * @param sentimentData - Combined sentiment data
+ * @returns Predictions or null if insufficient data
+ */
+async function generateBrowserPredictions(
+  ticker: string,
+  sentimentData: CombinedWordDetails[]
+): Promise<Predictions | null> {
+  try {
+    // Get stock price data from local SQLite
+    const stockData = await StockRepository.findByTicker(ticker);
+
+    if (stockData.length < MIN_PREDICTION_DATA) {
+      console.log(`[Predictions] Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_PREDICTION_DATA})`);
+      return null;
+    }
+
+    // Sort both datasets by date (oldest first for time-series)
+    const sortedStocks = [...stockData].sort((a, b) => a.date.localeCompare(b.date));
+    const sortedSentiment = [...sentimentData].sort((a, b) => a.date.localeCompare(b.date));
+
+    // Extract features
+    const closePrices = sortedStocks.map(s => s.close);
+    const volumes = sortedStocks.map(s => s.volume);
+
+    // Extract three-signal sentiment data
+    const eventTypes: EventType[] = [];
+    const aspectScores: number[] = [];
+    const mlScores: number[] = [];
+
+    for (const day of sortedSentiment) {
+      // Parse dominant event type from eventCounts JSON
+      let dominantEvent: EventType = 'GENERAL';
+      if (day.eventCounts) {
+        try {
+          const counts = JSON.parse(day.eventCounts) as Record<string, number>;
+          const nonGeneral = Object.entries(counts).filter(([t]) => t !== 'GENERAL');
+          if (nonGeneral.length > 0) {
+            const [type] = nonGeneral.reduce((max, curr) => curr[1] > max[1] ? curr : max);
+            dominantEvent = type as EventType;
+          }
+        } catch {
+          // Use default GENERAL
+        }
+      }
+      eventTypes.push(dominantEvent);
+      aspectScores.push(day.avgAspectScore ?? 0);
+      mlScores.push(day.avgMlScore ?? 0);
+    }
+
+    console.log(`[Predictions] Generating predictions for ${ticker} with ${closePrices.length} price points`);
+
+    // Run browser-based logistic regression
+    const response = await getStockPredictions(
+      ticker,
+      closePrices,
+      volumes,
+      [], // deprecated
+      [], // deprecated
+      [], // deprecated
+      eventTypes,
+      aspectScores,
+      mlScores
+    );
+
+    const parsed = parsePredictionResponse(response);
+
+    // Convert to Predictions format with direction and probability
+    // The model outputs 0 (up) or 1 (down), we convert to probability
+    const toPrediction = (value: number): { direction: 'up' | 'down'; probability: number } => {
+      // Value is 0.0-1.0 where 0 = up, 1 = down
+      const isDown = value >= 0.5;
+      return {
+        direction: isDown ? 'down' : 'up',
+        probability: isDown ? value : (1 - value),
+      };
+    };
+
+    const predictions: Predictions = {
+      nextDay: toPrediction(parsed.nextDay),
+      twoWeek: toPrediction(parsed.twoWeeks),
+      oneMonth: toPrediction(parsed.oneMonth),
+    };
+
+    console.log(`[Predictions] Generated for ${ticker}:`, predictions);
+    return predictions;
+  } catch (error) {
+    console.error(`[Predictions] Failed to generate predictions for ${ticker}:`, error);
+    return null;
+  }
 }
 
 export interface UseSentimentDataOptions {
@@ -169,64 +271,91 @@ export function useSentimentData(
 
       console.log(`[useSentimentData] Fetching sentiment for ${ticker} from ${startDate} to ${endDate} (${days} days)`);
 
-      // Always fetch from Lambda first to get the authoritative data
-      if (Environment.USE_LAMBDA_SENTIMENT) {
-        try {
-          console.log(`[useSentimentData] Fetching from Lambda for ${ticker}`);
-          const lambdaResults = await getSentimentResults(ticker, startDate, endDate);
+      let sentimentData: CombinedWordDetails[] = [];
 
-          if (lambdaResults.dailySentiment.length > 0) {
-            console.log(`[useSentimentData] Lambda returned ${lambdaResults.dailySentiment.length} records`);
-
-            // Transform Lambda format to local DB format
-            const transformed = transformLambdaToLocal(
-                lambdaResults.dailySentiment,
-                ticker,
-                lambdaResults.predictions
-            );
-
-            // Hydrate local DB for offline access (async, don't block)
-            Promise.all(transformed.map(record => CombinedWordRepository.upsert(record)))
-              .then(() => console.log(`[useSentimentData] Hydrated local DB`))
-              .catch(err => console.warn('[useSentimentData] Failed to hydrate local DB:', err));
-
-            // Update predictions if available
-            if (lambdaResults.predictions) {
-                updatePredictions(ticker, lambdaResults.predictions)
-                  .catch(err => console.warn('[useSentimentData] Failed to update predictions:', err));
-            }
-
-            return transformed;
-          }
-        } catch (error) {
-          console.warn('[useSentimentData] Lambda unavailable, falling back to local:', error);
-        }
-      }
-
-      // Fallback: Check local DB
+      // STEP 1: Check local SQLite first
       const localData = await CombinedWordRepository.findByTickerAndDateRange(
         ticker,
         startDate,
         endDate
       );
 
-      if (localData.length > 0) {
-        console.log(`[useSentimentData] Returning ${localData.length} local records for ${ticker}`);
-        return localData;
+      if (localData.length >= 10) {
+        console.log(`[useSentimentData] Using ${localData.length} local records for ${ticker}`);
+        sentimentData = localData;
+      }
+      // STEP 2: Fall back to backend API if local data insufficient
+      else if (Environment.USE_LAMBDA_SENTIMENT) {
+        try {
+          console.log(`[useSentimentData] Local data insufficient (${localData.length}), fetching from backend`);
+          const lambdaResults = await getSentimentResults(ticker, startDate, endDate);
+
+          if (lambdaResults.dailySentiment.length > 0) {
+            console.log(`[useSentimentData] Backend returned ${lambdaResults.dailySentiment.length} records`);
+
+            // Transform backend format to local format (without predictions - we generate those locally)
+            sentimentData = transformLambdaToLocal(lambdaResults.dailySentiment, ticker);
+
+            // Hydrate local DB for offline access (async, don't block)
+            Promise.all(sentimentData.map(record => CombinedWordRepository.upsert(record)))
+              .then(() => console.log(`[useSentimentData] Hydrated local DB`))
+              .catch(err => console.warn('[useSentimentData] Failed to hydrate local DB:', err));
+          }
+        } catch (error) {
+          console.warn('[useSentimentData] Backend unavailable:', error);
+          // Use whatever local data we have
+          sentimentData = localData;
+        }
+      } else {
+        // No backend configured, use local data
+        sentimentData = localData;
       }
 
-      // Last resort: Trigger local sentiment analysis
-      console.log(`[useSentimentData] No data found, triggering local analysis for ${ticker}`);
-
-      const dates = [];
-      for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
-        dates.push(formatDateForDB(d));
+      // STEP 3: If still no data, trigger local sentiment analysis as last resort
+      if (sentimentData.length === 0) {
+        console.log(`[useSentimentData] No data found, triggering local analysis for ${ticker}`);
+        const dates = [];
+        for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
+          dates.push(formatDateForDB(d));
+        }
+        await processBatched(dates, (date) => syncSentimentData(ticker, date), 5);
+        sentimentData = await CombinedWordRepository.findByTickerAndDateRange(ticker, startDate, endDate);
       }
 
-      // Process dates in batches of 5 to avoid overwhelming the backend
-      await processBatched(dates, (date) => syncSentimentData(ticker, date), 5);
+      // STEP 4: Generate predictions using browser-based logistic regression
+      // Only if we have sentiment data and the latest record doesn't have predictions
+      const latestRecord = sentimentData.length > 0
+        ? sentimentData.sort((a, b) => b.date.localeCompare(a.date))[0]
+        : null;
 
-      return CombinedWordRepository.findByTickerAndDateRange(ticker, startDate, endDate);
+      const needsPredictions = latestRecord && !latestRecord.nextDayDirection;
+
+      if (needsPredictions && sentimentData.length > 0) {
+        console.log(`[useSentimentData] Generating browser-based predictions for ${ticker}`);
+        const predictions = await generateBrowserPredictions(ticker, sentimentData);
+
+        if (predictions && latestRecord) {
+          // Update latest record with predictions
+          latestRecord.nextDayDirection = predictions.nextDay.direction;
+          latestRecord.nextDayProbability = predictions.nextDay.probability;
+          latestRecord.twoWeekDirection = predictions.twoWeek.direction;
+          latestRecord.twoWeekProbability = predictions.twoWeek.probability;
+          latestRecord.oneMonthDirection = predictions.oneMonth.direction;
+          latestRecord.oneMonthProbability = predictions.oneMonth.probability;
+          latestRecord.updateDate = formatDateForDB(new Date());
+
+          // Store predictions in local SQLite (async, don't block)
+          CombinedWordRepository.upsert(latestRecord)
+            .then(() => console.log(`[useSentimentData] Stored predictions in local DB`))
+            .catch(err => console.warn('[useSentimentData] Failed to store predictions:', err));
+
+          // Also update portfolio predictions
+          updatePredictions(ticker, predictions)
+            .catch(err => console.warn('[useSentimentData] Failed to update portfolio predictions:', err));
+        }
+      }
+
+      return sentimentData;
     },
     enabled: enabled && !!ticker,
     staleTime: staleTime ?? 5 * 60 * 1000, // Default 5 minutes stale time
@@ -276,37 +405,42 @@ export function useArticleSentiment(
 
       console.log(`[useArticleSentiment] Fetching article sentiment for ${ticker} from ${startDate} to ${endDate} (days=${days})`);
 
-      // Fetch from Lambda if enabled
+      // STEP 1: Check local SQLite first
+      const allLocalData = await WordCountRepository.findByTicker(ticker);
+      const localData = allLocalData.filter(
+        (item) => item.date >= startDate && item.date <= endDate
+      );
+
+      if (localData.length >= 5) {
+        console.log(`[useArticleSentiment] Using ${localData.length} local articles for ${ticker}`);
+        return localData;
+      }
+
+      // STEP 2: Fall back to backend API if local data insufficient
       if (Environment.USE_LAMBDA_SENTIMENT) {
         try {
-          console.log(`[useArticleSentiment] Fetching from Lambda for ${ticker}`);
+          console.log(`[useArticleSentiment] Local data insufficient (${localData.length}), fetching from backend`);
           const lambdaResults = await getArticleSentiment(ticker, startDate, endDate);
 
           if (lambdaResults.articles.length > 0) {
-            console.log(`[useArticleSentiment] Lambda returned ${lambdaResults.articles.length} articles`);
+            console.log(`[useArticleSentiment] Backend returned ${lambdaResults.articles.length} articles`);
 
-            // Transform Lambda format to local WordCountDetails format
-            // Hash from backend is hex string - convert first 13 chars to number for DB compatibility
-            // (13 hex chars = 52 bits, within JS safe integer range)
+            // Transform backend format to local WordCountDetails format
             const transformed: WordCountDetails[] = lambdaResults.articles.map((article, index) => ({
               date: article.date,
               hash: parseInt(article.hash.slice(0, 13), 16) || (Date.now() + index),
               ticker: article.ticker,
-              // Article metadata
               title: article.title,
               url: article.url,
               publisher: article.publisher,
-              // Bag-of-words sentiment
               positive: article.positive,
               negative: article.negative,
               body: article.body,
               sentiment: article.sentiment,
               sentimentNumber: article.sentimentNumber,
-              // Legacy fields
               nextDay: 0,
               twoWks: 0,
               oneMnth: 0,
-              // ML fields
               eventType: article.eventType as WordCountDetails['eventType'],
               aspectScore: article.aspectScore,
               mlScore: article.mlScore,
@@ -327,18 +461,13 @@ export function useArticleSentiment(
             return transformed;
           }
         } catch (error) {
-          console.warn('[useArticleSentiment] Lambda unavailable, falling back to local:', error);
+          console.warn('[useArticleSentiment] Backend unavailable:', error);
         }
       }
 
-      // Fallback: Check local DB
-      const allData = await WordCountRepository.findByTicker(ticker);
-      const filteredData = allData.filter(
-        (item) => item.date >= startDate && item.date <= endDate
-      );
-
-      console.log(`[useArticleSentiment] Returning ${filteredData.length} local records for ${ticker}`);
-      return filteredData;
+      // Return whatever local data we have (may be empty)
+      console.log(`[useArticleSentiment] Returning ${localData.length} local records for ${ticker}`);
+      return localData;
     },
     enabled: enabled && !!ticker,
     staleTime: staleTime ?? 5 * 60 * 1000, // Default 5 minutes stale time
