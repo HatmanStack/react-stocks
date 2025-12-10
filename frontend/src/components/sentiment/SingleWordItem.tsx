@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, Linking, Pressable } from 'react-native';
-import { Card, Text, Chip, IconButton } from 'react-native-paper';
+import { View, StyleSheet, Linking } from 'react-native';
+import { Card, Text, Chip } from 'react-native-paper';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import type { WordCountDetails } from '@/types/database.types';
 import { formatShortDate } from '@/utils/date/dateUtils';
@@ -54,7 +54,7 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
   const showEventChip = item.eventType && item.eventType !== 'GENERAL' && EVENT_TYPE_LABELS[item.eventType];
 
   return (
-    <Card style={styles.card}>
+    <Card style={styles.card} onPress={item.url ? handleOpenArticle : undefined}>
       <Card.Content>
         {/* Header Row: Source/Date | Sentiment | Event Chip | Aspect - evenly spaced */}
         <View style={styles.headerRow}>
@@ -137,20 +137,6 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
           {item.body || 'No description available'}
         </Text>
 
-        {/* Link to article */}
-        {item.url && (
-          <Pressable onPress={handleOpenArticle} style={styles.linkRow}>
-            <Text variant="labelSmall" style={{ color: theme.colors.primary }}>
-              Read full article
-            </Text>
-            <IconButton
-              icon="open-in-new"
-              size={14}
-              iconColor={theme.colors.primary}
-              style={styles.linkIcon}
-            />
-          </Pressable>
-        )}
       </Card.Content>
     </Card>
   );
@@ -221,14 +207,5 @@ const styles = StyleSheet.create({
   },
   body: {
     lineHeight: 18,
-    marginBottom: 8,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  linkIcon: {
-    margin: 0,
-    marginLeft: -4,
   },
 });
