@@ -1,7 +1,6 @@
 /**
  * Sentiment List Header
  * Fixed header row showing column labels for sentiment data
- * Matches PriceListHeader styling
  */
 
 import React from 'react';
@@ -10,57 +9,75 @@ import { Text, useTheme } from 'react-native-paper';
 
 export const SentimentListHeader: React.FC = () => {
   const theme = useTheme();
-  const styles = createStyles(theme);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.elevation.level2 }]}>
-      <View style={styles.row}>
-        <View style={styles.dateColumn}>
-          <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
-            Date
-          </Text>
-        </View>
+    <View style={styles.wrapper}>
+      {/* Prediction explanation */}
+      <View style={[styles.explanationContainer, { backgroundColor: theme.colors.elevation.level1 }]}>
+        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+          Predictions show probability of price movement: 1D (next day), 2W (two weeks), 1M (one month)
+        </Text>
+      </View>
 
-        <View style={styles.valueColumn}>
-          <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
-            Sent
-          </Text>
-        </View>
+      {/* Column headers */}
+      <View style={[styles.container, { backgroundColor: theme.colors.elevation.level2, borderBottomColor: theme.colors.outlineVariant }]}>
+        <View style={styles.row}>
+          <View style={styles.dateColumn}>
+            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+              Date
+            </Text>
+          </View>
 
-        <View style={styles.valueColumn}>
-          <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
-            Aspect
-          </Text>
-        </View>
+          <View style={styles.valueColumn}>
+            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+              Sentiment
+            </Text>
+          </View>
 
-        <View style={styles.valueColumn}>
-          <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
-            1D
-          </Text>
-        </View>
+          <View style={styles.valueColumn}>
+            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+              Aspect
+            </Text>
+          </View>
 
-        <View style={styles.valueColumn}>
-          <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
-            2W
-          </Text>
-        </View>
+          <View style={styles.valueColumn}>
+            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+              1D
+            </Text>
+          </View>
 
-        <View style={styles.valueColumn}>
-          <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
-            1M
-          </Text>
+          <View style={styles.valueColumn}>
+            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+              2W
+            </Text>
+          </View>
+
+          <View style={styles.valueColumn}>
+            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+              1M
+            </Text>
+          </View>
         </View>
       </View>
     </View>
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
+const styles = StyleSheet.create({
+  wrapper: {
+    marginTop: 8,
+  },
+  explanationContainer: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
   container: {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 2,
-    borderBottomColor: theme.colors.outlineVariant,
   },
   row: {
     flexDirection: 'row',
@@ -68,17 +85,17 @@ const createStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'space-between',
   },
   dateColumn: {
-    flex: 1.5,
-    minWidth: 55,
+    flex: 1.2,
+    minWidth: 50,
   },
   valueColumn: {
     flex: 1,
     alignItems: 'flex-end',
-    minWidth: 50,
+    minWidth: 45,
   },
   headerText: {
     fontWeight: 'bold',
-    fontSize: 11,
+    fontSize: 10,
     textTransform: 'uppercase',
   },
 });
