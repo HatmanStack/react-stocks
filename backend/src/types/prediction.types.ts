@@ -99,7 +99,7 @@ export interface ArticleSentiment {
     date: string;
     eventType: string | null;
     aspectScore: number | null;
-    distilFinBERTScore: number | null;
+    mlScore: number | null;
     materialityScore: number | null;
 }
 
@@ -129,7 +129,7 @@ export interface DailyFeatures {
     event_general: number;
     // Sentiment features
     aspect_score: number;
-    finbert_score: number;
+    ml_score: number;
     // Label (0=down, 1=up, null=exclude)
     label: number | null;
 }

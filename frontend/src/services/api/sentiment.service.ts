@@ -1,6 +1,6 @@
 /**
  * Sentiment Analysis Service
- * Calls FinBERT microservice on Google Cloud Run for deep learning sentiment analysis
+ * Calls ML model microservice on Google Cloud Run for deep learning sentiment analysis
  */
 
 import axios from 'axios';
@@ -11,7 +11,7 @@ import type {
 } from '@/types/api.types';
 
 /**
- * Analyze sentiment of article text using FinBERT model
+ * Analyze sentiment of article text using ML model model
  * @param articleText - Full article text
  * @param hash - Hash of the article for deduplication
  * @returns Sentiment analysis result with counts and confidence scores
@@ -72,7 +72,7 @@ export async function analyzeSentiment(
 
 /**
  * Convert sentiment response to simplified format
- * @param response - Raw sentiment analysis response from FinBERT
+ * @param response - Raw sentiment analysis response from ML model
  * @returns Simplified sentiment result
  */
 export function parseSentimentResult(response: SentimentAnalysisResponse): {

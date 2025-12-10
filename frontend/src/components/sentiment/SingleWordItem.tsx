@@ -1,11 +1,11 @@
 /**
  * Single Word Item
- * Displays per-article sentiment analysis
+ * Displays per-article sentiment analysis with source and ML metrics
  */
 
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Card, Text, Chip } from 'react-native-paper';
+import { View, StyleSheet, Linking, Pressable } from 'react-native';
+import { Card, Text, Chip, IconButton } from 'react-native-paper';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import type { WordCountDetails } from '@/types/database.types';
 import { formatShortDate } from '@/utils/date/dateUtils';
@@ -14,85 +14,134 @@ interface SingleWordItemProps {
   item: WordCountDetails;
 }
 
+// Event type display labels (excluding GENERAL which is too common)
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  EARNINGS: 'Earnings',
+  'M&A': 'M&A',
+  GUIDANCE: 'Guidance',
+  ANALYST_RATING: 'Analyst',
+  PRODUCT_LAUNCH: 'Product',
+};
+
 export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item }) => {
   const theme = useAppTheme();
 
-  // Get sentiment color
-  const getSentimentColor = (sentiment: string): string => {
-    switch (sentiment) {
-      case 'POS':
-        return theme.colors.positive;
-      case 'NEG':
-        return theme.colors.negative;
-      default:
-        return theme.colors.neutral;
+  // Check if we have ML scores
+  const hasAspectScore = item.aspectScore !== undefined && item.aspectScore !== null;
+  const hasMlScore = item.mlScore !== undefined && item.mlScore !== null;
+
+  // Get sentiment color from score
+  const getSentimentColor = (score: number): string => {
+    if (score > 0.1) return theme.colors.positive;
+    if (score < -0.1) return theme.colors.negative;
+    return theme.colors.neutral;
+  };
+
+  // Format score with sign (for accessibility)
+  const formatScore = (score: number): string => {
+    const sign = score > 0 ? '+' : '';
+    return `${sign}${score.toFixed(2)}`;
+  };
+
+  // Open article URL
+  const handleOpenArticle = () => {
+    if (item.url) {
+      Linking.openURL(item.url);
     }
   };
 
-  const sentimentColor = getSentimentColor(item.sentiment);
+  // Check if this is a material event (has ML model analysis)
+  const isMaterialEvent = item.eventType && ['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING'].includes(item.eventType);
 
-  // Truncate body text to first 100 characters for preview
-  const getTruncatedBody = (body: string): string => {
-    if (!body) return 'No content available';
-    if (body.length <= 100) return body;
-    return `${body.substring(0, 100)}...`;
-  };
+  // Should show event type chip? Only for non-GENERAL events
+  const showEventChip = item.eventType && item.eventType !== 'GENERAL' && EVENT_TYPE_LABELS[item.eventType];
 
   return (
     <Card style={styles.card}>
       <Card.Content>
-        {/* Header: Date and Sentiment */}
-        <View style={styles.header}>
-          <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>
-            {formatShortDate(item.date)}
-          </Text>
-          <Chip
-            mode="flat"
-            style={[styles.sentimentChip, { backgroundColor: sentimentColor }]}
-            textStyle={[styles.sentimentText, { color: theme.colors.surface }]}
-          >
-            {item.sentiment}
-          </Chip>
+        {/* Header Row: Source/Date (left) | Event Chip (center-right) | Aspect Score (right) */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
+            {item.publisher && (
+              <Text variant="labelMedium" style={[styles.publisher, { color: theme.colors.primary }]}>
+                {item.publisher}
+              </Text>
+            )}
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              {formatShortDate(item.date)}
+            </Text>
+          </View>
+
+          {/* Event type chip (only for material/notable events) */}
+          {showEventChip && (
+            <Chip
+              mode="outlined"
+              compact
+              style={[styles.eventChip, { borderColor: theme.colors.outline }]}
+              textStyle={styles.chipText}
+            >
+              {EVENT_TYPE_LABELS[item.eventType!]}
+            </Chip>
+          )}
+
+          {/* Aspect Score - colored by sentiment */}
+          {hasAspectScore && (
+            <Text
+              variant="titleMedium"
+              style={[styles.aspectScore, { color: getSentimentColor(item.aspectScore!) }]}
+            >
+              {formatScore(item.aspectScore!)}
+            </Text>
+          )}
         </View>
 
-        {/* Article Preview */}
+        {/* ML model score for material events */}
+        {hasMlScore && isMaterialEvent && (
+          <View style={styles.mlScoreRow}>
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              ML:
+            </Text>
+            <Text
+              variant="labelMedium"
+              style={[styles.mlScore, { color: getSentimentColor(item.mlScore!) }]}
+            >
+              {formatScore(item.mlScore!)}
+            </Text>
+          </View>
+        )}
+
+        {/* Article Title & Body */}
+        {item.title && (
+          <Text
+            variant="titleSmall"
+            style={[styles.title, { color: theme.colors.onSurface }]}
+            numberOfLines={2}
+          >
+            {item.title}
+          </Text>
+        )}
         <Text
-          variant="bodyMedium"
-          style={[styles.body, { color: theme.colors.onSurface }]}
+          variant="bodySmall"
+          style={[styles.body, { color: theme.colors.onSurfaceVariant }]}
           numberOfLines={2}
         >
-          {getTruncatedBody(item.body)}
+          {item.body || 'No description available'}
         </Text>
 
-        {/* Word Counts and Score */}
-        <View style={[styles.metrics, { borderTopColor: theme.colors.surfaceVariant }]}>
-          <View style={styles.metric}>
-            <Text variant="labelSmall" style={[styles.metricLabel, { color: theme.colors.onSurfaceVariant }]}>
-              Positive
+        {/* Link to article */}
+        {item.url && (
+          <Pressable onPress={handleOpenArticle} style={styles.linkRow}>
+            <Text variant="labelSmall" style={{ color: theme.colors.primary }}>
+              Read full article
             </Text>
-            <Text variant="bodyLarge" style={[styles.metricValue, { color: theme.colors.positive }]}>
-              {item.positive}
-            </Text>
-          </View>
-
-          <View style={styles.metric}>
-            <Text variant="labelSmall" style={[styles.metricLabel, { color: theme.colors.onSurfaceVariant }]}>
-              Negative
-            </Text>
-            <Text variant="bodyLarge" style={[styles.metricValue, { color: theme.colors.negative }]}>
-              {item.negative}
-            </Text>
-          </View>
-
-          <View style={styles.metric}>
-            <Text variant="labelSmall" style={[styles.metricLabel, { color: theme.colors.onSurfaceVariant }]}>
-              Score
-            </Text>
-            <Text variant="bodyLarge" style={[styles.metricValue, { color: sentimentColor }]}>
-              {item.sentimentNumber.toFixed(2)}
-            </Text>
-          </View>
-        </View>
+            <IconButton
+              icon="open-in-new"
+              size={14}
+              iconColor={theme.colors.primary}
+              style={styles.linkIcon}
+            />
+          </Pressable>
+        )}
       </Card.Content>
     </Card>
   );
@@ -105,36 +154,56 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     marginVertical: 6,
   },
-  header: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    gap: 12,
   },
-  sentimentChip: {
-    height: 28,
+  headerLeft: {
+    flex: 1,
   },
-  sentimentText: {
+  publisher: {
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  eventChip: {
+    height: 26,
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  aspectScore: {
     fontWeight: 'bold',
-    fontSize: 12,
+    minWidth: 50,
+    textAlign: 'right',
   },
-  body: {
-    marginBottom: 12,
+  mlScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  mlScore: {
+    fontWeight: '600',
+  },
+  title: {
+    fontWeight: '600',
+    marginBottom: 4,
     lineHeight: 20,
   },
-  metrics: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingTop: 12,
-    borderTopWidth: 1,
+  body: {
+    lineHeight: 18,
+    marginBottom: 8,
   },
-  metric: {
+  linkRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  metricLabel: {
-    marginBottom: 4,
-  },
-  metricValue: {
-    fontWeight: 'bold',
+  linkIcon: {
+    margin: 0,
+    marginLeft: -4,
   },
 });

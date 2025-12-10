@@ -116,8 +116,8 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
 
     // Extract FinBERT scores (if available)
     const finbertData = combinedData.map(d =>
-      d.avgFinBERTScore !== null && d.avgFinBERTScore !== undefined
-        ? d.avgFinBERTScore
+      d.avgMlScore !== null && d.avgMlScore !== undefined
+        ? d.avgMlScore
         : null
     );
     const hasFinBERT = finbertData.some(v => v !== null);

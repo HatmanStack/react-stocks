@@ -19,7 +19,7 @@ export interface ArticleAnalysisDataItem {
   date: string;
   eventType?: 'EARNINGS' | 'M&A' | 'GUIDANCE' | 'ANALYST_RATING' | 'PRODUCT_LAUNCH' | 'GENERAL';
   aspectScore?: number;
-  distilFinBERTScore?: number;
+  mlScore?: number;
   materialityScore?: number;
   title?: string;
   articleUrl?: string;
@@ -31,7 +31,7 @@ export interface DailySentimentAggregateItem {
   date: string;
   eventCounts: Record<string, number>;
   avgAspectScore?: number;
-  avgFinBERTScore?: number;
+  avgMlScore?: number;
   materialEventCount?: number;
   nextDayDirection?: 'up' | 'down';
   nextDayProbability?: number;

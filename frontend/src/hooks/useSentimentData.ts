@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
 import { syncSentimentData, updatePredictions } from '@/services/sync/sentimentDataSync';
-import { getSentimentResults, type DailySentiment } from '@/services/api/lambdaSentiment.service';
+import { getSentimentResults, getArticleSentiment, type DailySentiment } from '@/services/api/lambdaSentiment.service';
 import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
@@ -65,7 +65,7 @@ function classifySentiment(score: number): 'POS' | 'NEG' | 'NEUT' {
 
 /**
  * Transform Lambda DailySentiment format to local CombinedWordDetails format
- * Maps three-signal sentiment data (eventCounts, avgAspectScore, avgFinBERTScore)
+ * Maps three-signal sentiment data (eventCounts, avgAspectScore, avgMlScore)
  *
  * @param dailySentiment - Sentiment data from Lambda with three-signal architecture
  * @param ticker - Stock ticker symbol
@@ -111,7 +111,7 @@ function transformLambdaToLocal(
         // Store eventCounts as JSON string for SQLite compatibility
         eventCounts: day.eventCounts ? JSON.stringify(day.eventCounts) : undefined,
         avgAspectScore: day.avgAspectScore ?? null,
-        avgFinBERTScore: day.avgFinBERTScore ?? null,
+        avgMlScore: day.avgMlScore ?? null,
         materialEventCount: day.materialEventCount ?? 0,
     };
 
@@ -229,8 +229,9 @@ export function useSentimentData(
       return CombinedWordRepository.findByTickerAndDateRange(ticker, startDate, endDate);
     },
     enabled: enabled && !!ticker,
-    staleTime,
-    refetchOnMount: 'always',
+    staleTime: staleTime ?? 5 * 60 * 1000, // Default 5 minutes stale time
+    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -270,25 +271,79 @@ export function useArticleSentiment(
   return useQuery({
     queryKey: ['articleSentiment', ticker, days],
     queryFn: async (): Promise<WordCountDetails[]> => {
-      console.log(`[useArticleSentiment] Fetching article sentiment for ${ticker}`);
-
-      // WordCountRepository only has findByTicker() which returns all records
-      // We'll fetch all and filter client-side for the date range
-      const allData = await WordCountRepository.findByTicker(ticker);
-
-      // Filter by date range
       const endDate = formatDateForDB(new Date());
       const startDate = formatDateForDB(subDays(new Date(), days));
 
+      console.log(`[useArticleSentiment] Fetching article sentiment for ${ticker} from ${startDate} to ${endDate} (days=${days})`);
+
+      // Fetch from Lambda if enabled
+      if (Environment.USE_LAMBDA_SENTIMENT) {
+        try {
+          console.log(`[useArticleSentiment] Fetching from Lambda for ${ticker}`);
+          const lambdaResults = await getArticleSentiment(ticker, startDate, endDate);
+
+          if (lambdaResults.articles.length > 0) {
+            console.log(`[useArticleSentiment] Lambda returned ${lambdaResults.articles.length} articles`);
+
+            // Transform Lambda format to local WordCountDetails format
+            // Hash from backend is hex string - convert first 13 chars to number for DB compatibility
+            // (13 hex chars = 52 bits, within JS safe integer range)
+            const transformed: WordCountDetails[] = lambdaResults.articles.map((article, index) => ({
+              date: article.date,
+              hash: parseInt(article.hash.slice(0, 13), 16) || (Date.now() + index),
+              ticker: article.ticker,
+              // Article metadata
+              title: article.title,
+              url: article.url,
+              publisher: article.publisher,
+              // Bag-of-words sentiment
+              positive: article.positive,
+              negative: article.negative,
+              body: article.body,
+              sentiment: article.sentiment,
+              sentimentNumber: article.sentimentNumber,
+              // Legacy fields
+              nextDay: 0,
+              twoWks: 0,
+              oneMnth: 0,
+              // ML fields
+              eventType: article.eventType as WordCountDetails['eventType'],
+              aspectScore: article.aspectScore,
+              mlScore: article.mlScore,
+            }));
+
+            // Hydrate local DB for offline access (async, don't block)
+            Promise.all(
+              transformed.map(async (record) => {
+                const exists = await WordCountRepository.existsByHash(record.hash);
+                if (!exists) {
+                  await WordCountRepository.insert(record);
+                }
+              })
+            )
+              .then(() => console.log(`[useArticleSentiment] Hydrated local DB`))
+              .catch((err) => console.warn('[useArticleSentiment] Failed to hydrate local DB:', err));
+
+            return transformed;
+          }
+        } catch (error) {
+          console.warn('[useArticleSentiment] Lambda unavailable, falling back to local:', error);
+        }
+      }
+
+      // Fallback: Check local DB
+      const allData = await WordCountRepository.findByTicker(ticker);
       const filteredData = allData.filter(
         (item) => item.date >= startDate && item.date <= endDate
       );
 
+      console.log(`[useArticleSentiment] Returning ${filteredData.length} local records for ${ticker}`);
       return filteredData;
     },
     enabled: enabled && !!ticker,
-    staleTime,
-    refetchOnMount: 'always', // Always refetch when component mounts
+    staleTime: staleTime ?? 5 * 60 * 1000, // Default 5 minutes stale time
+    refetchOnMount: false, // Don't refetch if data is fresh
+    refetchOnWindowFocus: false,
   });
 }
 

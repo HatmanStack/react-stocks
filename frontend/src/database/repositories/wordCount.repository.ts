@@ -55,7 +55,7 @@ export async function insert(wordCount: Omit<WordCountDetails, 'id'>): Promise<n
     INSERT INTO ${TABLE_NAMES.WORD_COUNT_DETAILS} (
       date, hash, ticker, positive, negative, nextDay,
       twoWks, oneMnth, body, sentiment, sentimentNumber,
-      eventType, aspectScore, distilFinBERTScore, materialityScore
+      eventType, aspectScore, mlScore, materialityScore
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
@@ -74,7 +74,7 @@ export async function insert(wordCount: Omit<WordCountDetails, 'id'>): Promise<n
       wordCount.sentimentNumber,
       wordCount.eventType ?? null,
       wordCount.aspectScore ?? null,
-      wordCount.distilFinBERTScore ?? null,
+      wordCount.mlScore ?? null,
       wordCount.materialityScore ?? null,
     ]);
 

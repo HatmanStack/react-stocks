@@ -4,7 +4,7 @@
  * Tests the end-to-end flow of sentiment analysis with three-signal architecture:
  * 1. Event Classification
  * 2. Aspect Analysis
- * 3. DistilFinBERT Sentiment
+ * 3. MlSentiment Sentiment
  * 4. Storage in DynamoDB
  * 5. Daily Aggregation
  */
@@ -35,9 +35,9 @@ describe('Complete Sentiment Pipeline Integration', () => {
       expect(aspectScore).toBeGreaterThan(0);
       expect(aspectBreakdown.REVENUE).toBeGreaterThan(0);
 
-      // Step 3: DistilFinBERT (mocked - would call external service)
-      const distilFinBERTScore = 0.72;
-      expect(distilFinBERTScore).toBeGreaterThan(0);
+      // Step 3: MlSentiment (mocked - would call external service)
+      const mlScore = 0.72;
+      expect(mlScore).toBeGreaterThan(0);
 
       // Step 4: Build cache item
       const cacheItem: Omit<SentimentCacheItem, 'ttl'> = {
@@ -53,19 +53,19 @@ describe('Complete Sentiment Pipeline Integration', () => {
         eventType,
         aspectScore,
         aspectBreakdown,
-        distilFinBERTScore,
-        modelVersion: 'distilfinbert-v1.0',
+        mlScore,
+        modelVersion: 'ml-sentiment-v1.0',
       };
 
       // Verify all three signals are present
       expect(cacheItem.eventType).toBe('EARNINGS');
       expect(cacheItem.aspectScore).toBe(0.65);
-      expect(cacheItem.distilFinBERTScore).toBe(0.72);
+      expect(cacheItem.mlScore).toBe(0.72);
       expect(cacheItem.aspectBreakdown).toBeDefined();
       expect(cacheItem.modelVersion).toBeDefined();
     });
 
-    it('should process non-material event without DistilFinBERT', () => {
+    it('should process non-material event without MlSentiment', () => {
       // Simulate processing a general news article
       // Article would be: { ticker: 'AAPL', title: 'Apple CEO Speaks at Conference', ... }
 
@@ -76,8 +76,8 @@ describe('Complete Sentiment Pipeline Integration', () => {
       // Step 2: Aspect Analysis (still runs)
       const aspectScore = 0; // No financial aspects detected
 
-      // Step 3: DistilFinBERT SKIPPED for non-material events
-      const distilFinBERTScore = undefined;
+      // Step 3: MlSentiment SKIPPED for non-material events
+      const mlScore = undefined;
 
       // Step 4: Build cache item
       const cacheItem: Omit<SentimentCacheItem, 'ttl'> = {
@@ -92,13 +92,13 @@ describe('Complete Sentiment Pipeline Integration', () => {
         analyzedAt: Date.now(),
         eventType,
         aspectScore,
-        distilFinBERTScore,
+        mlScore,
       };
 
       // Verify non-material event characteristics
       expect(cacheItem.eventType).toBe('GENERAL');
       expect(cacheItem.aspectScore).toBe(0);
-      expect(cacheItem.distilFinBERTScore).toBeUndefined();
+      expect(cacheItem.mlScore).toBeUndefined();
       expect(cacheItem.modelVersion).toBeUndefined();
     });
   });
@@ -115,7 +115,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
           ttl: 9999999999,
           eventType: 'EARNINGS',
           aspectScore: 0.5,
-          distilFinBERTScore: 0.7,
+          mlScore: 0.7,
           modelVersion: 'v1.0',
         },
         {
@@ -126,7 +126,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
           ttl: 9999999999,
           eventType: 'M&A',
           aspectScore: -0.3,
-          distilFinBERTScore: -0.2,
+          mlScore: -0.2,
           modelVersion: 'v1.0',
         },
         {
@@ -175,10 +175,10 @@ describe('Complete Sentiment Pipeline Integration', () => {
       // Verify aspect score average (0.5 + -0.3 = 0.2, avg = 0.1, excluding 0)
       expect(day.avgAspectScore).toBeCloseTo(0.1, 2);
 
-      // Verify DistilFinBERT score average (0.7 + -0.2 = 0.5, avg = 0.25)
-      expect(day.avgFinBERTScore).toBeCloseTo(0.25, 2);
+      // Verify MlSentiment score average (0.7 + -0.2 = 0.5, avg = 0.25)
+      expect(day.avgMlScore).toBeCloseTo(0.25, 2);
 
-      // Verify material event count (2 articles with DistilFinBERT)
+      // Verify material event count (2 articles with MlSentiment)
       expect(day.materialEventCount).toBe(2);
     });
 
@@ -191,7 +191,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
           sentiment: { positive: 10, negative: 2, sentimentScore: 0.67, classification: 'POS' },
           analyzedAt: Date.now(),
           ttl: 9999999999,
-          // No eventType, aspectScore, distilFinBERTScore
+          // No eventType, aspectScore, mlScore
         },
         {
           ticker: 'AAPL',
@@ -227,7 +227,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
       // Verify defaults
       expect(day.eventCounts.GENERAL).toBe(2); // Defaults to GENERAL
       expect(day.avgAspectScore).toBeUndefined(); // No aspect scores
-      expect(day.avgFinBERTScore).toBeUndefined(); // No DistilFinBERT scores
+      expect(day.avgMlScore).toBeUndefined(); // No MlSentiment scores
       expect(day.materialEventCount).toBe(0); // No material events
     });
   });
@@ -250,15 +250,15 @@ describe('Complete Sentiment Pipeline Integration', () => {
           REVENUE: 0.7,
           EARNINGS: 0.6,
         },
-        distilFinBERTScore: 0.72,
-        modelVersion: 'distilfinbert-v1.0',
+        mlScore: 0.72,
+        modelVersion: 'ml-sentiment-v1.0',
       };
 
       // Validate ranges
       expect(validItem.aspectScore).toBeGreaterThanOrEqual(-1);
       expect(validItem.aspectScore).toBeLessThanOrEqual(1);
-      expect(validItem.distilFinBERTScore).toBeGreaterThanOrEqual(-1);
-      expect(validItem.distilFinBERTScore).toBeLessThanOrEqual(1);
+      expect(validItem.mlScore).toBeGreaterThanOrEqual(-1);
+      expect(validItem.mlScore).toBeLessThanOrEqual(1);
 
       // Validate event type
       expect(['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING', 'PRODUCT_LAUNCH', 'GENERAL']).toContain(
@@ -284,7 +284,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
       expect(minimalItem.ticker).toBe('AAPL');
       expect(minimalItem.eventType).toBeUndefined();
       expect(minimalItem.aspectScore).toBeUndefined();
-      expect(minimalItem.distilFinBERTScore).toBeUndefined();
+      expect(minimalItem.mlScore).toBeUndefined();
     });
   });
 
@@ -294,14 +294,14 @@ describe('Complete Sentiment Pipeline Integration', () => {
 
     it('should identify material events correctly', () => {
       materialEvents.forEach((eventType) => {
-        // Material events should trigger DistilFinBERT
+        // Material events should trigger MlSentiment
         expect(['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING']).toContain(eventType);
       });
     });
 
     it('should identify non-material events correctly', () => {
       nonMaterialEvents.forEach((eventType) => {
-        // Non-material events skip DistilFinBERT
+        // Non-material events skip MlSentiment
         expect(['PRODUCT_LAUNCH', 'GENERAL']).toContain(eventType);
       });
     });
@@ -329,18 +329,18 @@ describe('Complete Sentiment Pipeline Integration', () => {
           analyzedAt: Date.now(),
           eventType,
           aspectScore: 0.3,
-          // DistilFinBERT only for material events
-          distilFinBERTScore: materialEvents.includes(eventType) ? 0.5 : undefined,
+          // MlSentiment only for material events
+          mlScore: materialEvents.includes(eventType) ? 0.5 : undefined,
         };
 
         // Verify event type is set
         expect(item.eventType).toBe(eventType);
 
-        // Verify DistilFinBERT presence matches materiality
+        // Verify MlSentiment presence matches materiality
         if (materialEvents.includes(eventType)) {
-          expect(item.distilFinBERTScore).toBeDefined();
+          expect(item.mlScore).toBeDefined();
         } else {
-          expect(item.distilFinBERTScore).toBeUndefined();
+          expect(item.mlScore).toBeUndefined();
         }
       });
     });
@@ -391,7 +391,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
           ttl: 9999999999,
           eventType: 'EARNINGS',
           aspectScore: 0.5,
-          distilFinBERTScore: 0.7, // Material event
+          mlScore: 0.7, // Material event
         },
         {
           ticker: 'AAPL',
@@ -401,7 +401,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
           ttl: 9999999999,
           eventType: 'GENERAL',
           aspectScore: 0,
-          // No DistilFinBERT for GENERAL
+          // No MlSentiment for GENERAL
         },
       ];
 
@@ -420,8 +420,8 @@ describe('Complete Sentiment Pipeline Integration', () => {
 
       const dailySentiment = aggregateDailySentiment(sentiments, articles);
 
-      // Should only average DistilFinBERT scores from material events
-      expect(dailySentiment[0].avgFinBERTScore).toBeCloseTo(0.7, 2); // Only one score
+      // Should only average MlSentiment scores from material events
+      expect(dailySentiment[0].avgMlScore).toBeCloseTo(0.7, 2); // Only one score
       expect(dailySentiment[0].materialEventCount).toBe(1);
     });
 
@@ -438,7 +438,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
         analyzedAt: Date.now(),
         eventType: 'EARNINGS',
         aspectScore: -1.0, // Very negative aspect
-        distilFinBERTScore: -1.0, // Very negative DistilFinBERT
+        mlScore: -1.0, // Very negative MlSentiment
       };
 
       // All scores should be within valid range
@@ -446,8 +446,8 @@ describe('Complete Sentiment Pipeline Integration', () => {
       expect(extremeItem.sentiment.sentimentScore).toBeLessThanOrEqual(1);
       expect(extremeItem.aspectScore).toBeGreaterThanOrEqual(-1);
       expect(extremeItem.aspectScore).toBeLessThanOrEqual(1);
-      expect(extremeItem.distilFinBERTScore).toBeGreaterThanOrEqual(-1);
-      expect(extremeItem.distilFinBERTScore).toBeLessThanOrEqual(1);
+      expect(extremeItem.mlScore).toBeGreaterThanOrEqual(-1);
+      expect(extremeItem.mlScore).toBeLessThanOrEqual(1);
     });
   });
 });

@@ -15,7 +15,7 @@ export interface SentenceResult {
 
 /**
  * Named tuple for sentiment category bucket
- * Represents [count, confidence] as returned by Python FinBERT service
+ * Represents [count, confidence] as returned by Python ML model service
  */
 export type SentimentBucket = [count: string, confidence: string];
 

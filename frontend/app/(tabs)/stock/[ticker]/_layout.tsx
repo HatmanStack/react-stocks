@@ -1,6 +1,6 @@
 /**
  * Stock Detail Layout
- * Contains header with ticker info and material top tabs for Price, Sentiment, News
+ * Contains header with ticker info and material top tabs for Price and Sentiment
  */
 
 import { useEffect, useCallback } from 'react';
@@ -114,7 +114,6 @@ export default function StockDetailLayout() {
           >
             <MaterialTopTabs.Screen name="index" options={{ title: 'Price' }} />
             <MaterialTopTabs.Screen name="sentiment" options={{ title: 'Sentiment' }} />
-            <MaterialTopTabs.Screen name="news" options={{ title: 'News' }} />
           </MaterialTopTabs>
         </View>
       </View>

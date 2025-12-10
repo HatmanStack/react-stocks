@@ -10,7 +10,7 @@ import type { EventType } from '../../types/database.types';
  * **Phase 4 Update:**
  * - Price features: close prices (will be converted to price ratios internally)
  * - Volume: normalized volume
- * - Three-signal sentiment: eventType, aspectScore, finBERTScore
+ * - Three-signal sentiment: eventType, aspectScore, mlScore
  * - Volatility: calculated from close prices
  *
  * The feature matrix will contain 13 features:
@@ -18,7 +18,7 @@ import type { EventType } from '../../types/database.types';
  * - 1 volume
  * - 6 event type features (one-hot encoded)
  * - 1 aspect score
- * - 1 finBERT score
+ * - 1 ML score
  * - 1 volatility
  */
 export interface PredictionInput {
@@ -43,11 +43,11 @@ export interface PredictionInput {
   aspectScore?: number[];
 
   /**
-   * DistilFinBERT contextual sentiment score for each observation.
+   * ML model contextual sentiment score for each observation.
    * Range: -1 (very negative) to +1 (very positive)
    * Defaults to 0 if not provided.
    */
-  finBERTScore?: number[];
+  mlScore?: number[];
 }
 
 /**

@@ -261,15 +261,15 @@ export function logDynamoDBCacheHit(
 }
 
 /**
- * DistilFinBERT metrics tracking
+ * MlSentiment metrics tracking
  *
- * NEW (Phase 3): Specialized metrics for DistilFinBERT service monitoring
+ * NEW (Phase 3): Specialized metrics for MlSentiment service monitoring
  */
 
 /**
- * Log DistilFinBERT API call metrics
+ * Log MlSentiment API call metrics
  *
- * Tracks calls to external DistilFinBERT service for performance monitoring.
+ * Tracks calls to external MlSentiment service for performance monitoring.
  *
  * @param ticker - Stock ticker
  * @param durationMs - API call duration in milliseconds
@@ -277,9 +277,9 @@ export function logDynamoDBCacheHit(
  * @param cacheHit - Whether result was served from cache
  *
  * @example
- * logDistilFinBERTCall('AAPL', 450, true, false);
+ * logMlSentimentCall('AAPL', 450, true, false);
  */
-export function logDistilFinBERTCall(
+export function logMlSentimentCall(
   ticker: string,
   durationMs: number,
   success: boolean,
@@ -287,33 +287,33 @@ export function logDistilFinBERTCall(
 ): void {
   logMetrics(
     [
-      { name: 'DistilFinBERTCalls', value: 1, unit: MetricUnit.Count },
-      { name: 'DistilFinBERTDuration', value: durationMs, unit: MetricUnit.Milliseconds },
+      { name: 'MlSentimentCalls', value: 1, unit: MetricUnit.Count },
+      { name: 'MlSentimentDuration', value: durationMs, unit: MetricUnit.Milliseconds },
     ],
     {
       Ticker: ticker,
       Success: success ? 'true' : 'false',
       CacheHit: cacheHit ? 'true' : 'false',
-      Service: 'DistilFinBERT',
+      Service: 'MlSentiment',
     }
   );
 }
 
 /**
- * Log DistilFinBERT batch processing metrics
+ * Log MlSentiment batch processing metrics
  *
  * Tracks performance of batch sentiment analysis operations.
  *
  * @param ticker - Stock ticker
  * @param totalArticles - Total articles processed
- * @param materialEvents - Number of material events (invoked DistilFinBERT)
- * @param successCount - Number of successful DistilFinBERT calls
+ * @param materialEvents - Number of material events (invoked MlSentiment)
+ * @param successCount - Number of successful MlSentiment calls
  * @param avgDurationMs - Average duration per material event
  *
  * @example
- * logDistilFinBERTBatch('AAPL', 100, 25, 23, 450);
+ * logMlSentimentBatch('AAPL', 100, 25, 23, 450);
  */
-export function logDistilFinBERTBatch(
+export function logMlSentimentBatch(
   ticker: string,
   totalArticles: number,
   materialEvents: number,
@@ -326,42 +326,42 @@ export function logDistilFinBERTBatch(
 
   logMetrics(
     [
-      { name: 'DistilFinBERTBatchSize', value: totalArticles, unit: MetricUnit.Count },
-      { name: 'DistilFinBERTMaterialEvents', value: materialEvents, unit: MetricUnit.Count },
-      { name: 'DistilFinBERTSuccesses', value: successCount, unit: MetricUnit.Count },
-      { name: 'DistilFinBERTFailures', value: failureCount, unit: MetricUnit.Count },
-      { name: 'DistilFinBERTSuccessRate', value: successRate, unit: MetricUnit.Percent },
+      { name: 'MlSentimentBatchSize', value: totalArticles, unit: MetricUnit.Count },
+      { name: 'MlSentimentMaterialEvents', value: materialEvents, unit: MetricUnit.Count },
+      { name: 'MlSentimentSuccesses', value: successCount, unit: MetricUnit.Count },
+      { name: 'MlSentimentFailures', value: failureCount, unit: MetricUnit.Count },
+      { name: 'MlSentimentSuccessRate', value: successRate, unit: MetricUnit.Percent },
       {
-        name: 'DistilFinBERTMaterialEventRate',
+        name: 'MlSentimentMaterialEventRate',
         value: materialEventRate,
         unit: MetricUnit.Percent,
       },
       {
-        name: 'DistilFinBERTAvgDuration',
+        name: 'MlSentimentAvgDuration',
         value: avgDurationMs,
         unit: MetricUnit.Milliseconds,
       },
     ],
     {
       Ticker: ticker,
-      Service: 'DistilFinBERT',
+      Service: 'MlSentiment',
     }
   );
 }
 
 /**
- * Log DistilFinBERT cache hit rate
+ * Log MlSentiment cache hit rate
  *
- * Tracks effectiveness of DynamoDB caching for DistilFinBERT results.
+ * Tracks effectiveness of DynamoDB caching for MlSentiment results.
  *
  * @param ticker - Stock ticker
  * @param hits - Number of cache hits
  * @param misses - Number of cache misses
  *
  * @example
- * logDistilFinBERTCacheHitRate('AAPL', 18, 2); // 90% hit rate
+ * logMlSentimentCacheHitRate('AAPL', 18, 2); // 90% hit rate
  */
-export function logDistilFinBERTCacheHitRate(
+export function logMlSentimentCacheHitRate(
   ticker: string,
   hits: number,
   misses: number
@@ -371,21 +371,21 @@ export function logDistilFinBERTCacheHitRate(
 
   logMetrics(
     [
-      { name: 'DistilFinBERTCacheHits', value: hits, unit: MetricUnit.Count },
-      { name: 'DistilFinBERTCacheMisses', value: misses, unit: MetricUnit.Count },
-      { name: 'DistilFinBERTCacheHitRate', value: hitRate, unit: MetricUnit.Percent },
+      { name: 'MlSentimentCacheHits', value: hits, unit: MetricUnit.Count },
+      { name: 'MlSentimentCacheMisses', value: misses, unit: MetricUnit.Count },
+      { name: 'MlSentimentCacheHitRate', value: hitRate, unit: MetricUnit.Percent },
     ],
     {
       Ticker: ticker,
-      Service: 'DistilFinBERT',
+      Service: 'MlSentiment',
     }
   );
 }
 
 /**
- * Log DistilFinBERT fallback usage
+ * Log MlSentiment fallback usage
  *
- * Tracks when bag-of-words sentiment is used instead of DistilFinBERT.
+ * Tracks when bag-of-words sentiment is used instead of MlSentiment.
  * High fallback rate indicates service availability issues.
  *
  * @param ticker - Stock ticker
@@ -394,9 +394,9 @@ export function logDistilFinBERTCacheHitRate(
  * @param reason - Reason for fallback (timeout, error, service_unavailable)
  *
  * @example
- * logDistilFinBERTFallback('AAPL', 3, 25, 'timeout');
+ * logMlSentimentFallback('AAPL', 3, 25, 'timeout');
  */
-export function logDistilFinBERTFallback(
+export function logMlSentimentFallback(
   ticker: string,
   fallbackCount: number,
   totalMaterialEvents: number,
@@ -407,12 +407,12 @@ export function logDistilFinBERTFallback(
 
   logMetrics(
     [
-      { name: 'DistilFinBERTFallbacks', value: fallbackCount, unit: MetricUnit.Count },
-      { name: 'DistilFinBERTFallbackRate', value: fallbackRate, unit: MetricUnit.Percent },
+      { name: 'MlSentimentFallbacks', value: fallbackCount, unit: MetricUnit.Count },
+      { name: 'MlSentimentFallbackRate', value: fallbackRate, unit: MetricUnit.Percent },
     ],
     {
       Ticker: ticker,
-      Service: 'DistilFinBERT',
+      Service: 'MlSentiment',
       FallbackReason: reason,
     }
   );

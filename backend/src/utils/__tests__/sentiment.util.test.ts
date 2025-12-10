@@ -206,13 +206,13 @@ describe('Sentiment Utility Functions', () => {
       expect(result[0].avgAspectScore).toBeCloseTo(0.1, 2); // (0.5 + -0.3) / 2 = 0.1
     });
 
-    it('should calculate average DistilFinBERT scores', () => {
+    it('should calculate average MlSentiment scores', () => {
       const sentiments: SentimentCacheItem[] = [
         {
           ticker: 'AAPL',
           articleHash: 'hash1',
           sentiment: { positive: 10, negative: 2, sentimentScore: 0.67, classification: 'POS' },
-          distilFinBERTScore: 0.8,
+          mlScore: 0.8,
           analyzedAt: Date.now(),
           ttl: 9999999999,
         },
@@ -220,7 +220,7 @@ describe('Sentiment Utility Functions', () => {
           ticker: 'AAPL',
           articleHash: 'hash2',
           sentiment: { positive: 5, negative: 8, sentimentScore: -0.23, classification: 'NEG' },
-          distilFinBERTScore: -0.6,
+          mlScore: -0.6,
           analyzedAt: Date.now(),
           ttl: 9999999999,
         },
@@ -228,7 +228,7 @@ describe('Sentiment Utility Functions', () => {
           ticker: 'AAPL',
           articleHash: 'hash3',
           sentiment: { positive: 3, negative: 1, sentimentScore: 0.5, classification: 'POS' },
-          // No distilFinBERTScore (non-material event)
+          // No mlScore (non-material event)
           analyzedAt: Date.now(),
           ttl: 9999999999,
         },
@@ -251,9 +251,9 @@ describe('Sentiment Utility Functions', () => {
       const result = aggregateDailySentiment(sentiments, articles);
 
       expect(result).toHaveLength(1);
-      expect(result[0].avgFinBERTScore).toBeDefined();
-      expect(result[0].avgFinBERTScore).toBeCloseTo(0.1, 2); // (0.8 + -0.6) / 2 = 0.1
-      expect(result[0].materialEventCount).toBe(2); // 2 articles with DistilFinBERT scores
+      expect(result[0].avgMlScore).toBeDefined();
+      expect(result[0].avgMlScore).toBeCloseTo(0.1, 2); // (0.8 + -0.6) / 2 = 0.1
+      expect(result[0].materialEventCount).toBe(2); // 2 articles with MlSentiment scores
     });
 
     it('should handle multiple dates correctly', () => {

@@ -34,7 +34,7 @@ let mlPredictionService: typeof import('@/ml/prediction/prediction.service') | n
  * @param sentimentScores - (DEPRECATED) Array of sentiment scores or categories
  * @param eventTypes - (NEW) Array of event type classifications
  * @param aspectScores - (NEW) Array of aspect sentiment scores (-1 to +1)
- * @param finBERTScores - (NEW) Array of DistilFinBERT scores (-1 to +1)
+ * @param mlScores - (NEW) Array of ML model scores (-1 to +1)
  * @returns Prediction results for next day, 2 weeks, and 1 month
  * @throws Error if service is unavailable or request fails
  */
@@ -47,7 +47,7 @@ export async function getStockPredictions(
   sentimentScores: number[] | string[] = [],
   eventTypes?: EventType[],
   aspectScores?: number[],
-  finBERTScores?: number[]
+  mlScores?: number[]
 ): Promise<StockPredictionResponse> {
   // Check feature flag
   if (FeatureFlags.USE_BROWSER_PREDICTION) {
@@ -61,7 +61,7 @@ export async function getStockPredictions(
       sentimentScores,
       eventTypes,
       aspectScores,
-      finBERTScores
+      mlScores
     );
   } else {
     console.log(`[PredictionService] Using Python API for ${ticker} (legacy - no three-signal support)`);
@@ -89,7 +89,7 @@ async function getBrowserPredictions(
   sentimentScores: number[] | string[],
   eventTypes?: EventType[],
   aspectScores?: number[],
-  finBERTScores?: number[]
+  mlScores?: number[]
 ): Promise<StockPredictionResponse> {
   // Lazy load ML service
   if (!mlPredictionService) {
@@ -111,7 +111,7 @@ async function getBrowserPredictions(
     sentimentCategories,
     eventTypes,
     aspectScores,
-    finBERTScores
+    mlScores
   );
 }
 

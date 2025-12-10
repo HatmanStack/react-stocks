@@ -1,19 +1,18 @@
 /**
  * Stock Detail Context
- * Fetches and provides all stock data (prices, news, sentiment) to child components
+ * Fetches and provides all stock data (prices, sentiment) to child components
  * This ensures all tabs have access to the same data without refetching
  */
 
 import React, { createContext, useContext, useMemo, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useStockData } from '@/hooks/useStockData';
-import { useNewsData } from '@/hooks/useNewsData';
 import { useSentimentData, useArticleSentiment } from '@/hooks/useSentimentData';
 import { useSentimentPolling } from '@/hooks/useSentimentPolling';
 import { Environment } from '@/config/environment';
 import { differenceInDays } from 'date-fns';
 import { useStock } from './StockContext';
-import type { StockDetails, NewsDetails, CombinedWordDetails, WordCountDetails } from '@/types/database.types';
+import type { StockDetails, CombinedWordDetails, WordCountDetails } from '@/types/database.types';
 import type { SentimentJobStatus } from '@/services/api/lambdaSentiment.service';
 
 interface StockDetailContextType {
@@ -24,11 +23,6 @@ interface StockDetailContextType {
   stockData: StockDetails[];
   stockLoading: boolean;
   stockError: Error | null;
-
-  // News data
-  newsData: NewsDetails[];
-  newsLoading: boolean;
-  newsError: Error | null;
 
   // Sentiment data
   sentimentData: CombinedWordDetails[];
@@ -69,7 +63,6 @@ export function StockDetailProvider({
 
   // Fetch all data at the provider level using actual date range
   const { data: stockData = [], isLoading: stockLoading, error: stockError } = useStockData(ticker, { startDate, endDate, days });
-  const { data: newsData = [], isLoading: newsLoading, error: newsError } = useNewsData(ticker, { days });
   const { data: sentimentData = [], isLoading: sentimentLoading, error: sentimentError } = useSentimentData(ticker, { days });
   const { data: articleSentimentData = [], isLoading: articleSentimentLoading, error: articleSentimentError } = useArticleSentiment(ticker, { days });
 
@@ -101,9 +94,6 @@ export function StockDetailProvider({
       stockData,
       stockLoading,
       stockError: stockError as Error | null,
-      newsData,
-      newsLoading,
-      newsError: newsError as Error | null,
       sentimentData,
       sentimentLoading,
       sentimentError: sentimentError as Error | null,
@@ -122,9 +112,6 @@ export function StockDetailProvider({
       stockData,
       stockLoading,
       stockError,
-      newsData,
-      newsLoading,
-      newsError,
       sentimentData,
       sentimentLoading,
       sentimentError,

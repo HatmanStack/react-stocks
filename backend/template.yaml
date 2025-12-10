@@ -365,6 +365,13 @@ Resources:
       RouteKey: 'GET /sentiment/job/{jobId}'
       Target: !Sub 'integrations/${ReactStocksIntegration}'
 
+  SentimentArticlesRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      RouteKey: 'GET /sentiment/articles'
+      Target: !Sub 'integrations/${ReactStocksIntegration}'
+
   PredictRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:

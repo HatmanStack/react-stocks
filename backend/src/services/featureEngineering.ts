@@ -116,8 +116,8 @@ export function aggregate_daily_features(priceData: StockPrice[], sentimentData:
         // Prepare arrays for weighted averaging
         const aspectScores: number[] = [];
         const aspectWeights: number[] = [];
-        const finbertScores: number[] = [];
-        const finbertWeights: number[] = [];
+        const mlScores: number[] = [];
+        const mlWeights: number[] = [];
 
         for (const article of articles) {
             const weight = article.materialityScore || 0;
@@ -127,15 +127,15 @@ export function aggregate_daily_features(priceData: StockPrice[], sentimentData:
                 aspectWeights.push(weight);
             }
 
-            if (article.distilFinBERTScore !== null) {
-                finbertScores.push(article.distilFinBERTScore);
-                finbertWeights.push(weight);
+            if (article.mlScore !== null) {
+                mlScores.push(article.mlScore);
+                mlWeights.push(weight);
             }
         }
 
         // Compute weighted averages
         const aspectScore = compute_materiality_weighted_avg(aspectScores, aspectWeights);
-        const finbertScore = compute_materiality_weighted_avg(finbertScores, finbertWeights);
+        const mlScore = compute_materiality_weighted_avg(mlScores, mlWeights);
 
         // Compute weighted event features
         const eventFeatures = compute_event_one_hot_weighted(articles);
@@ -185,7 +185,7 @@ export function aggregate_daily_features(priceData: StockPrice[], sentimentData:
             ...eventFeatures,
 
             aspect_score: aspectScore,
-            finbert_score: finbertScore,
+            ml_score: mlScore,
 
             label: label
         });

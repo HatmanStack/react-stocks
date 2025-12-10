@@ -69,8 +69,10 @@ export default function SentimentScreen() {
   );
 
   const keyExtractorAggregate = (item: CombinedWordDetails) => `${item.ticker}-${item.date}`;
-  const keyExtractorArticle = (item: WordCountDetails, index: number) =>
-    `${item.ticker}-${item.date}-${item.hash || index}`;
+  const keyExtractorArticle = useCallback(
+    (item: WordCountDetails, index: number) => `article-${index}-${item.ticker}-${item.date}-${item.body?.slice(0, 20) || index}`,
+    []
+  );
 
   // Render content based on view mode
   const renderContent = () => {
@@ -93,6 +95,7 @@ export default function SentimentScreen() {
       }
       return (
         <FlatList
+          key="aggregate-list"
           data={sortedAggregateData}
           renderItem={renderAggregateItem}
           keyExtractor={keyExtractorAggregate}
@@ -144,6 +147,7 @@ export default function SentimentScreen() {
       }
       return (
         <FlatList
+          key="article-list"
           data={sortedArticleData}
           renderItem={renderArticleItem}
           keyExtractor={keyExtractorArticle}

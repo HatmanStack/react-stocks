@@ -61,7 +61,7 @@ export async function syncPredictions(ticker: string, days: number = 30): Promis
     const volumes = stockData.map((s) => s.volume);
 
     // Extract three-signal sentiment data
-    const { eventTypes, aspectScores, finBERTScores } = extractThreeSignalData(sentimentData);
+    const { eventTypes, aspectScores, mlScores } = extractThreeSignalData(sentimentData);
 
     // Generate predictions using three-signal model
     const predictionResponse = await getStockPredictions(
@@ -73,7 +73,7 @@ export async function syncPredictions(ticker: string, days: number = 30): Promis
       [], // deprecated sentimentScores
       eventTypes,
       aspectScores,
-      finBERTScores
+      mlScores
     );
 
     const predictions = parsePredictionResponse(predictionResponse);
@@ -105,19 +105,19 @@ export async function syncPredictions(ticker: string, days: number = 30): Promis
  * Extract three-signal data from CombinedWordDetails array
  *
  * Parses eventCounts JSON, determines dominant event type per day,
- * and extracts aspect and DistilFinBERT scores.
+ * and extracts aspect and ML model scores.
  *
  * @param sentimentData - Array of CombinedWordDetails sorted by date
- * @returns Arrays of event types, aspect scores, and DistilFinBERT scores
+ * @returns Arrays of event types, aspect scores, and ML model scores
  */
 function extractThreeSignalData(sentimentData: CombinedWordDetails[]): {
   eventTypes: EventType[];
   aspectScores: number[];
-  finBERTScores: number[];
+  mlScores: number[];
 } {
   const eventTypes: EventType[] = [];
   const aspectScores: number[] = [];
-  const finBERTScores: number[] = [];
+  const mlScores: number[] = [];
 
   for (const day of sentimentData) {
     // Extract dominant event type from eventCounts JSON
@@ -146,11 +146,11 @@ function extractThreeSignalData(sentimentData: CombinedWordDetails[]): {
     // Extract aspect score (default to 0 if missing)
     aspectScores.push(day.avgAspectScore ?? 0);
 
-    // Extract DistilFinBERT score (default to 0 if missing)
-    finBERTScores.push(day.avgFinBERTScore ?? 0);
+    // Extract ML model score (default to 0 if missing)
+    mlScores.push(day.avgMlScore ?? 0);
   }
 
-  return { eventTypes, aspectScores, finBERTScores };
+  return { eventTypes, aspectScores, mlScores };
 }
 
 /**

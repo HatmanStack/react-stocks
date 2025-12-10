@@ -111,7 +111,6 @@ export default function SearchScreen() {
 
       // Invalidate all queries for this ticker to force refetch
       // Use exact: false to match all query variations (with different days params)
-      queryClient.invalidateQueries({ queryKey: ['newsData', symbol.ticker], exact: false });
       queryClient.invalidateQueries({ queryKey: ['sentimentData', symbol.ticker], exact: false });
       queryClient.invalidateQueries({ queryKey: ['articleSentiment', symbol.ticker], exact: false });
       queryClient.invalidateQueries({ queryKey: ['stockData', symbol.ticker], exact: false });

@@ -1,19 +1,21 @@
 """
-FastAPI Application for DistilFinBERT Sentiment Analysis
+FastAPI Application for Financial Sentiment Analysis
 
-Provides HTTP endpoints for sentiment analysis:
+Provides HTTP endpoints for sentiment analysis using ONNX Runtime:
 - POST /sentiment - Analyze single text
 - POST /sentiment/batch - Analyze multiple texts (up to 10)
 - GET /health - Health check endpoint
+
+Model: DistilRoBERTa fine-tuned on financial news sentiment
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List
 import logging
 
-from .model import analyze_sentiment, get_model_info
+from model_onnx import analyze_sentiment, get_model_info
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,9 +23,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="DistilFinBERT Sentiment Analysis API",
-    description="Financial sentiment analysis using DistilFinBERT model",
-    version="1.0.0"
+    title="Financial Sentiment Analysis API",
+    description="Financial sentiment analysis using DistilRoBERTa + ONNX Runtime",
+    version="2.0.0"
 )
 
 # Configure CORS (adjust origins for production)
@@ -42,7 +44,8 @@ class SentimentRequest(BaseModel):
     """Request model for single sentiment analysis"""
     text: str = Field(..., min_length=1, max_length=10000, description="Text to analyze")
 
-    @validator('text')
+    @field_validator('text')
+    @classmethod
     def text_not_empty(cls, v):
         if not v.strip():
             raise ValueError('Text cannot be empty or whitespace only')
@@ -61,7 +64,8 @@ class BatchSentimentRequest(BaseModel):
     """Request model for batch sentiment analysis"""
     texts: List[str] = Field(..., min_items=1, max_items=10, description="List of texts to analyze (max 10)")
 
-    @validator('texts')
+    @field_validator('texts')
+    @classmethod
     def texts_not_empty(cls, v):
         for text in v:
             if not text or not text.strip():
@@ -227,8 +231,9 @@ async def root():
     Root endpoint with API information.
     """
     return {
-        "service": "DistilFinBERT Sentiment Analysis",
-        "version": "1.0.0",
+        "service": "Financial Sentiment Analysis (ONNX)",
+        "version": "2.0.0",
+        "model": "distilroberta-finetuned-financial-news-sentiment-analysis",
         "endpoints": {
             "sentiment": "POST /sentiment",
             "batch": "POST /sentiment/batch",

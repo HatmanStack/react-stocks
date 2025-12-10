@@ -1,6 +1,6 @@
 /**
  * API Request/Response Types for External Services
- * Used for Python microservices (FinBERT sentiment & logistic regression predictions)
+ * Used for Python microservices (ML model sentiment & logistic regression predictions)
  * and Lambda backend sentiment API
  */
 
@@ -18,7 +18,7 @@ export type EventType =
   | 'GENERAL';
 
 /**
- * Sentiment Analysis Service (FinBERT on Google Cloud Run)
+ * Sentiment Analysis Service (ML model on Google Cloud Run)
  * @deprecated This service is being phased out in favor of Lambda-based sentiment
  */
 export interface SentimentAnalysisRequest {
@@ -27,7 +27,7 @@ export interface SentimentAnalysisRequest {
 }
 
 /**
- * @deprecated Legacy response format from FinBERT service
+ * @deprecated Legacy response format from ML model service
  */
 export interface SentimentAnalysisResponse {
   positive: [string, string]; // [count, confidence_score]

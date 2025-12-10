@@ -16,7 +16,7 @@ import type { SentimentAnalysisResponse } from '@/types/api.types';
 /**
  * Analyze sentiment of article text using browser-based ML
  *
- * This function provides the same interface as the Python FinBERT service,
+ * This function provides the same interface as the Python ML service,
  * allowing it to be a drop-in replacement in the sync pipeline.
  *
  * @param articleText - Full article text to analyze

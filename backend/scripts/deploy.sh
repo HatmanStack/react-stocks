@@ -4,8 +4,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 ENV_DEPLOY_FILE=".env.deploy"
-ECR_REPO_NAME="distilfinbert"
 ML_STACK_NAME_SUFFIX="-ml"
+ML_MODEL_NAME="distilroberta-financial"
 
 echo "==================================="
 echo "React Stocks Backend Deployment"
@@ -88,42 +88,79 @@ echo ""
 
 # Get AWS Account ID
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}"
+
+# Stack-based naming for ML resources
+MODEL_BUCKET="${STACK_NAME}-ml-models-${AWS_ACCOUNT_ID}-${AWS_REGION}"
+MODEL_PREFIX="${STACK_NAME}/models"
+ML_STACK_NAME="${STACK_NAME}${ML_STACK_NAME_SUFFIX}"
 
 echo "==================================="
-echo "Step 1: Build and Push ML Service"
+echo "Step 1: Setup ML Model"
 echo "==================================="
 echo ""
 
-# Create ECR repository if it doesn't exist
-if ! aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" --region "$AWS_REGION" 2>/dev/null; then
-    echo "Creating ECR repository: $ECR_REPO_NAME"
-    aws ecr create-repository --repository-name "$ECR_REPO_NAME" --region "$AWS_REGION"
-    BUILD_ML_IMAGE=true
-else
-    # Check if image exists
-    if aws ecr describe-images --repository-name "$ECR_REPO_NAME" --region "$AWS_REGION" --image-ids imageTag=latest 2>/dev/null; then
-        echo "ML image already exists in ECR. Skipping build."
-        echo "To force rebuild, delete the image or run: docker build -f Dockerfile.ml -t $ECR_REPO_NAME:latest ."
-        BUILD_ML_IMAGE=false
-    else
-        BUILD_ML_IMAGE=true
-    fi
+# Check if model exists in S3
+MODEL_EXISTS=false
+if aws s3 ls "s3://${MODEL_BUCKET}/${MODEL_PREFIX}/${ML_MODEL_NAME}.onnx" --region "$AWS_REGION" 2>/dev/null; then
+    echo "ML model already exists in S3: s3://${MODEL_BUCKET}/${MODEL_PREFIX}/${ML_MODEL_NAME}.onnx"
+    MODEL_EXISTS=true
 fi
 
-if [ "$BUILD_ML_IMAGE" = true ]; then
-    # Login to ECR
-    echo "Logging into ECR..."
-    aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+if [ "$MODEL_EXISTS" = false ]; then
+    echo "ML model not found in S3."
 
-    # Build Docker image
-    echo "Building ML service Docker image..."
-    docker build -f Dockerfile.ml -t "$ECR_REPO_NAME:latest" .
+    # Check if model exists locally
+    if [ -f "models/${ML_MODEL_NAME}.onnx" ]; then
+        echo "Found local ONNX model."
+    else
+        echo "ONNX model not found locally either."
+        read -p "Export model to ONNX now? (requires PyTorch) [Y/n]: " export_choice
+        if [[ ! "$export_choice" =~ ^[Nn]$ ]]; then
+            echo ""
+            echo "Installing export dependencies..."
+            if command -v uv &> /dev/null; then
+                uv pip install --system torch transformers onnx onnxruntime onnxscript
+            else
+                pip install torch transformers onnx onnxruntime onnxscript
+            fi
 
-    # Tag and push
-    echo "Pushing to ECR..."
-    docker tag "$ECR_REPO_NAME:latest" "$ECR_URI:latest"
-    docker push "$ECR_URI:latest"
+            echo "Exporting model to ONNX..."
+            python3 scripts/export_onnx.py
+        else
+            echo "Skipping ML model deployment. Sentiment analysis will not work."
+            MODEL_EXISTS=skip
+        fi
+    fi
+
+    if [ "$MODEL_EXISTS" != "skip" ]; then
+        # Create S3 bucket if needed
+        if ! aws s3api head-bucket --bucket "$MODEL_BUCKET" --region "$AWS_REGION" 2>/dev/null; then
+            echo ""
+            echo "Creating S3 bucket: $MODEL_BUCKET"
+            if [ "$AWS_REGION" = "us-east-1" ]; then
+                aws s3api create-bucket --bucket "$MODEL_BUCKET" --region "$AWS_REGION"
+            else
+                aws s3api create-bucket --bucket "$MODEL_BUCKET" --region "$AWS_REGION" \
+                    --create-bucket-configuration LocationConstraint="$AWS_REGION"
+            fi
+            # Block public access
+            aws s3api put-public-access-block --bucket "$MODEL_BUCKET" \
+                --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+        fi
+
+        # Upload model to S3
+        echo ""
+        echo "Uploading model to S3..."
+        aws s3 cp "models/${ML_MODEL_NAME}.onnx" "s3://${MODEL_BUCKET}/${MODEL_PREFIX}/${ML_MODEL_NAME}.onnx" --region "$AWS_REGION"
+
+        if [ -f "models/tokenizer/tokenizer.json" ]; then
+            echo "Uploading tokenizer..."
+            aws s3 cp "models/tokenizer/tokenizer.json" "s3://${MODEL_BUCKET}/${MODEL_PREFIX}/tokenizer/tokenizer.json" --region "$AWS_REGION"
+        fi
+
+        echo "Model uploaded successfully!"
+        MODEL_EXISTS=true
+    fi
 fi
 
 echo ""
@@ -133,35 +170,51 @@ echo "==================================="
 echo ""
 
 # Create deployment bucket if needed
-DEPLOY_BUCKET="sam-deploy-react-stocks-${AWS_REGION}"
+DEPLOY_BUCKET="sam-deploy-${STACK_NAME}-${AWS_REGION}"
 if ! aws s3 ls "s3://${DEPLOY_BUCKET}" --region "$AWS_REGION" 2>/dev/null; then
     echo "Creating deployment bucket: ${DEPLOY_BUCKET}"
-    aws s3 mb "s3://${DEPLOY_BUCKET}" --region "$AWS_REGION"
+    if [ "$AWS_REGION" = "us-east-1" ]; then
+        aws s3 mb "s3://${DEPLOY_BUCKET}" --region "$AWS_REGION"
+    else
+        aws s3api create-bucket --bucket "$DEPLOY_BUCKET" --region "$AWS_REGION" \
+            --create-bucket-configuration LocationConstraint="$AWS_REGION"
+    fi
 fi
 
-# Deploy ML service
-ML_STACK_NAME="${STACK_NAME}${ML_STACK_NAME_SUFFIX}"
-sam deploy \
-    --template-file ml-template.yaml \
-    --stack-name "$ML_STACK_NAME" \
-    --region "$AWS_REGION" \
-    --s3-bucket "$DEPLOY_BUCKET" \
-    --capabilities CAPABILITY_IAM \
-    --image-repository "$ECR_URI" \
-    --parameter-overrides \
-        Environment=prod \
-    --no-confirm-changeset \
-    --no-fail-on-empty-changeset
+if [ "$MODEL_EXISTS" = "skip" ]; then
+    echo "Skipping ML service deployment (no model)."
+    ML_API_URL=""
+else
+    # Build ML service
+    echo "Building ML Lambda..."
+    sam build --template-file ml-template-onnx.yaml
 
-# Get ML API URL
-ML_API_URL=$(aws cloudformation describe-stacks \
-    --stack-name "$ML_STACK_NAME" \
-    --region "$AWS_REGION" \
-    --query 'Stacks[0].Outputs[?OutputKey==`DistilFinBERTApiUrl`].OutputValue' \
-    --output text)
+    # Deploy ML service
+    echo ""
+    echo "Deploying ML service stack: $ML_STACK_NAME"
+    sam deploy \
+        --template-file .aws-sam/build/template.yaml \
+        --stack-name "$ML_STACK_NAME" \
+        --region "$AWS_REGION" \
+        --s3-bucket "$DEPLOY_BUCKET" \
+        --capabilities CAPABILITY_IAM \
+        --parameter-overrides \
+            Environment=prod \
+            ModelBucket="$MODEL_BUCKET" \
+            ModelPrefix="$STACK_NAME" \
+        --no-confirm-changeset \
+        --no-fail-on-empty-changeset
 
-echo ""
-echo "ML Service API URL: $ML_API_URL"
+    # Get ML API URL
+    ML_API_URL=$(aws cloudformation describe-stacks \
+        --stack-name "$ML_STACK_NAME" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].Outputs[?OutputKey==`SentimentApiUrl`].OutputValue' \
+        --output text)
+
+    echo ""
+    echo "ML Service API URL: $ML_API_URL"
+fi
 
 echo ""
 echo "==================================="

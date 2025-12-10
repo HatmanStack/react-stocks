@@ -57,7 +57,7 @@ export async function fetchSentimentData(ticker: string, startDate: string, endD
       date: item.date,
       eventType: item.eventType || null,
       aspectScore: item.aspectScore !== undefined ? item.aspectScore : null,
-      distilFinBERTScore: item.distilFinBERTScore !== undefined ? item.distilFinBERTScore : null,
+      mlScore: item.mlScore !== undefined ? item.mlScore : null,
       materialityScore: item.materialityScore !== undefined ? item.materialityScore : null,
     }));
   } catch (error) {

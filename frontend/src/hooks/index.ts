@@ -6,9 +6,6 @@
 // Stock data hooks
 export { useStockData, useLatestStockPrice } from './useStockData';
 
-// News data hooks
-export { useNewsData, useNewsByDate, useNewsCount } from './useNewsData';
-
 // Sentiment data hooks
 export {
   useSentimentData,

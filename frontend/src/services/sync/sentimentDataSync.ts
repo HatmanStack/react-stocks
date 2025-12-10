@@ -7,14 +7,13 @@
  * Kept as fallback for offline mode when Lambda unavailable.
  */
 
-import * as NewsRepository from '@/database/repositories/news.repository';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
 import * as PortfolioRepository from '@/database/repositories/portfolio.repository';
 import { analyzeSentiment } from '@/ml/sentiment/sentiment.service';
 import { countSentimentWords } from '@/utils/sentiment/wordCounter';
 import { calculateSentiment, calculateSentimentScore } from '@/utils/sentiment/sentimentCalculator';
-import { generateArticleHash } from '@/services/api/finnhub.service';
+import { generateArticleHash, fetchNews, transformFinnhubToNewsDetails } from '@/services/api/finnhub.service';
 import { FeatureFlags } from '@/config/features';
 import type { WordCountDetails, CombinedWordDetails } from '@/types/database.types';
 
@@ -40,8 +39,9 @@ export async function syncSentimentData(
   date: string
 ): Promise<number> {
   try {
-    // Get all news articles for this ticker and date
-    const articles = await NewsRepository.findByTickerAndDateRange(ticker, date, date);
+    // Fetch news articles directly from Finnhub API for this date
+    const rawArticles = await fetchNews(ticker, date, date);
+    const articles = rawArticles.map(a => transformFinnhubToNewsDetails(a, ticker));
 
     if (articles.length === 0) {
       return 0; // Silent - no articles is normal for many dates

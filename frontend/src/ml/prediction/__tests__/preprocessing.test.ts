@@ -82,7 +82,7 @@ describe('Preprocessing', () => {
         volume: [100000000, 95000000, 98000000, 97000000, 96000000, 99000000, 100000000, 101000000, 102000000, 103000000, 104000000],
         eventType: ['EARNINGS', 'M&A', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL'],
         aspectScore: [0.5, -0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        finBERTScore: [0.7, -0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        mlScore: [0.7, -0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       };
 
       const features = buildFeatureMatrix(input);
@@ -96,11 +96,11 @@ describe('Preprocessing', () => {
       expect(features[0].slice(4, 10)).toEqual([1, 0, 0, 0, 0, 0]); // EARNINGS
       expect(features[1].slice(4, 10)).toEqual([0, 1, 0, 0, 0, 0]); // M&A
 
-      // Check aspect and finBERT scores
+      // Check aspect and ML scores
       expect(features[0][10]).toBe(0.5); // aspect score
-      expect(features[0][11]).toBe(0.7); // finBERT score
+      expect(features[0][11]).toBe(0.7); // ML score
       expect(features[1][10]).toBe(-0.3); // aspect score
-      expect(features[1][11]).toBe(-0.2); // finBERT score
+      expect(features[1][11]).toBe(-0.2); // ML score
     });
 
     it('should default to GENERAL event type if not provided', () => {
@@ -116,18 +116,18 @@ describe('Preprocessing', () => {
       expect(features[0]).toHaveLength(13);
       // Check that event type defaults to GENERAL (index 4-9, with 9=1 for GENERAL)
       expect(features[0].slice(4, 10)).toEqual([0, 0, 0, 0, 0, 1]); // GENERAL
-      // Check that aspect and finBERT default to 0
+      // Check that aspect and ML default to 0
       expect(features[0][10]).toBe(0); // aspect score
-      expect(features[0][11]).toBe(0); // finBERT score
+      expect(features[0][11]).toBe(0); // ML score
     });
 
-    it('should default aspect and finBERT scores to 0 if not provided', () => {
+    it('should default aspect and ML scores to 0 if not provided', () => {
       const input: PredictionInput = {
         ticker: 'TEST',
         close: [150.0],
         volume: [100000000],
         eventType: ['EARNINGS'],
-        // No aspectScore or finBERTScore provided - should default to 0
+        // No aspectScore or mlScore provided - should default to 0
       };
 
       const features = buildFeatureMatrix(input);
@@ -135,9 +135,9 @@ describe('Preprocessing', () => {
       expect(features[0]).toHaveLength(13);
       // Check event type is EARNINGS (index 4=1)
       expect(features[0].slice(4, 10)).toEqual([1, 0, 0, 0, 0, 0]); // EARNINGS
-      // Check that aspect and finBERT default to 0
+      // Check that aspect and ML default to 0
       expect(features[0][10]).toBe(0); // aspect score
-      expect(features[0][11]).toBe(0); // finBERT score
+      expect(features[0][11]).toBe(0); // ML score
     });
 
     it('should produce matrix with correct dimensions', () => {
@@ -147,7 +147,7 @@ describe('Preprocessing', () => {
         volume: [100000000, 95000000, 98000000, 102000000, 97000000],
         eventType: ['EARNINGS', 'M&A', 'GENERAL', 'GUIDANCE', 'ANALYST_RATING'],
         aspectScore: [0.5, -0.3, 0, 0.2, 0.8],
-        finBERTScore: [0.7, -0.2, 0.1, 0.4, 0.9],
+        mlScore: [0.7, -0.2, 0.1, 0.4, 0.9],
       };
 
       const features = buildFeatureMatrix(input);
@@ -182,7 +182,7 @@ describe('Preprocessing', () => {
         ticker: 'AAPL',
         close: [150.0, 152.0, 151.5, 153.0, 152.5],
         volume: [100000000, 95000000, 98000000, 102000000, 97000000],
-        // No eventType/aspectScore/finBERTScore - will default to GENERAL and zeros
+        // No eventType/aspectScore/mlScore - will default to GENERAL and zeros
       };
 
       const features = buildFeatureMatrix(input);
@@ -194,9 +194,9 @@ describe('Preprocessing', () => {
         expect(row).toHaveLength(13);
         // Check event type defaults to GENERAL (indices 4-9)
         expect(row.slice(4, 10)).toEqual([0, 0, 0, 0, 0, 1]);
-        // Check aspect and finBERT default to 0
+        // Check aspect and ML default to 0
         expect(row[10]).toBe(0); // aspect score
-        expect(row[11]).toBe(0); // finBERT score
+        expect(row[11]).toBe(0); // ML score
       });
     });
   });
@@ -371,7 +371,7 @@ describe('Preprocessing', () => {
         'event_guidance',
         'event_general',
         'aspect_score',
-        'finbert_score',
+        'ml_score',
         'volatility',
       ]);
     });
