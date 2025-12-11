@@ -11,7 +11,6 @@ Output:
     models/distilroberta-financial.onnx
 """
 
-import os
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from pathlib import Path
