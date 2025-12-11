@@ -28,21 +28,6 @@ DEFAULT_STACK="${STACK_NAME:-stocks-prediction-service}"
 read -p "Stack Name [$DEFAULT_STACK]: " input_stack
 STACK_NAME="${input_stack:-$DEFAULT_STACK}"
 
-# Get Tiingo API key
-if [ -n "$TIINGO_API_KEY" ]; then
-    echo "Tiingo API Key: [hidden - press Enter to keep, or paste new key]"
-else
-    echo "Tiingo API Key: [not set]"
-fi
-read -p "> " input_tiingo
-if [ -n "$input_tiingo" ]; then
-    TIINGO_API_KEY="$input_tiingo"
-fi
-if [ -z "$TIINGO_API_KEY" ]; then
-    echo "Error: Tiingo API Key is required"
-    exit 1
-fi
-
 # Get Finnhub API key
 if [ -n "$FINNHUB_API_KEY" ]; then
     echo "Finnhub API Key: [hidden - press Enter to keep, or paste new key]"
@@ -68,7 +53,6 @@ cat > "$ENV_DEPLOY_FILE" << EOF
 # Deployment configuration (auto-saved)
 AWS_REGION=$AWS_REGION
 STACK_NAME=$STACK_NAME
-TIINGO_API_KEY=$TIINGO_API_KEY
 FINNHUB_API_KEY=$FINNHUB_API_KEY
 ALLOWED_ORIGINS=$ALLOWED_ORIGINS
 EOF
@@ -81,7 +65,6 @@ echo ""
 echo "Using configuration:"
 echo "  Region: $AWS_REGION"
 echo "  Stack Name: $STACK_NAME"
-echo "  Tiingo Key: ${TIINGO_API_KEY:0:8}..."
 echo "  Finnhub Key: ${FINNHUB_API_KEY:0:8}..."
 echo "  Allowed Origins: $ALLOWED_ORIGINS"
 echo ""
@@ -242,7 +225,6 @@ sam deploy \
     --s3-bucket "$DEPLOY_BUCKET" \
     --capabilities CAPABILITY_IAM \
     --parameter-overrides \
-        TiingoApiKey="$TIINGO_API_KEY" \
         FinnhubApiKey="$FINNHUB_API_KEY" \
         AllowedOrigins="$ALLOWED_ORIGINS" \
         DistilFinBERTApiUrl="$ML_API_URL" \
