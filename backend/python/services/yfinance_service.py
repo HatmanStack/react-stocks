@@ -163,8 +163,9 @@ def search_tickers(query: str) -> list[dict[str, Any]]:
             "enableFuzzyQuery": False,
             "quotesQueryId": "tss_match_phrase_query",
         }
+        headers = {"User-Agent": "Mozilla/5.0"}
 
-        response = requests.get(url, params=params, timeout=REQUEST_TIMEOUT)
+        response = requests.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
 
         data = response.json()
