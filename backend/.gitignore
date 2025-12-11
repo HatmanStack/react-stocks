@@ -8,3 +8,6 @@ node_modules/
 
 # ML model files (too large for git)
 models/
+
+# Python cache files
+__pycache__/
