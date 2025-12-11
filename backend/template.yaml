@@ -1,12 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: React Stocks Backend - Lambda API for Tiingo and Finnhub proxying
+Description: React Stocks Backend - Lambda API for stock data (yfinance) and Finnhub news
 
 Parameters:
-  TiingoApiKey:
-    Type: String
-    Description: Tiingo API key for stock price data
-
   FinnhubApiKey:
     Type: String
     Description: Finnhub API key for news data
@@ -313,7 +309,7 @@ Resources:
       StageName: $default
       AutoDeploy: true
 
-  # Lambda Integration
+  # Lambda Integration (Node.js - news, sentiment, predict)
   ReactStocksIntegration:
     Type: AWS::ApiGatewayV2::Integration
     Properties:
@@ -322,13 +318,22 @@ Resources:
       IntegrationUri: !GetAtt ReactStocksFunction.Arn
       PayloadFormatVersion: '2.0'
 
+  # Lambda Integration (Python - stocks, search)
+  PythonStocksIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ReactStocksApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt PythonStocksFunction.Arn
+      PayloadFormatVersion: '2.0'
+
   # Routes
   StocksRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
       ApiId: !Ref ReactStocksApi
       RouteKey: 'GET /stocks'
-      Target: !Sub 'integrations/${ReactStocksIntegration}'
+      Target: !Sub 'integrations/${PythonStocksIntegration}'
 
   NewsRoute:
     Type: AWS::ApiGatewayV2::Route
@@ -342,7 +347,7 @@ Resources:
     Properties:
       ApiId: !Ref ReactStocksApi
       RouteKey: 'GET /search'
-      Target: !Sub 'integrations/${ReactStocksIntegration}'
+      Target: !Sub 'integrations/${PythonStocksIntegration}'
 
   SentimentPostRoute:
     Type: AWS::ApiGatewayV2::Route
@@ -384,7 +389,7 @@ Resources:
     Properties:
       ApiId: !Ref ReactStocksApi
       RouteKey: 'POST /batch/stocks'
-      Target: !Sub 'integrations/${ReactStocksIntegration}'
+      Target: !Sub 'integrations/${PythonStocksIntegration}'
 
   BatchNewsRoute:
     Type: AWS::ApiGatewayV2::Route
@@ -400,7 +405,7 @@ Resources:
       RouteKey: 'POST /batch/sentiment'
       Target: !Sub 'integrations/${ReactStocksIntegration}'
 
-  # Lambda Permission for API Gateway
+  # Lambda Permission for API Gateway (Node.js)
   ApiGatewayInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -408,6 +413,47 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ReactStocksApi}/*'
+
+  # Lambda Permission for API Gateway (Python)
+  PythonApiGatewayInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PythonStocksFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ReactStocksApi}/*'
+
+  # Python Lambda Function for Stock Data (yfinance)
+  PythonStocksFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-python-stocks'
+      CodeUri: python/
+      Handler: index.handler
+      Runtime: python3.13
+      MemorySize: !Ref StocksMemory
+      Timeout: !Ref StocksTimeout
+      Architectures:
+        - x86_64
+      Description: Stock data API using yfinance (replaces Tiingo)
+      Environment:
+        Variables:
+          ALLOWED_ORIGINS: !Ref AllowedOrigins
+          STOCKS_CACHE_TABLE: !Ref StocksCacheTable
+          LOG_LEVEL: INFO
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+                - dynamodb:BatchGetItem
+                - dynamodb:BatchWriteItem
+              Resource:
+                - !GetAtt StocksCacheTable.Arn
+      Tracing: Active
 
   CacheWarmingFunction:
     Type: AWS::Serverless::Function
@@ -420,7 +466,6 @@ Resources:
       Runtime: nodejs24.x
       Environment:
         Variables:
-          TIINGO_API_KEY: !Ref TiingoApiKey
           FINNHUB_API_KEY: !Ref FinnhubApiKey
           STOCKS_CACHE_TABLE: !Ref StocksCacheTable
           NEWS_CACHE_TABLE: !Ref NewsCacheTable
@@ -454,10 +499,9 @@ Resources:
       FunctionName: !Sub '${AWS::StackName}-api'
       CodeUri: ./
       Handler: dist/index.handler
-      Description: Backend proxy for Tiingo and Finnhub APIs
+      Description: Backend proxy for Finnhub news and ML services
       Environment:
         Variables:
-          TIINGO_API_KEY: !Ref TiingoApiKey
           FINNHUB_API_KEY: !Ref FinnhubApiKey
           ALLOWED_ORIGINS: !Ref AllowedOrigins
           STOCKS_CACHE_TABLE: !Ref StocksCacheTable
@@ -604,10 +648,16 @@ Outputs:
       Name: !Sub '${AWS::StackName}-ApiUrl'
 
   ReactStocksFunctionArn:
-    Description: Lambda Function ARN
+    Description: Lambda Function ARN (Node.js - news, sentiment, predict)
     Value: !GetAtt ReactStocksFunction.Arn
     Export:
       Name: !Sub '${AWS::StackName}-FunctionArn'
+
+  PythonStocksFunctionArn:
+    Description: Lambda Function ARN (Python - stocks, search)
+    Value: !GetAtt PythonStocksFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-PythonFunctionArn'
 
   StocksCacheTableArn:
     Description: ARN of StocksCache DynamoDB table
