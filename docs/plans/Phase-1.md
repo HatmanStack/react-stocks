@@ -805,3 +805,49 @@ Phase 1 is complete when:
 - `startDate`/`endDate` fields in metadata will be empty (yfinance doesn't provide)
 - `isActive` in search results defaults to `true` (yfinance doesn't provide)
 - Adjusted OHLC values may differ slightly from Tiingo's calculation
+
+---
+
+## Review Feedback (Iteration 1)
+
+### Verification Summary
+
+**Tools Used:**
+- `pytest backend/python_tests/ -v`: 71/71 tests passing
+- `sam validate --template template.yaml`: Valid
+- `npm run build`: Succeeds
+- `git log --oneline -15`: Commits follow conventional format
+- `Glob/Grep`: Verified file existence and content
+
+### Issues Found
+
+#### Task 10: SAM Template - Cache Warming Resources
+
+> **Consider:** ADR-3 states "Remove CacheWarmingFunction Lambda" and "Remove TopTickersCacheTable (only used by cache warming)". Looking at `backend/template.yaml`, are these resources still present?
+>
+> **Reflect:** Run `grep -E "CacheWarmingFunction|TopTickersCacheTable" backend/template.yaml` and observe what appears. Should these resources exist given our decision to remove cache warming entirely?
+
+#### Task 12: Cache Warming Files Not Deleted
+
+> **Consider:** Task 12 lists `backend/src/services/cacheWarming.service.ts` and `backend/scripts/warm-cache.ts` as "Files to Delete". Have you verified these files no longer exist?
+>
+> **Think about:** Run `ls backend/src/services/cacheWarming.service.ts backend/scripts/warm-cache.ts 2>/dev/null` - what do you observe?
+
+### What's Working Well
+
+- Python Lambda implementation complete (all handlers, services, transforms)
+- 71 tests passing with meaningful assertions (not placeholders)
+- CI pipeline properly updated with PYTHONPATH
+- Tiingo service, types, and search handler removed from Node.js
+- Deploy script has Tiingo references removed
+- SAM template has Python Lambda with correct `CodeUri: python/` and `Handler: index.handler`
+- Commits follow conventional format
+
+### Remaining Work
+
+1. Remove `CacheWarmingFunction` from `backend/template.yaml`
+2. Remove `TopTickersCacheTable` from `backend/template.yaml`
+3. Delete `backend/src/services/cacheWarming.service.ts`
+4. Delete `backend/scripts/warm-cache.ts`
+
+Once these items are addressed, re-run review for approval.

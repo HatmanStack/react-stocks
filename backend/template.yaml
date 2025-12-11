@@ -130,26 +130,6 @@ Resources:
         - Key: CacheType
           Value: stocks
 
-  TopTickersCacheTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub '${AWS::StackName}-TopTickersCache'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: listType
-          AttributeType: S
-      KeySchema:
-        - AttributeName: listType
-          KeyType: HASH
-      TimeToLiveSpecification:
-        Enabled: true
-        AttributeName: ttl
-      Tags:
-        - Key: Project
-          Value: react-stocks
-        - Key: CacheType
-          Value: top-tickers
-
   NewsCacheTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -454,44 +434,6 @@ Resources:
               Resource:
                 - !GetAtt StocksCacheTable.Arn
       Tracing: Active
-
-  CacheWarmingFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./
-      Handler: dist/handlers/cacheWarming.handler
-      Description: Pre-warms cache for popular tickers
-      Timeout: 300
-      MemorySize: 512
-      Runtime: nodejs24.x
-      Environment:
-        Variables:
-          FINNHUB_API_KEY: !Ref FinnhubApiKey
-          STOCKS_CACHE_TABLE: !Ref StocksCacheTable
-          NEWS_CACHE_TABLE: !Ref NewsCacheTable
-          TOP_TICKERS_CACHE_TABLE: !Ref TopTickersCacheTable
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - dynamodb:GetItem
-                - dynamodb:PutItem
-                - dynamodb:UpdateItem
-                - dynamodb:DeleteItem
-                - dynamodb:Query
-                - dynamodb:BatchGetItem
-                - dynamodb:BatchWriteItem
-              Resource:
-                - !GetAtt StocksCacheTable.Arn
-                - !GetAtt NewsCacheTable.Arn
-                - !GetAtt TopTickersCacheTable.Arn
-      Events:
-        ScheduledWarming:
-          Type: Schedule
-          Properties:
-            Schedule: cron(0 14 ? * MON-FRI *) # 9:00 AM ET (14:00 UTC)
-            Description: Warm cache for top tickers 30 minutes before market open
-            Enabled: true
 
   ReactStocksFunction:
     Type: AWS::Serverless::Function
