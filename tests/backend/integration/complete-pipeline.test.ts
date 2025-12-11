@@ -54,7 +54,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
         aspectScore,
         aspectBreakdown,
         mlScore,
-        modelVersion: 'distilfinbert-v1.0',
+        modelVersion: 'ml-sentiment-v1.0',
       };
 
       // Verify all three signals are present
@@ -251,7 +251,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
           EARNINGS: 0.6,
         },
         mlScore: 0.72,
-        modelVersion: 'distilfinbert-v1.0',
+        modelVersion: 'ml-sentiment-v1.0',
       };
 
       // Validate ranges

@@ -87,7 +87,7 @@ describe('Feature Engineering Service', () => {
             // Weighted Avg Aspect: (0.2*0.8 + -0.5*0.2) / (0.8+0.2) = (0.16 - 0.1) / 1.0 = 0.06
             expect(features[1].aspect_score).toBeCloseTo(0.06);
 
-            // Weighted Avg FinBERT: (0.6*0.8 + -0.2*0.2) / 1.0 = (0.48 - 0.04) = 0.44
+            // Weighted Avg mlScore: (0.6*0.8 + -0.2*0.2) / 1.0 = (0.48 - 0.04) = 0.44
             expect(features[1].ml_score).toBeCloseTo(0.44);
         });
 

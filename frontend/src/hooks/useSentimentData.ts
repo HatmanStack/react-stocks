@@ -56,6 +56,12 @@ async function generateBrowserPredictions(
   console.log(`[Predictions] Sentiment data length: ${sentimentData.length}`);
 
   try {
+    // Step 1: Validate sentiment data length
+    if (sentimentData.length < MIN_PREDICTION_DATA) {
+      console.log(`[Predictions] FAIL: Insufficient sentiment data for ${ticker}: ${sentimentData.length} days (need ${MIN_PREDICTION_DATA})`);
+      return null;
+    }
+
     // Get stock price data from local SQLite
     const stockData = await StockRepository.findByTicker(ticker);
     console.log(`[Predictions] Stock data length: ${stockData.length}`);
@@ -65,20 +71,57 @@ async function generateBrowserPredictions(
       return null;
     }
 
-    // Sort both datasets by date (oldest first for time-series)
+    // Step 2: Sort both datasets by date (oldest first for time-series)
     const sortedStocks = [...stockData].sort((a, b) => a.date.localeCompare(b.date));
     const sortedSentiment = [...sentimentData].sort((a, b) => a.date.localeCompare(b.date));
 
-    // Extract features
-    const closePrices = sortedStocks.map(s => s.close);
-    const volumes = sortedStocks.map(s => s.volume);
+    // Step 3: Compute overlapping date range and align datasets
+    const stockStartDate = sortedStocks[0].date;
+    const stockEndDate = sortedStocks[sortedStocks.length - 1].date;
+    const sentimentStartDate = sortedSentiment[0].date;
+    const sentimentEndDate = sortedSentiment[sortedSentiment.length - 1].date;
+
+    console.log(`[Predictions] Stock date range: ${stockStartDate} to ${stockEndDate}`);
+    console.log(`[Predictions] Sentiment date range: ${sentimentStartDate} to ${sentimentEndDate}`);
+
+    // Find overlapping range (max of start dates, min of end dates)
+    const overlapStart = stockStartDate > sentimentStartDate ? stockStartDate : sentimentStartDate;
+    const overlapEnd = stockEndDate < sentimentEndDate ? stockEndDate : sentimentEndDate;
+
+    if (overlapStart > overlapEnd) {
+      console.log(`[Predictions] FAIL: No overlapping date range between stock and sentiment data`);
+      return null;
+    }
+
+    console.log(`[Predictions] Overlapping date range: ${overlapStart} to ${overlapEnd}`);
+
+    // Trim both arrays to the overlapping date range
+    const trimmedStocks = sortedStocks.filter(s => s.date >= overlapStart && s.date <= overlapEnd);
+    const trimmedSentiment = sortedSentiment.filter(s => s.date >= overlapStart && s.date <= overlapEnd);
+
+    console.log(`[Predictions] After trimming to overlap: stocks=${trimmedStocks.length}, sentiment=${trimmedSentiment.length}`);
+
+    // Step 4: Re-check that trimmed arrays meet minimum requirement
+    if (trimmedStocks.length < MIN_PREDICTION_DATA) {
+      console.log(`[Predictions] FAIL: After alignment, insufficient stock data: ${trimmedStocks.length} days (need ${MIN_PREDICTION_DATA})`);
+      return null;
+    }
+
+    if (trimmedSentiment.length < MIN_PREDICTION_DATA) {
+      console.log(`[Predictions] FAIL: After alignment, insufficient sentiment data: ${trimmedSentiment.length} days (need ${MIN_PREDICTION_DATA})`);
+      return null;
+    }
+
+    // Extract features from trimmed, aligned data
+    const closePrices = trimmedStocks.map(s => s.close);
+    const volumes = trimmedStocks.map(s => s.volume);
 
     // Extract three-signal sentiment data
     const eventTypes: EventType[] = [];
     const aspectScores: number[] = [];
     const mlScores: number[] = [];
 
-    for (const day of sortedSentiment) {
+    for (const day of trimmedSentiment) {
       // Parse dominant event type from eventCounts JSON
       let dominantEvent: EventType = 'GENERAL';
       if (day.eventCounts) {
