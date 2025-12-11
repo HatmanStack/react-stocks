@@ -95,11 +95,31 @@ async function generateBrowserPredictions(
 
     console.log(`[Predictions] Overlapping date range: ${overlapStart} to ${overlapEnd}`);
 
-    // Trim both arrays to the overlapping date range
-    const trimmedStocks = sortedStocks.filter(s => s.date >= overlapStart && s.date <= overlapEnd);
-    const trimmedSentiment = sortedSentiment.filter(s => s.date >= overlapStart && s.date <= overlapEnd);
+    // Create date-indexed maps for efficient lookup
+    const stockByDate = new Map(sortedStocks.map(s => [s.date, s]));
+    const sentimentByDate = new Map(sortedSentiment.map(s => [s.date, s]));
 
-    console.log(`[Predictions] After trimming to overlap: stocks=${trimmedStocks.length}, sentiment=${trimmedSentiment.length}`);
+    // Find dates present in BOTH datasets within the overlap range
+    // This ensures 1:1 alignment (handles trading days vs calendar days mismatch)
+    const commonDates = [...stockByDate.keys()]
+      .filter(d => d >= overlapStart && d <= overlapEnd && sentimentByDate.has(d))
+      .sort();
+
+    const trimmedStocks = commonDates.map(d => stockByDate.get(d)!);
+    const trimmedSentiment = commonDates.map(d => sentimentByDate.get(d)!);
+
+    // Log alignment stats
+    const stockDaysInRange = sortedStocks.filter(s => s.date >= overlapStart && s.date <= overlapEnd).length;
+    const sentimentDaysInRange = sortedSentiment.filter(s => s.date >= overlapStart && s.date <= overlapEnd).length;
+    const alignmentLoss = Math.max(stockDaysInRange, sentimentDaysInRange) - commonDates.length;
+    const alignmentLossPercent = ((alignmentLoss / Math.max(stockDaysInRange, sentimentDaysInRange)) * 100).toFixed(1);
+
+    console.log(`[Predictions] After alignment: ${commonDates.length} common dates (lost ${alignmentLoss} days, ${alignmentLossPercent}%)`);
+
+    // TODO: If alignment loss > 5%, consider interpolation instead of dropping days
+    if (parseFloat(alignmentLossPercent) > 5) {
+      console.warn(`[Predictions] WARNING: High alignment loss (${alignmentLossPercent}%) - consider revisiting data interpolation strategy`);
+    }
 
     // Step 4: Re-check that trimmed arrays meet minimum requirement
     if (trimmedStocks.length < MIN_PREDICTION_DATA) {
