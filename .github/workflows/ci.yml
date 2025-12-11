@@ -91,7 +91,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r backend/services/ml/requirements.txt
-          pip install pytest pytest-mock boto3
+          pip install pytest pytest-mock boto3 requests
       - name: Run tests
         env:
           PYTHONPATH: backend/services/ml

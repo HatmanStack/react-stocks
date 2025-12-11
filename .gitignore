@@ -12,3 +12,4 @@ backend/.aws-sam/
 docs-data/
 *.swp
 backend/bin/sam
+**/__pycache__/
