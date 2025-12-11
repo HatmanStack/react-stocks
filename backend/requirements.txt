@@ -1,17 +1,9 @@
-# DistilFinBERT Service Dependencies
-# Pin versions for reproducibility
+# ONNX Export Script Dependencies (scripts/export_onnx.py)
+# NOT used in production - production uses requirements-ml.txt
+#
+# Install only when exporting model to ONNX format:
+#   pip install -r requirements.txt
+#   python scripts/export_onnx.py
 
-# ML/NLP Framework
 transformers>=4.30.0
 torch>=2.5.0
-
-# Web Framework
-fastapi>=0.100.0
-pydantic>=2.0.2
-mangum>=0.17.0
-
-# Server (for local development)
-uvicorn[standard]==0.23.0
-
-# Utilities
-python-dotenv==1.0.0

@@ -1,11 +1,11 @@
 """
-Local Testing Script for DistilFinBERT Service
+Local Testing Script for ML Sentiment Service
 
 Tests the sentiment analysis endpoints with sample financial texts.
 Run after starting the service with Docker.
 
 Usage:
-    python test_local.py
+    python test_integration.py
 """
 
 import requests
@@ -146,15 +146,15 @@ def test_batch() -> bool:
 def main():
     """Run all tests"""
     print("=" * 80)
-    print("DistilFinBERT Service Local Test")
+    print("ML Sentiment Service Local Test")
     print("=" * 80)
     print()
 
     # Test health endpoint
     if not test_health():
         print("Service not healthy. Make sure it's running:")
-        print("  docker build -t distilfinbert-local -f Dockerfile.local .")
-        print("  docker run -p 8000:8000 distilfinbert-local")
+        print("  docker build -t ml-sentiment-local -f Dockerfile.local .")
+        print("  docker run -p 8000:8000 ml-sentiment-local")
         return
 
     # Test individual sentiment analyses

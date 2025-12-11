@@ -1,7 +1,8 @@
 """
-DistilFinBERT Sentiment Analysis Service
+ML Sentiment Analysis Service
 
-Provides financial sentiment analysis using DistilFinBERT model.
+Provides financial sentiment analysis using DistilRoBERTa model via ONNX Runtime.
+Optimized for AWS Lambda with minimal cold start.
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
