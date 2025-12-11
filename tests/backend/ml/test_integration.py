@@ -153,8 +153,9 @@ def main():
     # Test health endpoint
     if not test_health():
         print("Service not healthy. Make sure it's running:")
-        print("  docker build -t ml-sentiment-local -f Dockerfile.local .")
-        print("  docker run -p 8000:8000 ml-sentiment-local")
+        print("  cd backend/services/ml")
+        print("  pip install -r ../../requirements.txt")
+        print("  uvicorn app:app --host 0.0.0.0 --port 8000")
         return
 
     # Test individual sentiment analyses
