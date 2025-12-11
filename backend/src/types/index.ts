@@ -7,7 +7,6 @@
 // API Types
 export * from './api.types.js';
 export * from './finnhub.types.js';
-export * from './tiingo.types.js';
 
 // Sentiment Analysis Types (Three-Signal Architecture)
 export * from './sentiment.types.js';

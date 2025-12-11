@@ -178,8 +178,8 @@ export function logMetrics(
  * @example
  * const data = await measureDuration(
  *   () => fetchStockPrices('AAPL', '2025-01-01'),
- *   'TiingoAPILatency',
- *   { API: 'Tiingo', Endpoint: 'stocks' }
+ *   'FinnhubAPILatency',
+ *   { API: 'Finnhub', Endpoint: 'news' }
  * );
  */
 export async function measureDuration<T>(
