@@ -94,7 +94,7 @@ jobs:
           pip install pytest pytest-mock boto3 requests
       - name: Run tests
         env:
-          PYTHONPATH: backend/services/ml
+          PYTHONPATH: .
         run: pytest tests/backend/ml --maxfail=1 -q
 
   status-check:
