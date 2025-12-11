@@ -808,7 +808,7 @@ Phase 1 is complete when:
 
 ---
 
-## Review Feedback (Iteration 1)
+## Review Feedback (Iteration 2)
 
 ### Verification Summary
 
@@ -816,38 +816,42 @@ Phase 1 is complete when:
 - `pytest backend/python_tests/ -v`: 71/71 tests passing
 - `sam validate --template template.yaml`: Valid
 - `npm run build`: Succeeds
-- `git log --oneline -15`: Commits follow conventional format
-- `Glob/Grep`: Verified file existence and content
+- `npm test`: **3 test suites failing**
+- `git log --oneline -5`: Commits follow conventional format
 
 ### Issues Found
 
-#### Task 10: SAM Template - Cache Warming Resources
+#### Iteration 1 Issues - RESOLVED ✓
+- ~~CacheWarmingFunction removed from template.yaml~~
+- ~~TopTickersCacheTable removed from template.yaml~~
+- ~~cacheWarming.service.ts deleted~~
+- ~~warm-cache.ts deleted~~
 
-> **Consider:** ADR-3 states "Remove CacheWarmingFunction Lambda" and "Remove TopTickersCacheTable (only used by cache warming)". Looking at `backend/template.yaml`, are these resources still present?
+#### Iteration 2 Issues - Node.js Test Cleanup
+
+> **Consider:** Running `npm test` shows 3 failing test suites. The tests reference code that was removed:
 >
-> **Reflect:** Run `grep -E "CacheWarmingFunction|TopTickersCacheTable" backend/template.yaml` and observe what appears. Should these resources exist given our decision to remove cache warming entirely?
-
-#### Task 12: Cache Warming Files Not Deleted
-
-> **Consider:** Task 12 lists `backend/src/services/cacheWarming.service.ts` and `backend/scripts/warm-cache.ts` as "Files to Delete". Have you verified these files no longer exist?
+> 1. `tests/backend/handlers/cacheWarming.handler.test.ts` - Imports deleted `cacheWarming.service`
+> 2. `tests/backend/handlers/batch.handler.test.ts` - References removed `handleBatchStocksRequest`
+> 3. `tests/backend/index.test.ts` - Tests routes that moved to Python Lambda
 >
-> **Think about:** Run `ls backend/src/services/cacheWarming.service.ts backend/scripts/warm-cache.ts 2>/dev/null` - what do you observe?
+> **Think about:** When source code is deleted, what happens to the corresponding test files? Should they be deleted or updated?
+>
+> **Reflect:** Task 12's verification checklist says "npm test passes". What test files need to be removed or updated to satisfy this?
 
 ### What's Working Well
 
 - Python Lambda implementation complete (all handlers, services, transforms)
-- 71 tests passing with meaningful assertions (not placeholders)
+- 71 Python tests passing with meaningful assertions
 - CI pipeline properly updated with PYTHONPATH
-- Tiingo service, types, and search handler removed from Node.js
-- Deploy script has Tiingo references removed
-- SAM template has Python Lambda with correct `CodeUri: python/` and `Handler: index.handler`
+- SAM template cleanup complete (cache warming removed)
+- Source code cleanup complete
 - Commits follow conventional format
 
 ### Remaining Work
 
-1. Remove `CacheWarmingFunction` from `backend/template.yaml`
-2. Remove `TopTickersCacheTable` from `backend/template.yaml`
-3. Delete `backend/src/services/cacheWarming.service.ts`
-4. Delete `backend/scripts/warm-cache.ts`
+1. Delete `tests/backend/handlers/cacheWarming.handler.test.ts`
+2. Update `tests/backend/handlers/batch.handler.test.ts` - remove `handleBatchStocksRequest` tests
+3. Update `tests/backend/index.test.ts` - remove/update tests for routes moved to Python
 
-Once these items are addressed, re-run review for approval.
+Once `npm test` passes, re-run review for approval.
