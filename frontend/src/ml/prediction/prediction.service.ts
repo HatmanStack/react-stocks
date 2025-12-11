@@ -43,7 +43,7 @@ const MIN_DATA_POINTS = 29;
  * @param sentimentScores - (DEPRECATED) Array of sentiment categories
  * @param eventTypes - (NEW) Array of event type classifications
  * @param aspectScores - (NEW) Array of aspect sentiment scores (-1 to +1)
- * @param finBERTScores - (NEW) Array of DistilFinBERT scores (-1 to +1)
+ * @param mlScores - (NEW) Array of ML model scores (-1 to +1)
  * @returns Prediction results for next day, 2 weeks, and 1 month
  * @throws Error if insufficient data or invalid inputs
  *
@@ -59,7 +59,7 @@ const MIN_DATA_POINTS = 29;
  *   [], // deprecated
  *   eventTypes,
  *   aspectScores,
- *   finBERTScores
+ *   mlScores
  * );
  * ```
  */
@@ -72,7 +72,7 @@ export async function getStockPredictions(
   _sentimentScores: string[] = [],
   eventTypes?: EventType[],
   aspectScores?: number[],
-  finBERTScores?: number[]
+  mlScores?: number[]
 ): Promise<PredictionOutput> {
   const startTime = performance.now();
 
@@ -95,16 +95,24 @@ export async function getStockPredictions(
       volume: volumes,
       eventType: eventTypes,
       aspectScore: aspectScores,
-      finBERTScore: finBERTScores,
+      mlScore: mlScores,
     };
 
     console.log(
       `[PredictionService] Generating predictions for ${ticker} (${closePrices.length} data points)` +
         (eventTypes ? ` with three-signal sentiment` : ` without sentiment signals`)
     );
+    console.log(`[PredictionService] Input validation:`);
+    console.log(`  - closePrices: ${closePrices.length} (first: ${closePrices[0]?.toFixed(2)}, last: ${closePrices[closePrices.length-1]?.toFixed(2)})`);
+    console.log(`  - volumes: ${volumes.length}`);
+    console.log(`  - eventTypes: ${eventTypes?.length || 0}`);
+    console.log(`  - aspectScores: ${aspectScores?.length || 0}`);
+    console.log(`  - mlScores: ${mlScores?.length || 0}`);
 
     // Build feature matrix (13 features with three-signal sentiment)
+    console.log(`[PredictionService] Building feature matrix...`);
     const features = buildFeatureMatrix(input);
+    console.log(`[PredictionService] Feature matrix built: ${features.length} rows x ${features[0]?.length || 0} cols`);
 
     // Make predictions for each horizon
     const predictions: { [key: string]: number } = {};

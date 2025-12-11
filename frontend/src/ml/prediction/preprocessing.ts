@@ -5,7 +5,7 @@
  * and labels for logistic regression training.
  *
  * **Phase 4 Update:** Added support for three-signal sentiment architecture
- * (eventType, aspectScore, finBERTScore) increasing feature count from 8 to 14.
+ * (eventType, aspectScore, mlScore) increasing feature count from 8 to 14.
  */
 
 import type { PredictionInput, FeatureMatrix, Labels } from './types';
@@ -150,10 +150,10 @@ function calculateVolatility(close: number[], window: number = 10): number[] {
  * Build feature matrix from raw prediction inputs
  *
  * **Phase 4 Update:** Creates 13-feature matrix with three-signal sentiment:
- * [price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, ...eventType(6), aspectScore, finBERTScore, volatility]
+ * [price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, ...eventType(6), aspectScore, mlScore, volatility]
  *
  * **Removed:** positive, negative counts (deprecated)
- * **NEW:** Price ratios (3), volatility (1), eventType (6), aspectScore (1), finBERTScore (1)
+ * **NEW:** Price ratios (3), volatility (1), eventType (6), aspectScore (1), mlScore (1)
  *
  * @param input - Raw prediction input data
  * @returns Feature matrix (n_samples × 13)
@@ -166,14 +166,14 @@ function calculateVolatility(close: number[], window: number = 10): number[] {
  *   volume: [1000000, 1100000, 1050000],
  *   eventType: ['EARNINGS', 'M&A', 'GENERAL'],
  *   aspectScore: [0.5, -0.3, 0.1],
- *   finBERTScore: [0.7, -0.2, 0.0]
+ *   mlScore: [0.7, -0.2, 0.0]
  * };
  * const features = buildFeatureMatrix(input);
  * // Returns 3×13 matrix
  * ```
  */
 export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
-  const { close, volume, eventType, aspectScore, finBERTScore } = input;
+  const { close, volume, eventType, aspectScore, mlScore } = input;
 
   // Validate input lengths
   const n = close.length;
@@ -195,9 +195,9 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
       `Preprocessing: aspectScore length (${aspectScore.length}) does not match close length (${n})`
     );
   }
-  if (finBERTScore && finBERTScore.length !== n) {
+  if (mlScore && mlScore.length !== n) {
     throw new Error(
-      `Preprocessing: finBERTScore length (${finBERTScore.length}) does not match close length (${n})`
+      `Preprocessing: mlScore length (${mlScore.length}) does not match close length (${n})`
     );
   }
 
@@ -221,8 +221,8 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   // Use aspect scores or default to 0
   const aspectScores = aspectScore ?? Array(n).fill(0);
 
-  // Use finBERT scores or fallback to 0
-  const finBERTScores = finBERTScore ?? Array(n).fill(0);
+  // Use ML scores or fallback to 0
+  const mlScores = mlScore ?? Array(n).fill(0);
 
   // Build feature matrix (13 features)
   const features: FeatureMatrix = new Array(n);
@@ -234,7 +234,7 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
       volume[i], // volume
       ...eventOneHot[i], // 6 event type features
       aspectScores[i], // aspect score
-      finBERTScores[i], // finBERT score
+      mlScores[i], // ML score
       volatility[i], // volatility
     ];
   }
@@ -281,7 +281,7 @@ export function createLabels(close: number[], horizon: number): Labels {
  * - 1 volume feature
  * - 6 event type features (one-hot encoded)
  * - 1 aspect score feature
- * - 1 finBERT score feature
+ * - 1 ML score feature
  * - 1 volatility feature
  */
 export const FEATURE_COUNT = 13;
@@ -293,7 +293,7 @@ export const FEATURE_COUNT = 13;
  * - 3 price ratio features
  * - 1 volume feature
  * - 6 event type features (one-hot encoded)
- * - 2 sentiment features (aspect + finBERT)
+ * - 2 sentiment features (aspect + ML)
  * - 1 volatility feature
  */
 export const FEATURE_NAMES = [
@@ -308,7 +308,7 @@ export const FEATURE_NAMES = [
   'event_guidance',
   'event_general',
   'aspect_score',
-  'finbert_score',
+  'ml_score',
   'volatility',
 ] as const;
 

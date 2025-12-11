@@ -1,10 +1,9 @@
 /**
  * Synchronization Orchestrator
- * Coordinates the full data pipeline: stock prices → news → sentiment analysis
+ * Coordinates the full data pipeline: stock prices → sentiment analysis
  */
 
 import { syncStockData } from './stockDataSync';
-import { syncNewsData } from './newsDataSync';
 import { syncSentimentData } from './sentimentDataSync';
 import { triggerSentimentAnalysis } from '@/services/api/lambdaSentiment.service';
 import { Environment } from '@/config/environment';
@@ -28,7 +27,6 @@ export type SyncProgressCallback = (status: {
 export interface SyncResult {
   ticker: string;
   stockRecords: number;
-  newsArticles: number;
   sentimentAnalyses: number; // Deprecated when using Lambda (will be 0)
   sentimentJobId?: string; // Lambda job ID for tracking async sentiment
   daysProcessed: number;
@@ -92,7 +90,7 @@ async function performLocalSentimentAnalysis(
 }
 
 /**
- * Sync all data for a ticker (prices, news, sentiment)
+ * Sync all data for a ticker (prices and sentiment)
  * @param ticker - Stock ticker symbol
  * @param days - Number of days to sync (default: 30)
  * @param onProgress - Optional progress callback for UI updates
@@ -106,11 +104,11 @@ export async function syncAllData(
   const result: SyncResult = {
     ticker,
     stockRecords: 0,
-    newsArticles: 0,
     sentimentAnalyses: 0,
     daysProcessed: 0,
     errors: [],
   };
+  let stockSyncFailed = false;
 
   try {
     console.log(`[SyncOrchestrator] Starting full sync for ${ticker} (${days} days)`);
@@ -119,7 +117,7 @@ export async function syncAllData(
     const endDate = formatDateForDB(new Date());
     const startDate = formatDateForDB(subDays(new Date(), days));
 
-    // Run stock and news sync in parallel (fastest operations first)
+    // Fetch stock data
     onProgress?.({
       step: 'fetching',
       progress: 0,
@@ -127,44 +125,25 @@ export async function syncAllData(
       message: `Fetching data for ${ticker}...`,
     });
 
-    const [stockResult, newsResult] = await Promise.allSettled([
-      syncStockData(ticker, startDate, endDate),
-      syncNewsData(ticker, startDate, endDate),
-    ]);
-
-    // Extract results and handle errors
-    if (stockResult.status === 'fulfilled') {
-      result.stockRecords = stockResult.value;
+    try {
+      result.stockRecords = await syncStockData(ticker, startDate, endDate);
       console.log(`[SyncOrchestrator] Stock sync complete: ${result.stockRecords} records`);
-    } else {
-      const errorMsg = `Stock sync failed: ${stockResult.reason}`;
+    } catch (error) {
+      stockSyncFailed = true;
+      const errorMsg = `Stock sync failed: ${error}`;
       console.error(`[SyncOrchestrator] ${errorMsg}`);
       result.errors.push(errorMsg);
     }
-
-    if (newsResult.status === 'fulfilled') {
-      result.newsArticles = newsResult.value;
-      console.log(`[SyncOrchestrator] News sync complete: ${result.newsArticles} articles`);
-    } else {
-      const errorMsg = `News sync failed: ${newsResult.reason}`;
-      console.error(`[SyncOrchestrator] ${errorMsg}`);
-      result.errors.push(errorMsg);
-    }
-
-    // Build progress message based on what succeeded
-    const dataTypes: string[] = [];
-    if (stockResult.status === 'fulfilled') dataTypes.push('price');
-    if (newsResult.status === 'fulfilled') dataTypes.push('news');
-
-    const message = dataTypes.length > 0
-      ? `${dataTypes.join(' and ')} data ready for ${ticker}`
-      : `Failed to fetch data for ${ticker}`;
 
     onProgress?.({
       step: 'data-ready',
       progress: 1.5,
       total: 3,
-      message,
+      message: stockSyncFailed
+        ? `Failed to sync price data for ${ticker}`
+        : result.stockRecords > 0
+          ? `Price data ready for ${ticker}`
+          : `No new price data for ${ticker} (using existing cache if available)`,
     });
 
     // Step 3: Trigger sentiment analysis (Lambda or local) - this can be async
@@ -279,7 +258,6 @@ export async function syncMultipleTickers(
       results.set(ticker, {
         ticker,
         stockRecords: 0,
-        newsArticles: 0,
         sentimentAnalyses: 0,
         daysProcessed: 0,
         errors: [`Failed to sync: ${error}`],

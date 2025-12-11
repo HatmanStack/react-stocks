@@ -7,7 +7,7 @@
     "start": "cd frontend && expo start",
     "test": "jest --config frontend/jest.config.js",
     "test:backend": "cd backend && npm test",
-    "test:ml": "PYTHONPATH=backend/services/ml pytest tests/backend/ml/test_model.py -v --tb=short",
+    "test:ml": "PYTHONPATH=. pytest tests/backend/ml/test_model.py -v --tb=short",
     "lint": "cd frontend && expo lint",
     "lint:backend": "cd backend && npm run lint && npm run type-check",
     "lint:ml": "uvx ruff check backend/services/ml",

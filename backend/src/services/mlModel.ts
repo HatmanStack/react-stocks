@@ -205,7 +205,7 @@ export function generate_predictions(
     const baseFeatures = [
         latestFeatures.open, latestFeatures.high, latestFeatures.low, latestFeatures.close, latestFeatures.volume,
         latestFeatures.event_earnings, latestFeatures.event_ma, latestFeatures.event_guidance, latestFeatures.event_analyst, latestFeatures.event_product, latestFeatures.event_general,
-        latestFeatures.aspect_score, latestFeatures.finbert_score
+        latestFeatures.aspect_score, latestFeatures.ml_score
     ];
 
     for (const horizon of horizons) {

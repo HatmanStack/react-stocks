@@ -1,11 +1,11 @@
 """
-Local Testing Script for DistilFinBERT Service
+Local Testing Script for ML Sentiment Service
 
 Tests the sentiment analysis endpoints with sample financial texts.
 Run after starting the service with Docker.
 
 Usage:
-    python test_local.py
+    python test_integration.py
 """
 
 import requests
@@ -45,8 +45,8 @@ TEST_CASES = [
 ]
 
 
-def test_health() -> bool:
-    """Test health endpoint"""
+def check_health() -> bool:
+    """Check health endpoint"""
     print("Testing /health endpoint...")
     try:
         response = requests.get(f"{BASE_URL}/health", timeout=10)
@@ -63,8 +63,8 @@ def test_health() -> bool:
         return False
 
 
-def test_sentiment(text: str, expected: str, description: str) -> Dict[str, Any]:
-    """Test single sentiment analysis"""
+def check_sentiment(text: str, expected: str, description: str) -> Dict[str, Any]:
+    """Check single sentiment analysis"""
     print(f"Testing: {description}")
     print(f"  Text: {text[:80]}...")
 
@@ -110,8 +110,8 @@ def test_sentiment(text: str, expected: str, description: str) -> Dict[str, Any]
         return {"success": False}
 
 
-def test_batch() -> bool:
-    """Test batch sentiment analysis"""
+def check_batch() -> bool:
+    """Check batch sentiment analysis"""
     print("Testing /sentiment/batch endpoint...")
 
     texts = [case["text"] for case in TEST_CASES[:3]]
@@ -146,26 +146,27 @@ def test_batch() -> bool:
 def main():
     """Run all tests"""
     print("=" * 80)
-    print("DistilFinBERT Service Local Test")
+    print("ML Sentiment Service Local Test")
     print("=" * 80)
     print()
 
     # Test health endpoint
-    if not test_health():
+    if not check_health():
         print("Service not healthy. Make sure it's running:")
-        print("  docker build -t distilfinbert-local -f Dockerfile.local .")
-        print("  docker run -p 8000:8000 distilfinbert-local")
+        print("  cd backend/services/ml")
+        print("  pip install -r ../../requirements.txt")
+        print("  uvicorn app:app --host 0.0.0.0 --port 8000")
         return
 
     # Test individual sentiment analyses
     results = []
     for case in TEST_CASES:
-        result = test_sentiment(case["text"], case["expected"], case["description"])
+        result = check_sentiment(case["text"], case["expected"], case["description"])
         if result["success"]:
             results.append(result)
 
     # Test batch endpoint
-    test_batch()
+    check_batch()
 
     # Summary
     print("=" * 80)

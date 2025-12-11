@@ -75,7 +75,7 @@ export type EventKeywords = Record<EventType, EventKeywordSet>;
 /**
  * Material events that require sophisticated analysis
  *
- * These events trigger DistilFinBERT sentiment analysis and aspect analysis.
+ * These events trigger MlSentiment sentiment analysis and aspect analysis.
  * Other events (PRODUCT_LAUNCH, GENERAL) use bag-of-words only.
  */
 export const MATERIAL_EVENTS: EventType[] = [

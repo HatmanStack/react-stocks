@@ -59,7 +59,7 @@ export interface AspectBreakdown {
  *
  * **Schema Evolution:**
  * - Legacy: positiveCount, negativeCount, sentimentScore (kept for backward compatibility)
- * - Phase 4: Added eventCounts, avgAspectScore, avgFinBERTScore, materialEventCount
+ * - Phase 4: Added eventCounts, avgAspectScore, avgMlScore, materialEventCount
  *
  * @see backend/src/types/sentiment.types.ts for backend equivalent
  */
@@ -98,15 +98,15 @@ export interface DailySentiment {
   avgAspectScore?: number;
 
   /**
-   * Average DistilFinBERT score across material events for this day.
+   * Average ML model score across material events for this day.
    * Range: -1 to +1
    * May be undefined if no material events occurred.
    */
-  avgFinBERTScore?: number;
+  avgMlScore?: number;
 
   /**
-   * Count of material events (articles with DistilFinBERT scores).
-   * Useful for weighting avgFinBERTScore in prediction model.
+   * Count of material events (articles with ML model scores).
+   * Useful for weighting avgMlScore in prediction model.
    */
   materialEventCount: number;
 }
@@ -265,6 +265,97 @@ export async function getSentimentJobStatus(
 
     console.error('[LambdaSentiment] Error fetching job status:', error);
     throw new Error(`Failed to fetch job status: ${error}`);
+  }
+}
+
+/**
+ * Article sentiment data from Lambda backend
+ */
+export interface ArticleSentimentItem {
+  ticker: string;
+  date: string;
+  hash: string;
+  // Article metadata
+  title: string;
+  body: string;
+  url: string;
+  publisher?: string;
+  // Bag-of-words sentiment
+  positive: number;  // Count of positive words found
+  negative: number;  // Count of negative words found
+  sentiment: 'POS' | 'NEG' | 'NEUT';  // Classification based on word counts
+  sentimentNumber: number;  // Normalized score from -1 to +1
+  // ML-based sentiment
+  eventType?: string;  // EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
+  aspectScore?: number;  // Aspect sentiment score (-1 to +1)
+  mlScore?: number;  // ML model score (-1 to +1)
+}
+
+/**
+ * Article sentiment response
+ */
+export interface ArticleSentimentResponse {
+  ticker: string;
+  startDate: string | null;
+  endDate: string | null;
+  articles: ArticleSentimentItem[];
+}
+
+/**
+ * Get individual article sentiment data
+ * @param ticker - Stock ticker symbol
+ * @param startDate - Start date in YYYY-MM-DD format
+ * @param endDate - End date in YYYY-MM-DD format
+ * @returns Article sentiment results
+ * @throws Error if no data found or request fails
+ */
+export async function getArticleSentiment(
+  ticker: string,
+  startDate: string,
+  endDate: string
+): Promise<ArticleSentimentResponse> {
+  const client = createBackendClient();
+
+  try {
+    console.log(
+      `[LambdaSentiment] Fetching article sentiment for ${ticker} from ${startDate} to ${endDate}`
+    );
+
+    const response = await client.get<{ data: ArticleSentimentResponse }>('/sentiment/articles', {
+      params: { ticker, startDate, endDate },
+    });
+
+    const result = response.data.data;
+
+    console.log(
+      `[LambdaSentiment] Fetched ${result.articles.length} article sentiment records for ${ticker}`
+    );
+
+    return result;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const errorData = error.response?.data as { error?: string };
+
+      if (status === 404) {
+        throw new Error(errorData?.error || 'No article sentiment data found');
+      }
+
+      if (status === 400) {
+        throw new Error(errorData?.error || 'Invalid request parameters');
+      }
+
+      if (status === 429) {
+        throw new Error('Rate limit exceeded. Please try again in a moment.');
+      }
+
+      if (status === 500) {
+        throw new Error(errorData?.error || 'Backend service error');
+      }
+    }
+
+    console.error('[LambdaSentiment] Error fetching article sentiment:', error);
+    throw new Error(`Failed to fetch article sentiment: ${error}`);
   }
 }
 

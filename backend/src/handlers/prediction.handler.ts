@@ -136,7 +136,7 @@ export async function predictionHandler(
                  // Preserve existing fields if present, otherwise use defaults
                  eventCounts: existingItem?.eventCounts || {},
                  avgAspectScore: existingItem?.avgAspectScore,
-                 avgFinBERTScore: existingItem?.avgFinBERTScore,
+                 avgMlScore: existingItem?.avgMlScore,
                  materialEventCount: existingItem?.materialEventCount,
                  // Update prediction fields with new values
                  nextDayDirection: predNextDay.direction,

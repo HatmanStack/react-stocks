@@ -75,7 +75,7 @@ export async function findByDate(date: string): Promise<CombinedWordDetails | nu
  * Insert or update a combined word count record with three-signal sentiment
  * Uses INSERT OR REPLACE with composite key (ticker, date)
  *
- * **Phase 5 Update:** Now includes eventCounts, avgAspectScore, avgFinBERTScore, materialEventCount
+ * **Phase 5 Update:** Now includes eventCounts, avgAspectScore, avgMlScore, materialEventCount
  *
  * @param combinedWord - Combined word details with optional three-signal fields
  */
@@ -85,7 +85,7 @@ export async function upsert(combinedWord: CombinedWordDetails): Promise<void> {
     INSERT OR REPLACE INTO ${TABLE_NAMES.COMBINED_WORD_DETAILS} (
       ticker, date, positive, negative, sentimentNumber,
       sentiment, nextDay, twoWks, oneMnth, updateDate,
-      eventCounts, avgAspectScore, avgFinBERTScore, materialEventCount,
+      eventCounts, avgAspectScore, avgMlScore, materialEventCount,
       nextDayDirection, nextDayProbability,
       twoWeekDirection, twoWeekProbability,
       oneMonthDirection, oneMonthProbability
@@ -107,7 +107,7 @@ export async function upsert(combinedWord: CombinedWordDetails): Promise<void> {
       // Phase 5: Three-signal sentiment fields (optional, backward compatible)
       combinedWord.eventCounts ?? null,
       combinedWord.avgAspectScore ?? null,
-      combinedWord.avgFinBERTScore ?? null,
+      combinedWord.avgMlScore ?? null,
       combinedWord.materialEventCount ?? 0,
       // Phase 1: Prediction fields
       combinedWord.nextDayDirection ?? null,

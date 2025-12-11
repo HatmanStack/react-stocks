@@ -56,7 +56,7 @@ export class SentimentAnalyzer {
    * Analyze sentiment of text and return result in Python service format
    * @param text - Article text to analyze
    * @param hash - Hash identifier for the article
-   * @returns Sentiment analysis result matching Python FinBERT format
+   * @returns Sentiment analysis result matching Python ML model format
    */
   public analyze(text: string, hash: string): SentimentResult {
     // Split text into sentences (matching Python preprocessing)

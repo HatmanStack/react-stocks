@@ -1,6 +1,6 @@
 {
   "name": "react-stocks-backend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "AWS Lambda backend for React Stocks application - proxies Tiingo and Finnhub APIs",
   "main": "dist/index.js",
   "type": "module",

@@ -2,7 +2,7 @@
  * Sentiment Utility Functions
  *
  * Shared utilities for sentiment classification and aggregation.
- * Implements multi-signal aggregation (event counts, aspect scores, DistilFinBERT scores).
+ * Implements multi-signal aggregation (event counts, aspect scores, MlSentiment scores).
  * Used across handlers and services for consistency.
  */
 
@@ -44,7 +44,7 @@ export function classifySentiment(sentimentScore: number): 'POS' | 'NEG' | 'NEUT
  *
  * Groups sentiments by date and calculates:
  * - Legacy: Total positive/negative counts, sentiment score
- * - NEW (Phase 4): Event distribution, average aspect scores, average DistilFinBERT scores
+ * - NEW (Phase 4): Event distribution, average aspect scores, average MlSentiment scores
  *
  * @param sentiments - Article-level sentiment cache items
  * @param articles - News articles with dates
@@ -59,7 +59,7 @@ export function classifySentiment(sentimentScore: number): 'POS' | 'NEG' | 'NEUT
  * //   sentimentScore: 0.55,
  * //   eventCounts: { EARNINGS: 2, M&A: 0, ... },
  * //   avgAspectScore: 0.32,
- * //   avgFinBERTScore: 0.68,
+ * //   avgMlScore: 0.68,
  * //   materialEventCount: 4
  * // }
  * ```
@@ -124,15 +124,15 @@ export function aggregateDailySentiment(
         ? aspectScores.reduce((sum, score) => sum + score, 0) / aspectScores.length
         : undefined;
 
-    // NEW (Phase 4): Average DistilFinBERT scores (only for material events)
-    const finBERTScores = daySentiments
-      .map((s) => s.distilFinBERTScore)
+    // NEW (Phase 4): Average MlSentiment scores (only for material events)
+    const mlScores = daySentiments
+      .map((s) => s.mlScore)
       .filter((score): score is number => score !== undefined);
-    const avgFinBERTScore =
-      finBERTScores.length > 0
-        ? finBERTScores.reduce((sum, score) => sum + score, 0) / finBERTScores.length
+    const avgMlScore =
+      mlScores.length > 0
+        ? mlScores.reduce((sum, score) => sum + score, 0) / mlScores.length
         : undefined;
-    const materialEventCount = finBERTScores.length;
+    const materialEventCount = mlScores.length;
 
     dailySentiments.push({
       date,
@@ -143,7 +143,7 @@ export function aggregateDailySentiment(
       // NEW: Multi-signal fields
       eventCounts,
       avgAspectScore,
-      avgFinBERTScore,
+      avgMlScore,
       materialEventCount,
     });
   }

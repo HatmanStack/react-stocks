@@ -1,14 +1,16 @@
 /**
- * DistilFinBERT Client Service
+ * MlSentiment Client Service
  *
- * Provides HTTP client for calling the DistilFinBERT sentiment analysis service.
+ * Provides HTTP client for calling the MlSentiment sentiment analysis service.
  * Includes retry logic, error handling, and graceful fallback on failures.
  *
  * @see docs/plans/Phase-3.md for integration details
  */
 
+import { logMlSentimentCall, logMlSentimentFallback } from '../utils/metrics.util.js';
+
 /**
- * DistilFinBERT API configuration
+ * MlSentiment API configuration
  *
  * Note: API URL is read at runtime from process.env to support testing
  */
@@ -17,17 +19,18 @@ const MAX_RETRIES = 3; // Retry up to 3 times
 const INITIAL_RETRY_DELAY_MS = 1000; // Start with 1 second delay
 
 /**
- * Get DistilFinBERT API URL from environment
+ * Get MlSentiment API URL from environment
  * @returns API URL or undefined if not configured
  */
 function getApiUrl(): string | undefined {
-  return process.env.DISTILFINBERT_API_URL;
+  // Support both old and new env var names for backward compatibility
+  return process.env.ML_SENTIMENT_API_URL || process.env.DISTILFINBERT_API_URL;
 }
 
 /**
- * DistilFinBERT API response structure
+ * MlSentiment API response structure
  */
-interface DistilFinBERTResponse {
+interface MlSentimentResponse {
   sentiment: number; // -1 to +1
   confidence: number; // 0 to 1
   label: string; // 'positive' | 'negative' | 'neutral'
@@ -91,29 +94,29 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Get sentiment score from DistilFinBERT service
+ * Get sentiment score from MlSentiment service
  *
- * Calls external DistilFinBERT API with retry logic and error handling.
+ * Calls external MlSentiment API with retry logic and error handling.
  * Returns sentiment score from -1 (very negative) to +1 (very positive).
  *
  * @param text - Financial news text to analyze
  * @returns Sentiment score -1 to +1, or null on error
  */
-export async function getDistilFinBERTSentiment(
+export async function getMlSentiment(
   text: string
 ): Promise<number | null> {
   // Validate configuration (read at runtime for testability)
   const apiUrl = getApiUrl();
   if (!apiUrl) {
     console.warn(
-      '[DistilFinBERTService] DISTILFINBERT_API_URL not configured, skipping DistilFinBERT analysis'
+      '[MlSentimentService] ML_SENTIMENT_API_URL/DISTILFINBERT_API_URL not configured, skipping ML analysis'
     );
     return null;
   }
 
   // Validate input
   if (!text || !text.trim()) {
-    console.warn('[DistilFinBERTService] Empty text provided, skipping analysis');
+    console.warn('[MlSentimentService] Empty text provided, skipping analysis');
     return null;
   }
 
@@ -121,7 +124,7 @@ export async function getDistilFinBERTSentiment(
   const MAX_TEXT_LENGTH = 5000;
   let processedText = text;
   if (text.length > MAX_TEXT_LENGTH) {
-    console.warn('[DistilFinBERTService] Text truncated', {
+    console.warn('[MlSentimentService] Text truncated', {
       originalLength: text.length,
       truncatedLength: MAX_TEXT_LENGTH,
     });
@@ -130,8 +133,9 @@ export async function getDistilFinBERTSentiment(
 
   // Retry loop
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const startTime = Date.now();
     try {
-      console.log('[DistilFinBERTService] Calling DistilFinBERT API', {
+      console.log('[MlSentimentService] Calling MlSentiment API', {
         attempt,
         textLength: processedText.length,
         url: apiUrl,
@@ -145,11 +149,14 @@ export async function getDistilFinBERTSentiment(
         body: JSON.stringify({ text: processedText }),
       });
 
+      const duration = Date.now() - startTime;
+
       if (!response.ok) {
+        logMlSentimentCall('UNKNOWN', duration, false, false); // Ticker not available here, use UNKNOWN
         const isLastAttempt = attempt === MAX_RETRIES;
         const canRetry = shouldRetry(null, response.status);
 
-        console.error('[DistilFinBERTService] HTTP request failed', {
+        console.error('[MlSentimentService] HTTP request failed', {
           attempt,
           isLastAttempt,
           canRetry,
@@ -166,24 +173,26 @@ export async function getDistilFinBERTSentiment(
         continue;
       }
 
-      const data = await response.json() as DistilFinBERTResponse;
+      logMlSentimentCall('UNKNOWN', duration, true, false); // Success, no cache hit here
+
+      const data = await response.json() as MlSentimentResponse;
 
       // Validate response structure
       if (!data || typeof data.sentiment !== 'number') {
-        console.error('[DistilFinBERTService] Invalid response format', { data });
-        throw new Error('Invalid response format from DistilFinBERT API');
+        console.error('[MlSentimentService] Invalid response format', { data });
+        throw new Error('Invalid response format from MlSentiment API');
       }
 
       // Validate sentiment score range
       const sentimentScore = data.sentiment;
       if (sentimentScore < -1 || sentimentScore > 1) {
-        console.error('[DistilFinBERTService] Sentiment score out of range', {
+        console.error('[MlSentimentService] Sentiment score out of range', {
           score: sentimentScore,
         });
         throw new Error(`Invalid sentiment score: ${sentimentScore}`);
       }
 
-      console.log('[DistilFinBERTService] Analysis successful', {
+      console.log('[MlSentimentService] Analysis successful', {
         sentiment: sentimentScore,
         label: data.label,
         confidence: data.confidence,
@@ -191,10 +200,13 @@ export async function getDistilFinBERTSentiment(
 
       return sentimentScore;
     } catch (error) {
+      const duration = Date.now() - startTime;
+      logMlSentimentCall('UNKNOWN', duration, false, false);
+
       const isLastAttempt = attempt === MAX_RETRIES;
       const canRetry = shouldRetry(error);
 
-      console.error('[DistilFinBERTService] Request error', {
+      console.error('[MlSentimentService] Request error', {
         attempt,
         isLastAttempt,
         canRetry,
@@ -203,13 +215,14 @@ export async function getDistilFinBERTSentiment(
 
       if (isLastAttempt || !canRetry) {
         console.warn(
-          '[DistilFinBERTService] All retries exhausted or non-retryable error, using fallback'
+          '[MlSentimentService] All retries exhausted or non-retryable error, using fallback'
         );
+        logMlSentimentFallback('UNKNOWN', 1, 1, error instanceof Error ? error.message : 'Unknown error');
         return null;
       }
 
       const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-      console.log('[DistilFinBERTService] Retrying after delay', {
+      console.log('[MlSentimentService] Retrying after delay', {
         attempt,
         delayMs: delay,
       });
@@ -222,9 +235,9 @@ export async function getDistilFinBERTSentiment(
 }
 
 /**
- * Get DistilFinBERT service health status
+ * Get MlSentiment service health status
  */
-export async function getDistilFinBERTHealth(): Promise<{
+export async function getMlSentimentHealth(): Promise<{
   status: string;
   model_loaded: boolean;
 } | null> {
@@ -249,7 +262,7 @@ export async function getDistilFinBERTHealth(): Promise<{
 
     return await response.json() as { status: string; model_loaded: boolean };
   } catch (error) {
-    console.error('[DistilFinBERTService] Health check failed', {
+    console.error('[MlSentimentService] Health check failed', {
       error: error instanceof Error ? error.message : String(error),
     });
     return null;

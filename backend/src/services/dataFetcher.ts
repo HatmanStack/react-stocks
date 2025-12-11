@@ -57,7 +57,7 @@ export async function fetchSentimentData(ticker: string, startDate: string, endD
       date: item.date,
       eventType: item.eventType || null,
       aspectScore: item.aspectScore !== undefined ? item.aspectScore : null,
-      distilFinBERTScore: item.distilFinBERTScore !== undefined ? item.distilFinBERTScore : null,
+      mlScore: item.mlScore !== undefined ? item.mlScore : null,
       materialityScore: item.materialityScore !== undefined ? item.materialityScore : null,
     }));
   } catch (error) {
@@ -87,25 +87,7 @@ export async function fetchHistoricalData(ticker: string, days: number): Promise
       fetchSentimentData(ticker, startDate, endDate)
     ]);
 
-    // Validate minimum data requirements
-    // Note: We check if we have at least some data, but strictly we might want to check
-    // if we have enough distinct days.
-    // For now, let's assume if we get prices, we are good, but the caller might need to check count.
-    // The plan says "Raise exception if insufficient data (<30 days)".
-    // This usually means we check the result length.
-
     if (prices.length < 30) {
-         // In a real scenario, we might fetch from external API if DB is empty.
-         // But per plan: "Fetch from Tiingo/Finnhub, store in DynamoDB" happens before or is implied.
-         // The prompt says "Backend checks DynamoDB... If missing... Fetch".
-         // However, Task 5 says "fetch_price_data... Use boto3 to query DynamoDB".
-         // It doesn't explicitly say to implement the fetch-from-api-and-store logic here,
-         // but ADR-6 says "Backend checks DynamoDB... If missing... Fetch from Tiingo".
-         // This logic might belong in the Orchestrator or here.
-         // Given Task 5 description: "This layer provides raw data to the feature engineering pipeline... Use boto3 to query DynamoDB",
-         // and "Raise exception if insufficient data", I will stick to querying DB.
-         // The population of DB likely happens elsewhere or I should throw if not present.
-         // For now, I will throw.
          throw new Error(`Insufficient price data for ${ticker}: Found ${prices.length} days, required 30.`);
     }
 

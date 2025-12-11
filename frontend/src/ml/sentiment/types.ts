@@ -1,7 +1,7 @@
 /**
  * Types for Browser-Based Sentiment Analysis
  * These types define the interfaces for the sentiment analyzer that replaces
- * the Python FinBERT microservice.
+ * the Python ML microservice.
  */
 
 /**

@@ -90,26 +90,36 @@ export interface WordCountDetails {
   date: string; // ISO 8601 format (YYYY-MM-DD)
   hash: number; // Unique identifier for the article
   ticker: string;
-  positive: number; // Positive word count
-  negative: number; // Negative word count
+
+  // Article metadata (from news cache)
+  title?: string; // Article headline
+  url?: string; // Link to original article
+  publisher?: string; // News source (e.g., "Reuters", "Bloomberg")
+
+  // Bag-of-words sentiment
+  positive: number; // Count of positive words found in article
+  negative: number; // Count of negative words found in article
+  body: string; // Article content/description
+  sentiment: string; // 'POS', 'NEG', or 'NEUT' based on word counts
+  sentimentNumber: number; // Normalized sentiment score (-1 to +1)
+
+  // Legacy prediction fields (deprecated)
   nextDay: number; // 1-day prediction
   twoWks: number; // 2-week prediction
   oneMnth: number; // 1-month prediction
-  body: string; // Article content
-  sentiment: string; // 'POS', 'NEG', or 'NEUT'
-  sentimentNumber: number; // Sentiment score
 
-  // Phase 5: Multi-signal fields
+  // Phase 5: Multi-signal ML fields
   /**
-   * Event type category (e.g., 'EARNINGS', 'M&A')
+   * Event type category classifying the article's content
+   * Material events (EARNINGS, M&A, GUIDANCE, ANALYST_RATING) get ML model analysis
    * @see EventType
    */
   eventType?: EventType;
-  /** Aspect sentiment score (-1 to +1) */
+  /** Aspect-based sentiment score (-1 to +1), analyzes sentiment toward specific entities */
   aspectScore?: number;
-  /** DistilFinBERT sentiment score (-1 to +1) */
-  distilFinBERTScore?: number;
-  /** Materiality score (0 to 1) */
+  /** ML model sentiment score (-1 to +1), only for material events. Uses DistilRoBERTa fine-tuned on financial news. */
+  mlScore?: number;
+  /** Materiality score (0 to 1) indicating how significant the news is */
   materialityScore?: number;
 }
 
@@ -120,7 +130,7 @@ export interface WordCountDetails {
  *
  * **Schema Evolution (Phase 5):**
  * - Legacy: positive, negative, sentimentNumber, sentiment (kept for backward compatibility)
- * - Phase 5: Added eventCounts, avgAspectScore, avgFinBERTScore, materialEventCount
+ * - Phase 5: Added eventCounts, avgAspectScore, avgMlScore, materialEventCount
  */
 export interface CombinedWordDetails {
   // Primary keys
@@ -178,14 +188,14 @@ export interface CombinedWordDetails {
   avgAspectScore?: number | null;
 
   /**
-   * Average DistilFinBERT score across material events for this day
+   * Average ML model score across material events for this day
    * Range: -1 to +1
    * May be null if no material events occurred
    */
-  avgFinBERTScore?: number | null;
+  avgMlScore?: number | null;
 
   /**
-   * Count of material events (articles with DistilFinBERT scores)
+   * Count of material events (articles with ML scores)
    * Defaults to 0 if not present
    */
   materialEventCount?: number;

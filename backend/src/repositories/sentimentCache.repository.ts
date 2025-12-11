@@ -2,7 +2,7 @@
  * SentimentCache Repository
  *
  * Provides CRUD operations for sentiment analysis results in DynamoDB cache.
- * Uses three-signal sentiment architecture (event type, aspect score, DistilFinBERT score).
+ * Uses three-signal sentiment architecture (event type, aspect score, MlSentiment score).
  *
  * @see types/sentiment.types.ts for complete schema documentation
  */

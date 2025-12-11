@@ -110,7 +110,7 @@ describe('DataFetcher Service', () => {
           date: '2023-01-01',
           eventType: 'EARNINGS',
           aspectScore: 0.8,
-          distilFinBERTScore: 0.9,
+          mlScore: 0.9,
           materialityScore: 1.0
         }
       ];

@@ -37,11 +37,11 @@ describe('Feature Engineering Service', () => {
     describe('compute_event_one_hot_weighted', () => {
         it('should aggregate event weights correctly', () => {
             const articles: ArticleSentiment[] = [
-                { hash: '1', date: '2023-01-01', eventType: 'EARNINGS', materialityScore: 0.8, aspectScore: 0, distilFinBERTScore: 0 },
-                { hash: '2', date: '2023-01-01', eventType: 'EARNINGS', materialityScore: 0.5, aspectScore: 0, distilFinBERTScore: 0 },
-                { hash: '3', date: '2023-01-01', eventType: 'M&A', materialityScore: 0.9, aspectScore: 0, distilFinBERTScore: 0 },
-                { hash: '4', date: '2023-01-01', eventType: 'GENERAL', materialityScore: 0.1, aspectScore: 0, distilFinBERTScore: 0 },
-                { hash: '5', date: '2023-01-01', eventType: null, materialityScore: 0.2, aspectScore: 0, distilFinBERTScore: 0 } // Should map to GENERAL
+                { hash: '1', date: '2023-01-01', eventType: 'EARNINGS', materialityScore: 0.8, aspectScore: 0, mlScore: 0 },
+                { hash: '2', date: '2023-01-01', eventType: 'EARNINGS', materialityScore: 0.5, aspectScore: 0, mlScore: 0 },
+                { hash: '3', date: '2023-01-01', eventType: 'M&A', materialityScore: 0.9, aspectScore: 0, mlScore: 0 },
+                { hash: '4', date: '2023-01-01', eventType: 'GENERAL', materialityScore: 0.1, aspectScore: 0, mlScore: 0 },
+                { hash: '5', date: '2023-01-01', eventType: null, materialityScore: 0.2, aspectScore: 0, mlScore: 0 } // Should map to GENERAL
             ];
 
             const result = compute_event_one_hot_weighted(articles);
@@ -61,10 +61,10 @@ describe('Feature Engineering Service', () => {
 
         const mockArticles: ArticleSentiment[] = [
             // Day 1: 1 article, high materiality
-            { hash: '1', date: '2023-01-01', eventType: 'EARNINGS', materialityScore: 1.0, aspectScore: 0.5, distilFinBERTScore: 0.8 },
+            { hash: '1', date: '2023-01-01', eventType: 'EARNINGS', materialityScore: 1.0, aspectScore: 0.5, mlScore: 0.8 },
             // Day 2: 2 articles, mixed materiality
-            { hash: '2', date: '2023-01-02', eventType: 'M&A', materialityScore: 0.8, aspectScore: 0.2, distilFinBERTScore: 0.6 },
-            { hash: '3', date: '2023-01-02', eventType: 'GENERAL', materialityScore: 0.2, aspectScore: -0.5, distilFinBERTScore: -0.2 }
+            { hash: '2', date: '2023-01-02', eventType: 'M&A', materialityScore: 0.8, aspectScore: 0.2, mlScore: 0.6 },
+            { hash: '3', date: '2023-01-02', eventType: 'GENERAL', materialityScore: 0.2, aspectScore: -0.5, mlScore: -0.2 }
         ];
 
         it('should aggregate features for each day with price data', () => {
@@ -77,7 +77,7 @@ describe('Feature Engineering Service', () => {
             expect(features[0].close).toBe(105);
             expect(features[0].event_earnings).toBe(1.0);
             expect(features[0].aspect_score).toBe(0.5); // Only 1 article with wt 1.0
-            expect(features[0].finbert_score).toBe(0.8);
+            expect(features[0].ml_score).toBe(0.8);
 
             // Day 2
             expect(features[1].date).toBe('2023-01-02');
@@ -87,8 +87,8 @@ describe('Feature Engineering Service', () => {
             // Weighted Avg Aspect: (0.2*0.8 + -0.5*0.2) / (0.8+0.2) = (0.16 - 0.1) / 1.0 = 0.06
             expect(features[1].aspect_score).toBeCloseTo(0.06);
 
-            // Weighted Avg FinBERT: (0.6*0.8 + -0.2*0.2) / 1.0 = (0.48 - 0.04) = 0.44
-            expect(features[1].finbert_score).toBeCloseTo(0.44);
+            // Weighted Avg mlScore: (0.6*0.8 + -0.2*0.2) / 1.0 = (0.48 - 0.04) = 0.44
+            expect(features[1].ml_score).toBeCloseTo(0.44);
         });
 
         it('should handle days with no articles', () => {
@@ -97,7 +97,7 @@ describe('Feature Engineering Service', () => {
             expect(features).toHaveLength(2);
             expect(features[0].event_earnings).toBe(0);
             expect(features[0].aspect_score).toBe(0);
-            expect(features[0].finbert_score).toBe(0);
+            expect(features[0].ml_score).toBe(0);
         });
     });
 });

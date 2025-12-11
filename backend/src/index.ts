@@ -133,6 +133,15 @@ export async function handler(
         return handleBatchSentimentRequest(event);
       }
 
+      case '/sentiment/articles': {
+        // GET only
+        if (method !== 'GET') {
+          return errorResponse(`Method ${method} not allowed for /sentiment/articles`, 405);
+        }
+        const { handleArticleSentimentRequest } = await import('./handlers/sentiment.handler');
+        return handleArticleSentimentRequest(event);
+      }
+
       default: {
         // Check if it's a job status request (/sentiment/job/:jobId)
         if (path.startsWith('/sentiment/job/')) {

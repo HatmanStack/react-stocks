@@ -16,15 +16,9 @@ import * as DailySentimentAggregateRepository from '../repositories/dailySentime
 import { generateJobId } from '../utils/job.util.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
 import { aggregateDailySentiment } from '../utils/sentiment.util.js';
-import { shouldTriggerPrediction } from '../utils/smartRefresh.util.js';
-import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
-
-// Validate required environment variable
-if (!process.env.AWS_REGION) {
-    throw new Error('AWS_REGION environment variable is required but not set');
-}
-
-const lambdaClient = new LambdaClient({ region: process.env.AWS_REGION });
+import { logMlSentimentCacheHitRate } from '../utils/metrics.util.js';
+// Note: Predictions are now generated client-side using browser-based logistic regression.
+// This removes Lambda invocation complexity and provides instant predictions.
 
 /**
  * POST /sentiment - Trigger sentiment analysis for a ticker
@@ -101,35 +95,8 @@ export async function handleSentimentRequest(
       // Mark job as completed
       await SentimentJobsRepository.markJobCompleted(jobId, result.articlesProcessed);
 
-      // Trigger prediction asynchronously (fire and forget)
-      // Smart refresh logic: trigger if new articles processed OR DB check says we should
-      const shouldTrigger = result.articlesProcessed > 0 || await shouldTriggerPrediction(ticker);
-
-      if (process.env.PREDICTION_FUNCTION_NAME && shouldTrigger) {
-          try {
-              // Minimal payload for prediction
-              const predictionPayload = {
-                  ticker: ticker.toUpperCase(),
-                  days: 90 // Default to 90 days history for training
-              };
-
-              console.log('[SentimentHandler] Invoking prediction lambda:', {
-                  functionName: process.env.PREDICTION_FUNCTION_NAME,
-                  payload: predictionPayload
-              });
-
-              await lambdaClient.send(new InvokeCommand({
-                  FunctionName: process.env.PREDICTION_FUNCTION_NAME,
-                  InvocationType: 'Event', // Asynchronous invocation
-                  Payload: JSON.stringify(predictionPayload)
-              }));
-          } catch (invokeError) {
-              console.error('[SentimentHandler] Failed to invoke prediction lambda:', invokeError);
-              // We don't fail the sentiment request if prediction trigger fails
-          }
-      } else if (!shouldTrigger) {
-          console.log(`[SentimentHandler] Skipping prediction trigger for ${ticker} (no new data needed)`);
-      }
+      // Note: Predictions are now generated client-side using browser-based logistic regression.
+      // This provides instant predictions without Lambda invocation latency.
 
       return successResponse({
         jobId,
@@ -240,6 +207,7 @@ export async function getSentimentResults(
 
   if (allSentiments.length === 0) {
     console.log('[SentimentHandler] No sentiments found, returning empty');
+    logMlSentimentCacheHitRate(ticker, 0, 1); // 1 miss
     return {
       ticker: ticker.toUpperCase(),
       startDate: startDate || null,
@@ -248,6 +216,8 @@ export async function getSentimentResults(
       cached: false,
     };
   }
+
+  logMlSentimentCacheHitRate(ticker, 1, 0); // 1 hit (aggregate)
 
   // Fetch all news articles to get dates
   const allArticles = await NewsCacheRepository.queryArticlesByTicker(ticker);
@@ -304,6 +274,132 @@ export async function getSentimentResults(
     cached: true,
     predictions
   };
+}
+
+/**
+ * Article sentiment data for frontend display
+ */
+interface ArticleSentimentItem {
+  ticker: string;
+  date: string;
+  hash: string;
+  // Article metadata
+  title: string;
+  body: string;
+  url: string;
+  publisher?: string;
+  // Bag-of-words sentiment (legacy)
+  positive: number;  // Count of positive words found
+  negative: number;  // Count of negative words found
+  sentiment: 'POS' | 'NEG' | 'NEUT';  // Classification based on word counts
+  sentimentNumber: number;  // Normalized score from -1 to +1
+  // ML-based sentiment (Phase 5)
+  eventType?: string;  // Article category: EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
+  aspectScore?: number;  // Aspect-based sentiment score (-1 to +1)
+  mlScore?: number;  // MlSentiment ML model score (-1 to +1) for material events
+}
+
+/**
+ * GET /sentiment/articles - Get individual article sentiment data
+ *
+ * Query parameters: ticker (required), startDate (optional), endDate (optional)
+ * Response: { ticker, articles: ArticleSentimentItem[] }
+ *
+ * @param event - API Gateway event
+ * @returns API Gateway response
+ */
+export async function handleArticleSentimentRequest(
+  event: APIGatewayProxyEventV2
+): Promise<APIGatewayResponse> {
+  try {
+    // Parse query parameters
+    const params = event.queryStringParameters || {};
+    const ticker = params.ticker;
+    const startDate = params.startDate;
+    const endDate = params.endDate;
+
+    // Validate ticker
+    if (!ticker) {
+      return errorResponse('Query parameter "ticker" is required', 400);
+    }
+
+    // Validate date format if provided
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (startDate && !dateRegex.test(startDate)) {
+      return errorResponse('Query parameter "startDate" must be in YYYY-MM-DD format', 400);
+    }
+    if (endDate && !dateRegex.test(endDate)) {
+      return errorResponse('Query parameter "endDate" must be in YYYY-MM-DD format', 400);
+    }
+
+    console.log('[SentimentHandler] handleArticleSentimentRequest:', { ticker, startDate, endDate });
+
+    // Fetch all sentiments and articles for ticker
+    const [allSentiments, allArticles] = await Promise.all([
+      SentimentCacheRepository.querySentimentsByTicker(ticker),
+      NewsCacheRepository.queryArticlesByTicker(ticker),
+    ]);
+
+    console.log('[SentimentHandler] Fetched:', { sentiments: allSentiments.length, articles: allArticles.length });
+
+    // Create a map of articleHash -> article for quick lookup
+    const articleMap = new Map(allArticles.map(a => [a.articleHash, a]));
+
+    // Transform and filter sentiment data, deduplicating by hash
+    const seenHashes = new Set<string>();
+    const articles: ArticleSentimentItem[] = allSentiments
+      .map((s) => {
+        // Skip duplicates
+        if (seenHashes.has(s.articleHash)) return null;
+        seenHashes.add(s.articleHash);
+
+        const article = articleMap.get(s.articleHash);
+        if (!article) return null;
+
+        const date = article.article.date;
+
+        // Filter by date range if provided
+        if (startDate && date < startDate) return null;
+        if (endDate && date > endDate) return null;
+
+        return {
+          ticker: s.ticker,
+          date,
+          hash: s.articleHash,
+          title: article.article.title || '',
+          body: article.article.description || article.article.title || '',
+          url: article.article.url || '',
+          publisher: article.article.publisher,
+          positive: s.sentiment.positive,
+          negative: s.sentiment.negative,
+          sentiment: s.sentiment.classification,
+          sentimentNumber: s.sentiment.sentimentScore,
+          eventType: s.eventType,
+          aspectScore: s.aspectScore,
+          mlScore: s.mlScore,
+        };
+      })
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+      .sort((a, b) => b.date.localeCompare(a.date)) as ArticleSentimentItem[]; // Sort by date descending
+
+    console.log('[SentimentHandler] Returning articles:', { count: articles.length });
+
+    return successResponse({
+      ticker: ticker.toUpperCase(),
+      startDate: startDate || null,
+      endDate: endDate || null,
+      articles,
+    });
+  } catch (error) {
+    console.error('[SentimentHandler] Error getting article sentiment:', error, {
+      requestId: event.requestContext.requestId,
+    });
+
+    return errorResponse(
+      error instanceof Error ? error.message : 'Internal server error',
+      500
+    );
+  }
 }
 
 /**

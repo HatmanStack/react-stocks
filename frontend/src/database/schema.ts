@@ -72,7 +72,7 @@ export const CREATE_WORD_COUNT_DETAILS_TABLE = `
     sentimentNumber REAL NOT NULL,
     eventType TEXT,
     aspectScore REAL,
-    distilFinBERTScore REAL,
+    mlScore REAL,
     materialityScore REAL,
     UNIQUE(ticker, hash)
   );
@@ -92,7 +92,7 @@ export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
     updateDate TEXT,
     eventCounts TEXT,
     avgAspectScore REAL,
-    avgFinBERTScore REAL,
+    avgMlScore REAL,
     materialEventCount INTEGER DEFAULT 0,
     nextDayDirection TEXT,
     nextDayProbability REAL CHECK(nextDayProbability IS NULL OR (nextDayProbability >= 0 AND nextDayProbability <= 1)),
@@ -126,8 +126,8 @@ export const MIGRATE_PHASE_5_COLUMNS = `
   -- Add avgAspectScore column (nullable)
   ALTER TABLE combined_word_count_details ADD COLUMN avgAspectScore REAL;
 
-  -- Add avgFinBERTScore column (nullable)
-  ALTER TABLE combined_word_count_details ADD COLUMN avgFinBERTScore REAL;
+  -- Add avgMlScore column (nullable)
+  ALTER TABLE combined_word_count_details ADD COLUMN avgMlScore REAL;
 
   -- Add materialEventCount column (defaults to 0)
   ALTER TABLE combined_word_count_details ADD COLUMN materialEventCount INTEGER DEFAULT 0;
@@ -188,8 +188,8 @@ export const MIGRATE_PHASE_1_WORD_COUNT_FIELDS = `
   -- Add aspectScore column (nullable)
   ALTER TABLE word_count_details ADD COLUMN aspectScore REAL;
 
-  -- Add distilFinBERTScore column (nullable)
-  ALTER TABLE word_count_details ADD COLUMN distilFinBERTScore REAL;
+  -- Add mlScore column (nullable)
+  ALTER TABLE word_count_details ADD COLUMN mlScore REAL;
 
   -- Add materialityScore column (nullable)
   ALTER TABLE word_count_details ADD COLUMN materialityScore REAL;

@@ -9,10 +9,9 @@ __pycache__/
 .coverage
 htmlcov/
 
-# TypeScript build output (SAM doesn't need this)
+# TypeScript build output
 dist/
 *.js.map
-src/
 
 # Local config
 .env*
@@ -27,11 +26,9 @@ samconfig.toml
 tests/
 *_test.py
 test_*.py
-*.test.ts
-*.spec.ts
 
 # ML service (separate stack)
-services/
+services/ml/
 
 # Scripts not needed at runtime
 scripts/
@@ -40,9 +37,7 @@ scripts/
 *.md
 docs/
 
-# SAM/AWS config files
+# SAM/AWS
 .aws-sam/
 template.yaml
 ml-template*.yaml
-.samignore
-Dockerfile*

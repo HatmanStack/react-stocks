@@ -2,7 +2,7 @@
  * Browser-Based Sentiment Analyzer
  *
  * Provides sentiment analysis using rule-based approach with financial domain lexicon.
- * Replaces the Python FinBERT microservice with a lightweight JavaScript implementation.
+ * Replaces the Python ML microservice with a lightweight JavaScript implementation.
  */
 
 import Sentiment from 'sentiment';
@@ -55,7 +55,7 @@ export class SentimentAnalyzer {
    * Analyze sentiment of text and return result in Python service format
    * @param text - Article text to analyze
    * @param hash - Hash identifier for the article
-   * @returns Sentiment analysis result matching Python FinBERT format
+   * @returns Sentiment analysis result matching Python ML service format
    */
   public analyze(text: string, hash: string): SentimentResult {
     // Split text into sentences (matching Python preprocessing)

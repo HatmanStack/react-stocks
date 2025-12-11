@@ -151,11 +151,15 @@ export async function searchTickers(query: string): Promise<TiingoSearchResult[]
   const fetchFn = async () => {
     try {
       logger.debug(`[TiingoService] Searching for: ${trimmedQuery}`);
+      logger.debug(`[TiingoService] Backend URL: ${Environment.BACKEND_URL}/search?query=${trimmedQuery}`);
+      const startTime = Date.now();
       const response = await client.get<{ data: TiingoSearchResult[] }>('/search', {
         params: { query: trimmedQuery },
       });
+      logger.debug(`[TiingoService] Search completed in ${Date.now() - startTime}ms, found ${response.data.data?.length || 0} results`);
       return response.data.data;
     } catch (error) {
+      logger.error(`[TiingoService] Search error for "${trimmedQuery}":`, error);
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         return []; // No results
       }

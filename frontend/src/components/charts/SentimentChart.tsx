@@ -4,7 +4,7 @@
  * **Phase 5 Update:** Now displays up to three sentiment signals:
  * - Legacy sentiment (blue)
  * - Aspect score (green/red)
- * - DistilFinBERT score (purple)
+ * - ML model score (purple)
  */
 
 import React, { useMemo, useState } from 'react';
@@ -38,7 +38,7 @@ interface ChartSeries {
 const VISIBLE_SERIES = {
   legacy: true,
   aspect: true,
-  finbert: true,
+  ml: true,
 } as const;
 
 const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: SentimentChartProps) => {
@@ -81,7 +81,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
 
   // Prepare multi-series data
   const chartSeries = useMemo(() => {
-    if (data.length === 0) return { series: [], hasAspect: false, hasFinBERT: false };
+    if (data.length === 0) return { series: [], hasAspect: false, hasML: false };
 
     const isCombinedWordDetails = 'sentimentNumber' in data[0];
 
@@ -98,7 +98,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
           },
         ],
         hasAspect: false,
-        hasFinBERT: false,
+        hasML: false,
       };
     }
 
@@ -114,13 +114,13 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
     );
     const hasAspect = aspectData.some(v => v !== null);
 
-    // Extract FinBERT scores (if available)
-    const finbertData = combinedData.map(d =>
-      d.avgFinBERTScore !== null && d.avgFinBERTScore !== undefined
-        ? d.avgFinBERTScore
+    // Extract ML scores (if available)
+    const mlData = combinedData.map(d =>
+      d.avgMlScore !== null && d.avgMlScore !== undefined
+        ? d.avgMlScore
         : null
     );
-    const hasFinBERT = finbertData.some(v => v !== null);
+    const hasML = mlData.some(v => v !== null);
 
     const series: ChartSeries[] = [
       {
@@ -140,16 +140,16 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
       });
     }
 
-    if (hasFinBERT) {
+    if (hasML) {
       series.push({
-        data: finbertData.map(v => v ?? NaN), // Use NaN for missing data points
+        data: mlData.map(v => v ?? NaN), // Use NaN for missing data points
         color: '#9C27B0', // Purple
-        label: 'FinBERT',
-        visible: VISIBLE_SERIES.finbert,
+        label: 'ML Model',
+        visible: VISIBLE_SERIES.ml,
       });
     }
 
-    return { series, hasAspect, hasFinBERT };
+    return { series, hasAspect, hasML };
   }, [data, theme]);
 
 

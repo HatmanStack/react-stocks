@@ -14,7 +14,7 @@ export interface Scaler {
  * 1-5: open, high, low, close, volume
  * 6-11: earnings, ma, guidance, analyst, product, general
  * 12: aspect_score
- * 13: finbert_score
+ * 13: ml_score
  * 14: horizon
  *
  * @param dailyFeatures List of daily features.
@@ -37,7 +37,7 @@ export function prepare_training_data(dailyFeatures: DailyFeatures[]): { X: numb
         const baseFeatures = [
             f.open, f.high, f.low, f.close, f.volume,
             f.event_earnings, f.event_ma, f.event_guidance, f.event_analyst, f.event_product, f.event_general,
-            f.aspect_score, f.finbert_score
+            f.aspect_score, f.ml_score
         ];
 
         for (const horizon of horizons) {

@@ -163,10 +163,10 @@ async function runMigrations(fromVersion: number): Promise<void> {
         await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgAspectScore REAL`);
       }
 
-      // Add avgFinBERTScore column if it doesn't exist
-      if (!(await columnExists(tableName, 'avgFinBERTScore'))) {
-        console.log('[Database] Adding avgFinBERTScore column');
-        await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgFinBERTScore REAL`);
+      // Add avgMlScore column if it doesn't exist
+      if (!(await columnExists(tableName, 'avgMlScore'))) {
+        console.log('[Database] Adding avgMlScore column');
+        await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgMlScore REAL`);
       }
 
       // Add materialEventCount column if it doesn't exist
@@ -212,7 +212,7 @@ async function runMigrations(fromVersion: number): Promise<void> {
       const newColumns = [
         { name: 'eventType', type: 'TEXT' },
         { name: 'aspectScore', type: 'REAL' },
-        { name: 'distilFinBERTScore', type: 'REAL' },
+        { name: 'mlScore', type: 'REAL' },
         { name: 'materialityScore', type: 'REAL' }
       ];
 

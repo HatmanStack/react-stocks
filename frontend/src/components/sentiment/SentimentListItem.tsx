@@ -1,7 +1,6 @@
 /**
  * Sentiment List Item
  * Displays a single day's sentiment data in a compact table row
- * Matches PriceListItem styling
  */
 
 import React from 'react';
@@ -20,19 +19,17 @@ interface SentimentListItemProps {
 export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({ item }) => {
   const theme = useAppTheme();
 
-  // Determine if sentiment is positive or negative
-  const isPositive = item.sentiment === 'POS' || (item.sentimentNumber !== undefined && item.sentimentNumber > 0.1);
-  const isNegative = item.sentiment === 'NEG' || (item.sentimentNumber !== undefined && item.sentimentNumber < -0.1);
-
-  const getTextColor = (): string => {
-    if (isPositive) return theme.colors.positive;
-    if (isNegative) return theme.colors.negative;
-    return theme.colors.onSurface;
-  };
-
   const formatScore = (score: number | null | undefined): string => {
     if (score === null || score === undefined) return '—';
     return score >= 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
+  };
+
+  const isScorePositive = (score: number | null | undefined): boolean => {
+    return score !== null && score !== undefined && score > 0.1;
+  };
+
+  const isScoreNegative = (score: number | null | undefined): boolean => {
+    return score !== null && score !== undefined && score < -0.1;
   };
 
   const formatPrediction = (
@@ -58,7 +55,6 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
     return { text: '—', isUp: false, isDown: false };
   };
 
-  const textColor = getTextColor();
   const pred1D = formatPrediction(item.nextDayDirection, item.nextDayProbability, item.nextDay);
   const pred2W = formatPrediction(item.twoWeekDirection, item.twoWeekProbability, item.twoWks);
   const pred1M = formatPrediction(item.oneMonthDirection, item.oneMonthProbability, item.oneMnth);
@@ -68,30 +64,30 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
       <View style={styles.row}>
         {/* Date */}
         <View style={styles.dateColumn}>
-          <Text variant="bodyMedium" style={[styles.text, { color: textColor }]}>
+          <Text variant="bodyMedium" style={[styles.text, { color: theme.colors.onSurface }]}>
             {formatShortDate(item.date)}
           </Text>
         </View>
 
-        {/* Sentiment */}
-        <View style={styles.valueColumn}>
+        {/* Sentiment (ML Score) */}
+        <View style={styles.centerColumn}>
           <MonoText
             variant="price"
-            style={[styles.text, { fontWeight: 'bold' }]}
-            positive={isPositive}
-            negative={isNegative}
+            style={styles.text}
+            positive={isScorePositive(item.avgMlScore)}
+            negative={isScoreNegative(item.avgMlScore)}
           >
-            {item.sentiment || '—'}
+            {formatScore(item.avgMlScore)}
           </MonoText>
         </View>
 
         {/* Aspect Score */}
-        <View style={styles.valueColumn}>
+        <View style={styles.centerColumn}>
           <MonoText
             variant="price"
             style={styles.text}
-            positive={item.avgAspectScore !== null && item.avgAspectScore !== undefined && item.avgAspectScore > 0.3}
-            negative={item.avgAspectScore !== null && item.avgAspectScore !== undefined && item.avgAspectScore < -0.3}
+            positive={isScorePositive(item.avgAspectScore)}
+            negative={isScoreNegative(item.avgAspectScore)}
           >
             {formatScore(item.avgAspectScore)}
           </MonoText>
@@ -141,7 +137,7 @@ SentimentListItem.displayName = 'SentimentListItem';
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
   },
@@ -151,13 +147,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dateColumn: {
-    flex: 1.5,
-    minWidth: 55,
+    flex: 1.2,
+    minWidth: 50,
+  },
+  centerColumn: {
+    flex: 1,
+    alignItems: 'center',
+    minWidth: 45,
   },
   valueColumn: {
     flex: 1,
     alignItems: 'flex-end',
-    minWidth: 50,
+    minWidth: 45,
   },
   text: {
     fontSize: 12,
