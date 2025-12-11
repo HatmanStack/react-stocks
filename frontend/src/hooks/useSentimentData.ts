@@ -406,8 +406,11 @@ export function useSentimentData(
       console.log(`[useSentimentData] STEP 4: Checking if predictions needed...`);
       console.log(`[useSentimentData]   - sentimentData.length: ${sentimentData.length}`);
 
+      // Find latest record without mutating sentimentData array
       const latestRecord = sentimentData.length > 0
-        ? sentimentData.sort((a, b) => b.date.localeCompare(a.date))[0]
+        ? sentimentData.reduce((latest, current) =>
+            current.date > latest.date ? current : latest
+          )
         : null;
 
       console.log(`[useSentimentData]   - latestRecord date: ${latestRecord?.date || 'none'}`);
