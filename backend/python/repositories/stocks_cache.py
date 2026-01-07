@@ -46,7 +46,7 @@ def calculate_ttl(date_str: str) -> int:
     Returns:
         Unix timestamp for TTL
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime
 
     try:
         data_date = datetime.strptime(date_str, "%Y-%m-%d")

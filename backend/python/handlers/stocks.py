@@ -62,7 +62,6 @@ def handle_prices_request(
         cached_data = query_stocks_by_date_range(ticker, start_date, effective_end_date)
 
         # Calculate expected trading days (~5/7 of calendar days)
-        from datetime import timedelta
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end = datetime.strptime(effective_end_date, "%Y-%m-%d")
         calendar_days = (end - start).days + 1
