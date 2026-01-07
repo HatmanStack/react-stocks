@@ -374,4 +374,15 @@ export function validateSentimentCacheItem(item: SentimentCacheItem): void {
       throw new Error('SentimentCacheItem: mlScore must be between -1 and 1');
     }
   }
+
+  if (item.signalScore !== undefined) {
+    if (
+      typeof item.signalScore !== 'number' ||
+      !isFinite(item.signalScore) ||
+      item.signalScore < 0 ||
+      item.signalScore > 1
+    ) {
+      throw new Error('SentimentCacheItem: signalScore must be between 0 and 1');
+    }
+  }
 }
