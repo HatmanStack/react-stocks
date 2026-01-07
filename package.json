@@ -15,7 +15,8 @@
     "lint:backend": "cd backend && npm run lint && npm run type-check",
     "lint:ml": "uvx ruff check backend/services/ml",
     "check": "npm run lint && npm run lint:backend && npm run lint:ml && npm run test && npm run test:backend -- --ci --forceExit && npm run test:ml",
-    "deploy": "./backend/scripts/deploy.sh"
+    "deploy": "./backend/scripts/deploy.sh",
+    "hygiene": "./scripts/code-hygiene.sh"
   },
   "devDependencies": {
     "knip": "^5.80.0",
