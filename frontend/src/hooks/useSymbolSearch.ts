@@ -89,8 +89,8 @@ export function useSymbolSearch(
         return localResults;
       }
 
-      // No local results - use Search API to find matching tickers
-      console.log(`[useSymbolSearch] No local results, using Search API for ${normalizedQuery}`);
+      // No local results - use Tiingo search to find matching tickers
+      console.log(`[useSymbolSearch] No local results, using Tiingo search for ${normalizedQuery}`);
 
       try {
         const searchResults = await searchTickers(normalizedQuery);
