@@ -174,7 +174,7 @@ function calculateVolatility(close: number[], window: number = 10): number[] {
  *   signalScore: [0.8, 0.6, 0.5]
  * };
  * const features = buildFeatureMatrix(input);
- * // Returns 3×14 matrix
+ * // Returns 3×15 matrix
  * ```
  */
 export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
