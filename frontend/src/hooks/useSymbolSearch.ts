@@ -89,7 +89,7 @@ export function useSymbolSearch(
         return localResults;
       }
 
-      // No local results - use Tiingo Search API to find matching tickers
+      // No local results - use Search API to find matching tickers
       console.log(`[useSymbolSearch] No local results, using Search API for ${normalizedQuery}`);
 
       try {
@@ -100,39 +100,23 @@ export function useSymbolSearch(
           return [];
         }
 
-        // Fetch full metadata for each result and store in database (in parallel)
-        const topResults = searchResults.slice(0, 10); // Limit to top 10 results
+        // Use search results directly (no extra metadata fetches needed)
+        const topResults = searchResults.slice(0, 10);
+        console.log(`[useSymbolSearch] Found ${topResults.length} results`);
 
-        const settled = await Promise.allSettled(
-          topResults.map(async (result) => {
-            const metadata = await fetchSymbolMetadata(result.ticker);
+        const symbolDetailsList: SymbolDetails[] = topResults.map((result) => ({
+          ticker: result.ticker,
+          name: result.name || result.ticker,
+          exchangeCode: '',
+          startDate: '',
+          endDate: '',
+          longDescription: '',
+        }));
 
-            const symbolDetails: Omit<SymbolDetails, 'id'> = {
-              ticker: metadata.ticker,
-              name: metadata.name,
-              exchangeCode: metadata.exchangeCode,
-              startDate: metadata.startDate,
-              endDate: metadata.endDate,
-              longDescription: metadata.description,
-            };
-
-            await SymbolRepository.insert(symbolDetails);
-            return symbolDetails as SymbolDetails;
-          })
-        );
-
-        const symbolDetailsList = settled
-          .filter((r): r is PromiseFulfilledResult<SymbolDetails> => r.status === 'fulfilled')
-          .map((r) => r.value);
-
-        settled
-          .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-          .forEach((r, index) => {
-            console.warn(
-              `[useSymbolSearch] Failed to fetch metadata for ${topResults[index].ticker}:`,
-              r.reason
-            );
-          });
+        // Cache results in local DB (async, don't block)
+        Promise.all(
+          symbolDetailsList.map((symbol) => SymbolRepository.insert(symbol))
+        ).catch((err) => console.warn('[useSymbolSearch] Failed to cache results:', err));
 
         return symbolDetailsList;
       } catch (error) {

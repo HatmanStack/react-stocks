@@ -41,9 +41,10 @@ const MIN_DATA_POINTS = 29;
  * @param positiveCounts - (DEPRECATED) Array of positive word counts
  * @param negativeCounts - (DEPRECATED) Array of negative word counts
  * @param sentimentScores - (DEPRECATED) Array of sentiment categories
- * @param eventTypes - (NEW) Array of event type classifications
- * @param aspectScores - (NEW) Array of aspect sentiment scores (-1 to +1)
- * @param mlScores - (NEW) Array of ML model scores (-1 to +1)
+ * @param eventTypes - Array of event type classifications
+ * @param aspectScores - Array of aspect sentiment scores (-1 to +1)
+ * @param mlScores - Array of ML model scores (-1 to +1)
+ * @param signalScores - Array of signal scores (0 to 1, metadata quality)
  * @returns Prediction results for next day, 2 weeks, and 1 month
  * @throws Error if insufficient data or invalid inputs
  *
@@ -72,7 +73,8 @@ export async function getStockPredictions(
   _sentimentScores: string[] = [],
   eventTypes?: EventType[],
   aspectScores?: number[],
-  mlScores?: number[]
+  mlScores?: number[],
+  signalScores?: number[]
 ): Promise<PredictionOutput> {
   const startTime = performance.now();
 
@@ -96,6 +98,7 @@ export async function getStockPredictions(
       eventType: eventTypes,
       aspectScore: aspectScores,
       mlScore: mlScores,
+      signalScore: signalScores,
     };
 
     console.log(
@@ -106,10 +109,11 @@ export async function getStockPredictions(
     console.log(`  - closePrices: ${closePrices.length} (first: ${closePrices[0]?.toFixed(2)}, last: ${closePrices[closePrices.length-1]?.toFixed(2)})`);
     console.log(`  - volumes: ${volumes.length}`);
     console.log(`  - eventTypes: ${eventTypes?.length || 0}`);
-    console.log(`  - aspectScores: ${aspectScores?.length || 0}`);
-    console.log(`  - mlScores: ${mlScores?.length || 0}`);
+    console.log(`  - aspectScores: ${aspectScores?.length || 0} (non-zero: ${aspectScores?.filter(s => s !== 0).length || 0})`);
+    console.log(`  - mlScores: ${mlScores?.length || 0} (non-zero: ${mlScores?.filter(s => s !== 0).length || 0})`);
+    console.log(`  - signalScores: ${signalScores?.length || 0}`);
 
-    // Build feature matrix (13 features with three-signal sentiment)
+    // Build feature matrix (15 features with three-signal sentiment + availability)
     console.log(`[PredictionService] Building feature matrix...`);
     const features = buildFeatureMatrix(input);
     console.log(`[PredictionService] Feature matrix built: ${features.length} rows x ${features[0]?.length || 0} cols`);

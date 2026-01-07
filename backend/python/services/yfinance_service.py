@@ -7,11 +7,32 @@ import logging
 import time
 from typing import Any
 
-import pandas as pd
 import requests
-import yfinance as yf
 
 from utils.error import APIError
+
+# Lazy imports for heavy libraries (yfinance, pandas)
+# These are only imported when needed to reduce cold start time for search
+_yf = None
+_pd = None
+
+
+def _get_yfinance():
+    """Lazy import yfinance to reduce cold start time."""
+    global _yf
+    if _yf is None:
+        import yfinance as yf
+        _yf = yf
+    return _yf
+
+
+def _get_pandas():
+    """Lazy import pandas to reduce cold start time."""
+    global _pd
+    if _pd is None:
+        import pandas as pd
+        _pd = pd
+    return _pd
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -53,7 +74,7 @@ def fetch_stock_prices(
     ticker: str,
     start_date: str,
     end_date: str | None = None,
-) -> pd.DataFrame:
+):
     """
     Fetch historical stock prices from yfinance.
 
@@ -74,6 +95,7 @@ def fetch_stock_prices(
     logger.info(f"[YFinanceService] Fetching prices for {ticker} from {start_date} to {end_date or 'today'}")
 
     try:
+        yf = _get_yfinance()
         stock = yf.Ticker(ticker)
         hist = stock.history(start=start_date, end=end_date)
 
@@ -112,6 +134,7 @@ def fetch_symbol_metadata(ticker: str) -> dict[str, Any]:
     logger.info(f"[YFinanceService] Fetching metadata for {ticker}")
 
     try:
+        yf = _get_yfinance()
         stock = yf.Ticker(ticker)
         info = stock.info
 

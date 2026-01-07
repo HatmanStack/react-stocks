@@ -5,7 +5,11 @@
  * and labels for logistic regression training.
  *
  * **Phase 4 Update:** Added support for three-signal sentiment architecture
- * (eventType, aspectScore, mlScore) increasing feature count from 8 to 14.
+ * (eventType, aspectScore, mlScore) increasing feature count from 8 to 13.
+ *
+ * **Phase 5 Update:** Added signalScore feature increasing count from 13 to 14.
+ * **Phase 6 Update:** Added sentimentAvailability feature increasing count from 14 to 15.
+ * This allows predictions to run even when sentiment data is incomplete.
  */
 
 import type { PredictionInput, FeatureMatrix, Labels } from './types';
@@ -149,14 +153,14 @@ function calculateVolatility(close: number[], window: number = 10): number[] {
 /**
  * Build feature matrix from raw prediction inputs
  *
- * **Phase 4 Update:** Creates 13-feature matrix with three-signal sentiment:
- * [price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, ...eventType(6), aspectScore, mlScore, volatility]
+ * **Phase 6 Update:** Creates 15-feature matrix with three-signal sentiment + availability:
+ * [price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, ...eventType(6), aspectScore, mlScore, signalScore, sentimentAvailability, volatility]
  *
  * **Removed:** positive, negative counts (deprecated)
- * **NEW:** Price ratios (3), volatility (1), eventType (6), aspectScore (1), mlScore (1)
+ * **Features:** Price ratios (3), volume (1), eventType (6), aspectScore (1), mlScore (1), signalScore (1), sentimentAvailability (1), volatility (1)
  *
  * @param input - Raw prediction input data
- * @returns Feature matrix (n_samples × 13)
+ * @returns Feature matrix (n_samples × 15)
  * @throws Error if input arrays have inconsistent lengths
  *
  * @example
@@ -166,14 +170,15 @@ function calculateVolatility(close: number[], window: number = 10): number[] {
  *   volume: [1000000, 1100000, 1050000],
  *   eventType: ['EARNINGS', 'M&A', 'GENERAL'],
  *   aspectScore: [0.5, -0.3, 0.1],
- *   mlScore: [0.7, -0.2, 0.0]
+ *   mlScore: [0.7, -0.2, 0.0],
+ *   signalScore: [0.8, 0.6, 0.5]
  * };
  * const features = buildFeatureMatrix(input);
- * // Returns 3×13 matrix
+ * // Returns 3×14 matrix
  * ```
  */
 export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
-  const { close, volume, eventType, aspectScore, mlScore } = input;
+  const { close, volume, eventType, aspectScore, mlScore, signalScore } = input;
 
   // Validate input lengths
   const n = close.length;
@@ -200,6 +205,11 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
       `Preprocessing: mlScore length (${mlScore.length}) does not match close length (${n})`
     );
   }
+  if (signalScore && signalScore.length !== n) {
+    throw new Error(
+      `Preprocessing: signalScore length (${signalScore.length}) does not match close length (${n})`
+    );
+  }
 
   if (n === 0) {
     return [];
@@ -224,7 +234,16 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   // Use ML scores or fallback to 0
   const mlScores = mlScore ?? Array(n).fill(0);
 
-  // Build feature matrix (13 features)
+  // Use signal scores or default to 0.5 (neutral)
+  const signalScores = signalScore ?? Array(n).fill(0.5);
+
+  // Calculate sentiment availability (% of days with non-zero mlScore)
+  // This is a stock-level metric, same for all rows
+  const sentimentAvailability = mlScore
+    ? mlScore.filter((s) => s !== null && s !== undefined && s !== 0).length / n
+    : 0;
+
+  // Build feature matrix (15 features)
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
     features[i] = [
@@ -235,6 +254,8 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
       ...eventOneHot[i], // 6 event type features
       aspectScores[i], // aspect score
       mlScores[i], // ML score
+      signalScores[i], // signal score (metadata quality)
+      sentimentAvailability, // sentiment data availability (0-1)
       volatility[i], // volatility
     ];
   }
@@ -274,7 +295,7 @@ export function createLabels(close: number[], horizon: number): Labels {
 }
 
 /**
- * Get the number of features in the feature matrix (Phase 4 update: 8 → 13)
+ * Get the number of features in the feature matrix (Phase 6 update: 14 → 15)
  *
  * Breakdown:
  * - 3 price ratio features (1d, 5d, 10d)
@@ -282,18 +303,21 @@ export function createLabels(close: number[], horizon: number): Labels {
  * - 6 event type features (one-hot encoded)
  * - 1 aspect score feature
  * - 1 ML score feature
+ * - 1 signal score feature
+ * - 1 sentiment availability feature (% of days with sentiment data)
  * - 1 volatility feature
  */
-export const FEATURE_COUNT = 13;
+export const FEATURE_COUNT = 15;
 
 /**
- * Get feature names in order (Phase 4 update)
+ * Get feature names in order (Phase 6 update)
  *
  * **Breakdown:**
  * - 3 price ratio features
  * - 1 volume feature
  * - 6 event type features (one-hot encoded)
- * - 2 sentiment features (aspect + ML)
+ * - 3 sentiment/signal features (aspect + ML + signal)
+ * - 1 sentiment availability feature
  * - 1 volatility feature
  */
 export const FEATURE_NAMES = [
@@ -309,6 +333,8 @@ export const FEATURE_NAMES = [
   'event_general',
   'aspect_score',
   'ml_score',
+  'signal_score',
+  'sentiment_availability',
   'volatility',
 ] as const;
 

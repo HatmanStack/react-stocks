@@ -11,14 +11,16 @@ import type { EventType } from '../../types/database.types';
  * - Price features: close prices (will be converted to price ratios internally)
  * - Volume: normalized volume
  * - Three-signal sentiment: eventType, aspectScore, mlScore
+ * - Signal score: metadata-based quality signal
  * - Volatility: calculated from close prices
  *
- * The feature matrix will contain 13 features:
+ * The feature matrix will contain 14 features:
  * - 3 price ratios (1d, 5d, 10d)
  * - 1 volume
  * - 6 event type features (one-hot encoded)
  * - 1 aspect score
  * - 1 ML score
+ * - 1 signal score
  * - 1 volatility
  */
 export interface PredictionInput {
@@ -48,6 +50,15 @@ export interface PredictionInput {
    * Defaults to 0 if not provided.
    */
   mlScore?: number[];
+
+  /**
+   * Signal score from metadata analysis.
+   * Range: 0 to 1 (higher = stronger signal quality)
+   * Combines publisher authority, headline quality, volume context, recency.
+   * Less weight in predictions than aspectScore/mlScore.
+   * Defaults to 0.5 if not provided.
+   */
+  signalScore?: number[];
 }
 
 /**

@@ -148,6 +148,17 @@ export interface SentimentCacheItem {
    */
   modelVersion?: string;
 
+  /**
+   * Signal score from cheap metadata analysis.
+   * Range: 0 (low signal) to 1 (high signal)
+   *
+   * Combines publisher authority, headline quality, volume context, and recency.
+   * Provides predictive value from non-material articles without expensive ML inference.
+   *
+   * @see signalScore.service.ts for calculation logic
+   */
+  signalScore?: number;
+
   // Metadata
   /** Unix timestamp (ms) when sentiment analysis was performed */
   analyzedAt: number;
@@ -239,6 +250,15 @@ export interface DailySentiment {
    * Useful for weighting avgMlScore in prediction model.
    */
   materialEventCount: number;
+
+  /**
+   * Average signal score across all articles for this day.
+   * Computed from publisher authority, headline quality, volume context, and recency.
+   *
+   * Range: 0 to 1 (higher = stronger signal)
+   * May be undefined if no articles have signal scores.
+   */
+  avgSignalScore?: number;
 }
 
 /**

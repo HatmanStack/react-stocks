@@ -85,11 +85,11 @@ export async function upsert(combinedWord: CombinedWordDetails): Promise<void> {
     INSERT OR REPLACE INTO ${TABLE_NAMES.COMBINED_WORD_DETAILS} (
       ticker, date, positive, negative, sentimentNumber,
       sentiment, nextDay, twoWks, oneMnth, updateDate,
-      eventCounts, avgAspectScore, avgMlScore, materialEventCount,
+      eventCounts, avgAspectScore, avgMlScore, avgSignalScore, materialEventCount,
       nextDayDirection, nextDayProbability,
       twoWeekDirection, twoWeekProbability,
       oneMonthDirection, oneMonthProbability
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   try {
@@ -108,6 +108,7 @@ export async function upsert(combinedWord: CombinedWordDetails): Promise<void> {
       combinedWord.eventCounts ?? null,
       combinedWord.avgAspectScore ?? null,
       combinedWord.avgMlScore ?? null,
+      combinedWord.avgSignalScore ?? null,
       combinedWord.materialEventCount ?? 0,
       // Phase 1: Prediction fields
       combinedWord.nextDayDirection ?? null,

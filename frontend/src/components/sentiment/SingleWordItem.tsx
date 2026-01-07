@@ -32,11 +32,19 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
   // Check if we have scores (only show aspect if non-zero)
   const hasAspectScore = item.aspectScore !== undefined && item.aspectScore !== null && item.aspectScore !== 0;
   const hasMlScore = item.mlScore !== undefined && item.mlScore !== null;
+  const hasSignalScore = item.signalScore !== undefined && item.signalScore !== null;
 
-  // Get sentiment color from score
+  // Get sentiment color from score (-1 to +1)
   const getSentimentColor = (score: number): string => {
     if (score > POSITIVE_THRESHOLD) return theme.colors.positive;
     if (score < NEGATIVE_THRESHOLD) return theme.colors.negative;
+    return theme.colors.neutral;
+  };
+
+  // Get signal color from score (0 to 1, higher is better)
+  const getSignalColor = (score: number): string => {
+    if (score >= 0.7) return theme.colors.positive;
+    if (score <= 0.4) return theme.colors.negative;
     return theme.colors.neutral;
   };
 
@@ -108,18 +116,35 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
             )}
           </View>
 
-          {/* Column 4: Aspect Score - right aligned */}
-          <View style={styles.columnRight}>
+          {/* Column 4: Aspect Score */}
+          <View style={styles.column}>
             {hasAspectScore && (
               <>
-                <Text variant="labelSmall" style={[styles.labelRight, { color: theme.colors.onSurfaceVariant }]}>
+                <Text variant="labelSmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
                   Aspect
                 </Text>
                 <Text
                   variant="titleMedium"
-                  style={[styles.scoreRight, { color: getSentimentColor(item.aspectScore!) }]}
+                  style={[styles.score, { color: getSentimentColor(item.aspectScore!) }]}
                 >
                   {formatScore(item.aspectScore!)}
+                </Text>
+              </>
+            )}
+          </View>
+
+          {/* Column 5: Signal Score - right aligned */}
+          <View style={styles.columnRight}>
+            {hasSignalScore && (
+              <>
+                <Text variant="labelSmall" style={[styles.labelRight, { color: theme.colors.onSurfaceVariant }]}>
+                  Signal
+                </Text>
+                <Text
+                  variant="titleMedium"
+                  style={[styles.scoreRight, { color: getSignalColor(item.signalScore!) }]}
+                >
+                  {item.signalScore!.toFixed(2)}
                 </Text>
               </>
             )}
@@ -161,19 +186,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   columnLeft: {
-    flex: 2,
+    flex: 1.5,
     alignItems: 'flex-start',
     justifyContent: 'center',
     minHeight: 36,
   },
   column: {
-    flex: 3,
+    flex: 2,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 36,
   },
   columnRight: {
-    flex: 2,
+    flex: 1.5,
     alignItems: 'flex-end',
     justifyContent: 'center',
     minHeight: 36,

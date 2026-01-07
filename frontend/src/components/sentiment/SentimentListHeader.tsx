@@ -12,19 +12,18 @@ export const SentimentListHeader: React.FC = () => {
 
   return (
     <View style={styles.wrapper}>
-      {/* Prediction explanation */}
-      <View style={[styles.explanationContainer, { backgroundColor: theme.colors.elevation.level1 }]}>
-        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-          Predictions show probability of price movement: 1D (next day), 2W (two weeks), 1M (one month)
-        </Text>
-      </View>
-
       {/* Column headers */}
       <View style={[styles.container, { backgroundColor: theme.colors.elevation.level2, borderBottomColor: theme.colors.outlineVariant }]}>
         <View style={styles.row}>
           <View style={styles.dateColumn}>
             <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
               Date
+            </Text>
+          </View>
+
+          <View style={styles.centerColumn}>
+            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+              Signal
             </Text>
           </View>
 
@@ -39,24 +38,6 @@ export const SentimentListHeader: React.FC = () => {
               Aspect
             </Text>
           </View>
-
-          <View style={styles.valueColumn}>
-            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
-              1D
-            </Text>
-          </View>
-
-          <View style={styles.valueColumn}>
-            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
-              2W
-            </Text>
-          </View>
-
-          <View style={styles.valueColumn}>
-            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
-              1M
-            </Text>
-          </View>
         </View>
       </View>
     </View>
@@ -66,13 +47,6 @@ export const SentimentListHeader: React.FC = () => {
 const styles = StyleSheet.create({
   wrapper: {
     marginTop: 8,
-  },
-  explanationContainer: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 8,
-    borderRadius: 8,
-    marginHorizontal: 4,
   },
   container: {
     paddingVertical: 10,
@@ -91,11 +65,6 @@ const styles = StyleSheet.create({
   centerColumn: {
     flex: 1,
     alignItems: 'center',
-    minWidth: 45,
-  },
-  valueColumn: {
-    flex: 1,
-    alignItems: 'flex-end',
     minWidth: 45,
   },
   headerText: {

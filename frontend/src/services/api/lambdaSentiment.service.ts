@@ -109,6 +109,13 @@ export interface DailySentiment {
    * Useful for weighting avgMlScore in prediction model.
    */
   materialEventCount: number;
+
+  /**
+   * Average signal score across all articles for this day.
+   * Range: 0 to 1 (higher = stronger signal)
+   * Combines publisher authority, headline quality, volume context, and recency.
+   */
+  avgSignalScore?: number;
 }
 
 /**
@@ -289,6 +296,7 @@ export interface ArticleSentimentItem {
   eventType?: string;  // EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
   aspectScore?: number;  // Aspect sentiment score (-1 to +1)
   mlScore?: number;  // ML model score (-1 to +1)
+  signalScore?: number;  // Signal score (0 to 1) from metadata analysis
 }
 
 /**

@@ -2,323 +2,284 @@
 
 ## Phase Goal
 
-Establish architecture decisions, design patterns, and infrastructure requirements for migrating from Tiingo to yfinance. This phase defines the "law" that all implementation phases follow.
+Establish the tools, methodology, and patterns for the code hygiene audit. Define what constitutes "dead code" and "inefficiency" in this codebase, and set up the analysis infrastructure.
 
 **Success Criteria:**
-- All architecture decisions documented
-- Testing strategy defined
-- Deployment script specifications complete
+- Tools installed and configured (knip, vulture)
+- Audit methodology documented
+- Entry points mapped
+- Analysis patterns defined
 
-**Estimated Tokens:** ~15,000
+**Estimated Tokens:** ~10,000
 
 ## Prerequisites
 
-- Access to AWS account with existing deployment
-- Understanding of current Tiingo integration (see exploration notes below)
+- Access to the codebase
+- Node.js 24.x installed
+- Python 3.13 with uv installed
+
+---
 
 ## Architecture Decisions (ADRs)
 
-### ADR-1: Python Lambda for yfinance
+### ADR-1: Conservative Cleanup Approach
 
-**Decision:** Create a new Python 3.13 Lambda function to handle stock-related endpoints using yfinance.
+**Decision:** Only remove dead code and unused imports. Preserve all comments, docstrings, and console.log statements.
 
-**Context:** yfinance is a Python library with no Node.js equivalent. The current backend is Node.js.
+**Context:** User requested conservative approach to avoid breaking production code.
 
-**Options Considered:**
-1. Chain Lambdas (Node.js → Python) - Rejected: adds latency, complexity
-2. Convert entire backend to Python - Rejected: too much scope creep
-3. Replace Node.js stock handlers with Python Lambda - **Selected**
-
-**Rationale:** Direct replacement minimizes latency. The Python Lambda handles stock routes; Node.js Lambda continues handling news, sentiment, and prediction routes.
+**Rationale:**
+- Minimizes risk of removing code that appears dead but has side effects
+- Preserves debugging capability
+- Allows incremental cleanup in future iterations
 
 **Consequences:**
-- Two Lambda functions in the stack (Python for stocks, Node.js for other routes)
-- Separate routing at API Gateway level
-- Independent scaling for stock vs. other endpoints
+- Some "noise" remains in codebase
+- Future phases can increase aggression if desired
 
-### ADR-2: Response Format Compatibility
+### ADR-2: Tool Selection
 
-**Decision:** Python Lambda transforms yfinance data to match existing Tiingo response format exactly.
+**Decision:** Use knip for TypeScript/JavaScript and vulture for Python.
 
-**Context:** Frontend expects specific field names and structures.
+**Tools Chosen:**
 
-**Rationale:** Zero frontend changes required. Transformation happens server-side in Python.
+| Tool | Language | Purpose |
+|------|----------|---------|
+| knip | TS/JS | Dead exports, unused files, unused dependencies |
+| vulture | Python | Unused functions, variables, imports |
 
-**Field Mappings:**
+**Rationale:**
+- knip is AST-aware and understands TypeScript/ESM
+- vulture is the standard Python dead code detector
+- Both integrate easily into CI if needed later
 
-| Tiingo Field | yfinance Source |
-|--------------|-----------------|
-| `date` | DataFrame index (datetime → ISO string) |
-| `open`, `high`, `low`, `close` | Same names |
-| `volume` | Same name |
-| `adjOpen`, `adjHigh`, `adjLow` | Derived from close ratio or set to OHLC values |
-| `adjClose` | yfinance `Adj Close` column |
-| `adjVolume` | Same as volume (yfinance doesn't provide) |
-| `divCash` | `Dividends` column or 0 |
-| `splitFactor` | `Stock Splits` column or 1 |
+**Alternatives Rejected:**
+- ts-prune: Less maintained, fewer features than knip
+- pylint: Too broad, not focused on dead code
+- ESLint unused rules: Don't catch cross-file dead exports
 
-| Tiingo Metadata | yfinance Source |
-|-----------------|-----------------|
-| `ticker` | Input ticker |
-| `name` | `info['shortName']` or `info['longName']` |
-| `exchangeCode` | `info['exchange']` |
-| `description` | `info['longBusinessSummary']` |
-| `startDate` | Not available (omit or use empty string) |
-| `endDate` | Not available (omit or use empty string) |
+### ADR-3: Runtime Inefficiency Patterns
 
-| Tiingo Search | yfinance Source |
-|---------------|-----------------|
-| `ticker` | `symbol` |
-| `name` | `shortname` |
-| `assetType` | `quoteType` |
-| `isActive` | Not available (omit or default `true`) |
+**Decision:** Manually identify runtime inefficiencies using pattern matching, not dynamic analysis.
 
-### ADR-3: Simplified Caching Strategy
+**Context:** Recent Finnhub rate limit issue was caused by legacy fallback code making 30 API calls per request. We need to find similar patterns.
 
-**Decision:** Keep basic DynamoDB caching, remove cache warming.
+**Patterns to Detect:**
 
-**Context:** Current implementation has:
-- 3-tier cache with 80% hit rate threshold
-- Scheduled cache warming (9 AM ET Mon-Fri)
-- TopTickersCacheTable for warming targets
+1. **N+1 API Calls** - Loops that make API calls per item instead of batch
+   ```typescript
+   // BAD: N calls
+   for (const date of dates) {
+     await fetchSentiment(ticker, date);
+   }
+   // GOOD: 1 call
+   await fetchSentimentBatch(ticker, dates);
+   ```
 
-**Changes:**
-- Keep StocksCacheTable with same schema
-- Keep cache check/store logic in handlers
-- Remove CacheWarmingFunction Lambda
-- Remove TopTickersCacheTable (only used by cache warming)
-- Remove cache warming scripts
+2. **Heavy Module Imports at Top Level** - Imports that slow cold starts
+   ```python
+   # BAD: Loads pandas on every cold start
+   import pandas as pd
 
-**Decision on TopTickersCacheTable:** Remove it. This table is only used by CacheWarmingFunction to store popular ticker lists. Since we're removing cache warming entirely, keeping this table would be dead infrastructure.
+   # GOOD: Lazy import
+   def get_pandas():
+       import pandas as pd
+       return pd
+   ```
 
-**Rationale:** Cache warming was optimizing for Tiingo API limits. yfinance has no API key or rate limits (uses Yahoo Finance public data). Simpler architecture, fewer moving parts.
+3. **Fallback Sync Patterns** - Code that syncs data "just in case"
+   ```typescript
+   // BAD: Always syncs even when not needed
+   if (localData.length === 0) {
+     await syncFromRemote(); // Hidden N+1
+   }
+   ```
 
-### ADR-4: Lambda Runtime Strategy
+4. **Redundant Metadata Fetches** - Fetching full metadata when partial suffices
+   ```typescript
+   // BAD: Fetches full metadata for each search result
+   const results = await search(query);
+   for (const r of results) {
+     await fetchMetadata(r.ticker); // Unnecessary!
+   }
+   ```
 
-**Decision:** Use Python 3.13 with standard `python3.13` runtime. SAM handles dependency bundling automatically.
+### ADR-4: Entry Point Mapping
 
-**Context:** yfinance has dependencies (pandas, numpy) but total package size fits within Lambda's 250MB limit.
+**Decision:** Map all entry points to trace reachable code.
 
-**Approach:**
-1. Define `requirements.txt` in Python code directory
-2. SAM builds and packages dependencies automatically
-3. No layers or containers needed
+**Entry Points Identified:**
 
-**Dependencies (in requirements.txt):**
-- yfinance
-- pandas
-- boto3 (explicit version for consistency)
+**Frontend:**
+- `frontend/app/_layout.tsx` - Root layout (initializes providers)
+- `frontend/app/(tabs)/*.tsx` - Tab screens
+- `frontend/src/hooks/*.ts` - Hooks (called from components)
+- `frontend/src/contexts/*.tsx` - Context providers
 
-**Note:** `requests` is a transitive dependency of yfinance, so it's available for the Yahoo Finance search API without explicit declaration.
+**Backend TypeScript:**
+- `backend/src/index.ts` - Main Lambda handler
+- Routes: `/news`, `/sentiment`, `/prediction`, `/events`, `/batch`
 
-### ADR-5: API Gateway Routing
+**Backend Python:**
+- `backend/python/index.py` - Python Lambda handler (stocks)
+- Routes: `/stocks`, `/search`, `/batch/stocks`
+- `backend/services/ml/handler.py` - ML service handler (DistilFinBERT)
+- `backend/services/ml/app.py` - ML application logic
 
-**Decision:** Route stock endpoints to Python Lambda, other endpoints to existing Node.js Lambda.
+**Tests:**
+- All `*.test.ts`, `*.test.tsx`, `test_*.py` files
 
-**Routes to Python Lambda:**
-- `GET /stocks` → Stock prices and metadata
-- `GET /search` → Ticker search
-- `POST /batch/stocks` → Batch stock prices
-
-**Routes remaining on Node.js Lambda:**
-- `GET /news` → Finnhub news
-- `POST /batch/news` → Batch news
-- `GET /sentiment`, `POST /sentiment`, etc. → Sentiment analysis
-- `POST /predict` → ML predictions
-
----
-
-## Tech Stack
-
-### Python Lambda
-- **Runtime:** Python 3.13
-- **Framework:** Standard Lambda handler (no framework needed)
-- **Data Provider:** yfinance library
-- **Database:** boto3 + DynamoDB (existing tables)
-- **Logging:** Python logging module
-
-### Existing Node.js Lambda (unchanged)
-- **Runtime:** Node.js 24.x
-- **Handlers:** news, sentiment, predict, batch news/sentiment
+**Scripts:**
+- `backend/scripts/*.sh`, `backend/scripts/*.ts`
 
 ---
 
-## Testing Strategy
+## Tool Configuration
 
-### Unit Tests (Python)
-- Test data transformation functions (yfinance → Tiingo format)
-- Test validation logic
-- Test error handling
-- Mock yfinance responses
-- Mock DynamoDB operations
+### knip Configuration
 
-**Framework:** pytest with pytest-mock
+Create `knip.json` in project root:
 
-### Integration Tests (Mocked)
-- Test Lambda handler with mocked yfinance and DynamoDB
-- Verify request/response format matches existing contract
-- Test cache hit/miss scenarios
-
-**Mocking approach:**
-- Use `unittest.mock` for yfinance
-- Use `moto` library for DynamoDB mocking
-
-### CI Pipeline
-- Run pytest with mocked dependencies
-- No live AWS resources needed
-- No yfinance API calls (mock responses)
-
----
-
-## Deployment Script Specifications
-
-### Current State
-The existing `backend/scripts/deploy.sh` handles:
-1. Interactive prompts for region, stack name, API keys
-2. Saves config to `.env.deploy`
-3. ML model setup and upload
-4. SAM build and deploy
-5. Updates frontend `.env` with API URL
-
-### Required Changes
-
-**New environment variable (optional):**
-- No new API keys needed (yfinance doesn't require authentication)
-- Remove prompts for TIINGO_API_KEY (can keep for backwards compatibility or remove)
-
-**Build step changes:**
-- Add Python dependencies packaging step
-- Build Lambda Layer or container image
-
-**Template parameter changes:**
-- Remove TiingoApiKey parameter
-- Keep FinnhubApiKey (still used for news)
-
-### Deploy Script Logic
-
-```
-1. Load .env.deploy if exists
-2. Prompt for region, stack name (keep existing)
-3. Prompt for Finnhub API key (keep existing)
-4. Remove Tiingo API key prompt (no longer needed)
-5. Save to .env.deploy
-6. Build ML service (existing)
-7. SAM build (handles both Node.js and Python automatically)
-8. Deploy with SAM
-9. Update frontend .env (existing)
-```
-
-**Note:** SAM automatically handles Python dependency packaging via `requirements.txt`. No manual layer creation needed.
-
----
-
-## Shared Patterns and Conventions
-
-### Python Code Style
-- Type hints for all functions
-- Docstrings for public functions
-- snake_case for functions/variables
-- PascalCase for classes
-- Use dataclasses for response types
-
-### Error Handling Pattern
-```python
-class APIError(Exception):
-    def __init__(self, message: str, status_code: int = 500):
-        self.message = message
-        self.status_code = status_code
-        super().__init__(message)
-```
-
-### Response Format Pattern
-```python
-def success_response(data: Any, meta: dict = None) -> dict:
-    body = {"data": data}
-    if meta:
-        body["_meta"] = meta
-    return {
-        "statusCode": 200,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(body)
+```json
+{
+  "workspaces": {
+    "frontend": {
+      "entry": [
+        "app/_layout.tsx",
+        "app/**/*.tsx",
+        "src/hooks/*.ts",
+        "src/contexts/*.tsx"
+      ],
+      "project": ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
+      "ignore": ["**/__tests__/**", "**/*.test.{ts,tsx}"]
+    },
+    "backend": {
+      "entry": ["src/index.ts", "scripts/*.ts"],
+      "project": ["src/**/*.ts"],
+      "ignore": ["**/__tests__/**", "**/*.test.ts"]
     }
-
-def error_response(message: str, status_code: int = 500) -> dict:
-    return {
-        "statusCode": status_code,
-        "headers": {"Content-Type": "application/json"},
-        "body": json.dumps({"error": message})
-    }
+  },
+  "ignoreDependencies": ["jest-expo", "@testing-library/*"]
+}
 ```
 
-### Logging Pattern
-```python
-import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+**Note:** Verify knip workspace syntax is compatible with your installed version. Run `npx knip --help` to confirm. The above uses knip v5+ syntax for npm workspaces.
 
-# Usage
-logger.info(f"[StocksHandler] Fetching prices for {ticker}")
-logger.error(f"[StocksHandler] Error: {error}", exc_info=True)
+### vulture Configuration
+
+Create `backend/vulture_whitelist.py` and use command-line:
+
+```bash
+# Analyze both Python directories
+vulture backend/python/ backend/services/ml/ \
+  --exclude "backend/python_tests/,__pycache__" \
+  --min-confidence 80 \
+  --whitelist backend/vulture_whitelist.py
+```
+
+**Whitelist file** (`backend/vulture_whitelist.py`):
+```python
+# Lambda handler entry points (called by AWS, appear unused locally)
+handler
+lambda_handler
+
+# Flask/WSGI entry points (ML service)
+app
+create_app
+
+# pytest fixtures
+conftest.py
 ```
 
 ---
 
-## File Structure (Target)
+## Audit Methodology
+
+### Step 1: Static Analysis (Dead Code)
+
+Run knip and vulture to identify:
+- Unused exports
+- Unused files
+- Unused dependencies
+- Unreachable functions/variables
+
+### Step 2: Runtime Pattern Analysis
+
+Manually grep for inefficiency patterns:
+
+```bash
+# Find potential N+1 loops
+grep -rn "for.*await" frontend/src/ backend/src/
+
+# Find sync/fetch in loops
+grep -rn "\.forEach.*await\|\.map.*await" frontend/src/ backend/src/
+
+# Find heavy imports at module level
+grep -rn "^import pandas\|^import yfinance\|^import torch" backend/python/
+```
+
+### Step 3: Verification
+
+For each identified issue:
+1. Trace the code path from entry points
+2. Verify it's truly dead (not dynamic imports, not side effects)
+3. Remove or flag for review
+
+### Step 4: Testing
+
+After each removal:
+1. Run `npm run lint` and `npm test`
+2. Run `pytest backend/python_tests/`
+3. Verify no regressions
+
+---
+
+## Shared Patterns
+
+### Safe Deletion Criteria
+
+Code is safe to delete if ALL of these are true:
+- [ ] Not referenced from any entry point (static analysis)
+- [ ] Not dynamically imported/required
+- [ ] No side effects on import (doesn't register handlers, etc.)
+- [ ] Not used by tests (unless test itself is orphaned)
+- [ ] Not a public API consumed by external code
+
+### Unsafe Patterns (Do Not Delete)
+
+- Event handlers registered at module level
+- Polyfills imported for side effects
+- Type declarations used only for inference
+- Config files referenced by tooling (not code)
+
+---
+
+## File Structure (Deliverables)
 
 ```
-backend/
-├── python/                      # NEW: Python Lambda source
-│   ├── handlers/
-│   │   ├── __init__.py
-│   │   ├── stocks.py           # /stocks endpoint
-│   │   ├── search.py           # /search endpoint
-│   │   └── batch.py            # /batch/stocks endpoint
-│   ├── services/
-│   │   ├── __init__.py
-│   │   └── yfinance_service.py # yfinance wrapper
-│   ├── repositories/
-│   │   ├── __init__.py
-│   │   └── stocks_cache.py     # DynamoDB cache operations
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   ├── response.py         # Response formatters
-│   │   ├── transform.py        # yfinance → Tiingo transforms
-│   │   └── error.py            # Error classes
-│   ├── types/
-│   │   ├── __init__.py
-│   │   └── stock_types.py      # Type definitions
-│   ├── index.py                # Lambda entry point (router)
-│   └── requirements.txt        # Python dependencies
-├── python_tests/               # NEW: Python tests
-│   ├── __init__.py
-│   ├── conftest.py             # pytest fixtures
-│   ├── test_stocks_handler.py
-│   ├── test_search_handler.py
-│   ├── test_batch_handler.py
-│   ├── test_yfinance_service.py
-│   └── test_transform.py
-├── src/                        # Existing Node.js (modified)
-│   ├── handlers/
-│   │   ├── stocks.handler.ts   # REMOVE or gut
-│   │   ├── search.handler.ts   # REMOVE
-│   │   ├── batch.handler.ts    # Keep batch news/sentiment only
-│   │   └── ...                 # Keep other handlers
-│   ├── services/
-│   │   ├── tiingo.service.ts   # REMOVE
-│   │   └── ...                 # Keep other services
-│   └── ...
-├── template.yaml               # Modified for dual Lambda
-└── scripts/
-    └── deploy.sh               # Modified for Python build
+/
+├── scripts/                   # NEW: Root-level scripts directory
+│   └── code-hygiene.sh        # NEW: Automated audit script (monorepo-level)
+├── knip.json                  # NEW: knip configuration
+├── backend/
+│   └── vulture_whitelist.py   # NEW: vulture whitelist (backend-specific)
+└── docs/
+    └── plans/
+        ├── README.md
+        ├── Phase-0.md
+        └── Phase-1.md
 ```
+
+**Note:** `scripts/` is created at root level (not `backend/scripts/`) because code-hygiene.sh is monorepo-level tooling that analyzes both frontend and backend.
 
 ---
 
 ## Phase Verification
 
 Phase 0 is complete when:
-- [ ] This document is reviewed and approved
-- [ ] All ADRs are understood and agreed upon
-- [ ] Testing strategy is clear
-- [ ] File structure is understood
+- [ ] This document is reviewed and understood
+- [ ] knip is installed (`npm install -D knip`)
+- [ ] vulture is installed (`uv pip install vulture`)
+- [ ] Entry points are understood
+- [ ] Inefficiency patterns are understood
 - [ ] Ready to proceed to Phase 1

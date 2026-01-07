@@ -93,6 +93,7 @@ export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
     eventCounts TEXT,
     avgAspectScore REAL,
     avgMlScore REAL,
+    avgSignalScore REAL,
     materialEventCount INTEGER DEFAULT 0,
     nextDayDirection TEXT,
     nextDayProbability REAL CHECK(nextDayProbability IS NULL OR (nextDayProbability >= 0 AND nextDayProbability <= 1)),
@@ -128,6 +129,9 @@ export const MIGRATE_PHASE_5_COLUMNS = `
 
   -- Add avgMlScore column (nullable)
   ALTER TABLE combined_word_count_details ADD COLUMN avgMlScore REAL;
+
+  -- Add avgSignalScore column (nullable)
+  ALTER TABLE combined_word_count_details ADD COLUMN avgSignalScore REAL;
 
   -- Add materialEventCount column (defaults to 0)
   ALTER TABLE combined_word_count_details ADD COLUMN materialEventCount INTEGER DEFAULT 0;

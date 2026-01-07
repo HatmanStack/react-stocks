@@ -15,6 +15,7 @@ import { SentimentChart } from '@/components/charts/SentimentChart';
 import { SentimentListHeader } from '@/components/sentiment/SentimentListHeader';
 import { SentimentListItem } from '@/components/sentiment/SentimentListItem';
 import { SingleWordItem } from '@/components/sentiment/SingleWordItem';
+import { PredictionSummaryCard } from '@/components/sentiment/PredictionSummaryCard';
 import { TimeRangeSelector } from '@/components/common/TimeRangeSelector';
 import type { TimeRange } from '@/components/common/TimeRangeSelector';
 import { Skeleton } from '@/components/common/Skeleton';
@@ -98,6 +99,10 @@ export default function SentimentScreen() {
           showsHorizontalScrollIndicator={false}
           ListHeaderComponent={() => (
             <>
+              <PredictionSummaryCard
+                latestRecord={sortedAggregateData[0] || null}
+                isLoading={isAggregateLoading}
+              />
               <View style={styles.chartContainer}>
                 {isAggregateLoading ? (
                   <Skeleton width="90%" height={220} style={styles.chartSkeleton} />
