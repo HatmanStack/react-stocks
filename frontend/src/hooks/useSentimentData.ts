@@ -10,28 +10,13 @@ import { useQuery } from '@tanstack/react-query';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
 import * as StockRepository from '@/database/repositories/stock.repository';
-import { syncSentimentData, updatePredictions } from '@/services/sync/sentimentDataSync';
+import { updatePredictions } from '@/services/sync/sentimentDataSync';
 import { getSentimentResults, getArticleSentiment, type DailySentiment } from '@/services/api/lambdaSentiment.service';
 import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
 import type { WordCountDetails, CombinedWordDetails, EventType } from '@/types/database.types';
 import { getStockPredictions, parsePredictionResponse } from '@/ml/prediction/prediction.service';
-
-/** Process items in batches with concurrency limit */
-async function processBatched<T, R>(
-  items: T[],
-  processor: (item: T) => Promise<R>,
-  batchSize: number = 5
-): Promise<PromiseSettledResult<R>[]> {
-  const results: PromiseSettledResult<R>[] = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const batchResults = await Promise.allSettled(batch.map(processor));
-    results.push(...batchResults);
-  }
-  return results;
-}
 
 interface Predictions {
     nextDay: { direction: 'up' | 'down'; probability: number };
@@ -136,10 +121,11 @@ async function generateBrowserPredictions(
     const closePrices = trimmedStocks.map(s => s.close);
     const volumes = trimmedStocks.map(s => s.volume);
 
-    // Extract three-signal sentiment data
+    // Extract three-signal sentiment data (defaults to neutral if not available)
     const eventTypes: EventType[] = [];
     const aspectScores: number[] = [];
     const mlScores: number[] = [];
+    const signalScores: number[] = [];
 
     for (const day of trimmedSentiment) {
       // Parse dominant event type from eventCounts JSON
@@ -159,7 +145,11 @@ async function generateBrowserPredictions(
       eventTypes.push(dominantEvent);
       aspectScores.push(day.avgAspectScore ?? 0);
       mlScores.push(day.avgMlScore ?? 0);
+      signalScores.push(day.avgSignalScore ?? 0.5); // Default 0.5 (neutral)
     }
+
+    // Calculate sentiment availability for logging
+    const sentimentAvailability = mlScores.filter(s => s !== 0).length / mlScores.length;
 
     console.log(`[Predictions] Feature extraction complete:`);
     console.log(`[Predictions]   - closePrices: ${closePrices.length} points, range: [${Math.min(...closePrices).toFixed(2)}, ${Math.max(...closePrices).toFixed(2)}]`);
@@ -167,6 +157,8 @@ async function generateBrowserPredictions(
     console.log(`[Predictions]   - eventTypes: ${eventTypes.length} (unique: ${[...new Set(eventTypes)].join(', ')})`);
     console.log(`[Predictions]   - aspectScores: ${aspectScores.length} (non-zero: ${aspectScores.filter(s => s !== 0).length})`);
     console.log(`[Predictions]   - mlScores: ${mlScores.length} (non-zero: ${mlScores.filter(s => s !== 0).length})`);
+    console.log(`[Predictions]   - signalScores: ${signalScores.length}`);
+    console.log(`[Predictions]   - sentimentAvailability: ${(sentimentAvailability * 100).toFixed(1)}%`);
 
     // Run browser-based logistic regression
     console.log(`[Predictions] Calling getStockPredictions...`);
@@ -179,7 +171,8 @@ async function generateBrowserPredictions(
       [], // deprecated
       eventTypes,
       aspectScores,
-      mlScores
+      mlScores,
+      signalScores
     );
     console.log(`[Predictions] Raw response:`, response);
 
@@ -290,6 +283,7 @@ function transformLambdaToLocal(
         avgAspectScore: day.avgAspectScore ?? null,
         avgMlScore: day.avgMlScore ?? null,
         materialEventCount: day.materialEventCount ?? 0,
+        avgSignalScore: day.avgSignalScore ?? null,
     };
 
     // Add Phase 2 prediction fields if this is the latest record and predictions exist
@@ -355,11 +349,11 @@ export function useSentimentData(
         endDate
       );
 
-      // Check data quality - must have sentiment scores populated
-      const hasQualityData = localData.length >= 10 &&
-        localData.some(item => item.sentimentNumber !== undefined || item.avgMlScore !== undefined);
+      // Check if we have enough data (10+ days)
+      // Sentiment features are optional - we can predict with just price data
+      const hasEnoughData = localData.length >= 10;
 
-      if (hasQualityData) {
+      if (hasEnoughData) {
         console.log(`[useSentimentData] Using ${localData.length} local records for ${ticker}`);
         sentimentData = localData;
       }
@@ -390,15 +384,9 @@ export function useSentimentData(
         sentimentData = localData;
       }
 
-      // STEP 3: If still no data, trigger local sentiment analysis as last resort
+      // STEP 3: If still no data, log warning (don't trigger local analysis - use backend instead)
       if (sentimentData.length === 0) {
-        console.log(`[useSentimentData] No data found, triggering local analysis for ${ticker}`);
-        const dates = [];
-        for (let d = new Date(startDate); d <= new Date(endDate); d.setDate(d.getDate() + 1)) {
-          dates.push(formatDateForDB(d));
-        }
-        await processBatched(dates, (date) => syncSentimentData(ticker, date), 5);
-        sentimentData = await CombinedWordRepository.findByTickerAndDateRange(ticker, startDate, endDate);
+        console.log(`[useSentimentData] No sentiment data found for ${ticker}. Backend analysis required.`);
       }
 
       // STEP 4: Generate predictions using browser-based logistic regression
@@ -548,6 +536,7 @@ export function useArticleSentiment(
               eventType: article.eventType as WordCountDetails['eventType'],
               aspectScore: article.aspectScore,
               mlScore: article.mlScore,
+              signalScore: article.signalScore,
             }));
 
             // Hydrate local DB for offline access (async, don't block)
@@ -613,13 +602,8 @@ export function useCurrentSentiment(ticker: string) {
       const allSentiment = await CombinedWordRepository.findByTicker(ticker);
 
       if (allSentiment.length === 0) {
-        // No sentiment exists, trigger analysis for today
-        const today = formatDateForDB(new Date());
-        console.log(`[useCurrentSentiment] No sentiment found, analyzing today (${today})`);
-        await syncSentimentData(ticker, today);
-
-        const newSentiment = await CombinedWordRepository.findByTicker(ticker);
-        return newSentiment.sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+        console.log(`[useCurrentSentiment] No sentiment found for ${ticker}. Backend analysis required.`);
+        return null;
       }
 
       // Sort by date descending and return the most recent
@@ -650,15 +634,9 @@ export function useSentimentByDate(ticker: string, date: string) {
         date
       );
 
-      // If no sentiment, trigger analysis for this date
       if (data.length === 0) {
-        await syncSentimentData(ticker, date);
-        const newData = await CombinedWordRepository.findByTickerAndDateRange(
-          ticker,
-          date,
-          date
-        );
-        return newData[0] || null;
+        console.log(`[useSentimentByDate] No sentiment for ${ticker} on ${date}. Backend analysis required.`);
+        return null;
       }
 
       return data[0] || null;

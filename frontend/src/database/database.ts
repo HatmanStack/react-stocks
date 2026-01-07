@@ -169,6 +169,12 @@ async function runMigrations(fromVersion: number): Promise<void> {
         await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgMlScore REAL`);
       }
 
+      // Add avgSignalScore column if it doesn't exist
+      if (!(await columnExists(tableName, 'avgSignalScore'))) {
+        console.log('[Database] Adding avgSignalScore column');
+        await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgSignalScore REAL`);
+      }
+
       // Add materialEventCount column if it doesn't exist
       if (!(await columnExists(tableName, 'materialEventCount'))) {
         console.log('[Database] Adding materialEventCount column');

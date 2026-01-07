@@ -121,6 +121,8 @@ export interface WordCountDetails {
   mlScore?: number;
   /** Materiality score (0 to 1) indicating how significant the news is */
   materialityScore?: number;
+  /** Signal score (0 to 1) from metadata analysis - publisher authority, headline quality, volume context */
+  signalScore?: number;
 }
 
 /**
@@ -199,6 +201,13 @@ export interface CombinedWordDetails {
    * Defaults to 0 if not present
    */
   materialEventCount?: number;
+
+  /**
+   * Average signal score across all articles for this day
+   * Range: 0 to 1 (higher = stronger signal)
+   * Combines publisher authority, headline quality, volume context, and recency
+   */
+  avgSignalScore?: number | null;
 }
 
 /**

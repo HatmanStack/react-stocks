@@ -9,7 +9,6 @@ import { Text } from 'react-native-paper';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import type { CombinedWordDetails } from '@/types/database.types';
 import { formatShortDate } from '@/utils/date/dateUtils';
-import { formatPercentage } from '@/utils/formatting/numberFormatting';
 import { MonoText } from '@/components/common';
 
 interface SentimentListItemProps {
@@ -32,32 +31,18 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
     return score !== null && score !== undefined && score < -0.1;
   };
 
-  const formatPrediction = (
-    direction?: 'up' | 'down',
-    probability?: number,
-    legacy?: number
-  ): { text: string; isUp: boolean; isDown: boolean } => {
-    if (direction && probability !== undefined) {
-      const arrow = direction === 'up' ? '↑' : '↓';
-      return {
-        text: `${arrow}${formatPercentage(probability)}`,
-        isUp: direction === 'up',
-        isDown: direction === 'down',
-      };
-    }
-    if (legacy && legacy !== 0) {
-      return {
-        text: formatPercentage(legacy / 100),
-        isUp: legacy > 0,
-        isDown: legacy < 0,
-      };
-    }
-    return { text: '—', isUp: false, isDown: false };
+  const isSignalPositive = (score: number | null | undefined): boolean => {
+    return score !== null && score !== undefined && score >= 0.7;
   };
 
-  const pred1D = formatPrediction(item.nextDayDirection, item.nextDayProbability, item.nextDay);
-  const pred2W = formatPrediction(item.twoWeekDirection, item.twoWeekProbability, item.twoWks);
-  const pred1M = formatPrediction(item.oneMonthDirection, item.oneMonthProbability, item.oneMnth);
+  const isSignalNegative = (score: number | null | undefined): boolean => {
+    return score !== null && score !== undefined && score <= 0.4;
+  };
+
+  const formatSignalScore = (score: number | null | undefined): string => {
+    if (score === null || score === undefined) return '—';
+    return score.toFixed(2);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surfaceVariant, borderBottomColor: theme.colors.outline }]}>
@@ -67,6 +52,18 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
           <Text variant="bodyMedium" style={[styles.text, { color: theme.colors.onSurface }]}>
             {formatShortDate(item.date)}
           </Text>
+        </View>
+
+        {/* Signal Score */}
+        <View style={styles.centerColumn}>
+          <MonoText
+            variant="price"
+            style={styles.text}
+            positive={isSignalPositive(item.avgSignalScore)}
+            negative={isSignalNegative(item.avgSignalScore)}
+          >
+            {formatSignalScore(item.avgSignalScore)}
+          </MonoText>
         </View>
 
         {/* Sentiment (ML Score) */}
@@ -90,42 +87,6 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
             negative={isScoreNegative(item.avgAspectScore)}
           >
             {formatScore(item.avgAspectScore)}
-          </MonoText>
-        </View>
-
-        {/* 1-Day Prediction */}
-        <View style={styles.valueColumn}>
-          <MonoText
-            variant="price"
-            style={styles.text}
-            positive={pred1D.isUp}
-            negative={pred1D.isDown}
-          >
-            {pred1D.text}
-          </MonoText>
-        </View>
-
-        {/* 2-Week Prediction */}
-        <View style={styles.valueColumn}>
-          <MonoText
-            variant="price"
-            style={styles.text}
-            positive={pred2W.isUp}
-            negative={pred2W.isDown}
-          >
-            {pred2W.text}
-          </MonoText>
-        </View>
-
-        {/* 1-Month Prediction */}
-        <View style={styles.valueColumn}>
-          <MonoText
-            variant="price"
-            style={styles.text}
-            positive={pred1M.isUp}
-            negative={pred1M.isDown}
-          >
-            {pred1M.text}
           </MonoText>
         </View>
       </View>
@@ -153,11 +114,6 @@ const styles = StyleSheet.create({
   centerColumn: {
     flex: 1,
     alignItems: 'center',
-    minWidth: 45,
-  },
-  valueColumn: {
-    flex: 1,
-    alignItems: 'flex-end',
     minWidth: 45,
   },
   text: {

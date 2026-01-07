@@ -134,6 +134,15 @@ export function aggregateDailySentiment(
         : undefined;
     const materialEventCount = mlScores.length;
 
+    // Average signal scores for all articles
+    const signalScores = daySentiments
+      .map((s) => s.signalScore)
+      .filter((score): score is number => score !== undefined);
+    const avgSignalScore =
+      signalScores.length > 0
+        ? signalScores.reduce((sum, score) => sum + score, 0) / signalScores.length
+        : undefined;
+
     dailySentiments.push({
       date,
       // Legacy fields
@@ -145,6 +154,7 @@ export function aggregateDailySentiment(
       avgAspectScore,
       avgMlScore,
       materialEventCount,
+      avgSignalScore,
     });
   }
 

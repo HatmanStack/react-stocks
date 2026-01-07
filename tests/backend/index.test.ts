@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 /**
  * Tests for Lambda handler entry point
+ * Note: /stocks, /search, /batch/stocks routes are now handled by Python Lambda
  */
 
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
@@ -55,10 +56,6 @@ describe('Lambda Handler', () => {
       expect(response.headers).toHaveProperty('Access-Control-Allow-Origin');
     });
 
-    // Note: Handlers are now implemented
-    // Handler-specific tests are in __tests__/handlers/stocks.handler.test.ts
-    // and __tests__/handlers/news.handler.test.ts
-
     it('should include CORS headers in all responses', async () => {
       const event = createMockEvent('/unknown');
       const response = await handler(event);
@@ -69,8 +66,9 @@ describe('Lambda Handler', () => {
   });
 
   describe('HTTP Method Validation', () => {
-    it('should reject POST requests', async () => {
-      const event = createMockEvent('/stocks', 'POST');
+    // Test with /news route (still handled by Node.js Lambda)
+    it('should reject POST requests to GET-only endpoints', async () => {
+      const event = createMockEvent('/news', 'POST');
       const response = await handler(event);
 
       expect(response.statusCode).toBe(405);
@@ -78,7 +76,7 @@ describe('Lambda Handler', () => {
     });
 
     it('should reject PUT requests', async () => {
-      const event = createMockEvent('/stocks', 'PUT');
+      const event = createMockEvent('/news', 'PUT');
       const response = await handler(event);
 
       expect(response.statusCode).toBe(405);
@@ -86,15 +84,15 @@ describe('Lambda Handler', () => {
     });
 
     it('should reject DELETE requests', async () => {
-      const event = createMockEvent('/stocks', 'DELETE');
+      const event = createMockEvent('/news', 'DELETE');
       const response = await handler(event);
 
       expect(response.statusCode).toBe(405);
       expect(response.body).toContain('not allowed');
     });
 
-    it('should accept GET requests', async () => {
-      const event = createMockEvent('/stocks', 'GET');
+    it('should accept GET requests to /news', async () => {
+      const event = createMockEvent('/news', 'GET');
       const response = await handler(event);
 
       // Should not return 405 (method not allowed)
@@ -134,7 +132,7 @@ describe('Lambda Handler', () => {
     });
 
     it('should log incoming requests', async () => {
-      const event = createMockEvent('/stocks');
+      const event = createMockEvent('/news');
 
       // Just verify handler runs without error
       const response = await handler(event);

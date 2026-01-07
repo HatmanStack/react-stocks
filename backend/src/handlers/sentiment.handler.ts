@@ -297,6 +297,7 @@ interface ArticleSentimentItem {
   eventType?: string;  // Article category: EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
   aspectScore?: number;  // Aspect-based sentiment score (-1 to +1)
   mlScore?: number;  // MlSentiment ML model score (-1 to +1) for material events
+  signalScore?: number;  // Signal score (0 to 1) from publisher authority, headline quality, etc.
 }
 
 /**
@@ -377,6 +378,7 @@ export async function handleArticleSentimentRequest(
           eventType: s.eventType,
           aspectScore: s.aspectScore,
           mlScore: s.mlScore,
+          signalScore: s.signalScore,
         };
       })
       .filter((a): a is NonNullable<typeof a> => a !== null)

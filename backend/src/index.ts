@@ -56,16 +56,8 @@ export async function handler(
 
   try {
     // Route to appropriate handler based on path (wrap in blocks to prevent scope leakage)
+    // Note: /stocks, /search, /batch/stocks are now handled by Python Lambda
     switch (path) {
-      case '/stocks': {
-        // GET only
-        if (method !== 'GET') {
-          return errorResponse(`Method ${method} not allowed for /stocks`, 405);
-        }
-        const { handleStocksRequest } = await import('./handlers/stocks.handler');
-        return handleStocksRequest(event);
-      }
-
       case '/news': {
         // GET only
         if (method !== 'GET') {
@@ -73,15 +65,6 @@ export async function handler(
         }
         const { handleNewsRequest } = await import('./handlers/news.handler');
         return handleNewsRequest(event);
-      }
-
-      case '/search': {
-        // GET only
-        if (method !== 'GET') {
-          return errorResponse(`Method ${method} not allowed for /search`, 405);
-        }
-        const { handleSearchRequest } = await import('./handlers/search.handler');
-        return handleSearchRequest(event);
       }
 
       case '/sentiment': {
@@ -104,15 +87,6 @@ export async function handler(
         }
         const { predictionHandler } = await import('./handlers/prediction.handler');
         return predictionHandler(event);
-      }
-
-      case '/batch/stocks': {
-        // POST only
-        if (method !== 'POST') {
-          return errorResponse(`Method ${method} not allowed for /batch/stocks`, 405);
-        }
-        const { handleBatchStocksRequest } = await import('./handlers/batch.handler');
-        return handleBatchStocksRequest(event);
       }
 
       case '/batch/news': {

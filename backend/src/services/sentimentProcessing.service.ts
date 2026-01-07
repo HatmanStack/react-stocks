@@ -16,6 +16,7 @@ import { aggregateDailySentiment, type DailySentiment } from '../utils/sentiment
 import { classifyEvent } from './eventClassification.service.js';
 import { analyzeAspects } from './aspectAnalysis.service.js';
 import { getMlSentiment } from './mlSentiment.service.js';
+import { calculateSignalScoresBatch, type ArticleMetadata } from './signalScore.service.js';
 import { isMaterialEvent } from '../types/event.types.js';
 import type { EventType } from '../types/event.types.js';
 import type {
@@ -290,6 +291,31 @@ async function analyzeArticles(
     eventTypes: eventTypeCounts,
   });
 
+  // Calculate signal scores for all articles (cheap, no API calls)
+  const articleMetadata: ArticleMetadata[] = articles.map((item) => ({
+    publisher: item.article.publisher,
+    title: item.article.title || '',
+    date: item.article.date,
+  }));
+  const signalScoreResults = calculateSignalScoresBatch(articleMetadata);
+
+  // Create map of article index -> signal score
+  const signalScoreMap = new Map<string, number>();
+  articles.forEach((item, index) => {
+    const result = signalScoreResults.get(index);
+    if (result) {
+      signalScoreMap.set(item.articleHash, result.score);
+    }
+  });
+
+  console.log('[SentimentProcessingService] Signal scores calculated:', {
+    ticker,
+    totalArticles: articles.length,
+    avgSignalScore: signalScoreMap.size > 0
+      ? (Array.from(signalScoreMap.values()).reduce((a, b) => a + b, 0) / signalScoreMap.size).toFixed(2)
+      : 'N/A',
+  });
+
   // NEW (Phase 2): Analyze aspects for all articles
   const aspectAnalysisStartTime = Date.now();
   const aspectAnalysisResults = await Promise.allSettled(
@@ -444,11 +470,12 @@ async function analyzeArticles(
     try {
       const sentimentResults = await analyzeSentimentBatch(articlesForAnalysis);
 
-      // Convert to cache format (with event types, aspect scores, and MlSentiment scores)
+      // Convert to cache format (with event types, aspect scores, MlSentiment scores, and signal scores)
       const cacheItems: Omit<SentimentCacheItem, 'ttl'>[] = sentimentResults.map(
         (result) => {
           const aspectData = aspectScoreMap.get(result.articleHash);
           const mlScore = mlScoreMap.get(result.articleHash);
+          const signalScore = signalScoreMap.get(result.articleHash);
 
           return {
             ticker,
@@ -467,6 +494,8 @@ async function analyzeArticles(
             aspectBreakdown: aspectData?.breakdown,
             // NEW (Phase 3): Include MlSentiment score (undefined if not material event or failed)
             mlScore: mlScore ?? undefined,
+            // Signal score from metadata analysis
+            signalScore: signalScore,
           };
         }
       );
@@ -497,6 +526,7 @@ async function analyzeArticles(
       const sentimentResult = await analyzeSentiment(article.text, article.hash);
       const aspectData = aspectScoreMap.get(sentimentResult.articleHash);
       const mlScore = mlScoreMap.get(sentimentResult.articleHash);
+      const signalScore = signalScoreMap.get(sentimentResult.articleHash);
 
       return {
         ticker,
@@ -515,6 +545,8 @@ async function analyzeArticles(
         aspectBreakdown: aspectData?.breakdown,
         // NEW (Phase 3): Include MlSentiment score
         mlScore: mlScore ?? undefined,
+        // Signal score from metadata analysis
+        signalScore: signalScore,
       } as Omit<SentimentCacheItem, 'ttl'>;
     })
   );

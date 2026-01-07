@@ -21,6 +21,7 @@ export interface ArticleAnalysisDataItem {
   aspectScore?: number;
   mlScore?: number;
   materialityScore?: number;
+  signalScore?: number;
   title?: string;
   articleUrl?: string;
   publisher?: string;
@@ -32,6 +33,7 @@ export interface DailySentimentAggregateItem {
   eventCounts: Record<string, number>;
   avgAspectScore?: number;
   avgMlScore?: number;
+  avgSignalScore?: number;
   materialEventCount?: number;
   nextDayDirection?: 'up' | 'down';
   nextDayProbability?: number;
