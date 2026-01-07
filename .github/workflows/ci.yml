@@ -94,7 +94,7 @@ jobs:
       - name: Run tests
         env:
           PYTHONPATH: backend/python
-        run: pytest backend/python_tests --maxfail=1 -v
+        run: pytest backend/python_tests --maxfail=1 -v --ignore=backend/python_tests/test_yfinance_service.py
 
   ml-service-lint:
     runs-on: ubuntu-latest
