@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 
 from handlers.stocks import handle_prices_request
-from utils.response import error_response
+from utils.response import error_response, get_cors_headers as base_get_cors_headers
 from utils.error import APIError
 
 logger = logging.getLogger(__name__)
@@ -25,16 +25,9 @@ DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 def get_cors_headers() -> dict[str, str]:
     """Get CORS headers including batch limit."""
-    import os
-
-    allowed_origins = os.environ.get("ALLOWED_ORIGINS", "*")
-    return {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": allowed_origins,
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "X-Batch-Limit": str(MAX_TICKERS),
-    }
+    headers = base_get_cors_headers()
+    headers["X-Batch-Limit"] = str(MAX_TICKERS)
+    return headers
 
 
 def handle_batch_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
