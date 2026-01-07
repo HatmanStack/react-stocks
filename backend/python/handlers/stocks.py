@@ -5,7 +5,7 @@ Handles GET /stocks requests for prices and metadata.
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from services.yfinance_service import fetch_stock_prices, fetch_symbol_metadata
@@ -34,8 +34,7 @@ def generate_date_range(start_date: str, end_date: str) -> list[str]:
     current = start
     while current <= end:
         dates.append(current.strftime("%Y-%m-%d"))
-        current = current.replace(day=current.day + 1) if current.day < 28 else \
-            datetime(current.year, current.month, current.day) + __import__('datetime').timedelta(days=1)
+        current = current + timedelta(days=1)
     return dates
 
 
