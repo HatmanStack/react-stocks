@@ -1,6 +1,5 @@
 """Tests for search handler."""
 
-import pytest
 import json
 import os
 import sys

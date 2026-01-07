@@ -1,7 +1,6 @@
 """Tests for Lambda router (index.py)."""
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class TestRouter:

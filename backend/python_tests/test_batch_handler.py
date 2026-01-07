@@ -1,6 +1,5 @@
 """Tests for batch stocks handler."""
 
-import pytest
 import json
 import os
 import sys

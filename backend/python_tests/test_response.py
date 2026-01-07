@@ -1,13 +1,12 @@
 """Tests for response utilities."""
 
-import pytest
 import json
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "python"))
 
-from utils.response import success_response, error_response, get_cors_headers
+from utils.response import success_response, error_response
 from utils.error import APIError
 
 
