@@ -26,12 +26,17 @@ TTL_CURRENT = 1 * 24 * 60 * 60  # 1 day for current data
 _dynamodb = None
 
 
-def _get_table():
-    """Get DynamoDB table resource (lazy initialization)."""
+def _get_dynamodb():
+    """Get DynamoDB resource (lazy initialization)."""
     global _dynamodb
     if _dynamodb is None:
         _dynamodb = boto3.resource("dynamodb")
-    return _dynamodb.Table(TABLE_NAME)
+    return _dynamodb
+
+
+def _get_table():
+    """Get DynamoDB table resource (lazy initialization)."""
+    return _get_dynamodb().Table(TABLE_NAME)
 
 
 def calculate_ttl(date_str: str) -> int:
@@ -126,7 +131,7 @@ def batch_get_stocks(ticker: str, dates: list[str]) -> list[dict[str, Any]]:
         return []
 
     try:
-        dynamodb = boto3.resource("dynamodb")
+        dynamodb = _get_dynamodb()
         results = []
 
         # Process in batches of 100 (DynamoDB BatchGetItem limit)
