@@ -237,10 +237,11 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   // Use signal scores or default to 0.5 (neutral)
   const signalScores = signalScore ?? Array(n).fill(0.5);
 
-  // Calculate sentiment availability (% of days with non-zero mlScore)
+  // Calculate sentiment availability (% of days with mlScore data)
   // This is a stock-level metric, same for all rows
+  // Note: 0 is a valid neutral score, so only exclude null/undefined
   const sentimentAvailability = mlScore
-    ? mlScore.filter((s) => s !== null && s !== undefined && s !== 0).length / n
+    ? mlScore.filter((s) => s !== null && s !== undefined).length / n
     : 0;
 
   // Build feature matrix (15 features)
