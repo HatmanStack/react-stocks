@@ -49,21 +49,19 @@ echo ""
 
 # [3/4] TypeScript lint check
 echo -e "${YELLOW}[3/4] Checking TypeScript lint...${NC}"
-if cd frontend && npx expo lint 2>&1 | grep -q "error"; then
+if (cd frontend && npx expo lint 2>&1 | grep -q "error"); then
     echo -e "${RED}  ✗ ESLint errors found in frontend${NC}"
     FAILED=1
 else
     echo -e "${GREEN}  ✓ Frontend lint passed${NC}"
 fi
-cd - > /dev/null
 
-if cd backend && npm run lint 2>&1 | grep -q "error"; then
+if (cd backend && npm run lint 2>&1 | grep -q "error"); then
     echo -e "${RED}  ✗ ESLint errors found in backend${NC}"
     FAILED=1
 else
     echo -e "${GREEN}  ✓ Backend lint passed${NC}"
 fi
-cd - > /dev/null
 echo ""
 
 # [4/4] Python lint check
