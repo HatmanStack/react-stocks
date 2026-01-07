@@ -1,0 +1,20 @@
+{
+  "workspaces": {
+    "frontend": {
+      "entry": [
+        "app/_layout.tsx",
+        "app/**/*.tsx",
+        "src/hooks/*.ts",
+        "src/contexts/*.tsx"
+      ],
+      "project": ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
+      "ignore": ["**/__tests__/**", "**/*.test.{ts,tsx}"]
+    },
+    "backend": {
+      "entry": ["src/index.ts", "scripts/*.ts"],
+      "project": ["src/**/*.ts"],
+      "ignore": ["**/__tests__/**", "**/*.test.ts"]
+    }
+  },
+  "ignoreDependencies": ["jest-expo", "@testing-library/*"]
+}
