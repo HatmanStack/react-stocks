@@ -92,6 +92,12 @@ export interface ScalerParams {
 }
 
 /**
+ * Sample weights for weighted training
+ * Higher weights give more importance to specific samples
+ */
+export type SampleWeights = number[];
+
+/**
  * Training options for logistic regression
  */
 export interface TrainingOptions {
@@ -100,6 +106,8 @@ export interface TrainingOptions {
   regularization?: number; // L2 regularization strength (C parameter)
   tolerance?: number; // Convergence tolerance
   verbose?: boolean;
+  sampleWeights?: SampleWeights; // Per-sample weights for weighted training
+  classWeight?: 'balanced' | { [key: number]: number }; // Class weighting strategy
 }
 
 /**

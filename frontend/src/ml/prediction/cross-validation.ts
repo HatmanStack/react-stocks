@@ -4,7 +4,7 @@
  * K-Fold cross-validation for model evaluation.
  */
 
-import type { FeatureMatrix, Labels, CVFold, CVResults } from './types';
+import type { FeatureMatrix, Labels, CVFold, CVResults, TrainingOptions } from './types';
 import { LogisticRegression } from './model';
 
 /**
@@ -136,14 +136,15 @@ export class LogisticRegressionCV extends LogisticRegression {
    * Train model with K-fold cross-validation
    *
    * 1. Performs K-fold CV to evaluate model
-   * 2. Trains final model on all data
+   * 2. Trains final model on all data with provided options
    * 3. Stores CV scores for inspection
    *
    * @param X - Feature matrix
    * @param y - Labels
    * @param k - Number of folds (default: 8)
+   * @param options - Training options (passed to final fit)
    */
-  fitCV(X: FeatureMatrix, y: Labels, k: number = 8): void {
+  fitCV(X: FeatureMatrix, y: Labels, k: number = 8, options?: TrainingOptions): void {
     if (X.length === 0 || y.length === 0) {
       throw new Error('LogisticRegressionCV: Cannot fit on empty data');
     }
@@ -154,16 +155,19 @@ export class LogisticRegressionCV extends LogisticRegression {
       );
     }
 
-    // Perform cross-validation
+    // Perform cross-validation (without sample weights for fair evaluation)
     this.cvResults = crossValidate(X, y, k);
 
-    // Train final model on all data
-    super.fit(X, y, {
-      maxIterations: 1000,
-      learningRate: 0.01,
-      regularization: 1.0,
-      tolerance: 1e-4,
-    });
+    // Train final model on all data with provided options
+    const finalOptions: TrainingOptions = {
+      maxIterations: options?.maxIterations ?? 1000,
+      learningRate: options?.learningRate ?? 0.01,
+      regularization: options?.regularization ?? 1.0,
+      tolerance: options?.tolerance ?? 1e-4,
+      sampleWeights: options?.sampleWeights,
+      classWeight: options?.classWeight,
+    };
+    super.fit(X, y, finalOptions);
   }
 
   /**

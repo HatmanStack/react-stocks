@@ -69,10 +69,35 @@ export async function handleNewsWithCache(
 
     console.log(`[NewsHandler] Found ${cachedInRange.length} cached articles for ${ticker} (${from} to ${to})`);
 
+    // Calculate date range coverage
+    const fromDate = new Date(from);
+    const toDate = new Date(to);
+    const totalDays = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    // Count unique days with articles
+    const daysWithArticles = new Set(cachedInRange.map(item => item.article.date)).size;
+    const coverageRatio = daysWithArticles / totalDays;
+
+    console.log(`[NewsHandler] Coverage: ${daysWithArticles}/${totalDays} days (${(coverageRatio * 100).toFixed(1)}%)`);
+
     // Tier 2: Determine if we need to fetch from API
-    // If we have at least 10 recent articles cached, use cache
-    if (cachedInRange.length >= 10) {
-      console.log(`[NewsHandler] Cache hit for ${ticker}: ${cachedInRange.length} articles`);
+    // Adaptive coverage threshold based on date range:
+    // - Short ranges (< 60 days): require 30% coverage (news doesn't come every day)
+    // - Medium ranges (60-180 days): require 15% coverage
+    // - Long ranges (> 180 days): require 10 articles AND at least 15 unique days
+    //   (Finnhub returns max ~250 articles, so coverage % is naturally lower for long ranges)
+    let hasGoodCoverage: boolean;
+    if (totalDays <= 60) {
+      hasGoodCoverage = cachedInRange.length >= 10 && coverageRatio >= 0.3;
+    } else if (totalDays <= 180) {
+      hasGoodCoverage = cachedInRange.length >= 10 && coverageRatio >= 0.15;
+    } else {
+      // For long ranges, just check we have reasonable data (15+ unique days)
+      hasGoodCoverage = cachedInRange.length >= 10 && daysWithArticles >= 15;
+    }
+
+    if (hasGoodCoverage) {
+      console.log(`[NewsHandler] Cache hit for ${ticker}: ${cachedInRange.length} articles with ${(coverageRatio * 100).toFixed(1)}% coverage`);
 
       // Log metrics for cache hit
       logMetrics(

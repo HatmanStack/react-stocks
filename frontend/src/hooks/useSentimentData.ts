@@ -11,7 +11,7 @@ import * as WordCountRepository from '@/database/repositories/wordCount.reposito
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
 import * as StockRepository from '@/database/repositories/stock.repository';
 import { updatePredictions } from '@/services/sync/sentimentDataSync';
-import { getSentimentResults, getArticleSentiment, type DailySentiment } from '@/services/api/lambdaSentiment.service';
+import { getSentimentResults, getArticleSentiment, fetchLambdaNews, triggerSentimentAnalysis, type DailySentiment } from '@/services/api/lambdaSentiment.service';
 import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
@@ -47,9 +47,16 @@ async function generateBrowserPredictions(
       return null;
     }
 
-    // Get stock price data from local SQLite
-    const stockData = await StockRepository.findByTicker(ticker);
-    console.log(`[Predictions] Stock data length: ${stockData.length}`);
+    // HOLE 4 FIX: Get stock price data for the relevant date range only (not all history)
+    // Extend range slightly to ensure we have enough data for alignment
+    const sentimentMinDate = sentimentData.reduce((a, b) => a.date < b.date ? a : b).date;
+    const sentimentMaxDate = sentimentData.reduce((a, b) => a.date > b.date ? a : b).date;
+    const stockData = await StockRepository.findByTickerAndDateRange(
+      ticker,
+      sentimentMinDate,
+      sentimentMaxDate
+    );
+    console.log(`[Predictions] Stock data length: ${stockData.length} (for range ${sentimentMinDate} to ${sentimentMaxDate})`);
 
     if (stockData.length < MIN_PREDICTION_DATA) {
       console.log(`[Predictions] FAIL: Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_PREDICTION_DATA})`);
@@ -349,38 +356,102 @@ export function useSentimentData(
         endDate
       );
 
-      // Check if we have enough data (10+ days)
-      // Sentiment features are optional - we can predict with just price data
-      const hasEnoughData = localData.length >= 10;
+      // HOLE 2 FIX: Check coverage ratio (not just record count)
+      // HOLE 3 FIX: Check data freshness
+      const hasPhase5Data = localData.some(d => d.avgSignalScore != null || d.avgMlScore != null);
+
+      // Coverage: expect ~70% of days to have data (weekends excluded)
+      const expectedDays = days * 0.7;
+      const coverageRatio = localData.length / expectedDays;
+      const hasGoodCoverage = coverageRatio >= 0.5; // At least 50% of expected
+
+      // Freshness: check if latest record is recent (within 1 day)
+      const today = formatDateForDB(new Date());
+      const yesterday = formatDateForDB(subDays(new Date(), 1));
+      const latestLocalDate = localData.length > 0
+        ? localData.reduce((a, b) => a.date > b.date ? a : b).date
+        : null;
+      const isFresh = latestLocalDate && latestLocalDate >= yesterday;
+
+      const hasEnoughData = localData.length >= 10 && hasPhase5Data && hasGoodCoverage && isFresh;
 
       if (hasEnoughData) {
-        console.log(`[useSentimentData] Using ${localData.length} local records for ${ticker}`);
+        console.log(`[useSentimentData] Using ${localData.length} local records for ${ticker} (coverage: ${(coverageRatio * 100).toFixed(0)}%, latest: ${latestLocalDate})`);
         sentimentData = localData;
       }
       // STEP 2: Fall back to backend API if local data insufficient
-      else if (Environment.USE_LAMBDA_SENTIMENT) {
+      if (!hasEnoughData && Environment.USE_LAMBDA_SENTIMENT) {
+        // Log why we're not using local data
+        const reasons = [];
+        if (localData.length < 10) reasons.push(`only ${localData.length} records`);
+        if (localData.length >= 10 && !hasPhase5Data) reasons.push('lacks Phase 5 fields');
+        if (localData.length >= 10 && !hasGoodCoverage) reasons.push(`low coverage (${(coverageRatio * 100).toFixed(0)}%)`);
+        if (localData.length >= 10 && !isFresh) reasons.push(`stale (latest: ${latestLocalDate || 'none'})`);
+        console.log(`[useSentimentData] Local data insufficient: ${reasons.join(', ')}. Fetching from backend for ${startDate} to ${endDate}`);
+
         try {
-          console.log(`[useSentimentData] Local data insufficient (${localData.length}), fetching from backend`);
+          // First fetch news for the date range (required for sentiment)
+          try {
+            console.log(`[useSentimentData] Fetching news for extended date range...`);
+            await fetchLambdaNews(ticker, startDate, endDate);
+            // Trigger sentiment analysis for new news
+            const triggerResult = await triggerSentimentAnalysis({ ticker, startDate, endDate });
+
+            // HOLE 1 FIX: Wait for job to complete if not already done
+            if (triggerResult.status !== 'COMPLETED') {
+              console.log(`[useSentimentData] Sentiment job ${triggerResult.jobId} is ${triggerResult.status}, waiting...`);
+              // Wait for processing (sentiment analysis typically takes 2-5 seconds)
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+          } catch (newsErr) {
+            console.warn(`[useSentimentData] News/sentiment fetch failed: ${newsErr}`);
+          }
+
           const lambdaResults = await getSentimentResults(ticker, startDate, endDate);
 
           if (lambdaResults.dailySentiment.length > 0) {
             console.log(`[useSentimentData] Backend returned ${lambdaResults.dailySentiment.length} records`);
 
-            // Transform backend format to local format (without predictions - we generate those locally)
+            // Transform backend format to local format
             sentimentData = transformLambdaToLocal(lambdaResults.dailySentiment, ticker);
 
-            // Hydrate local DB for offline access (async, don't block)
-            Promise.all(sentimentData.map(record => CombinedWordRepository.upsert(record)))
-              .then(() => console.log(`[useSentimentData] Hydrated local DB`))
-              .catch(err => console.warn('[useSentimentData] Failed to hydrate local DB:', err));
+            // Don't preserve predictions - regenerate fresh with new data
+            // This ensures predictions update when timeframe changes
+
+            // HOLE 6 FIX: Hydrate local DB with better error handling
+            // Run in background but track success/failure
+            (async () => {
+              try {
+                let successCount = 0;
+                let failCount = 0;
+                for (const record of sentimentData) {
+                  try {
+                    await CombinedWordRepository.upsert(record);
+                    successCount++;
+                  } catch (err) {
+                    failCount++;
+                  }
+                }
+                if (failCount > 0) {
+                  console.warn(`[useSentimentData] Hydration partial: ${successCount} succeeded, ${failCount} failed`);
+                } else {
+                  console.log(`[useSentimentData] Hydrated local DB: ${successCount} records`);
+                }
+              } catch (err) {
+                console.warn('[useSentimentData] Hydration failed:', err);
+              }
+            })();
           }
         } catch (error) {
           console.warn('[useSentimentData] Backend unavailable:', error);
           // Use whatever local data we have
-          sentimentData = localData;
+          if (localData.length > 0) {
+            sentimentData = localData;
+          }
         }
-      } else {
-        // No backend configured, use local data
+      } else if (!hasEnoughData) {
+        // No backend configured, use whatever local data we have
+        console.log(`[useSentimentData] No backend configured, using ${localData.length} local records`);
         sentimentData = localData;
       }
 
@@ -499,19 +570,42 @@ export function useArticleSentiment(
         (item) => item.date >= startDate && item.date <= endDate
       );
 
-      // Check data quality - must have publisher/date/url fields populated
-      const hasQualityData = localData.length >= 5 &&
-        localData.some(item => item.publisher && item.url);
+      // HOLE 5 FIX: Check data quality with coverage and freshness
+      const hasPhase5Data = localData.some(item => item.signalScore != null || item.mlScore != null);
+      const hasPublisherData = localData.some(item => item.publisher && item.url);
+
+      // Coverage: expect ~2 articles per day on average
+      const expectedArticles = days * 2;
+      const coverageRatio = localData.length / expectedArticles;
+      const hasGoodCoverage = coverageRatio >= 0.3; // At least 30% of expected
+
+      // Freshness: check if latest article is recent
+      const yesterday = formatDateForDB(subDays(new Date(), 1));
+      const latestLocalDate = localData.length > 0
+        ? localData.reduce((a, b) => a.date > b.date ? a : b).date
+        : null;
+      const isFresh = latestLocalDate && latestLocalDate >= yesterday;
+
+      const hasQualityData = localData.length >= 5 && hasPublisherData &&
+        hasPhase5Data && hasGoodCoverage && isFresh;
 
       if (hasQualityData) {
-        console.log(`[useArticleSentiment] Using ${localData.length} local articles for ${ticker}`);
+        console.log(`[useArticleSentiment] Using ${localData.length} local articles for ${ticker} (coverage: ${(coverageRatio * 100).toFixed(0)}%, latest: ${latestLocalDate})`);
         return localData;
       }
 
       // STEP 2: Fall back to backend API if local data insufficient
       if (Environment.USE_LAMBDA_SENTIMENT) {
+        // Log why we're not using local data
+        const reasons = [];
+        if (localData.length < 5) reasons.push(`only ${localData.length} articles`);
+        if (localData.length >= 5 && !hasPublisherData) reasons.push('missing publisher data');
+        if (localData.length >= 5 && !hasPhase5Data) reasons.push('lacks Phase 5 fields');
+        if (localData.length >= 5 && !hasGoodCoverage) reasons.push(`low coverage (${(coverageRatio * 100).toFixed(0)}%)`);
+        if (localData.length >= 5 && !isFresh) reasons.push(`stale (latest: ${latestLocalDate || 'none'})`);
+
         try {
-          console.log(`[useArticleSentiment] Local data insufficient (${localData.length}), fetching from backend`);
+          console.log(`[useArticleSentiment] Local data insufficient: ${reasons.join(', ')}. Fetching from backend`);
           const lambdaResults = await getArticleSentiment(ticker, startDate, endDate);
 
           if (lambdaResults.articles.length > 0) {
@@ -539,17 +633,34 @@ export function useArticleSentiment(
               signalScore: article.signalScore,
             }));
 
-            // Hydrate local DB for offline access (async, don't block)
-            Promise.all(
-              transformed.map(async (record) => {
-                const exists = await WordCountRepository.existsByHash(record.hash);
-                if (!exists) {
-                  await WordCountRepository.insert(record);
+            // HOLE 6 FIX: Hydrate local DB with better error handling
+            (async () => {
+              try {
+                let insertCount = 0;
+                let skipCount = 0;
+                let failCount = 0;
+                for (const record of transformed) {
+                  try {
+                    const exists = await WordCountRepository.existsByHash(record.hash);
+                    if (!exists) {
+                      await WordCountRepository.insert(record);
+                      insertCount++;
+                    } else {
+                      skipCount++;
+                    }
+                  } catch (err) {
+                    failCount++;
+                  }
                 }
-              })
-            )
-              .then(() => console.log(`[useArticleSentiment] Hydrated local DB`))
-              .catch((err) => console.warn('[useArticleSentiment] Failed to hydrate local DB:', err));
+                if (failCount > 0) {
+                  console.warn(`[useArticleSentiment] Hydration partial: ${insertCount} inserted, ${skipCount} skipped, ${failCount} failed`);
+                } else {
+                  console.log(`[useArticleSentiment] Hydrated local DB: ${insertCount} inserted, ${skipCount} already existed`);
+                }
+              } catch (err) {
+                console.warn('[useArticleSentiment] Hydration failed:', err);
+              }
+            })();
 
             return transformed;
           }

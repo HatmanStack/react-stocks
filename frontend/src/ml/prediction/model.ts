@@ -5,7 +5,7 @@
  * Designed to match scikit-learn's LogisticRegression behavior.
  */
 
-import type { FeatureMatrix, Labels, TrainingOptions } from './types';
+import type { FeatureMatrix, Labels, TrainingOptions, SampleWeights } from './types';
 
 /**
  * Sigmoid activation function
@@ -35,11 +35,11 @@ export class LogisticRegression {
   private iterations: number = 0;
 
   /**
-   * Train the model using gradient descent
+   * Train the model using gradient descent with sample/class weighting
    *
    * @param X - Feature matrix (n_samples × n_features)
    * @param y - Binary labels (0 or 1)
-   * @param options - Training hyperparameters
+   * @param options - Training hyperparameters including weights
    */
   fit(X: FeatureMatrix, y: Labels, options?: TrainingOptions): void {
     const {
@@ -48,6 +48,8 @@ export class LogisticRegression {
       regularization = 1.0, // C parameter (inverse of regularization strength)
       tolerance = 1e-4,
       verbose = false,
+      sampleWeights,
+      classWeight,
     } = options || {};
 
     if (X.length === 0 || y.length === 0) {
@@ -62,6 +64,13 @@ export class LogisticRegression {
 
     const nSamples = X.length;
     const nFeatures = X[0].length;
+
+    // Compute effective sample weights (combines sample weights and class weights)
+    const weights = this.computeEffectiveWeights(y, sampleWeights, classWeight);
+
+    // Normalize weights so they sum to nSamples (maintains gradient scale)
+    const weightSum = weights.reduce((a, b) => a + b, 0);
+    const normalizedWeights = weights.map(w => w * nSamples / weightSum);
 
     // Initialize weights and bias to zero (scikit-learn default)
     this.weights = new Array(nFeatures).fill(0);
@@ -84,22 +93,25 @@ export class LogisticRegression {
         predictions[i] = sigmoid(z);
       }
 
-      // Compute gradients
+      // Compute weighted gradients
       const weightGradients = new Array(nFeatures).fill(0);
       let biasGradient = 0;
+      let totalWeight = 0;
 
       for (let i = 0; i < nSamples; i++) {
+        const w = normalizedWeights[i];
         const error = predictions[i] - y[i];
-        biasGradient += error;
+        biasGradient += w * error;
         for (let j = 0; j < nFeatures; j++) {
-          weightGradients[j] += error * X[i][j];
+          weightGradients[j] += w * error * X[i][j];
         }
+        totalWeight += w;
       }
 
-      // Average gradients and add L2 regularization
-      biasGradient /= nSamples;
+      // Average gradients (by total weight) and add L2 regularization
+      biasGradient /= totalWeight;
       for (let j = 0; j < nFeatures; j++) {
-        weightGradients[j] = weightGradients[j] / nSamples + alpha * this.weights[j];
+        weightGradients[j] = weightGradients[j] / totalWeight + alpha * this.weights[j];
       }
 
       // Update weights and bias
@@ -108,14 +120,15 @@ export class LogisticRegression {
         this.weights[j] -= learningRate * weightGradients[j];
       }
 
-      // Compute loss for convergence check
+      // Compute weighted loss for convergence check
       let loss = 0;
       for (let i = 0; i < nSamples; i++) {
         const p = predictions[i];
-        // Binary cross-entropy loss
-        loss -= y[i] * Math.log(p + 1e-15) + (1 - y[i]) * Math.log(1 - p + 1e-15);
+        const w = normalizedWeights[i];
+        // Weighted binary cross-entropy loss
+        loss -= w * (y[i] * Math.log(p + 1e-15) + (1 - y[i]) * Math.log(1 - p + 1e-15));
       }
-      loss /= nSamples;
+      loss /= totalWeight;
 
       // Add L2 regularization to loss
       let l2Penalty = 0;
@@ -145,6 +158,56 @@ export class LogisticRegression {
     if (!this.converged && verbose) {
       console.warn(`[LogisticRegression] Did not converge after ${maxIterations} iterations`);
     }
+  }
+
+  /**
+   * Compute effective sample weights combining sample weights and class weights
+   */
+  private computeEffectiveWeights(
+    y: Labels,
+    sampleWeights?: SampleWeights,
+    classWeight?: 'balanced' | { [key: number]: number }
+  ): number[] {
+    const nSamples = y.length;
+    const weights = new Array(nSamples).fill(1.0);
+
+    // Apply sample weights if provided
+    if (sampleWeights) {
+      if (sampleWeights.length !== nSamples) {
+        throw new Error(`Sample weights length (${sampleWeights.length}) must match y length (${nSamples})`);
+      }
+      for (let i = 0; i < nSamples; i++) {
+        weights[i] *= sampleWeights[i];
+      }
+    }
+
+    // Apply class weights
+    if (classWeight) {
+      let classWeightMap: { [key: number]: number };
+
+      if (classWeight === 'balanced') {
+        // Compute balanced weights: n_samples / (n_classes * n_samples_per_class)
+        const class0Count = y.filter(label => label === 0).length;
+        const class1Count = y.filter(label => label === 1).length;
+        const nClasses = 2;
+
+        classWeightMap = {
+          0: nSamples / (nClasses * Math.max(class0Count, 1)),
+          1: nSamples / (nClasses * Math.max(class1Count, 1)),
+        };
+      } else {
+        classWeightMap = classWeight;
+      }
+
+      for (let i = 0; i < nSamples; i++) {
+        const label = y[i];
+        if (classWeightMap[label] !== undefined) {
+          weights[i] *= classWeightMap[label];
+        }
+      }
+    }
+
+    return weights;
   }
 
   /**

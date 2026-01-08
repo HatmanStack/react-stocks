@@ -30,7 +30,11 @@ export function AnimatedCard({
   onPress,
   children,
   style,
-  ...props
+  // Extract accessibility props to keep on Pressable, not Card
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityRole,
+  ...cardProps
 }: AnimatedCardProps) {
   const theme = useTheme();
   const scale = useSharedValue(1);
@@ -97,6 +101,9 @@ export function AnimatedCard({
       onPressOut={handlePressOut}
       onPress={onPress}
       disabled={!onPress}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityRole={accessibilityRole}
       // @ts-ignore - Web-only props
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -106,7 +113,7 @@ export function AnimatedCard({
       {/* @ts-ignore - Reanimated style types conflict with RN style types */}
       <Animated.View style={[animatedStyle, hoverStyle, focusStyle, style]}>
         {/* @ts-ignore - react-native-paper Card mode types are overly restrictive */}
-        <Card {...props}>
+        <Card {...cardProps}>
           {children}
         </Card>
       </Animated.View>

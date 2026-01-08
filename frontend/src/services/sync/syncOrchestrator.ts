@@ -5,7 +5,7 @@
 
 import { syncStockData } from './stockDataSync';
 import { syncSentimentData } from './sentimentDataSync';
-import { triggerSentimentAnalysis } from '@/services/api/lambdaSentiment.service';
+import { triggerSentimentAnalysis, fetchLambdaNews } from '@/services/api/lambdaSentiment.service';
 import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { getDatesInRange } from '@/utils/date/dateUtils';
@@ -158,6 +158,25 @@ export async function syncAllData(
     if (Environment.USE_LAMBDA_SENTIMENT) {
       // Use Lambda for sentiment analysis (async, non-blocking)
       try {
+        // Step 2.5: Fetch news to populate cache (required before sentiment analysis)
+        onProgress?.({
+          step: 'news',
+          progress: 2.2,
+          total: 3,
+          message: `Fetching news articles for ${ticker}...`,
+        });
+
+        try {
+          const newsResult = await fetchLambdaNews(ticker, startDate, endDate);
+          console.log(
+            `[SyncOrchestrator] News fetch complete: ${newsResult.newArticles} new, ${newsResult.cachedArticles} cached`
+          );
+        } catch (newsError) {
+          console.warn(`[SyncOrchestrator] News fetch failed (sentiment may be empty): ${newsError}`);
+          result.errors.push(`News fetch failed: ${newsError}`);
+          // Continue anyway - sentiment will just return empty results
+        }
+
         const response = await triggerSentimentAnalysis({
           ticker,
           startDate,

@@ -6,10 +6,22 @@ DynamoDB operations for caching stock price data.
 import logging
 import os
 import time
+from decimal import Decimal
 from typing import Any
 
 import boto3
 from boto3.dynamodb.conditions import Key
+
+
+def _float_to_decimal(obj: Any) -> Any:
+    """Convert floats to Decimal for DynamoDB compatibility."""
+    if isinstance(obj, float):
+        return Decimal(str(obj))
+    if isinstance(obj, dict):
+        return {k: _float_to_decimal(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_float_to_decimal(i) for i in obj]
+    return obj
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -103,12 +115,12 @@ def put_stock(item: dict[str, Any]) -> None:
         cache_item = {
             "ticker": item["ticker"].upper(),
             "date": item["date"],
-            "priceData": item["priceData"],
+            "priceData": _float_to_decimal(item["priceData"]),
             "ttl": calculate_ttl(item["date"]),
             "fetchedAt": int(time.time() * 1000),
         }
         if "metadata" in item:
-            cache_item["metadata"] = item["metadata"]
+            cache_item["metadata"] = _float_to_decimal(item["metadata"])
 
         table.put_item(Item=cache_item)
     except Exception as e:
@@ -172,12 +184,12 @@ def batch_put_stocks(items: list[dict[str, Any]]) -> None:
             cache_item = {
                 "ticker": item["ticker"].upper(),
                 "date": item["date"],
-                "priceData": item["priceData"],
+                "priceData": _float_to_decimal(item["priceData"]),
                 "ttl": calculate_ttl(item["date"]),
                 "fetchedAt": int(time.time() * 1000),
             }
             if "metadata" in item:
-                cache_item["metadata"] = item["metadata"]
+                cache_item["metadata"] = _float_to_decimal(item["metadata"])
             cache_items.append(cache_item)
 
         # Write in batches of 25

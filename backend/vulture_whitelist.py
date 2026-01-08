@@ -11,3 +11,14 @@ context  # Lambda context parameter (required but often unused)
 
 # Classmethod first parameter
 cls  # @classmethod decorator requires cls parameter
+
+# FastAPI route handlers (decorated with @app.get/post, appear unused to vulture)
+analyze_text_sentiment  # backend/services/ml/app.py
+analyze_batch_sentiment  # backend/services/ml/app.py
+health_check  # backend/services/ml/app.py
+root  # backend/services/ml/app.py
+global_exception_handler  # backend/services/ml/app.py
+
+# Pydantic validators (decorated, appear unused)
+text_not_empty  # backend/services/ml/app.py
+texts_not_empty  # backend/services/ml/app.py
