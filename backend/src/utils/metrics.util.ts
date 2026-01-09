@@ -8,35 +8,12 @@
  */
 
 /**
- * Metric units supported by CloudWatch
+ * Metric units supported by CloudWatch (pruned to used values)
  */
 export enum MetricUnit {
-  Seconds = 'Seconds',
-  Microseconds = 'Microseconds',
   Milliseconds = 'Milliseconds',
-  Bytes = 'Bytes',
-  Kilobytes = 'Kilobytes',
-  Megabytes = 'Megabytes',
-  Gigabytes = 'Gigabytes',
-  Terabytes = 'Terabytes',
-  Bits = 'Bits',
-  Kilobits = 'Kilobits',
-  Megabits = 'Megabits',
-  Gigabits = 'Gigabits',
-  Terabits = 'Terabits',
   Percent = 'Percent',
   Count = 'Count',
-  BytesPerSecond = 'Bytes/Second',
-  KilobytesPerSecond = 'Kilobytes/Second',
-  MegabytesPerSecond = 'Megabytes/Second',
-  GigabytesPerSecond = 'Gigabytes/Second',
-  TerabytesPerSecond = 'Terabytes/Second',
-  BitsPerSecond = 'Bits/Second',
-  KilobitsPerSecond = 'Kilobits/Second',
-  MegabitsPerSecond = 'Megabits/Second',
-  GigabitsPerSecond = 'Gigabits/Second',
-  TerabitsPerSecond = 'Terabits/Second',
-  CountPerSecond = 'Count/Second',
   None = 'None',
 }
 
@@ -168,68 +145,6 @@ export function logMetrics(
 }
 
 /**
- * Measure execution time of an async function and log duration metric
- *
- * @param fn - Async function to measure
- * @param metricName - Name for the duration metric
- * @param dimensions - Dimensions for the metric
- * @returns Result of the function
- *
- * @example
- * const data = await measureDuration(
- *   () => fetchStockPrices('AAPL', '2025-01-01'),
- *   'FinnhubAPILatency',
- *   { API: 'Finnhub', Endpoint: 'news' }
- * );
- */
-export async function measureDuration<T>(
-  fn: () => Promise<T>,
-  metricName: string,
-  dimensions: Record<string, string> = {}
-): Promise<T> {
-  const startTime = Date.now();
-
-  try {
-    const result = await fn();
-    const duration = Date.now() - startTime;
-
-    logMetric(metricName, duration, MetricUnit.Milliseconds, dimensions);
-
-    return result;
-  } catch (error) {
-    const duration = Date.now() - startTime;
-
-    // Log duration even on error
-    logMetric(metricName, duration, MetricUnit.Milliseconds, {
-      ...dimensions,
-      Error: 'true',
-    });
-
-    throw error;
-  }
-}
-
-// --- Optimization Metrics (Phase 1) ---
-
-/**
- * Log API Gateway cache hit/miss (inferred)
- * Note: Actual X-Cache header is not visible to Lambda in HTTP API v2,
- * but we can log based on application-level logic if needed.
- * For now, this is a placeholder if we find a way to pass it.
- */
-export function logApiGatewayCacheStatus(
-  status: 'Hit' | 'Miss',
-  endpoint: string
-): void {
-  logMetric(
-    status === 'Hit' ? 'ApiGatewayCacheHit' : 'ApiGatewayCacheMiss',
-    1,
-    MetricUnit.Count,
-    { Endpoint: endpoint }
-  );
-}
-
-/**
  * Log Lambda cold/warm start status
  */
 export function logLambdaStartStatus(
@@ -243,28 +158,6 @@ export function logLambdaStartStatus(
     { Endpoint: endpoint }
   );
 }
-
-/**
- * Log DynamoDB cache hit rate for a ticker
- */
-export function logDynamoDBCacheHit(
-  ticker: string,
-  hit: boolean
-): void {
-  // We log count, and can calculate rate in CloudWatch
-  logMetric(
-    hit ? 'DynamoDBCacheHit' : 'DynamoDBCacheMiss',
-    1,
-    MetricUnit.Count,
-    { Ticker: ticker }
-  );
-}
-
-/**
- * MlSentiment metrics tracking
- *
- * NEW (Phase 3): Specialized metrics for MlSentiment service monitoring
- */
 
 /**
  * Log MlSentiment API call metrics
@@ -294,56 +187,6 @@ export function logMlSentimentCall(
       Ticker: ticker,
       Success: success ? 'true' : 'false',
       CacheHit: cacheHit ? 'true' : 'false',
-      Service: 'MlSentiment',
-    }
-  );
-}
-
-/**
- * Log MlSentiment batch processing metrics
- *
- * Tracks performance of batch sentiment analysis operations.
- *
- * @param ticker - Stock ticker
- * @param totalArticles - Total articles processed
- * @param materialEvents - Number of material events (invoked MlSentiment)
- * @param successCount - Number of successful MlSentiment calls
- * @param avgDurationMs - Average duration per material event
- *
- * @example
- * logMlSentimentBatch('AAPL', 100, 25, 23, 450);
- */
-export function logMlSentimentBatch(
-  ticker: string,
-  totalArticles: number,
-  materialEvents: number,
-  successCount: number,
-  avgDurationMs: number
-): void {
-  const failureCount = materialEvents - successCount;
-  const successRate = materialEvents > 0 ? (successCount / materialEvents) * 100 : 100;
-  const materialEventRate = totalArticles > 0 ? (materialEvents / totalArticles) * 100 : 0;
-
-  logMetrics(
-    [
-      { name: 'MlSentimentBatchSize', value: totalArticles, unit: MetricUnit.Count },
-      { name: 'MlSentimentMaterialEvents', value: materialEvents, unit: MetricUnit.Count },
-      { name: 'MlSentimentSuccesses', value: successCount, unit: MetricUnit.Count },
-      { name: 'MlSentimentFailures', value: failureCount, unit: MetricUnit.Count },
-      { name: 'MlSentimentSuccessRate', value: successRate, unit: MetricUnit.Percent },
-      {
-        name: 'MlSentimentMaterialEventRate',
-        value: materialEventRate,
-        unit: MetricUnit.Percent,
-      },
-      {
-        name: 'MlSentimentAvgDuration',
-        value: avgDurationMs,
-        unit: MetricUnit.Milliseconds,
-      },
-    ],
-    {
-      Ticker: ticker,
       Service: 'MlSentiment',
     }
   );

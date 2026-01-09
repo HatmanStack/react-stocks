@@ -125,11 +125,13 @@ export async function getStockPredictions(
       // Generate labels for this horizon
       const labels = createLabels(closePrices, horizon);
 
-      if (labels.length === 0) {
-        throw new Error(
-          `Insufficient data for ${name} prediction (horizon=${horizon}): ` +
-            `need at least ${horizon + 1} data points`
+      // Need at least 3 samples for meaningful prediction
+      if (labels.length < 3) {
+        console.warn(
+          `[PredictionService] ${ticker} ${name}: Only ${labels.length} samples, using default 0.5`
         );
+        predictions[name] = 0.5; // Neutral prediction
+        continue;
       }
 
       // Truncate features to match label length
@@ -137,13 +139,49 @@ export async function getStockPredictions(
       const X = features.slice(0, labels.length);
       const y = labels;
 
+      // Generate exponential decay weights for time-weighted sampling
+      // More recent data points get higher weight
+      // Weight = exp(-lambda * age), where age = (n-1-i) and lambda controls decay rate
+      const n = y.length;
+      const halfLife = Math.max(10, n / 4); // Half-life: weight halves every halfLife samples
+      const lambda = Math.log(2) / halfLife;
+      const sampleWeights: number[] = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const age = n - 1 - i; // 0 for most recent, n-1 for oldest
+        sampleWeights[i] = Math.exp(-lambda * age);
+      }
+
+      // Log weight distribution for diagnostics
+      const minWeight = Math.min(...sampleWeights);
+      const maxWeight = Math.max(...sampleWeights);
+      console.log(
+        `[PredictionService] ${ticker} ${name}: Sample weights range [${minWeight.toFixed(3)}, ${maxWeight.toFixed(3)}], halfLife=${halfLife.toFixed(0)}`
+      );
+
       // Scale features
       const scaler = new StandardScaler();
       const X_scaled = scaler.fitTransform(X);
 
-      // Train model with 8-fold CV
+      // Train model with weighted samples and balanced classes
       const model = new LogisticRegressionCV();
-      model.fitCV(X_scaled, y, 8);
+      const k = Math.min(8, y.length); // Can't have more folds than samples
+      if (k < 2) {
+        console.warn(`[PredictionService] ${ticker} ${name}: Only ${y.length} samples, skipping CV`);
+        // Train without CV if too few samples, but with weights
+        model.fit(X_scaled, y, {
+          sampleWeights,
+          classWeight: 'balanced',
+          maxIterations: 2000, // More iterations for better convergence
+          learningRate: 0.005, // Slower learning for stability
+        });
+      } else {
+        model.fitCV(X_scaled, y, k, {
+          sampleWeights,
+          classWeight: 'balanced',
+          maxIterations: 2000,
+          learningRate: 0.005,
+        });
+      }
 
       // Get CV score for diagnostics
       const cvScore = model.getMeanCVScore();
@@ -156,8 +194,9 @@ export async function getStockPredictions(
       const mostRecentFeature = features[features.length - 1];
       const X_recent = scaler.transform([mostRecentFeature]);
 
-      // Make prediction
-      const prediction = model.predict(X_recent)[0];
+      // Get probability of class 1 (down) - predictProba returns [[p0, p1]]
+      const probabilities = model.predictProba(X_recent)[0];
+      const prediction = probabilities[1]; // Probability of "down"
       predictions[name] = prediction;
     }
 
@@ -170,11 +209,11 @@ export async function getStockPredictions(
         `(${duration}ms)`
     );
 
-    // Format response to match Python service
+    // Format response - use 4 decimal places for precision
     return {
-      next: predictions.NEXT.toFixed(1),
-      week: predictions.WEEK.toFixed(1),
-      month: predictions.MONTH.toFixed(1),
+      next: predictions.NEXT.toFixed(4),
+      week: predictions.WEEK.toFixed(4),
+      month: predictions.MONTH.toFixed(4),
       ticker,
     };
   } catch (error) {

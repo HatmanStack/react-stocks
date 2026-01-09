@@ -1,7 +1,7 @@
 export default {
   testEnvironment: 'node',
   rootDir: '.',
-  roots: ['<rootDir>/src', '<rootDir>/../tests/backend'],
+  roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts', '**/*.test.js'],
   modulePaths: ['<rootDir>/node_modules'],
   collectCoverageFrom: [
@@ -19,7 +19,6 @@ export default {
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^@tensorflow/tfjs-node$': '<rootDir>/node_modules/@tensorflow/tfjs-node',
     '^@aws-sdk/(.*)$': '<rootDir>/node_modules/@aws-sdk/$1',
   },
   extensionsToTreatAsEsm: ['.ts'],
@@ -28,7 +27,6 @@ export default {
       'ts-jest',
       {
         useESM: true,
-        tsconfig: '../tests/backend/tsconfig.json',
       },
     ],
   },

@@ -142,7 +142,8 @@ class WebDatabase {
       const ticker = params?.[2];
       const date = params?.[1];
       const close = params?.[3];
-      console.log(`[WebDB] Inserting stock: ${ticker} ${date} close=$${close}`);
+      // Debug log disabled - too noisy
+      // console.log(`[WebDB] Inserting stock: ${ticker} ${date} close=$${close}`);
       return this.insertStock(params || []);
     } else if (sqlLower.startsWith('insert into news_details')) {
       console.log('[WebDB] Inserting news:', params?.[0]); // ticker
@@ -512,7 +513,8 @@ class WebDatabase {
     // Filter to only return records with hash field (article-level data)
     const validArticles = articles.filter((record) => record.hasOwnProperty('hash') && typeof record.hash === 'number');
 
-    console.log(`[WebDB] Getting article sentiment for ${ticker}: ${validArticles.length} records`);
+    // Debug log disabled - too noisy
+    // console.log(`[WebDB] Getting article sentiment for ${ticker}: ${validArticles.length} records`);
 
     return validArticles;
   }

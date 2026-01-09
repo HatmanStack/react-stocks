@@ -368,6 +368,76 @@ export async function getArticleSentiment(
 }
 
 /**
+ * Fetch news articles from Lambda backend (populates news cache)
+ * This must be called BEFORE triggerSentimentAnalysis to ensure
+ * news articles are cached for sentiment processing.
+ *
+ * @param ticker - Stock ticker symbol
+ * @param startDate - Start date in YYYY-MM-DD format
+ * @param endDate - End date in YYYY-MM-DD format
+ * @returns News fetch result with article counts
+ * @throws Error if request fails
+ */
+export async function fetchLambdaNews(
+  ticker: string,
+  startDate: string,
+  endDate: string
+): Promise<{ cached: boolean; newArticles: number; cachedArticles: number }> {
+  const client = createBackendClient();
+
+  try {
+    console.log(
+      `[LambdaSentiment] Fetching news for ${ticker} from ${startDate} to ${endDate}`
+    );
+
+    const response = await client.get<{
+      data: unknown[];
+      _meta: { cached: boolean; newArticles: number; cachedArticles: number };
+    }>('/news', {
+      params: { ticker, from: startDate, to: endDate },
+    });
+
+    const meta = response.data._meta;
+
+    console.log(
+      `[LambdaSentiment] Fetched news for ${ticker}: ${meta.newArticles} new, ${meta.cachedArticles} cached`
+    );
+
+    return {
+      cached: meta.cached,
+      newArticles: meta.newArticles,
+      cachedArticles: meta.cachedArticles,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const errorData = error.response?.data as { error?: string };
+
+      console.error('[LambdaSentiment] News fetch error:', {
+        status,
+        error: errorData?.error,
+        message: error.message,
+      });
+
+      if (status === 400) {
+        throw new Error(errorData?.error || 'Invalid request parameters');
+      }
+
+      if (status === 429) {
+        throw new Error('Rate limit exceeded. Please try again in a moment.');
+      }
+
+      if (status === 500) {
+        throw new Error(errorData?.error || 'Backend service error');
+      }
+    }
+
+    console.error('[LambdaSentiment] Error fetching news:', error);
+    throw new Error(`Failed to fetch news: ${error}`);
+  }
+}
+
+/**
  * Get sentiment analysis results
  * @param ticker - Stock ticker symbol
  * @param startDate - Start date in YYYY-MM-DD format
