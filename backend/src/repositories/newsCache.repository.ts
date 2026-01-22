@@ -163,7 +163,22 @@ export async function batchPutArticles(
   }
 
   try {
-    const newsItems: NewsCacheItem[] = items.map((item) => ({
+    // Dedupe by composite key (ticker + articleHash) - DynamoDB BatchWriteItem fails on duplicates
+    const seen = new Set<string>();
+    const dedupedItems = items.filter((item) => {
+      const key = `${item.ticker.toUpperCase()}#${item.articleHash}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+
+    if (dedupedItems.length < items.length) {
+      console.log(`[NewsCacheRepository] Deduped ${items.length - dedupedItems.length} duplicate articles in batch`);
+    }
+
+    const newsItems: NewsCacheItem[] = dedupedItems.map((item) => ({
       ...item,
       ticker: item.ticker.toUpperCase(),
       ttl: calculateTTLByDataType('news'),
