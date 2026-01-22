@@ -12,4 +12,5 @@ backend/.aws-sam/
 docs-data/
 *.swp
 backend/bin/sam
-**/__pycache__/.serena/
+**/__pycache__/
+.serena/
