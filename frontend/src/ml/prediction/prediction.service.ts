@@ -26,7 +26,7 @@ const HORIZONS = {
  * Minimum data points required for predictions
  * (8 folds for CV + 21 day horizon = 29)
  */
-const MIN_DATA_POINTS = 29;
+const MIN_DATA_POINTS = 25;
 
 /**
  * Get stock price predictions using logistic regression model

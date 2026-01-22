@@ -18,16 +18,18 @@ import { logger } from '@/utils/logger';
  * @param ticker - Stock ticker symbol
  * @param startDate - Start date (YYYY-MM-DD)
  * @param endDate - End date (YYYY-MM-DD)
+ * @param minRequired - Optional minimum records required (overrides default threshold)
  * @returns Number of records inserted/updated
  */
 export async function syncStockData(
   ticker: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  minRequired?: number
 ): Promise<number> {
   try {
     console.log(
-      `[StockDataSync] Syncing stock data for ${ticker} from ${startDate} to ${endDate}`
+      `[StockDataSync] Syncing stock data for ${ticker} from ${startDate} to ${endDate}${minRequired ? ` (minRequired: ${minRequired})` : ''}`
     );
 
     // Check if data already exists for this range
@@ -38,10 +40,12 @@ export async function syncStockData(
     );
 
     // Calculate expected trading days (roughly 5 per week, use 50% threshold)
+    // Or use minRequired if specified (e.g., for predictions)
     const start = new Date(startDate);
     const end = new Date(endDate);
     const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    const expectedMinRecords = Math.floor(daysDiff * 5 / 7 * 0.5);
+    const defaultMin = Math.floor(daysDiff * 5 / 7 * 0.5);
+    const expectedMinRecords = minRequired ?? defaultMin;
 
     if (existingData.length >= expectedMinRecords) {
       console.log(
