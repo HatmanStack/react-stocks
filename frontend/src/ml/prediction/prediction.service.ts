@@ -201,38 +201,55 @@ export async function getStockPredictions(
       };
       const k = Math.min(8, y.length);
 
-      // --- Full model (15 features) ---
-      const fullScaler = new StandardScaler();
-      const X_full_scaled = fullScaler.fitTransform(X_full);
-      const fullModel = new LogisticRegressionCV();
-      if (k < 2) {
-        fullModel.fit(X_full_scaled, y, trainOptions);
+      if (horizon === 1) {
+        // --- NEXT: Full ensemble (15-feature + 5-feature merged by sentiment availability) ---
+        const fullScaler = new StandardScaler();
+        const X_full_scaled = fullScaler.fitTransform(X_full);
+        const fullModel = new LogisticRegressionCV();
+        if (k < 2) {
+          fullModel.fit(X_full_scaled, y, trainOptions);
+        } else {
+          fullModel.fitCV(X_full_scaled, y, k, trainOptions);
+        }
+        const X_full_recent = fullScaler.transform([fullFeatures[fullFeatures.length - 1]]);
+        const fullPred = fullModel.predictProba(X_full_recent)[0][1];
+
+        const priceScaler = new StandardScaler();
+        const X_price_scaled = priceScaler.fitTransform(X_price);
+        const priceModel = new LogisticRegressionCV();
+        if (k < 2) {
+          priceModel.fit(X_price_scaled, y, trainOptions);
+        } else {
+          priceModel.fitCV(X_price_scaled, y, k, trainOptions);
+        }
+        const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
+        const pricePred = priceModel.predictProba(X_price_recent)[0][1];
+
+        const mergedPred = fullPred * sentimentAvailability + pricePred * (1 - sentimentAvailability);
+        predictions[name] = mergedPred;
+
+        console.log(
+          `[Ensemble] ${ticker} ${name}: full=${fullPred.toFixed(4)}, price=${pricePred.toFixed(4)}, ` +
+            `weight=${sentimentAvailability.toFixed(2)}, merged=${mergedPred.toFixed(4)}`
+        );
       } else {
-        fullModel.fitCV(X_full_scaled, y, k, trainOptions);
+        // --- WEEK/MONTH: Price-only model (5 features) to avoid overfit with few samples ---
+        const priceScaler = new StandardScaler();
+        const X_price_scaled = priceScaler.fitTransform(X_price);
+        const priceModel = new LogisticRegressionCV();
+        if (k < 2) {
+          priceModel.fit(X_price_scaled, y, trainOptions);
+        } else {
+          priceModel.fitCV(X_price_scaled, y, k, trainOptions);
+        }
+        const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
+        const pricePred = priceModel.predictProba(X_price_recent)[0][1];
+        predictions[name] = pricePred;
+
+        console.log(
+          `[Ensemble] ${ticker} ${name}: price-only=${pricePred.toFixed(4)} (${y.length} samples, 5 features)`
+        );
       }
-      const X_full_recent = fullScaler.transform([fullFeatures[fullFeatures.length - 1]]);
-      const fullPred = fullModel.predictProba(X_full_recent)[0][1];
-
-      // --- Price-only model (5 features) ---
-      const priceScaler = new StandardScaler();
-      const X_price_scaled = priceScaler.fitTransform(X_price);
-      const priceModel = new LogisticRegressionCV();
-      if (k < 2) {
-        priceModel.fit(X_price_scaled, y, trainOptions);
-      } else {
-        priceModel.fitCV(X_price_scaled, y, k, trainOptions);
-      }
-      const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
-      const pricePred = priceModel.predictProba(X_price_recent)[0][1];
-
-      // --- Ensemble merge ---
-      const mergedPred = fullPred * sentimentAvailability + pricePred * (1 - sentimentAvailability);
-      predictions[name] = mergedPred;
-
-      console.log(
-        `[Ensemble] ${ticker} ${name}: full=${fullPred.toFixed(4)}, price=${pricePred.toFixed(4)}, ` +
-          `weight=${sentimentAvailability.toFixed(2)}, merged=${mergedPred.toFixed(4)}`
-      );
     }
 
     const endTime = performance.now();
