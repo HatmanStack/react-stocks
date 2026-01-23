@@ -29,11 +29,15 @@ const HORIZONS = {
 const MIN_DATA_POINTS = 46;
 
 /**
- * Minimum labels (training samples) required per horizon.
- * With 15 features (full) or 5 features (price-only), 25 labels
- * ensures at least 1.7-5 samples per feature for reliable predictions.
+ * Minimum labels for NEXT horizon (independent, no overlap).
  */
-const MIN_LABELS_PER_HORIZON = 25;
+const MIN_LABELS_NEXT = 25;
+
+/**
+ * Minimum independent (non-overlapping) samples for WEEK/MONTH horizons.
+ * 10 independent observations ≈ 6 months (WEEK) or 1 year (MONTH).
+ */
+const MIN_INDEPENDENT_SAMPLES = 10;
 
 /**
  * Get stock price predictions using logistic regression model
@@ -135,21 +139,49 @@ export async function getStockPredictions(
 
     for (const [name, horizon] of Object.entries(HORIZONS)) {
       // Generate labels for this horizon
-      const labels = createLabels(closePrices, horizon);
-
-      // Require sufficient labels for statistical reliability
-      if (labels.length < MIN_LABELS_PER_HORIZON) {
-        console.warn(
-          `[PredictionService] ${ticker} ${name}: Insufficient labels (${labels.length}/${MIN_LABELS_PER_HORIZON}), need ${MIN_LABELS_PER_HORIZON + horizon + TREND_WINDOW} data points`
-        );
-        predictions[name] = null;
-        continue;
-      }
+      const allLabels = createLabels(closePrices, horizon);
 
       // Align features with labels (labels start at TREND_WINDOW index)
-      const X_full = fullFeatures.slice(TREND_WINDOW, TREND_WINDOW + labels.length);
-      const X_price = priceFeatures.slice(TREND_WINDOW, TREND_WINDOW + labels.length);
-      const y = labels;
+      const allFullFeatures = fullFeatures.slice(TREND_WINDOW, TREND_WINDOW + allLabels.length);
+      const allPriceFeatures = priceFeatures.slice(TREND_WINDOW, TREND_WINDOW + allLabels.length);
+
+      // For horizon > 1: use non-overlapping subsample (every horizon-th element)
+      // to get truly independent observations. NEXT (horizon=1) has no overlap.
+      let X_full: number[][];
+      let X_price: number[][];
+      let y: number[];
+
+      if (horizon > 1) {
+        X_full = [];
+        X_price = [];
+        y = [];
+        for (let i = 0; i < allLabels.length; i += horizon) {
+          X_full.push(allFullFeatures[i]);
+          X_price.push(allPriceFeatures[i]);
+          y.push(allLabels[i]);
+        }
+
+        if (y.length < MIN_INDEPENDENT_SAMPLES) {
+          console.warn(
+            `[PredictionService] ${ticker} ${name}: Insufficient independent samples (${y.length}/${MIN_INDEPENDENT_SAMPLES}), ` +
+              `need ~${MIN_INDEPENDENT_SAMPLES * horizon + horizon + TREND_WINDOW} trading days`
+          );
+          predictions[name] = null;
+          continue;
+        }
+      } else {
+        X_full = allFullFeatures;
+        X_price = allPriceFeatures;
+        y = allLabels;
+
+        if (y.length < MIN_LABELS_NEXT) {
+          console.warn(
+            `[PredictionService] ${ticker} ${name}: Insufficient labels (${y.length}/${MIN_LABELS_NEXT})`
+          );
+          predictions[name] = null;
+          continue;
+        }
+      }
 
       // Generate exponential decay weights for time-weighted sampling
       const n = y.length;
