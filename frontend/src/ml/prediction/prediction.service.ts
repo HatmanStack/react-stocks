@@ -24,9 +24,15 @@ const HORIZONS = {
 
 /**
  * Minimum data points required for predictions
- * (8 folds for CV + 21 day horizon = 29)
  */
 const MIN_DATA_POINTS = 25;
+
+/**
+ * Minimum labels (training samples) required per horizon.
+ * With 15 features (full) or 5 features (price-only), 25 labels
+ * ensures at least 1.7-5 samples per feature for reliable predictions.
+ */
+const MIN_LABELS_PER_HORIZON = 25;
 
 /**
  * Get stock price predictions using logistic regression model
@@ -124,18 +130,18 @@ export async function getStockPredictions(
     console.log(`[PredictionService] Ensemble weights: full=${sentimentAvailability.toFixed(3)}, price=${(1 - sentimentAvailability).toFixed(3)}`);
 
     // Make predictions for each horizon using ensemble
-    const predictions: { [key: string]: number } = {};
+    const predictions: { [key: string]: number | null } = {};
 
     for (const [name, horizon] of Object.entries(HORIZONS)) {
       // Generate labels for this horizon
       const labels = createLabels(closePrices, horizon);
 
-      // Need at least 3 samples for meaningful prediction
-      if (labels.length < 3) {
+      // Require sufficient labels for statistical reliability
+      if (labels.length < MIN_LABELS_PER_HORIZON) {
         console.warn(
-          `[PredictionService] ${ticker} ${name}: Only ${labels.length} samples, using default 0.5`
+          `[PredictionService] ${ticker} ${name}: Insufficient labels (${labels.length}/${MIN_LABELS_PER_HORIZON}), need ${MIN_LABELS_PER_HORIZON + horizon} data points`
         );
-        predictions[name] = 0.5;
+        predictions[name] = null;
         continue;
       }
 
@@ -205,11 +211,11 @@ export async function getStockPredictions(
         `(${duration}ms)`
     );
 
-    // Format response - use 4 decimal places for precision
+    // Format response - null for insufficient data, 4 decimal places otherwise
     return {
-      next: predictions.NEXT.toFixed(4),
-      week: predictions.WEEK.toFixed(4),
-      month: predictions.MONTH.toFixed(4),
+      next: predictions.NEXT != null ? predictions.NEXT.toFixed(4) : null,
+      week: predictions.WEEK != null ? predictions.WEEK.toFixed(4) : null,
+      month: predictions.MONTH != null ? predictions.MONTH.toFixed(4) : null,
       ticker,
     };
   } catch (error) {
@@ -226,15 +232,15 @@ export async function getStockPredictions(
  * @returns Parsed prediction values as numbers
  */
 export function parsePredictionResponse(response: PredictionOutput): {
-  nextDay: number;
-  twoWeeks: number;
-  oneMonth: number;
+  nextDay: number | null;
+  twoWeeks: number | null;
+  oneMonth: number | null;
   ticker: string;
 } {
   return {
-    nextDay: parseFloat(response.next),
-    twoWeeks: parseFloat(response.week),
-    oneMonth: parseFloat(response.month),
+    nextDay: response.next != null ? parseFloat(response.next) : null,
+    twoWeeks: response.week != null ? parseFloat(response.week) : null,
+    oneMonth: response.month != null ? parseFloat(response.month) : null,
     ticker: response.ticker,
   };
 }

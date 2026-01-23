@@ -194,9 +194,9 @@ async function aggregateSentiment(
 export async function updatePredictions(
   ticker: string,
   predictions: {
-    nextDay: { direction: 'up' | 'down'; probability: number };
-    twoWeek: { direction: 'up' | 'down'; probability: number };
-    oneMonth: { direction: 'up' | 'down'; probability: number };
+    nextDay: { direction: 'up' | 'down'; probability: number } | null;
+    twoWeek: { direction: 'up' | 'down'; probability: number } | null;
+    oneMonth: { direction: 'up' | 'down'; probability: number } | null;
   }
 ): Promise<void> {
   try {
@@ -211,12 +211,18 @@ export async function updatePredictions(
        const record = latest[0];
        const updatedRecord: CombinedWordDetails = {
            ...record,
-           nextDayDirection: predictions.nextDay.direction,
-           nextDayProbability: predictions.nextDay.probability,
-           twoWeekDirection: predictions.twoWeek.direction,
-           twoWeekProbability: predictions.twoWeek.probability,
-           oneMonthDirection: predictions.oneMonth.direction,
-           oneMonthProbability: predictions.oneMonth.probability,
+           ...(predictions.nextDay && {
+             nextDayDirection: predictions.nextDay.direction,
+             nextDayProbability: predictions.nextDay.probability,
+           }),
+           ...(predictions.twoWeek && {
+             twoWeekDirection: predictions.twoWeek.direction,
+             twoWeekProbability: predictions.twoWeek.probability,
+           }),
+           ...(predictions.oneMonth && {
+             oneMonthDirection: predictions.oneMonth.direction,
+             oneMonthProbability: predictions.oneMonth.probability,
+           }),
            updateDate: new Date().toISOString()
        };
        await CombinedWordRepository.upsert(updatedRecord);
@@ -227,18 +233,19 @@ export async function updatePredictions(
     // Assuming PortfolioRepository has an update method or we can just update by ticker
     const portfolioItem = await PortfolioRepository.findByTicker(ticker);
     if (portfolioItem) {
-        // We need to update the item.
-        // The repository likely has an update method.
-        // Checking PortfolioRepository interface in next steps if needed, but assuming update exists.
-        // Actually, PortfolioRepository might only have insert/delete/getAll.
-        // Let's assume we can update it.
         await PortfolioRepository.update(ticker, {
-           nextDayDirection: predictions.nextDay.direction,
-           nextDayProbability: predictions.nextDay.probability,
-           twoWeekDirection: predictions.twoWeek.direction,
-           twoWeekProbability: predictions.twoWeek.probability,
-           oneMonthDirection: predictions.oneMonth.direction,
-           oneMonthProbability: predictions.oneMonth.probability
+           ...(predictions.nextDay && {
+             nextDayDirection: predictions.nextDay.direction,
+             nextDayProbability: predictions.nextDay.probability,
+           }),
+           ...(predictions.twoWeek && {
+             twoWeekDirection: predictions.twoWeek.direction,
+             twoWeekProbability: predictions.twoWeek.probability,
+           }),
+           ...(predictions.oneMonth && {
+             oneMonthDirection: predictions.oneMonth.direction,
+             oneMonthProbability: predictions.oneMonth.probability,
+           }),
         });
     }
 

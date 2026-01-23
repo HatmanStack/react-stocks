@@ -20,9 +20,9 @@ import type { WordCountDetails, CombinedWordDetails, EventType } from '@/types/d
 import { getStockPredictions, parsePredictionResponse } from '@/ml/prediction/prediction.service';
 
 interface Predictions {
-    nextDay: { direction: 'up' | 'down'; probability: number };
-    twoWeek: { direction: 'up' | 'down'; probability: number };
-    oneMonth: { direction: 'up' | 'down'; probability: number };
+    nextDay: { direction: 'up' | 'down'; probability: number } | null;
+    twoWeek: { direction: 'up' | 'down'; probability: number } | null;
+    oneMonth: { direction: 'up' | 'down'; probability: number } | null;
 }
 
 /** Minimum data points needed for full predictions (25 days for CV + horizon) */
@@ -217,8 +217,9 @@ async function generateBrowserPredictions(
 
     // Convert to Predictions format with direction and probability
     // The model outputs 0 (up) or 1 (down), we convert to probability
-    const toPrediction = (value: number): { direction: 'up' | 'down'; probability: number } => {
-      // Value is 0.0-1.0 where 0 = up, 1 = down
+    // Returns null for horizons with insufficient data
+    const toPrediction = (value: number | null): { direction: 'up' | 'down'; probability: number } | null => {
+      if (value == null) return null;
       const isDown = value >= 0.5;
       return {
         direction: isDown ? 'down' : 'up',
@@ -324,12 +325,18 @@ function transformLambdaToLocal(
 
     // Add Phase 2 prediction fields if this is the latest record and predictions exist
     if (isLatest && predictions) {
-        record.nextDayDirection = predictions.nextDay.direction;
-        record.nextDayProbability = predictions.nextDay.probability;
-        record.twoWeekDirection = predictions.twoWeek.direction;
-        record.twoWeekProbability = predictions.twoWeek.probability;
-        record.oneMonthDirection = predictions.oneMonth.direction;
-        record.oneMonthProbability = predictions.oneMonth.probability;
+        if (predictions.nextDay) {
+          record.nextDayDirection = predictions.nextDay.direction;
+          record.nextDayProbability = predictions.nextDay.probability;
+        }
+        if (predictions.twoWeek) {
+          record.twoWeekDirection = predictions.twoWeek.direction;
+          record.twoWeekProbability = predictions.twoWeek.probability;
+        }
+        if (predictions.oneMonth) {
+          record.oneMonthDirection = predictions.oneMonth.direction;
+          record.oneMonthProbability = predictions.oneMonth.probability;
+        }
     }
 
     return record;
@@ -513,19 +520,25 @@ export function useSentimentData(
 
         if (predictions && latestRecord) {
           console.log(`[useSentimentData] Predictions received:`, predictions);
-          // Update latest record with predictions
-          latestRecord.nextDayDirection = predictions.nextDay.direction;
-          latestRecord.nextDayProbability = predictions.nextDay.probability;
-          latestRecord.twoWeekDirection = predictions.twoWeek.direction;
-          latestRecord.twoWeekProbability = predictions.twoWeek.probability;
-          latestRecord.oneMonthDirection = predictions.oneMonth.direction;
-          latestRecord.oneMonthProbability = predictions.oneMonth.probability;
+          // Update latest record with predictions (only set non-null horizons)
+          if (predictions.nextDay) {
+            latestRecord.nextDayDirection = predictions.nextDay.direction;
+            latestRecord.nextDayProbability = predictions.nextDay.probability;
+          }
+          if (predictions.twoWeek) {
+            latestRecord.twoWeekDirection = predictions.twoWeek.direction;
+            latestRecord.twoWeekProbability = predictions.twoWeek.probability;
+          }
+          if (predictions.oneMonth) {
+            latestRecord.oneMonthDirection = predictions.oneMonth.direction;
+            latestRecord.oneMonthProbability = predictions.oneMonth.probability;
+          }
           latestRecord.updateDate = formatDateForDB(new Date());
           console.log(`[useSentimentData] Updated latestRecord with predictions:`, {
-            nextDayDirection: latestRecord.nextDayDirection,
+            nextDayDirection: latestRecord.nextDayDirection ?? 'insufficient data',
             nextDayProbability: latestRecord.nextDayProbability,
-            twoWeekDirection: latestRecord.twoWeekDirection,
-            oneMonthDirection: latestRecord.oneMonthDirection,
+            twoWeekDirection: latestRecord.twoWeekDirection ?? 'insufficient data',
+            oneMonthDirection: latestRecord.oneMonthDirection ?? 'insufficient data',
           });
 
           // Store predictions in local SQLite (async, don't block)
