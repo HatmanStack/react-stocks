@@ -28,9 +28,6 @@ interface Predictions {
 /** Minimum data points needed for full predictions (25 days for CV + horizon) */
 const MIN_PREDICTION_DATA = 25;
 
-/** Absolute minimum for basic predictions (10 days - simpler model) */
-const MIN_BASIC_PREDICTION_DATA = 10;
-
 /**
  * Generate predictions using browser-based logistic regression
  * @param ticker - Stock ticker symbol
@@ -39,7 +36,8 @@ const MIN_BASIC_PREDICTION_DATA = 10;
  */
 async function generateBrowserPredictions(
   ticker: string,
-  sentimentData: CombinedWordDetails[]
+  sentimentData: CombinedWordDetails[],
+  days: number
 ): Promise<Predictions | null> {
   console.log(`[Predictions] === Starting prediction generation for ${ticker} ===`);
   console.log(`[Predictions] Sentiment data length: ${sentimentData.length}`);
@@ -51,32 +49,27 @@ async function generateBrowserPredictions(
       return null;
     }
 
-    // Get sentiment date range
-    const sentimentMinDate = sentimentData.reduce((a, b) => a.date < b.date ? a : b).date;
-    const sentimentMaxDate = sentimentData.reduce((a, b) => a.date > b.date ? a : b).date;
+    // Use the user's requested timeframe for stock data (not sentiment range)
+    // This ensures different timeframes produce different predictions
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const stockEndStr = endDate.toISOString().split('T')[0];
+    const stockStartStr = startDate.toISOString().split('T')[0];
 
-    // Expand stock fetch range to ensure enough trading days
-    // 25 trading days ≈ 37 calendar days (weekends + holidays buffer)
-    const calendarDaysNeeded = Math.ceil(MIN_PREDICTION_DATA * 1.5);
-    const stockFetchStart = new Date(sentimentMaxDate);
-    stockFetchStart.setDate(stockFetchStart.getDate() - calendarDaysNeeded);
-    const stockStartStr = stockFetchStart.toISOString().split('T')[0];
-    // Use the earlier of sentiment start and our calculated start
-    const effectiveStart = stockStartStr < sentimentMinDate ? stockStartStr : sentimentMinDate;
-
-    console.log(`[Predictions] Syncing stock data for ${ticker} from ${effectiveStart} to ${sentimentMaxDate}...`);
+    console.log(`[Predictions] Syncing stock data for ${ticker} from ${stockStartStr} to ${stockEndStr} (${days} days)...`);
     try {
-      await syncStockData(ticker, effectiveStart, sentimentMaxDate, MIN_PREDICTION_DATA);
+      await syncStockData(ticker, stockStartStr, stockEndStr, MIN_PREDICTION_DATA);
     } catch (syncError) {
       console.warn(`[Predictions] Stock sync failed, using local data:`, syncError);
     }
 
     const stockData = await StockRepository.findByTickerAndDateRange(
       ticker,
-      effectiveStart,
-      sentimentMaxDate
+      stockStartStr,
+      stockEndStr
     );
-    console.log(`[Predictions] Stock data length: ${stockData.length} (for range ${effectiveStart} to ${sentimentMaxDate})`);
+    console.log(`[Predictions] Stock data length: ${stockData.length} (for range ${stockStartStr} to ${stockEndStr})`);
 
     if (stockData.length < MIN_PREDICTION_DATA) {
       console.log(`[Predictions] FAIL: Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_PREDICTION_DATA})`);
@@ -516,7 +509,7 @@ export function useSentimentData(
 
       if (needsPredictions && sentimentData.length > 0) {
         console.log(`[useSentimentData] GENERATING browser-based predictions for ${ticker}`);
-        const predictions = await generateBrowserPredictions(ticker, sentimentData);
+        const predictions = await generateBrowserPredictions(ticker, sentimentData, days);
 
         if (predictions && latestRecord) {
           console.log(`[useSentimentData] Predictions received:`, predictions);
