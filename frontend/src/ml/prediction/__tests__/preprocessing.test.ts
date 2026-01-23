@@ -5,11 +5,14 @@
 import {
   oneHotEncode,
   buildFeatureMatrix,
+  buildPriceOnlyFeatureMatrix,
   createLabels,
   validateFeatureMatrix,
   validateLabels,
   FEATURE_COUNT,
   FEATURE_NAMES,
+  PRICE_ONLY_FEATURE_COUNT,
+  PRICE_ONLY_FEATURE_NAMES,
 } from '../preprocessing';
 import type { PredictionInput } from '../types';
 
@@ -360,6 +363,97 @@ describe('Preprocessing', () => {
     });
   });
 
+  describe('buildPriceOnlyFeatureMatrix', () => {
+    it('should build 5-feature matrix from price and volume data', () => {
+      const input: PredictionInput = {
+        ticker: 'TEST',
+        close: [150.0, 152.0, 151.0, 153.0, 154.0, 155.0, 156.0, 157.0, 158.0, 159.0, 160.0],
+        volume: [100000000, 95000000, 98000000, 97000000, 96000000, 99000000, 100000000, 101000000, 102000000, 103000000, 104000000],
+        eventType: ['EARNINGS', 'M&A', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL'],
+        aspectScore: [0.5, -0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        mlScore: [0.7, -0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      };
+
+      const features = buildPriceOnlyFeatureMatrix(input);
+
+      expect(features).toHaveLength(11);
+      expect(features[0]).toHaveLength(5); // Only 5 features
+    });
+
+    it('should ignore sentiment data entirely', () => {
+      const input: PredictionInput = {
+        ticker: 'TEST',
+        close: [150.0, 152.0, 151.0],
+        volume: [100000000, 95000000, 98000000],
+        mlScore: [0.9, 0.8, 0.7], // Should be ignored
+      };
+
+      const features = buildPriceOnlyFeatureMatrix(input);
+
+      // All features should be price-derived only
+      expect(features[0]).toHaveLength(5);
+      // First row: ratio1d=1.0 (no prior), ratio5d=1.0, ratio10d=1.0, volume, volatility=0
+      expect(features[0][0]).toBe(1.0); // ratio1d default
+      expect(features[0][3]).toBe(100000000); // volume
+      expect(features[0][4]).toBe(0); // volatility (insufficient window)
+    });
+
+    it('should calculate correct price ratios', () => {
+      const input: PredictionInput = {
+        ticker: 'TEST',
+        close: [100, 110], // 10% rise
+        volume: [1000, 1000],
+      };
+
+      const features = buildPriceOnlyFeatureMatrix(input);
+
+      expect(features[1][0]).toBeCloseTo(1.1); // ratio1d: 110/100
+      expect(features[1][1]).toBe(1.0); // ratio5d: not enough data
+      expect(features[1][2]).toBe(1.0); // ratio10d: not enough data
+    });
+
+    it('should throw error on inconsistent lengths', () => {
+      const input: PredictionInput = {
+        ticker: 'TEST',
+        close: [150.0, 152.0],
+        volume: [100000000],
+      };
+
+      expect(() => buildPriceOnlyFeatureMatrix(input)).toThrow('Inconsistent input lengths');
+    });
+
+    it('should handle empty input', () => {
+      const input: PredictionInput = {
+        ticker: 'TEST',
+        close: [],
+        volume: [],
+      };
+
+      const features = buildPriceOnlyFeatureMatrix(input);
+      expect(features).toEqual([]);
+    });
+
+    it('should produce same price features as full matrix', () => {
+      const input: PredictionInput = {
+        ticker: 'TEST',
+        close: [150.0, 152.0, 151.5, 153.0, 152.5],
+        volume: [100000000, 95000000, 98000000, 102000000, 97000000],
+      };
+
+      const fullFeatures = buildFeatureMatrix(input);
+      const priceFeatures = buildPriceOnlyFeatureMatrix(input);
+
+      // Price ratios (indices 0-2) and volume (3) should match
+      for (let i = 0; i < 5; i++) {
+        expect(priceFeatures[i][0]).toBe(fullFeatures[i][0]); // ratio1d
+        expect(priceFeatures[i][1]).toBe(fullFeatures[i][1]); // ratio5d
+        expect(priceFeatures[i][2]).toBe(fullFeatures[i][2]); // ratio10d
+        expect(priceFeatures[i][3]).toBe(fullFeatures[i][3]); // volume
+        expect(priceFeatures[i][4]).toBe(fullFeatures[i][14]); // volatility (index 14 in full)
+      }
+    });
+  });
+
   describe('Constants', () => {
     it('should have correct feature count', () => {
       expect(FEATURE_COUNT).toBe(15); // Phase 6: Updated from 13 to 15
@@ -387,6 +481,24 @@ describe('Preprocessing', () => {
 
     it('should have feature names matching feature count', () => {
       expect(FEATURE_NAMES.length).toBe(FEATURE_COUNT);
+    });
+
+    it('should have correct price-only feature count', () => {
+      expect(PRICE_ONLY_FEATURE_COUNT).toBe(5);
+    });
+
+    it('should have correct price-only feature names', () => {
+      expect(PRICE_ONLY_FEATURE_NAMES).toEqual([
+        'price_ratio_1d',
+        'price_ratio_5d',
+        'price_ratio_10d',
+        'volume',
+        'volatility',
+      ]);
+    });
+
+    it('should have price-only names matching price-only count', () => {
+      expect(PRICE_ONLY_FEATURE_NAMES.length).toBe(PRICE_ONLY_FEATURE_COUNT);
     });
   });
 });

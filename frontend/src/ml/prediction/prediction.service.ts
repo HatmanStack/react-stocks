@@ -9,7 +9,7 @@
 
 import { StandardScaler } from './scaler';
 import { LogisticRegressionCV } from './cross-validation';
-import { buildFeatureMatrix, createLabels } from './preprocessing';
+import { buildFeatureMatrix, buildPriceOnlyFeatureMatrix, createLabels } from './preprocessing';
 import type { PredictionInput, PredictionOutput } from './types';
 import type { EventType } from '../../types/database.types';
 
@@ -113,12 +113,17 @@ export async function getStockPredictions(
     console.log(`  - mlScores: ${mlScores?.length || 0} (non-zero: ${mlScores?.filter(s => s !== 0).length || 0})`);
     console.log(`  - signalScores: ${signalScores?.length || 0}`);
 
-    // Build feature matrix (15 features with three-signal sentiment + availability)
-    console.log(`[PredictionService] Building feature matrix...`);
-    const features = buildFeatureMatrix(input);
-    console.log(`[PredictionService] Feature matrix built: ${features.length} rows x ${features[0]?.length || 0} cols`);
+    // Build both feature matrices for ensemble
+    console.log(`[PredictionService] Building feature matrices (ensemble)...`);
+    const fullFeatures = buildFeatureMatrix(input);
+    const priceFeatures = buildPriceOnlyFeatureMatrix(input);
+    console.log(`[PredictionService] Full matrix: ${fullFeatures.length}x${fullFeatures[0]?.length || 0}, Price matrix: ${priceFeatures.length}x${priceFeatures[0]?.length || 0}`);
 
-    // Make predictions for each horizon
+    // Sentiment availability is feature index 13 in full matrix (same for all rows)
+    const sentimentAvailability = fullFeatures.length > 0 ? fullFeatures[0][13] : 0;
+    console.log(`[PredictionService] Ensemble weights: full=${sentimentAvailability.toFixed(3)}, price=${(1 - sentimentAvailability).toFixed(3)}`);
+
+    // Make predictions for each horizon using ensemble
     const predictions: { [key: string]: number } = {};
 
     for (const [name, horizon] of Object.entries(HORIZONS)) {
@@ -130,74 +135,65 @@ export async function getStockPredictions(
         console.warn(
           `[PredictionService] ${ticker} ${name}: Only ${labels.length} samples, using default 0.5`
         );
-        predictions[name] = 0.5; // Neutral prediction
+        predictions[name] = 0.5;
         continue;
       }
 
       // Truncate features to match label length
-      // (last `horizon` data points have no labels)
-      const X = features.slice(0, labels.length);
+      const X_full = fullFeatures.slice(0, labels.length);
+      const X_price = priceFeatures.slice(0, labels.length);
       const y = labels;
 
       // Generate exponential decay weights for time-weighted sampling
-      // More recent data points get higher weight
-      // Weight = exp(-lambda * age), where age = (n-1-i) and lambda controls decay rate
       const n = y.length;
-      const halfLife = Math.max(10, n / 4); // Half-life: weight halves every halfLife samples
+      const halfLife = Math.max(10, n / 4);
       const lambda = Math.log(2) / halfLife;
       const sampleWeights: number[] = new Array(n);
       for (let i = 0; i < n; i++) {
-        const age = n - 1 - i; // 0 for most recent, n-1 for oldest
+        const age = n - 1 - i;
         sampleWeights[i] = Math.exp(-lambda * age);
       }
 
-      // Log weight distribution for diagnostics
-      const minWeight = Math.min(...sampleWeights);
-      const maxWeight = Math.max(...sampleWeights);
-      console.log(
-        `[PredictionService] ${ticker} ${name}: Sample weights range [${minWeight.toFixed(3)}, ${maxWeight.toFixed(3)}], halfLife=${halfLife.toFixed(0)}`
-      );
+      const trainOptions = {
+        sampleWeights,
+        classWeight: 'balanced' as const,
+        maxIterations: 2000,
+        learningRate: 0.005,
+      };
+      const k = Math.min(8, y.length);
 
-      // Scale features
-      const scaler = new StandardScaler();
-      const X_scaled = scaler.fitTransform(X);
-
-      // Train model with weighted samples and balanced classes
-      const model = new LogisticRegressionCV();
-      const k = Math.min(8, y.length); // Can't have more folds than samples
+      // --- Full model (15 features) ---
+      const fullScaler = new StandardScaler();
+      const X_full_scaled = fullScaler.fitTransform(X_full);
+      const fullModel = new LogisticRegressionCV();
       if (k < 2) {
-        console.warn(`[PredictionService] ${ticker} ${name}: Only ${y.length} samples, skipping CV`);
-        // Train without CV if too few samples, but with weights
-        model.fit(X_scaled, y, {
-          sampleWeights,
-          classWeight: 'balanced',
-          maxIterations: 2000, // More iterations for better convergence
-          learningRate: 0.005, // Slower learning for stability
-        });
+        fullModel.fit(X_full_scaled, y, trainOptions);
       } else {
-        model.fitCV(X_scaled, y, k, {
-          sampleWeights,
-          classWeight: 'balanced',
-          maxIterations: 2000,
-          learningRate: 0.005,
-        });
+        fullModel.fitCV(X_full_scaled, y, k, trainOptions);
       }
+      const X_full_recent = fullScaler.transform([fullFeatures[fullFeatures.length - 1]]);
+      const fullPred = fullModel.predictProba(X_full_recent)[0][1];
 
-      // Get CV score for diagnostics
-      const cvScore = model.getMeanCVScore();
+      // --- Price-only model (5 features) ---
+      const priceScaler = new StandardScaler();
+      const X_price_scaled = priceScaler.fitTransform(X_price);
+      const priceModel = new LogisticRegressionCV();
+      if (k < 2) {
+        priceModel.fit(X_price_scaled, y, trainOptions);
+      } else {
+        priceModel.fitCV(X_price_scaled, y, k, trainOptions);
+      }
+      const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
+      const pricePred = priceModel.predictProba(X_price_recent)[0][1];
+
+      // --- Ensemble merge ---
+      const mergedPred = fullPred * sentimentAvailability + pricePred * (1 - sentimentAvailability);
+      predictions[name] = mergedPred;
+
       console.log(
-        `[PredictionService] ${ticker} ${name}: CV score = ${cvScore?.toFixed(4) || 'N/A'}`
+        `[Ensemble] ${ticker} ${name}: full=${fullPred.toFixed(4)}, price=${pricePred.toFixed(4)}, ` +
+          `weight=${sentimentAvailability.toFixed(2)}, merged=${mergedPred.toFixed(4)}`
       );
-
-      // Predict on most recent data point (after training on historical)
-      // Scale the most recent observation
-      const mostRecentFeature = features[features.length - 1];
-      const X_recent = scaler.transform([mostRecentFeature]);
-
-      // Get probability of class 1 (down) - predictProba returns [[p0, p1]]
-      const probabilities = model.predictProba(X_recent)[0];
-      const prediction = probabilities[1]; // Probability of "down"
-      predictions[name] = prediction;
     }
 
     const endTime = performance.now();
