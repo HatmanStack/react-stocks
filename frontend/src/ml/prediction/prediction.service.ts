@@ -192,12 +192,24 @@ export async function getStockPredictions(
       const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
       const pricePred = priceModel.predictProba(X_price_recent)[0][1];
 
+      // --- Confidence calibration ---
+      // Shrink predictions toward 0.5 based on samples-per-feature ratio.
+      // Need ~10 samples per feature for reliable logistic regression.
+      const REQUIRED_SPF = 10;
+      const nLabels = y.length;
+      const fullConfidence = Math.min(1, (nLabels / X_full[0].length) / REQUIRED_SPF);
+      const priceConfidence = Math.min(1, (nLabels / X_price[0].length) / REQUIRED_SPF);
+
+      const fullCalibrated = 0.5 + (fullPred - 0.5) * fullConfidence;
+      const priceCalibrated = 0.5 + (pricePred - 0.5) * priceConfidence;
+
       // --- Ensemble merge ---
-      const mergedPred = fullPred * sentimentAvailability + pricePred * (1 - sentimentAvailability);
+      const mergedPred = fullCalibrated * sentimentAvailability + priceCalibrated * (1 - sentimentAvailability);
       predictions[name] = mergedPred;
 
       console.log(
-        `[Ensemble] ${ticker} ${name}: full=${fullPred.toFixed(4)}, price=${pricePred.toFixed(4)}, ` +
+        `[Ensemble] ${ticker} ${name}: full=${fullPred.toFixed(4)}→${fullCalibrated.toFixed(4)} (conf=${fullConfidence.toFixed(2)}), ` +
+          `price=${pricePred.toFixed(4)}→${priceCalibrated.toFixed(4)} (conf=${priceConfidence.toFixed(2)}), ` +
           `weight=${sentimentAvailability.toFixed(2)}, merged=${mergedPred.toFixed(4)}`
       );
     }
