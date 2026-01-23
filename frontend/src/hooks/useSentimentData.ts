@@ -51,24 +51,32 @@ async function generateBrowserPredictions(
       return null;
     }
 
-    // Get sentiment date range (use ACTUAL data only - no artificial expansion)
+    // Get sentiment date range
     const sentimentMinDate = sentimentData.reduce((a, b) => a.date < b.date ? a : b).date;
     const sentimentMaxDate = sentimentData.reduce((a, b) => a.date > b.date ? a : b).date;
 
-    // Sync stock data for the sentiment range only (no expansion - use what we have)
-    console.log(`[Predictions] Syncing stock data for ${ticker} from ${sentimentMinDate} to ${sentimentMaxDate}...`);
+    // Expand stock fetch range to ensure enough trading days
+    // 25 trading days ≈ 37 calendar days (weekends + holidays buffer)
+    const calendarDaysNeeded = Math.ceil(MIN_PREDICTION_DATA * 1.5);
+    const stockFetchStart = new Date(sentimentMaxDate);
+    stockFetchStart.setDate(stockFetchStart.getDate() - calendarDaysNeeded);
+    const stockStartStr = stockFetchStart.toISOString().split('T')[0];
+    // Use the earlier of sentiment start and our calculated start
+    const effectiveStart = stockStartStr < sentimentMinDate ? stockStartStr : sentimentMinDate;
+
+    console.log(`[Predictions] Syncing stock data for ${ticker} from ${effectiveStart} to ${sentimentMaxDate}...`);
     try {
-      await syncStockData(ticker, sentimentMinDate, sentimentMaxDate, MIN_BASIC_PREDICTION_DATA);
+      await syncStockData(ticker, effectiveStart, sentimentMaxDate, MIN_PREDICTION_DATA);
     } catch (syncError) {
       console.warn(`[Predictions] Stock sync failed, using local data:`, syncError);
     }
 
     const stockData = await StockRepository.findByTickerAndDateRange(
       ticker,
-      sentimentMinDate,
+      effectiveStart,
       sentimentMaxDate
     );
-    console.log(`[Predictions] Stock data length: ${stockData.length} (for range ${sentimentMinDate} to ${sentimentMaxDate})`);
+    console.log(`[Predictions] Stock data length: ${stockData.length} (for range ${effectiveStart} to ${sentimentMaxDate})`);
 
     if (stockData.length < MIN_PREDICTION_DATA) {
       console.log(`[Predictions] FAIL: Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_PREDICTION_DATA})`);
