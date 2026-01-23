@@ -25,8 +25,11 @@ interface Predictions {
     oneMonth: { direction: 'up' | 'down'; probability: number } | null;
 }
 
-/** Minimum data points needed for full predictions (25 days for CV + horizon) */
-const MIN_PREDICTION_DATA = 25;
+/** Minimum sentiment records to attempt predictions (interpolation fills gaps) */
+const MIN_SENTIMENT_DATA = 25;
+
+/** Minimum stock trading days needed for prediction model (TREND_WINDOW + horizon + labels) */
+const MIN_STOCK_DATA = 46;
 
 /**
  * Generate predictions using browser-based logistic regression
@@ -44,22 +47,24 @@ async function generateBrowserPredictions(
 
   try {
     // Step 1: Validate sentiment data length
-    if (sentimentData.length < MIN_PREDICTION_DATA) {
-      console.log(`[Predictions] FAIL: Insufficient sentiment data for ${ticker}: ${sentimentData.length} days (need ${MIN_PREDICTION_DATA})`);
+    if (sentimentData.length < MIN_SENTIMENT_DATA) {
+      console.log(`[Predictions] FAIL: Insufficient sentiment data for ${ticker}: ${sentimentData.length} days (need ${MIN_SENTIMENT_DATA})`);
       return null;
     }
 
-    // Use the user's requested timeframe for stock data (not sentiment range)
-    // This ensures different timeframes produce different predictions
+    // Fetch enough stock data for the model (at least MIN_STOCK_DATA trading days)
+    // Use user's timeframe if larger, otherwise expand to minimum needed
+    const minCalendarDays = Math.ceil(MIN_STOCK_DATA * 1.5); // ~69 calendar days for 46 trading days
+    const effectiveDays = Math.max(days, minCalendarDays);
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    startDate.setDate(startDate.getDate() - effectiveDays);
     const stockEndStr = endDate.toISOString().split('T')[0];
     const stockStartStr = startDate.toISOString().split('T')[0];
 
-    console.log(`[Predictions] Syncing stock data for ${ticker} from ${stockStartStr} to ${stockEndStr} (${days} days)...`);
+    console.log(`[Predictions] Syncing stock data for ${ticker} from ${stockStartStr} to ${stockEndStr} (${effectiveDays} cal days, requested ${days})...`);
     try {
-      await syncStockData(ticker, stockStartStr, stockEndStr, MIN_PREDICTION_DATA);
+      await syncStockData(ticker, stockStartStr, stockEndStr, MIN_STOCK_DATA);
     } catch (syncError) {
       console.warn(`[Predictions] Stock sync failed, using local data:`, syncError);
     }
@@ -71,8 +76,8 @@ async function generateBrowserPredictions(
     );
     console.log(`[Predictions] Stock data length: ${stockData.length} (for range ${stockStartStr} to ${stockEndStr})`);
 
-    if (stockData.length < MIN_PREDICTION_DATA) {
-      console.log(`[Predictions] FAIL: Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_PREDICTION_DATA})`);
+    if (stockData.length < MIN_STOCK_DATA) {
+      console.log(`[Predictions] FAIL: Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_STOCK_DATA})`);
       return null;
     }
 
@@ -148,8 +153,8 @@ async function generateBrowserPredictions(
     console.log(`[Predictions] After alignment with interpolation: ${trimmedStocks.length} trading days`);
 
     // Step 4: Re-check that trimmed arrays meet minimum requirement
-    if (trimmedStocks.length < MIN_PREDICTION_DATA) {
-      console.log(`[Predictions] FAIL: After alignment, insufficient data: ${trimmedStocks.length} days (need ${MIN_PREDICTION_DATA})`);
+    if (trimmedStocks.length < MIN_STOCK_DATA) {
+      console.log(`[Predictions] FAIL: After alignment, insufficient data: ${trimmedStocks.length} days (need ${MIN_STOCK_DATA})`);
       return null;
     }
 
@@ -511,8 +516,8 @@ export function useSentimentData(
 
       // Always regenerate predictions for the current data window
       // Different timeframes = different data = different predictions
-      const needsPredictions = latestRecord && sentimentData.length >= MIN_PREDICTION_DATA;
-      console.log(`[useSentimentData]   - needsPredictions: ${needsPredictions} (have ${sentimentData.length} days, need ${MIN_PREDICTION_DATA})`);
+      const needsPredictions = latestRecord && sentimentData.length >= MIN_SENTIMENT_DATA;
+      console.log(`[useSentimentData]   - needsPredictions: ${needsPredictions} (have ${sentimentData.length} days, need ${MIN_SENTIMENT_DATA})`);
 
       if (needsPredictions && sentimentData.length > 0) {
         console.log(`[useSentimentData] GENERATING browser-based predictions for ${ticker}`);

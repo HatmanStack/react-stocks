@@ -9,7 +9,7 @@
 
 import { StandardScaler } from './scaler';
 import { LogisticRegressionCV } from './cross-validation';
-import { buildFeatureMatrix, buildPriceOnlyFeatureMatrix, createLabels } from './preprocessing';
+import { buildFeatureMatrix, buildPriceOnlyFeatureMatrix, createLabels, TREND_WINDOW } from './preprocessing';
 import type { PredictionInput, PredictionOutput } from './types';
 import type { EventType } from '../../types/database.types';
 
@@ -23,9 +23,10 @@ const HORIZONS = {
 } as const;
 
 /**
- * Minimum data points required for predictions
+ * Minimum data points required for predictions.
+ * Must cover TREND_WINDOW (20) + horizon (1 min) + MIN_LABELS_PER_HORIZON (25) = 46
  */
-const MIN_DATA_POINTS = 25;
+const MIN_DATA_POINTS = 46;
 
 /**
  * Minimum labels (training samples) required per horizon.
@@ -139,15 +140,15 @@ export async function getStockPredictions(
       // Require sufficient labels for statistical reliability
       if (labels.length < MIN_LABELS_PER_HORIZON) {
         console.warn(
-          `[PredictionService] ${ticker} ${name}: Insufficient labels (${labels.length}/${MIN_LABELS_PER_HORIZON}), need ${MIN_LABELS_PER_HORIZON + horizon} data points`
+          `[PredictionService] ${ticker} ${name}: Insufficient labels (${labels.length}/${MIN_LABELS_PER_HORIZON}), need ${MIN_LABELS_PER_HORIZON + horizon + TREND_WINDOW} data points`
         );
         predictions[name] = null;
         continue;
       }
 
-      // Truncate features to match label length
-      const X_full = fullFeatures.slice(0, labels.length);
-      const X_price = priceFeatures.slice(0, labels.length);
+      // Align features with labels (labels start at TREND_WINDOW index)
+      const X_full = fullFeatures.slice(TREND_WINDOW, TREND_WINDOW + labels.length);
+      const X_price = priceFeatures.slice(TREND_WINDOW, TREND_WINDOW + labels.length);
       const y = labels;
 
       // Generate exponential decay weights for time-weighted sampling
