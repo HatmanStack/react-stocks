@@ -14,12 +14,12 @@ import type { PredictionInput, PredictionOutput } from './types';
 import type { EventType } from '../../types/database.types';
 
 /**
- * Time horizons for predictions (in trading days)
+ * Time horizons for ML predictions (in trading days).
+ * MONTH uses sentiment trend summary instead of ML (overlapping label problem).
  */
-const HORIZONS = {
+const ML_HORIZONS = {
   NEXT: 1, // Next day
   WEEK: 10, // 2 weeks
-  MONTH: 21, // 1 month
 } as const;
 
 /**
@@ -130,10 +130,10 @@ export async function getStockPredictions(
     const sentimentAvailability = fullFeatures.length > 0 ? fullFeatures[0][13] : 0;
     console.log(`[PredictionService] Ensemble weights: full=${sentimentAvailability.toFixed(3)}, price=${(1 - sentimentAvailability).toFixed(3)}`);
 
-    // Make predictions for each horizon using ensemble
+    // Make ML predictions for NEXT and WEEK horizons
     const predictions: { [key: string]: number | null } = {};
 
-    for (const [name, horizon] of Object.entries(HORIZONS)) {
+    for (const [name, horizon] of Object.entries(ML_HORIZONS)) {
       // Generate labels for this horizon
       const labels = createLabels(closePrices, horizon);
 
@@ -201,6 +201,29 @@ export async function getStockPredictions(
         `[Ensemble] ${ticker} ${name}: full=${fullPred.toFixed(4)}, price=${pricePred.toFixed(4)}, ` +
           `weight=${sentimentAvailability.toFixed(2)}, merged=${mergedPred.toFixed(4)}`
       );
+    }
+
+    // MONTH: Sentiment trend summary (not ML — overlapping labels make ML unreliable)
+    // Average the mlScores to get overall sentiment direction
+    const mlScoreInput = input.mlScore;
+    if (mlScoreInput && mlScoreInput.length > 0) {
+      const nonZeroScores = mlScoreInput.filter(s => s !== 0);
+      if (nonZeroScores.length > 0) {
+        const avgSentiment = nonZeroScores.reduce((sum, s) => sum + s, 0) / nonZeroScores.length;
+        // Map sentiment [-1, +1] to prediction [1, 0]:
+        // +1 (very positive) → 0.0 (strong up)
+        //  0 (neutral)       → 0.5 (neutral)
+        // -1 (very negative) → 1.0 (strong down)
+        predictions.MONTH = 0.5 - (avgSentiment / 2);
+        console.log(
+          `[Ensemble] ${ticker} MONTH: sentiment trend (avg=${avgSentiment.toFixed(4)}, ` +
+            `n=${nonZeroScores.length}/${mlScoreInput.length}, pred=${predictions.MONTH.toFixed(4)})`
+        );
+      } else {
+        predictions.MONTH = null; // No sentiment data available
+      }
+    } else {
+      predictions.MONTH = null; // No sentiment data available
     }
 
     const endTime = performance.now();
