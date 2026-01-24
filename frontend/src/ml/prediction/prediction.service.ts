@@ -8,7 +8,8 @@
  */
 
 import { StandardScaler } from './scaler';
-import { LogisticRegressionCV } from './cross-validation';
+import { LogisticRegressionCV, walkForwardCV } from './cross-validation';
+import { LogisticRegression } from './model';
 import { buildFeatureMatrix, buildPriceOnlyFeatureMatrix, createLabels, TREND_WINDOW, FEATURE_NAMES, PRICE_ONLY_FEATURE_NAMES } from './preprocessing';
 import type { PredictionInput, PredictionOutput } from './types';
 import type { EventType } from '../../types/database.types';
@@ -344,9 +345,41 @@ export async function getStockPredictions(
           sig: f.pValue < 0.05 ? '***' : f.pValue < 0.1 ? '*' : '',
         })));
 
-        // --- NEXT: Full ensemble (8-feature + 4-feature merged by sentiment availability) ---
+        // --- NEXT: Full ensemble with walk-forward CV + holdout validation ---
+        // Walk-forward CV for temporal evaluation (no look-ahead bias)
         const fullScaler = new StandardScaler();
         const X_full_scaled = fullScaler.fitTransform(X_full);
+
+        let cvScore: number | null = null;
+        if (y.length >= 35) { // minTrainSize(30) + stepSize(5)
+          try {
+            const wfResults = walkForwardCV(X_full_scaled, y, {
+              minTrainSize: 30, stepSize: 5, ...trainOptions,
+            });
+            cvScore = wfResults.meanScore;
+            console.log(`[WalkForward] ${ticker} NEXT: CV=${wfResults.meanScore.toFixed(3)} +/- ${wfResults.stdScore.toFixed(3)} (${wfResults.scores.length} folds)`);
+          } catch { /* insufficient data for walk-forward, proceed without */ }
+        }
+
+        // Holdout validation: reserve last 20% for out-of-sample test
+        const holdoutSplit = Math.floor(y.length * 0.8);
+        let holdoutScore: number | null = null;
+        let useEnsemble = true;
+
+        if (holdoutSplit >= 25 && y.length - holdoutSplit >= 20) {
+          const holdoutModel = new LogisticRegression();
+          holdoutModel.fit(X_full_scaled.slice(0, holdoutSplit), y.slice(0, holdoutSplit), trainOptions);
+          holdoutScore = holdoutModel.score(X_full_scaled.slice(holdoutSplit), y.slice(holdoutSplit));
+          console.log(`[Holdout] ${ticker} NEXT: holdout=${holdoutScore.toFixed(3)} (${y.length - holdoutSplit} samples)`);
+
+          // Reject ensemble if clearly worse than random with sufficient samples
+          if (holdoutScore < 0.45 && (y.length - holdoutSplit) >= 20) {
+            console.warn(`[Holdout] ${ticker} NEXT: Rejecting ensemble (holdout=${holdoutScore.toFixed(3)} < 0.45), using price-only`);
+            useEnsemble = false;
+          }
+        }
+
+        // Train final models on all data
         const fullModel = new LogisticRegressionCV();
         if (k < 2) {
           fullModel.fit(X_full_scaled, y, trainOptions);
@@ -367,12 +400,17 @@ export async function getStockPredictions(
         const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
         const pricePred = priceModel.predictProba(X_price_recent)[0][1];
 
-        const mergedPred = fullPred * sentimentAvailability + pricePred * (1 - sentimentAvailability);
+        // Blend ensemble or use price-only based on holdout validation
+        const mergedPred = useEnsemble
+          ? fullPred * sentimentAvailability + pricePred * (1 - sentimentAvailability)
+          : pricePred;
         predictions[name] = mergedPred;
 
         console.log(
           `[Ensemble] ${ticker} ${name}: full=${fullPred.toFixed(4)}, price=${pricePred.toFixed(4)}, ` +
-            `weight=${sentimentAvailability.toFixed(2)}, merged=${mergedPred.toFixed(4)}`
+            `weight=${useEnsemble ? sentimentAvailability.toFixed(2) : '0 (rejected)'}, merged=${mergedPred.toFixed(4)}` +
+            (cvScore != null ? `, wfCV=${cvScore.toFixed(3)}` : '') +
+            (holdoutScore != null ? `, holdout=${holdoutScore.toFixed(3)}` : '')
         );
       } else {
         // --- WEEK/MONTH: Price-only model (5 features) to avoid overfit with few samples ---

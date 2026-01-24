@@ -124,6 +124,69 @@ export function crossValidate(
 }
 
 /**
+ * Walk-Forward Cross-Validation for time-series data.
+ *
+ * Uses expanding-window splits: trains on [0..t], tests on [t..t+step].
+ * Avoids look-ahead bias that K-fold introduces with temporal data.
+ *
+ * @param X - Feature matrix (ordered by time, oldest first)
+ * @param y - Labels
+ * @param options - Configuration for walk-forward splits
+ * @returns CV results with mean accuracy across temporal splits
+ */
+export function walkForwardCV(
+  X: FeatureMatrix,
+  y: Labels,
+  options?: {
+    minTrainSize?: number;
+    stepSize?: number;
+    maxIterations?: number;
+    learningRate?: number;
+    regularization?: number;
+    sampleWeights?: number[];
+    classWeight?: 'balanced';
+  }
+): CVResults {
+  const minTrainSize = options?.minTrainSize ?? 30;
+  const stepSize = options?.stepSize ?? 5;
+
+  if (X.length !== y.length) {
+    throw new Error(`walkForwardCV: X and y length mismatch`);
+  }
+
+  if (X.length < minTrainSize + stepSize) {
+    throw new Error(`walkForwardCV: Not enough data (${X.length}) for minTrain=${minTrainSize} + step=${stepSize}`);
+  }
+
+  const scores: number[] = [];
+
+  for (let splitPoint = minTrainSize; splitPoint + stepSize <= X.length; splitPoint += stepSize) {
+    const X_train = X.slice(0, splitPoint);
+    const y_train = y.slice(0, splitPoint);
+    const X_test = X.slice(splitPoint, splitPoint + stepSize);
+    const y_test = y.slice(splitPoint, splitPoint + stepSize);
+
+    const model = new LogisticRegression();
+    model.fit(X_train, y_train, {
+      maxIterations: options?.maxIterations ?? 1000,
+      learningRate: options?.learningRate ?? 0.01,
+      regularization: options?.regularization ?? 1.0,
+      sampleWeights: options?.sampleWeights?.slice(0, splitPoint),
+      classWeight: options?.classWeight,
+    });
+
+    const accuracy = model.score(X_test, y_test);
+    scores.push(accuracy);
+  }
+
+  const meanScore = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const variance = scores.reduce((sum, s) => sum + (s - meanScore) ** 2, 0) / scores.length;
+  const stdScore = Math.sqrt(variance);
+
+  return { scores, meanScore, stdScore };
+}
+
+/**
  * Logistic Regression with Cross-Validation
  *
  * Performs K-fold CV during training and trains final model on all data.
