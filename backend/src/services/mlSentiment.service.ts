@@ -184,18 +184,23 @@ export async function getMlSentiment(
       }
 
       // Validate sentiment score range
-      const sentimentScore = data.sentiment;
-      if (sentimentScore < -1 || sentimentScore > 1) {
+      const rawScore = data.sentiment;
+      if (rawScore < -1 || rawScore > 1) {
         console.error('[MlSentimentService] Sentiment score out of range', {
-          score: sentimentScore,
+          score: rawScore,
         });
-        throw new Error(`Invalid sentiment score: ${sentimentScore}`);
+        throw new Error(`Invalid sentiment score: ${rawScore}`);
       }
 
+      // Scale by confidence for nuance (prevents binary ±1 outputs)
+      const confidence = typeof data.confidence === 'number' ? Math.min(data.confidence, 1) : 1;
+      const sentimentScore = rawScore * confidence;
+
       console.log('[MlSentimentService] Analysis successful', {
-        sentiment: sentimentScore,
+        raw: rawScore,
+        confidence,
+        scaled: sentimentScore,
         label: data.label,
-        confidence: data.confidence,
       });
 
       return sentimentScore;
