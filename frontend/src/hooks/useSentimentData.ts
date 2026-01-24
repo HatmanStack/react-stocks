@@ -522,19 +522,13 @@ export function useSentimentData(
 
         if (predictions && latestRecord) {
           console.log(`[useSentimentData] Predictions received:`, predictions);
-          // Update latest record with predictions (only set non-null horizons)
-          if (predictions.nextDay) {
-            latestRecord.nextDayDirection = predictions.nextDay.direction;
-            latestRecord.nextDayProbability = predictions.nextDay.probability;
-          }
-          if (predictions.twoWeek) {
-            latestRecord.twoWeekDirection = predictions.twoWeek.direction;
-            latestRecord.twoWeekProbability = predictions.twoWeek.probability;
-          }
-          if (predictions.oneMonth) {
-            latestRecord.oneMonthDirection = predictions.oneMonth.direction;
-            latestRecord.oneMonthProbability = predictions.oneMonth.probability;
-          }
+          // Update latest record with predictions (clear stale values for null horizons)
+          latestRecord.nextDayDirection = predictions.nextDay?.direction ?? undefined;
+          latestRecord.nextDayProbability = predictions.nextDay?.probability ?? undefined;
+          latestRecord.twoWeekDirection = predictions.twoWeek?.direction ?? undefined;
+          latestRecord.twoWeekProbability = predictions.twoWeek?.probability ?? undefined;
+          latestRecord.oneMonthDirection = predictions.oneMonth?.direction ?? undefined;
+          latestRecord.oneMonthProbability = predictions.oneMonth?.probability ?? undefined;
           latestRecord.updateDate = formatDateForDB(new Date());
           console.log(`[useSentimentData] Updated latestRecord with predictions:`, {
             nextDayDirection: latestRecord.nextDayDirection ?? 'insufficient data',

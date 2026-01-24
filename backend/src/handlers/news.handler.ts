@@ -135,6 +135,7 @@ export async function handleNewsWithCache(
 
     // Tier 3: Cache miss or insufficient coverage - fetch from Finnhub
     console.log(`[NewsHandler] Cache miss for ${ticker}: fetching from API`);
+    let apiCallCount = 1; // Finnhub always called
     let apiArticles = await fetchCompanyNews(ticker, from, to, apiKey);
     let newsSource: 'finnhub' | 'alphavantage' = 'finnhub';
 
@@ -166,6 +167,7 @@ export async function handleNewsWithCache(
         const alphaFrom = lookbackDate.toISOString().split('T')[0];
         const alphaTo = today.toISOString().split('T')[0];
 
+        apiCallCount++;
         const alphaArticles = await fetchAlphaVantageNews(ticker, alphaFrom, alphaTo, alphaVantageKey);
         const alphaUniqueDays = new Set(
           alphaArticles.map((a) => {
@@ -177,19 +179,15 @@ export async function handleNewsWithCache(
         console.log(`[NewsHandler] Alpha Vantage returned ${alphaArticles.length} articles spanning ${alphaUniqueDays} days (5 year fetch, max 1000)`);
 
         if (alphaArticles.length > 0) {
-          // Cache ALL Alpha Vantage articles (the full 5-year fetch)
-          const { newArticles: newAlphaArticles } = await filterNewArticles(ticker, alphaArticles);
-
-          if (newAlphaArticles.length > 0) {
-            try {
-              const cacheItems = newAlphaArticles.map(({ article, hash }) =>
-                transformFinnhubToCache(ticker, article, hash)
-              );
-              await batchPutArticles(cacheItems);
-              console.log(`[NewsHandler] Cached ${newAlphaArticles.length} Alpha Vantage articles`);
-            } catch (cacheError) {
-              console.error('[NewsHandler] Failed to cache Alpha Vantage articles:', cacheError);
-            }
+          // Cache ALL Alpha Vantage articles — batchPutArticles overwrites duplicates
+          try {
+            const cacheItems = alphaArticles.map((article) =>
+              transformFinnhubToCache(ticker, article)
+            );
+            await batchPutArticles(cacheItems);
+            console.log(`[NewsHandler] Cached ${alphaArticles.length} Alpha Vantage articles`);
+          } catch (cacheError) {
+            console.error('[NewsHandler] Failed to cache Alpha Vantage articles:', cacheError);
           }
 
           // Filter to requested date range for response
@@ -227,7 +225,7 @@ export async function handleNewsWithCache(
       [
         { name: 'NewArticleCount', value: newArticles.length, unit: MetricUnit.Count },
         { name: 'DuplicateArticleCount', value: duplicateCount, unit: MetricUnit.Count },
-        { name: 'ApiCallCount', value: 1, unit: MetricUnit.Count },
+        { name: 'ApiCallCount', value: apiCallCount, unit: MetricUnit.Count },
       ],
       { Endpoint: 'news', Ticker: ticker, CacheHit: 'false' }
     );
