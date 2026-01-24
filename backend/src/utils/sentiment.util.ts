@@ -115,26 +115,28 @@ export function aggregateDailySentiment(
       eventCounts[eventType as EventType] = (eventCounts[eventType as EventType] || 0) + 1;
     }
 
-    // NEW (Phase 4): Average aspect scores (exclude 0 scores which indicate no aspects detected)
-    const aspectScores = daySentiments
-      .map((s) => s.aspectScore)
-      .filter((score): score is number => score !== undefined && score !== 0);
+    // Signal-weighted average aspect scores (exclude 0 scores which indicate no aspects detected)
+    const aspectEntries = daySentiments
+      .filter((s) => s.aspectScore !== undefined && s.aspectScore !== 0)
+      .map((s) => ({ score: s.aspectScore!, weight: s.signalScore ?? 0.5 }));
+    const aspectTotalWeight = aspectEntries.reduce((sum, e) => sum + e.weight, 0);
     const avgAspectScore =
-      aspectScores.length > 0
-        ? aspectScores.reduce((sum, score) => sum + score, 0) / aspectScores.length
+      aspectEntries.length > 0 && aspectTotalWeight > 0
+        ? aspectEntries.reduce((sum, e) => sum + e.score * e.weight, 0) / aspectTotalWeight
         : undefined;
 
-    // NEW (Phase 4): Average MlSentiment scores (only for material events)
-    const mlScores = daySentiments
-      .map((s) => s.mlScore)
-      .filter((score): score is number => score !== undefined);
+    // Signal-weighted average MlSentiment scores (only for material events)
+    const mlEntries = daySentiments
+      .filter((s) => s.mlScore !== undefined)
+      .map((s) => ({ score: s.mlScore!, weight: s.signalScore ?? 0.5 }));
+    const mlTotalWeight = mlEntries.reduce((sum, e) => sum + e.weight, 0);
     const avgMlScore =
-      mlScores.length > 0
-        ? mlScores.reduce((sum, score) => sum + score, 0) / mlScores.length
+      mlEntries.length > 0 && mlTotalWeight > 0
+        ? mlEntries.reduce((sum, e) => sum + e.score * e.weight, 0) / mlTotalWeight
         : undefined;
-    const materialEventCount = mlScores.length;
+    const materialEventCount = mlEntries.length;
 
-    // Average signal scores for all articles
+    // Average signal score (kept for display, not as prediction feature)
     const signalScores = daySentiments
       .map((s) => s.signalScore)
       .filter((score): score is number => score !== undefined);

@@ -47,18 +47,11 @@ export interface PredictionInput {
   /**
    * ML model contextual sentiment score for each observation.
    * Range: -1 (very negative) to +1 (very positive)
-   * Defaults to 0 if not provided.
+   * null entries indicate days with no sentiment data (used to compute availability).
+   * Defaults to 0 in the feature matrix.
    */
-  mlScore?: number[];
+  mlScore?: (number | null)[];
 
-  /**
-   * Signal score from metadata analysis.
-   * Range: 0 to 1 (higher = stronger signal quality)
-   * Combines publisher authority, headline quality, volume context, recency.
-   * Less weight in predictions than aspectScore/mlScore.
-   * Defaults to 0.5 if not provided.
-   */
-  signalScore?: number[];
 }
 
 /**

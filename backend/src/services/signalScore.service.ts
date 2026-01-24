@@ -60,10 +60,9 @@ const DEFAULT_PUBLISHER_SCORE = 0.4;
  * Weights for each signal component
  */
 const WEIGHTS = {
-  PUBLISHER: 0.4,
+  PUBLISHER: 0.5,
   HEADLINE: 0.3,
-  VOLUME: 0.2,
-  RECENCY: 0.1,
+  DEPTH: 0.2,
 } as const;
 
 /**
@@ -72,15 +71,7 @@ const WEIGHTS = {
 export interface ArticleMetadata {
   publisher?: string;
   title: string;
-  date: string; // YYYY-MM-DD
-}
-
-/**
- * Volume context for signal calculation
- */
-export interface VolumeContext {
-  dailyCount: number;
-  averageCount: number; // 7-day rolling average
+  body?: string; // Article description/body text
 }
 
 /**
@@ -89,8 +80,7 @@ export interface VolumeContext {
 export interface SignalBreakdown {
   publisher: number;
   headline: number;
-  volume: number;
-  recency: number;
+  depth: number;
 }
 
 /**
@@ -165,81 +155,46 @@ export function getHeadlineScore(title: string): number {
 }
 
 /**
- * Calculate volume context score
+ * Calculate article depth score based on body/description length
  *
- * Higher score when:
- * - Article count is above average (increased attention)
- * - But not excessively high (may indicate noise)
+ * Longer, more detailed articles tend to be more reliable analysis.
+ * Short or missing descriptions indicate wire reposts or low-effort content.
  */
-export function getVolumeScore(context: VolumeContext): number {
-  const { dailyCount, averageCount } = context;
+export function getDepthScore(body?: string): number {
+  if (!body) return 0.2;
 
-  if (averageCount <= 0) return 0.5; // No baseline
+  const length = body.length;
 
-  const ratio = dailyCount / averageCount;
-
-  // Optimal range: 1.0 - 2.0x average
-  if (ratio >= 1.0 && ratio <= 2.0) {
-    return 0.7 + (ratio - 1.0) * 0.3; // 0.7 - 1.0
-  }
-
-  // Below average: lower score
-  if (ratio < 1.0) {
-    return 0.3 + ratio * 0.4; // 0.3 - 0.7
-  }
-
-  // Way above average (>2x): diminishing returns (noise)
-  return Math.max(0.6, 1.0 - (ratio - 2.0) * 0.1);
-}
-
-/**
- * Calculate recency score
- *
- * Higher score for more recent articles
- */
-export function getRecencyScore(articleDate: string): number {
-  const today = new Date();
-  const article = new Date(articleDate);
-  const daysDiff = Math.floor((today.getTime() - article.getTime()) / (1000 * 60 * 60 * 24));
-
-  if (daysDiff <= 0) return 1.0; // Today
-  if (daysDiff === 1) return 0.9; // Yesterday
-  if (daysDiff <= 3) return 0.7; // This week
-  if (daysDiff <= 7) return 0.5; // Last week
-  if (daysDiff <= 14) return 0.3; // 2 weeks
-  return 0.2; // Older
+  if (length < 50) return 0.2;    // Bare minimum
+  if (length < 100) return 0.4;   // One-liner
+  if (length < 200) return 0.6;   // Brief summary
+  if (length < 500) return 0.8;   // Decent summary
+  return 1.0;                     // Full article
 }
 
 /**
  * Calculate the overall signal score for an article
  *
- * @param article - Article metadata (publisher, title, date)
- * @param volumeContext - Optional volume context for the day
+ * @param article - Article metadata (publisher, title, body)
  * @returns Signal score (0-1) and breakdown
  */
 export function calculateSignalScore(
   article: ArticleMetadata,
-  volumeContext?: VolumeContext
 ): { score: number; breakdown: SignalBreakdown } {
   const publisherScore = getPublisherScore(article.publisher);
   const headlineScore = getHeadlineScore(article.title);
-  const volumeScore = volumeContext
-    ? getVolumeScore(volumeContext)
-    : 0.5; // Default if no context
-  const recencyScore = getRecencyScore(article.date);
+  const depthScore = getDepthScore(article.body);
 
   const breakdown: SignalBreakdown = {
     publisher: publisherScore,
     headline: headlineScore,
-    volume: volumeScore,
-    recency: recencyScore,
+    depth: depthScore,
   };
 
   const score =
     publisherScore * WEIGHTS.PUBLISHER +
     headlineScore * WEIGHTS.HEADLINE +
-    volumeScore * WEIGHTS.VOLUME +
-    recencyScore * WEIGHTS.RECENCY;
+    depthScore * WEIGHTS.DEPTH;
 
   return {
     score: Math.round(score * 100) / 100, // Round to 2 decimal places
@@ -249,40 +204,17 @@ export function calculateSignalScore(
 
 /**
  * Batch calculate signal scores for multiple articles
- * Efficiently computes volume context once for all articles on the same day
  *
  * @param articles - Array of article metadata
- * @param historicalCounts - Map of date -> article count for volume context
  * @returns Map of article index -> signal score
  */
 export function calculateSignalScoresBatch(
   articles: ArticleMetadata[],
-  historicalCounts?: Map<string, number>
 ): Map<number, { score: number; breakdown: SignalBreakdown }> {
   const results = new Map<number, { score: number; breakdown: SignalBreakdown }>();
 
-  // Count articles per day for volume context
-  const dailyCounts = new Map<string, number>();
-  for (const article of articles) {
-    dailyCounts.set(article.date, (dailyCounts.get(article.date) || 0) + 1);
-  }
-
-  // Calculate 7-day average from historical data or current batch
-  const allCounts = historicalCounts
-    ? Array.from(historicalCounts.values())
-    : Array.from(dailyCounts.values());
-  const averageCount = allCounts.length > 0
-    ? allCounts.reduce((a, b) => a + b, 0) / allCounts.length
-    : 1;
-
-  // Calculate signal score for each article
   articles.forEach((article, index) => {
-    const volumeContext: VolumeContext = {
-      dailyCount: dailyCounts.get(article.date) || 1,
-      averageCount,
-    };
-
-    results.set(index, calculateSignalScore(article, volumeContext));
+    results.set(index, calculateSignalScore(article));
   });
 
   return results;

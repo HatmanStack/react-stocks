@@ -162,9 +162,7 @@ async function generateBrowserPredictions(
     // Extract three-signal sentiment data (defaults to neutral if not available)
     const eventTypes: EventType[] = [];
     const aspectScores: number[] = [];
-    const mlScores: number[] = [];
-    const signalScores: number[] = [];
-
+    const mlScores: (number | null)[] = [];
     for (const day of trimmedSentiment) {
       // Parse dominant event type from eventCounts JSON
       let dominantEvent: EventType = 'GENERAL';
@@ -182,20 +180,19 @@ async function generateBrowserPredictions(
       }
       eventTypes.push(dominantEvent);
       aspectScores.push(day.avgAspectScore ?? 0);
-      mlScores.push(day.avgMlScore ?? 0);
-      signalScores.push(day.avgSignalScore ?? 0.5); // Default 0.5 (neutral)
+      mlScores.push(day.avgMlScore ?? null); // Preserve null for availability calculation
     }
 
-    // Calculate sentiment availability for logging
-    const sentimentAvailability = mlScores.filter(s => s !== 0).length / mlScores.length;
+    // Calculate sentiment availability for logging (null = no data for that day)
+    const sentimentAvailability = mlScores.filter(s => s !== null).length / mlScores.length;
 
     console.log(`[Predictions] Feature extraction complete:`);
     console.log(`[Predictions]   - closePrices: ${closePrices.length} points, range: [${Math.min(...closePrices).toFixed(2)}, ${Math.max(...closePrices).toFixed(2)}]`);
     console.log(`[Predictions]   - volumes: ${volumes.length} points`);
     console.log(`[Predictions]   - eventTypes: ${eventTypes.length} (unique: ${[...new Set(eventTypes)].join(', ')})`);
     console.log(`[Predictions]   - aspectScores: ${aspectScores.length} (non-zero: ${aspectScores.filter(s => s !== 0).length})`);
-    console.log(`[Predictions]   - mlScores: ${mlScores.length} (non-zero: ${mlScores.filter(s => s !== 0).length})`);
-    console.log(`[Predictions]   - signalScores: ${signalScores.length}`);
+    console.log(`[Predictions]   - mlScores: ${mlScores.length} (with data: ${mlScores.filter(s => s !== null).length})`);
+
     console.log(`[Predictions]   - sentimentAvailability: ${(sentimentAvailability * 100).toFixed(1)}%`);
 
     // Run browser-based logistic regression
@@ -209,8 +206,7 @@ async function generateBrowserPredictions(
       [], // deprecated
       eventTypes,
       aspectScores,
-      mlScores,
-      signalScores
+      mlScores
     );
     console.log(`[Predictions] Raw response:`, response);
 

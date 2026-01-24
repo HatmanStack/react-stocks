@@ -78,8 +78,7 @@ describe('Preprocessing', () => {
   });
 
   describe('buildFeatureMatrix', () => {
-    it('should build 15-feature matrix with new signals', () => {
-      // All arrays must have the same length (11 items each)
+    it('should build 8-feature matrix with sentiment signals', () => {
       const input: PredictionInput = {
         ticker: 'TEST',
         close: [150.0, 152.0, 151.0, 153.0, 154.0, 155.0, 156.0, 157.0, 158.0, 159.0, 160.0],
@@ -87,27 +86,23 @@ describe('Preprocessing', () => {
         eventType: ['EARNINGS', 'M&A', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL'],
         aspectScore: [0.5, -0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         mlScore: [0.7, -0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        signalScore: [0.8, 0.6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
       };
 
       const features = buildFeatureMatrix(input);
 
-      // Should have 15 features per row (11 rows, one per day)
       expect(features).toHaveLength(11);
-      expect(features[0]).toHaveLength(15);
-      expect(features[1]).toHaveLength(15);
+      expect(features[0]).toHaveLength(8);
+      expect(features[1]).toHaveLength(8);
 
-      // Check event type one-hot encoding (first row is EARNINGS, second is M&A)
-      expect(features[0].slice(4, 10)).toEqual([1, 0, 0, 0, 0, 0]); // EARNINGS
-      expect(features[1].slice(4, 10)).toEqual([0, 1, 0, 0, 0, 0]); // M&A
+      // Check event impact scores (EARNINGS=1.0, M&A=0.8)
+      expect(features[0][3]).toBe(1.0); // EARNINGS
+      expect(features[1][3]).toBe(0.8); // M&A
 
       // Check aspect and ML scores
-      expect(features[0][10]).toBe(0.5); // aspect score
-      expect(features[0][11]).toBe(0.7); // ML score
-      expect(features[0][12]).toBe(0.8); // signal score
-      expect(features[1][10]).toBe(-0.3); // aspect score
-      expect(features[1][11]).toBe(-0.2); // ML score
-      expect(features[1][12]).toBe(0.6); // signal score
+      expect(features[0][4]).toBe(0.5); // aspect score
+      expect(features[0][5]).toBe(0.7); // ML score
+      expect(features[1][4]).toBe(-0.3); // aspect score
+      expect(features[1][5]).toBe(-0.2); // ML score
     });
 
     it('should default to GENERAL event type if not provided', () => {
@@ -120,13 +115,12 @@ describe('Preprocessing', () => {
 
       const features = buildFeatureMatrix(input);
       expect(features).toHaveLength(1);
-      expect(features[0]).toHaveLength(15);
-      // Check that event type defaults to GENERAL (index 4-9, with 9=1 for GENERAL)
-      expect(features[0].slice(4, 10)).toEqual([0, 0, 0, 0, 0, 1]); // GENERAL
-      // Check that aspect and ML default to 0, signal defaults to 0.5
-      expect(features[0][10]).toBe(0); // aspect score
-      expect(features[0][11]).toBe(0); // ML score
-      expect(features[0][12]).toBe(0.5); // signal score default
+      expect(features[0]).toHaveLength(8);
+      // Check that event impact defaults to 0.0 (GENERAL)
+      expect(features[0][3]).toBe(0.0); // GENERAL
+      // Check that aspect and ML default to 0
+      expect(features[0][4]).toBe(0); // aspect score
+      expect(features[0][5]).toBe(0); // ML score
     });
 
     it('should default aspect and ML scores to 0 if not provided', () => {
@@ -135,18 +129,16 @@ describe('Preprocessing', () => {
         close: [150.0],
         volume: [100000000],
         eventType: ['EARNINGS'],
-        // No aspectScore or mlScore provided - should default to 0
       };
 
       const features = buildFeatureMatrix(input);
       expect(features).toHaveLength(1);
-      expect(features[0]).toHaveLength(15);
-      // Check event type is EARNINGS (index 4=1)
-      expect(features[0].slice(4, 10)).toEqual([1, 0, 0, 0, 0, 0]); // EARNINGS
-      // Check that aspect and ML default to 0, signal defaults to 0.5
-      expect(features[0][10]).toBe(0); // aspect score
-      expect(features[0][11]).toBe(0); // ML score
-      expect(features[0][12]).toBe(0.5); // signal score default
+      expect(features[0]).toHaveLength(8);
+      // Check event impact is 1.0 (EARNINGS)
+      expect(features[0][3]).toBe(1.0); // EARNINGS
+      // Check that aspect and ML default to 0
+      expect(features[0][4]).toBe(0); // aspect score
+      expect(features[0][5]).toBe(0); // ML score
     });
 
     it('should produce matrix with correct dimensions', () => {
@@ -157,13 +149,12 @@ describe('Preprocessing', () => {
         eventType: ['EARNINGS', 'M&A', 'GENERAL', 'GUIDANCE', 'ANALYST_RATING'],
         aspectScore: [0.5, -0.3, 0, 0.2, 0.8],
         mlScore: [0.7, -0.2, 0.1, 0.4, 0.9],
-        signalScore: [0.8, 0.6, 0.5, 0.7, 0.9],
       };
 
       const features = buildFeatureMatrix(input);
 
       expect(features.length).toBe(5); // 5 rows
-      expect(features[0].length).toBe(15); // 15 features (Phase 6 update)
+      expect(features[0].length).toBe(8); // 8 features
     });
 
     it('should throw error on inconsistent lengths', () => {
@@ -192,22 +183,16 @@ describe('Preprocessing', () => {
         ticker: 'AAPL',
         close: [150.0, 152.0, 151.5, 153.0, 152.5],
         volume: [100000000, 95000000, 98000000, 102000000, 97000000],
-        // No eventType/aspectScore/mlScore/signalScore - will default to GENERAL, zeros, and 0.5
       };
 
       const features = buildFeatureMatrix(input);
 
-      // Verify structure: [price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, ...eventType(6), aspect, ml, signal, sentimentAvailability, volatility]
-      // With defaults: eventType=GENERAL [0,0,0,0,0,1], aspect=0, ml=0, signal=0.5, sentimentAvailability=0
       expect(features).toHaveLength(5);
       features.forEach((row) => {
-        expect(row).toHaveLength(15);
-        // Check event type defaults to GENERAL (indices 4-9)
-        expect(row.slice(4, 10)).toEqual([0, 0, 0, 0, 0, 1]);
-        // Check aspect and ML default to 0, signal defaults to 0.5
-        expect(row[10]).toBe(0); // aspect score
-        expect(row[11]).toBe(0); // ML score
-        expect(row[12]).toBe(0.5); // signal score default
+        expect(row).toHaveLength(8);
+        expect(row[3]).toBe(0.0); // event_impact defaults to GENERAL
+        expect(row[4]).toBe(0); // aspect score
+        expect(row[5]).toBe(0); // ML score
       });
     });
   });
@@ -311,8 +296,8 @@ describe('Preprocessing', () => {
   describe('validateFeatureMatrix', () => {
     it('should pass for valid feature matrix', () => {
       const X = [
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        [1, 2, 3, 4, 5, 6, 7, 8],
+        [1, 2, 3, 4, 5, 6, 7, 8],
       ];
 
       expect(() => validateFeatureMatrix(X)).not.toThrow();
@@ -325,12 +310,12 @@ describe('Preprocessing', () => {
     it('should throw error for wrong feature count', () => {
       const X = [[1, 2, 3]]; // Only 3 features
 
-      expect(() => validateFeatureMatrix(X)).toThrow('Expected 15 features');
+      expect(() => validateFeatureMatrix(X)).toThrow('Expected 8 features');
     });
 
     it('should throw error for inconsistent feature count', () => {
       const X = [
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        [1, 2, 3, 4, 5, 6, 7, 8],
         [1, 2, 3], // Wrong length
       ];
 
@@ -339,7 +324,7 @@ describe('Preprocessing', () => {
 
     it('should throw error for non-finite values', () => {
       const X = [
-        [1, 2, 3, NaN, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        [1, 2, 3, NaN, 5, 6, 7, 8],
       ];
 
       expect(() => validateFeatureMatrix(X)).toThrow('Non-finite value');
@@ -384,7 +369,7 @@ describe('Preprocessing', () => {
       const features = buildPriceOnlyFeatureMatrix(input);
 
       expect(features).toHaveLength(11);
-      expect(features[0]).toHaveLength(5); // Only 5 features
+      expect(features[0]).toHaveLength(4); // Only 4 features
     });
 
     it('should ignore sentiment data entirely', () => {
@@ -398,11 +383,12 @@ describe('Preprocessing', () => {
       const features = buildPriceOnlyFeatureMatrix(input);
 
       // All features should be price-derived only
-      expect(features[0]).toHaveLength(5);
-      // First row: ratio1d=1.0 (no prior), ratio5d=1.0, ratio10d=1.0, volume, volatility=0
-      expect(features[0][0]).toBe(1.0); // ratio1d default
-      expect(features[0][3]).toBe(100000000); // volume
-      expect(features[0][4]).toBe(0); // volatility (insufficient window)
+      expect(features[0]).toHaveLength(4);
+      // First row: ratio5d=1.0, ratio10d=1.0, volume, volatility=0
+      expect(features[0][0]).toBe(1.0); // ratio5d default
+      expect(features[0][1]).toBe(1.0); // ratio10d default
+      expect(features[0][2]).toBe(100000000); // volume
+      expect(features[0][3]).toBe(0); // volatility (insufficient window)
     });
 
     it('should calculate correct price ratios', () => {
@@ -414,9 +400,9 @@ describe('Preprocessing', () => {
 
       const features = buildPriceOnlyFeatureMatrix(input);
 
-      expect(features[1][0]).toBeCloseTo(1.1); // ratio1d: 110/100
-      expect(features[1][1]).toBe(1.0); // ratio5d: not enough data
-      expect(features[1][2]).toBe(1.0); // ratio10d: not enough data
+      expect(features[1][0]).toBe(1.0); // ratio5d: not enough data
+      expect(features[1][1]).toBe(1.0); // ratio10d: not enough data
+      expect(features[1][2]).toBe(1000); // volume
     });
 
     it('should throw error on inconsistent lengths', () => {
@@ -450,37 +436,29 @@ describe('Preprocessing', () => {
       const fullFeatures = buildFeatureMatrix(input);
       const priceFeatures = buildPriceOnlyFeatureMatrix(input);
 
-      // Price ratios (indices 0-2) and volume (3) should match
+      // Price ratios, volume, and volatility should match between models
       for (let i = 0; i < 5; i++) {
-        expect(priceFeatures[i][0]).toBe(fullFeatures[i][0]); // ratio1d
-        expect(priceFeatures[i][1]).toBe(fullFeatures[i][1]); // ratio5d
-        expect(priceFeatures[i][2]).toBe(fullFeatures[i][2]); // ratio10d
-        expect(priceFeatures[i][3]).toBe(fullFeatures[i][3]); // volume
-        expect(priceFeatures[i][4]).toBe(fullFeatures[i][14]); // volatility (index 14 in full)
+        expect(priceFeatures[i][0]).toBe(fullFeatures[i][0]); // ratio5d
+        expect(priceFeatures[i][1]).toBe(fullFeatures[i][1]); // ratio10d
+        expect(priceFeatures[i][2]).toBe(fullFeatures[i][2]); // volume
+        expect(priceFeatures[i][3]).toBe(fullFeatures[i][7]); // volatility (index 7 in full)
       }
     });
   });
 
   describe('Constants', () => {
     it('should have correct feature count', () => {
-      expect(FEATURE_COUNT).toBe(15); // Phase 6: Updated from 13 to 15
+      expect(FEATURE_COUNT).toBe(8);
     });
 
     it('should have correct feature names', () => {
       expect(FEATURE_NAMES).toEqual([
-        'price_ratio_1d',
         'price_ratio_5d',
         'price_ratio_10d',
         'volume',
-        'event_earnings',
-        'event_ma',
-        'event_product',
-        'event_analyst',
-        'event_guidance',
-        'event_general',
+        'event_impact',
         'aspect_score',
         'ml_score',
-        'signal_score',
         'sentiment_availability',
         'volatility',
       ]);
@@ -491,12 +469,11 @@ describe('Preprocessing', () => {
     });
 
     it('should have correct price-only feature count', () => {
-      expect(PRICE_ONLY_FEATURE_COUNT).toBe(5);
+      expect(PRICE_ONLY_FEATURE_COUNT).toBe(4);
     });
 
     it('should have correct price-only feature names', () => {
       expect(PRICE_ONLY_FEATURE_NAMES).toEqual([
-        'price_ratio_1d',
         'price_ratio_5d',
         'price_ratio_10d',
         'volume',

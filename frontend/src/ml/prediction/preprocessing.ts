@@ -4,64 +4,46 @@
  * Functions for converting raw stock data into feature matrices
  * and labels for logistic regression training.
  *
- * **Phase 4 Update:** Added support for three-signal sentiment architecture
- * (eventType, aspectScore, mlScore) increasing feature count from 8 to 13.
- *
- * **Phase 5 Update:** Added signalScore feature increasing count from 13 to 14.
- * **Phase 6 Update:** Added sentimentAvailability feature increasing count from 14 to 15.
- * This allows predictions to run even when sentiment data is incomplete.
+ * Full model: 8 features (price ratios, volume, event impact, aspect, ml, availability, volatility)
+ * Price-only model: 4 features (price ratios, volume, volatility)
+ * Signal score is used as a reliability weight during daily aggregation, not as a standalone feature.
  */
 
 import type { PredictionInput, FeatureMatrix, Labels } from './types';
 import type { EventType } from '../../types/database.types';
 
 /**
- * One-hot encode event types
+ * Event impact scores (0-1 scale by expected market impact)
+ */
+const EVENT_IMPACT: Record<string, number> = {
+  GENERAL: 0.0,
+  PRODUCT_LAUNCH: 0.2,
+  ANALYST_RATING: 0.4,
+  GUIDANCE: 0.6,
+  'M&A': 0.8,
+  EARNINGS: 1.0,
+};
+
+/**
+ * Encode event types as a single impact score (0-1)
  *
- * Converts categorical event types into binary features.
- * Order: EARNINGS, M&A, PRODUCT_LAUNCH, ANALYST_RATING, GUIDANCE, GENERAL
+ * Replaces 6 one-hot features with a single ordinal feature based on
+ * expected market impact magnitude.
  *
  * @param eventTypes - Array of event type strings
- * @returns 2D array with 6 columns (one per event type)
- *
- * @example
- * ```typescript
- * oneHotEncodeEventType(['EARNINGS', 'M&A', 'GENERAL'])
- * // Returns:
- * // [[1, 0, 0, 0, 0, 0],  // EARNINGS
- * //  [0, 1, 0, 0, 0, 0],  // M&A
- * //  [0, 0, 0, 0, 0, 1]]  // GENERAL
- * ```
+ * @returns Array of impact scores (0-1)
  */
-export function oneHotEncodeEventType(eventTypes: EventType[]): number[][] {
-  const encoded: number[][] = [];
-
-  for (const eventType of eventTypes) {
+export function encodeEventImpact(eventTypes: EventType[]): number[] {
+  return eventTypes.map((eventType) => {
     const normalized = eventType ?? 'GENERAL';
-
-    if (normalized === 'EARNINGS') {
-      encoded.push([1, 0, 0, 0, 0, 0]);
-    } else if (normalized === 'M&A') {
-      encoded.push([0, 1, 0, 0, 0, 0]);
-    } else if (normalized === 'PRODUCT_LAUNCH') {
-      encoded.push([0, 0, 1, 0, 0, 0]);
-    } else if (normalized === 'ANALYST_RATING') {
-      encoded.push([0, 0, 0, 1, 0, 0]);
-    } else if (normalized === 'GUIDANCE') {
-      encoded.push([0, 0, 0, 0, 1, 0]);
-    } else {
-      // GENERAL or unknown
-      encoded.push([0, 0, 0, 0, 0, 1]);
-    }
-  }
-
-  return encoded;
+    return EVENT_IMPACT[normalized] ?? 0.0;
+  });
 }
 
 /**
  * One-hot encode sentiment categories (DEPRECATED)
  *
- * @deprecated Use oneHotEncodeEventType instead. This is kept for backward compatibility only.
+ * @deprecated Use encodeEventImpact instead. This is kept for backward compatibility only.
  * @param sentiment - Array of sentiment strings ("POS", "NEG", "NEUT", or others)
  * @returns 2D array with 4 columns: [is_pos, is_neg, is_neut, is_unknown]
  */
@@ -153,32 +135,15 @@ function calculateVolatility(close: number[], window: number = 10): number[] {
 /**
  * Build feature matrix from raw prediction inputs
  *
- * **Phase 6 Update:** Creates 15-feature matrix with three-signal sentiment + availability:
- * [price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, ...eventType(6), aspectScore, mlScore, signalScore, sentimentAvailability, volatility]
- *
- * **Removed:** positive, negative counts (deprecated)
- * **Features:** Price ratios (3), volume (1), eventType (6), aspectScore (1), mlScore (1), signalScore (1), sentimentAvailability (1), volatility (1)
+ * Creates 8-feature matrix:
+ * [price_ratio_5d, price_ratio_10d, volume, event_impact, aspect_score, ml_score, sentiment_availability, volatility]
  *
  * @param input - Raw prediction input data
- * @returns Feature matrix (n_samples × 15)
+ * @returns Feature matrix (n_samples × 8)
  * @throws Error if input arrays have inconsistent lengths
- *
- * @example
- * ```typescript
- * const input = {
- *   close: [150.0, 151.5, 152.0],
- *   volume: [1000000, 1100000, 1050000],
- *   eventType: ['EARNINGS', 'M&A', 'GENERAL'],
- *   aspectScore: [0.5, -0.3, 0.1],
- *   mlScore: [0.7, -0.2, 0.0],
- *   signalScore: [0.8, 0.6, 0.5]
- * };
- * const features = buildFeatureMatrix(input);
- * // Returns 3×15 matrix
- * ```
  */
 export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
-  const { close, volume, eventType, aspectScore, mlScore, signalScore } = input;
+  const { close, volume, eventType, aspectScore, mlScore } = input;
 
   // Validate input lengths
   const n = close.length;
@@ -205,12 +170,6 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
       `Preprocessing: mlScore length (${mlScore.length}) does not match close length (${n})`
     );
   }
-  if (signalScore && signalScore.length !== n) {
-    throw new Error(
-      `Preprocessing: signalScore length (${signalScore.length}) does not match close length (${n})`
-    );
-  }
-
   if (n === 0) {
     return [];
   }
@@ -221,41 +180,35 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   // Calculate volatility
   const volatility = calculateVolatility(close);
 
-  // One-hot encode event types (6 features) or use default GENERAL
-  const eventOneHot = eventType
-    ? oneHotEncodeEventType(eventType)
-    : Array(n)
-        .fill(null)
-        .map(() => [0, 0, 0, 0, 0, 1]); // Default to GENERAL
+  // Encode event types as single impact score (0-1)
+  const eventImpact = eventType
+    ? encodeEventImpact(eventType)
+    : Array(n).fill(0); // Default to GENERAL (0.0)
 
   // Use aspect scores or default to 0
   const aspectScores = aspectScore ?? Array(n).fill(0);
 
-  // Use ML scores or fallback to 0
-  const mlScores = mlScore ?? Array(n).fill(0);
-
-  // Use signal scores or default to 0.5 (neutral)
-  const signalScores = signalScore ?? Array(n).fill(0.5);
-
-  // Calculate sentiment availability (% of days with mlScore data)
-  // This is a stock-level metric, same for all rows
-  // Note: 0 is a valid neutral score, so only exclude null/undefined
+  // Calculate sentiment availability BEFORE coalescing nulls
+  // null entries = days with no sentiment analysis, 0 is a valid neutral score
   const sentimentAvailability = mlScore
     ? mlScore.filter((s) => s !== null && s !== undefined).length / n
     : 0;
 
-  // Build feature matrix (15 features)
+  // Coalesce null mlScores to 0 for feature matrix values
+  const mlScores = mlScore
+    ? mlScore.map((s) => s ?? 0)
+    : Array(n).fill(0) as number[];
+
+  // Build feature matrix (8 features)
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
     features[i] = [
-      ratio1d[i], // price ratio 1-day
       ratio5d[i], // price ratio 5-day
       ratio10d[i], // price ratio 10-day
       volume[i], // volume
-      ...eventOneHot[i], // 6 event type features
+      eventImpact[i], // event impact score (0-1)
       aspectScores[i], // aspect score
       mlScores[i], // ML score
-      signalScores[i], // signal score (metadata quality)
       sentimentAvailability, // sentiment data availability (0-1)
       volatility[i], // volatility
     ];
@@ -287,13 +240,12 @@ export function buildPriceOnlyFeatureMatrix(input: PredictionInput): FeatureMatr
     return [];
   }
 
-  const { ratio1d, ratio5d, ratio10d } = calculatePriceRatios(close);
+  const { ratio5d, ratio10d } = calculatePriceRatios(close);
   const vol = calculateVolatility(close);
 
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
     features[i] = [
-      ratio1d[i],
       ratio5d[i],
       ratio10d[i],
       volume[i],
@@ -358,45 +310,29 @@ export function createLabels(close: number[], horizon: number): Labels {
 }
 
 /**
- * Get the number of features in the feature matrix (Phase 6 update: 14 → 15)
+ * Number of features in the full feature matrix
  *
  * Breakdown:
- * - 3 price ratio features (1d, 5d, 10d)
+ * - 2 price ratio features (5d, 10d)
  * - 1 volume feature
- * - 6 event type features (one-hot encoded)
+ * - 1 event impact feature (ordinal 0-1)
  * - 1 aspect score feature
  * - 1 ML score feature
- * - 1 signal score feature
  * - 1 sentiment availability feature (% of days with sentiment data)
  * - 1 volatility feature
  */
-export const FEATURE_COUNT = 15;
+export const FEATURE_COUNT = 8;
 
 /**
- * Get feature names in order (Phase 6 update)
- *
- * **Breakdown:**
- * - 3 price ratio features
- * - 1 volume feature
- * - 6 event type features (one-hot encoded)
- * - 3 sentiment/signal features (aspect + ML + signal)
- * - 1 sentiment availability feature
- * - 1 volatility feature
+ * Feature names in order
  */
 export const FEATURE_NAMES = [
-  'price_ratio_1d',
   'price_ratio_5d',
   'price_ratio_10d',
   'volume',
-  'event_earnings',
-  'event_ma',
-  'event_product',
-  'event_analyst',
-  'event_guidance',
-  'event_general',
+  'event_impact',
   'aspect_score',
   'ml_score',
-  'signal_score',
   'sentiment_availability',
   'volatility',
 ] as const;
@@ -404,13 +340,12 @@ export const FEATURE_NAMES = [
 /**
  * Price-only feature count (used by ensemble price model)
  */
-export const PRICE_ONLY_FEATURE_COUNT = 5;
+export const PRICE_ONLY_FEATURE_COUNT = 4;
 
 /**
  * Price-only feature names in order
  */
 export const PRICE_ONLY_FEATURE_NAMES = [
-  'price_ratio_1d',
   'price_ratio_5d',
   'price_ratio_10d',
   'volume',

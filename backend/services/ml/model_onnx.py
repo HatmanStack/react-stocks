@@ -126,7 +126,23 @@ def analyze_sentiment(text: str) -> Dict:
     probs = exp_logits / np.sum(exp_logits)
 
     neg_prob, neut_prob, pos_prob = probs
-    sentiment_score = float(pos_prob - neg_prob)
+    raw_score = float(pos_prob - neg_prob)
+
+    # Neutral dampening: if model shows neutral hesitation, reduce directional score
+    NEUTRAL_THRESHOLD = 0.003
+    NEUTRAL_SCALE = 200
+    NEUTRAL_CAP = 0.9
+    if neut_prob >= NEUTRAL_THRESHOLD:
+        dampen = min((neut_prob - NEUTRAL_THRESHOLD) * NEUTRAL_SCALE, NEUTRAL_CAP)
+        dampened_score = raw_score * (1 - dampen)
+    else:
+        dampened_score = raw_score
+
+    # Temperature scaling: spread scores away from ±1 via logit-space transform
+    TEMPERATURE = 3.0
+    clamped = np.clip(dampened_score, -0.9999, 0.9999)
+    sentiment_score = float(np.tanh(np.arctanh(clamped) / TEMPERATURE))
+
     confidence = float(np.max(probs))
     label = LABELS[int(np.argmax(probs))]
 
