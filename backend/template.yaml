@@ -7,6 +7,11 @@ Parameters:
     Type: String
     Description: Finnhub API key for news data
 
+  AlphaVantageApiKey:
+    Type: String
+    Description: Alpha Vantage API key for historical news (optional fallback)
+    Default: ''
+
   AllowedOrigins:
     Type: String
     Description: Comma-separated list of allowed CORS origins (e.g., https://example.com,https://www.example.com). Use '*' for development only.
@@ -443,6 +448,7 @@ Resources:
       Environment:
         Variables:
           FINNHUB_API_KEY: !Ref FinnhubApiKey
+          ALPHA_VANTAGE_API_KEY: !Ref AlphaVantageApiKey
           ALLOWED_ORIGINS: !Ref AllowedOrigins
           STOCKS_CACHE_TABLE: !Ref StocksCacheTable
           NEWS_CACHE_TABLE: !Ref NewsCacheTable

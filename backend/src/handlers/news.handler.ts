@@ -9,12 +9,20 @@ import { logMetrics, MetricUnit } from '../utils/metrics.util';
 import { transformFinnhubToCache, transformCacheToFinnhub } from '../utils/cacheTransform.util';
 import { generateArticleHash } from '../utils/hash.util';
 import { fetchCompanyNews } from '../services/finnhub.service';
+import { fetchAlphaVantageNews } from '../services/alphavantage.service';
 import {
   queryArticlesByTicker,
   batchPutArticles,
   existsInCache,
 } from '../repositories/newsCache.repository';
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
+
+/** Minimum unique days needed for ML predictions */
+const MIN_DAYS_FOR_PREDICTIONS = 29;
+
+/** Alpha Vantage: Fetch 5 years to maximize value of limited API calls (25/day free tier)
+ *  API returns max 1000 articles, sorted by most recent - older articles truncated for popular stocks */
+const ALPHA_VANTAGE_LOOKBACK_DAYS = 365 * 5; // 5 years
 
 /**
  * Filter out articles already in cache
@@ -46,17 +54,20 @@ async function filterNewArticles(
 
 /**
  * Handle news request with three-tier caching
+ * Falls back to Alpha Vantage when Finnhub returns limited historical data
  */
 export async function handleNewsWithCache(
   ticker: string,
   from: string,
   to: string,
-  apiKey: string
+  apiKey: string,
+  alphaVantageKey?: string
 ): Promise<{
   data: FinnhubNewsArticle[];
   cached: boolean;
   newArticlesCount: number;
   cachedArticlesCount: number;
+  source?: 'finnhub' | 'alphavantage' | 'cache';
 }> {
   try {
     // Tier 1: Check DynamoDB cache
@@ -118,12 +129,91 @@ export async function handleNewsWithCache(
         cached: true,
         newArticlesCount: 0,
         cachedArticlesCount: cachedInRange.length,
+        source: 'cache',
       };
     }
 
     // Tier 3: Cache miss or insufficient coverage - fetch from Finnhub
     console.log(`[NewsHandler] Cache miss for ${ticker}: fetching from API`);
-    const apiArticles = await fetchCompanyNews(ticker, from, to, apiKey);
+    let apiCallCount = 1; // Finnhub always called
+    let apiArticles = await fetchCompanyNews(ticker, from, to, apiKey);
+    let newsSource: 'finnhub' | 'alphavantage' = 'finnhub';
+
+    // Check if Finnhub returned limited data (< MIN_DAYS_FOR_PREDICTIONS unique days)
+    const finnhubUniqueDays = new Set(
+      apiArticles.map((a) => {
+        const date = new Date(a.datetime * 1000);
+        return date.toISOString().split('T')[0];
+      })
+    ).size;
+
+    console.log(`[NewsHandler] Finnhub returned ${apiArticles.length} articles spanning ${finnhubUniqueDays} days`);
+
+    // Check TOTAL cache coverage (not just requested range) to decide if we need Alpha Vantage
+    const totalCachedDays = new Set(cachedItems.map(item => item.article.date)).size;
+    const needsHistoricalData = totalCachedDays < MIN_DAYS_FOR_PREDICTIONS && finnhubUniqueDays < MIN_DAYS_FOR_PREDICTIONS;
+
+    // Fall back to Alpha Vantage if we don't have enough historical data anywhere
+    // Fetch 5 YEARS to maximize value of limited API calls (25/day free tier)
+    if (needsHistoricalData && alphaVantageKey) {
+      console.log(`[NewsHandler] Insufficient historical data (cache: ${totalCachedDays} days, Finnhub: ${finnhubUniqueDays} days)`);
+      console.log(`[NewsHandler] Fetching 5 YEARS from Alpha Vantage to maximize API call value (max 1000 articles)...`);
+
+      try {
+        // Calculate 5 year lookback date
+        const today = new Date();
+        const lookbackDate = new Date(today);
+        lookbackDate.setDate(lookbackDate.getDate() - ALPHA_VANTAGE_LOOKBACK_DAYS);
+        const alphaFrom = lookbackDate.toISOString().split('T')[0];
+        const alphaTo = today.toISOString().split('T')[0];
+
+        apiCallCount++;
+        const alphaArticles = await fetchAlphaVantageNews(ticker, alphaFrom, alphaTo, alphaVantageKey);
+        const alphaUniqueDays = new Set(
+          alphaArticles.map((a) => {
+            const date = new Date(a.datetime * 1000);
+            return date.toISOString().split('T')[0];
+          })
+        ).size;
+
+        console.log(`[NewsHandler] Alpha Vantage returned ${alphaArticles.length} articles spanning ${alphaUniqueDays} days (5 year fetch, max 1000)`);
+
+        if (alphaArticles.length > 0) {
+          // Cache ALL Alpha Vantage articles — batchPutArticles overwrites duplicates
+          try {
+            const cacheItems = alphaArticles.map((article) =>
+              transformFinnhubToCache(ticker, article)
+            );
+            await batchPutArticles(cacheItems);
+            console.log(`[NewsHandler] Cached ${alphaArticles.length} Alpha Vantage articles`);
+          } catch (cacheError) {
+            console.error('[NewsHandler] Failed to cache Alpha Vantage articles:', cacheError);
+          }
+
+          // Filter to requested date range for response
+          const alphaInRange = alphaArticles.filter((a) => {
+            const date = new Date(a.datetime * 1000).toISOString().split('T')[0];
+            return date >= from && date <= to;
+          });
+
+          // Use Alpha Vantage data if it provides better coverage for the requested range
+          const alphaInRangeDays = new Set(
+            alphaInRange.map((a) => new Date(a.datetime * 1000).toISOString().split('T')[0])
+          ).size;
+
+          if (alphaInRangeDays > finnhubUniqueDays) {
+            apiArticles = alphaInRange;
+            newsSource = 'alphavantage';
+            console.log(`[NewsHandler] Using Alpha Vantage data for response (${alphaInRangeDays} days in range)`);
+          }
+        }
+      } catch (alphaError) {
+        console.warn(`[NewsHandler] Alpha Vantage fallback failed:`, alphaError);
+        // Continue with Finnhub data
+      }
+    } else if (alphaVantageKey && totalCachedDays >= MIN_DAYS_FOR_PREDICTIONS) {
+      console.log(`[NewsHandler] Sufficient historical data in cache (${totalCachedDays} days), skipping Alpha Vantage API call`);
+    }
 
     // Filter out articles already in cache
     const { newArticles, duplicateCount } = await filterNewArticles(ticker, apiArticles);
@@ -135,7 +225,7 @@ export async function handleNewsWithCache(
       [
         { name: 'NewArticleCount', value: newArticles.length, unit: MetricUnit.Count },
         { name: 'DuplicateArticleCount', value: duplicateCount, unit: MetricUnit.Count },
-        { name: 'ApiCallCount', value: 1, unit: MetricUnit.Count },
+        { name: 'ApiCallCount', value: apiCallCount, unit: MetricUnit.Count },
       ],
       { Endpoint: 'news', Ticker: ticker, CacheHit: 'false' }
     );
@@ -159,6 +249,7 @@ export async function handleNewsWithCache(
       cached: false,
       newArticlesCount: newArticles.length,
       cachedArticlesCount: cachedInRange.length,
+      source: newsSource,
     };
   } catch (error) {
     // If DynamoDB cache check fails, fall back to direct API call
@@ -171,6 +262,7 @@ export async function handleNewsWithCache(
       cached: false,
       newArticlesCount: apiArticles.length,
       cachedArticlesCount: 0,
+      source: 'finnhub',
     };
   }
 }
@@ -221,15 +313,18 @@ export async function handleNewsRequest(
       return errorResponse('Invalid date range. from date must be before or equal to to date.', 400);
     }
 
-    // Get API key from environment
+    // Get API keys from environment
     const apiKey = process.env.FINNHUB_API_KEY;
     if (!apiKey) {
       logError('NewsHandler', new Error('FINNHUB_API_KEY not configured'), { requestId });
       return errorResponse('Server configuration error', 500);
     }
 
-    // Fetch news with caching
-    const result = await handleNewsWithCache(ticker, from, to, apiKey);
+    // Alpha Vantage is optional - used as fallback for historical data
+    const alphaVantageKey = process.env.ALPHA_VANTAGE_API_KEY;
+
+    // Fetch news with caching (Alpha Vantage fallback if configured)
+    const result = await handleNewsWithCache(ticker, from, to, apiKey, alphaVantageKey);
 
     // Calculate request duration
     const duration = Date.now() - startTime;
@@ -250,6 +345,7 @@ export async function handleNewsRequest(
       {
         _meta: {
           cached: result.cached,
+          source: result.source,
           newArticles: result.newArticlesCount,
           cachedArticles: result.cachedArticlesCount,
           timestamp: new Date().toISOString(),

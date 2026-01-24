@@ -9,7 +9,7 @@
 
 import { StandardScaler } from './scaler';
 import { LogisticRegressionCV } from './cross-validation';
-import { buildFeatureMatrix, createLabels } from './preprocessing';
+import { buildFeatureMatrix, buildPriceOnlyFeatureMatrix, createLabels, TREND_WINDOW } from './preprocessing';
 import type { PredictionInput, PredictionOutput } from './types';
 import type { EventType } from '../../types/database.types';
 
@@ -23,10 +23,21 @@ const HORIZONS = {
 } as const;
 
 /**
- * Minimum data points required for predictions
- * (8 folds for CV + 21 day horizon = 29)
+ * Minimum data points required for predictions.
+ * Must cover TREND_WINDOW (20) + horizon (1 min) + MIN_LABELS_PER_HORIZON (25) = 46
  */
-const MIN_DATA_POINTS = 29;
+const MIN_DATA_POINTS = 46;
+
+/**
+ * Minimum labels for NEXT horizon (independent, no overlap).
+ */
+const MIN_LABELS_NEXT = 25;
+
+/**
+ * Minimum independent (non-overlapping) samples for WEEK/MONTH horizons.
+ * 10 independent observations ≈ 6 months (WEEK) or 1 year (MONTH).
+ */
+const MIN_INDEPENDENT_SAMPLES = 10;
 
 /**
  * Get stock price predictions using logistic regression model
@@ -113,91 +124,132 @@ export async function getStockPredictions(
     console.log(`  - mlScores: ${mlScores?.length || 0} (non-zero: ${mlScores?.filter(s => s !== 0).length || 0})`);
     console.log(`  - signalScores: ${signalScores?.length || 0}`);
 
-    // Build feature matrix (15 features with three-signal sentiment + availability)
-    console.log(`[PredictionService] Building feature matrix...`);
-    const features = buildFeatureMatrix(input);
-    console.log(`[PredictionService] Feature matrix built: ${features.length} rows x ${features[0]?.length || 0} cols`);
+    // Build both feature matrices for ensemble
+    console.log(`[PredictionService] Building feature matrices (ensemble)...`);
+    const fullFeatures = buildFeatureMatrix(input);
+    const priceFeatures = buildPriceOnlyFeatureMatrix(input);
+    console.log(`[PredictionService] Full matrix: ${fullFeatures.length}x${fullFeatures[0]?.length || 0}, Price matrix: ${priceFeatures.length}x${priceFeatures[0]?.length || 0}`);
 
-    // Make predictions for each horizon
-    const predictions: { [key: string]: number } = {};
+    // Sentiment availability is feature index 13 in full matrix (same for all rows)
+    const sentimentAvailability = fullFeatures.length > 0 ? fullFeatures[0][13] : 0;
+    console.log(`[PredictionService] Ensemble weights: full=${sentimentAvailability.toFixed(3)}, price=${(1 - sentimentAvailability).toFixed(3)}`);
+
+    // Make predictions for each horizon using ensemble
+    const predictions: { [key: string]: number | null } = {};
 
     for (const [name, horizon] of Object.entries(HORIZONS)) {
       // Generate labels for this horizon
-      const labels = createLabels(closePrices, horizon);
+      const allLabels = createLabels(closePrices, horizon);
 
-      // Need at least 3 samples for meaningful prediction
-      if (labels.length < 3) {
-        console.warn(
-          `[PredictionService] ${ticker} ${name}: Only ${labels.length} samples, using default 0.5`
-        );
-        predictions[name] = 0.5; // Neutral prediction
-        continue;
+      // Align features with labels (labels start at TREND_WINDOW index)
+      const allFullFeatures = fullFeatures.slice(TREND_WINDOW, TREND_WINDOW + allLabels.length);
+      const allPriceFeatures = priceFeatures.slice(TREND_WINDOW, TREND_WINDOW + allLabels.length);
+
+      // For horizon > 1: use non-overlapping subsample (every horizon-th element)
+      // to get truly independent observations. NEXT (horizon=1) has no overlap.
+      let X_full: number[][];
+      let X_price: number[][];
+      let y: number[];
+
+      if (horizon > 1) {
+        X_full = [];
+        X_price = [];
+        y = [];
+        for (let i = 0; i < allLabels.length; i += horizon) {
+          X_full.push(allFullFeatures[i]);
+          X_price.push(allPriceFeatures[i]);
+          y.push(allLabels[i]);
+        }
+
+        if (y.length < MIN_INDEPENDENT_SAMPLES) {
+          console.warn(
+            `[PredictionService] ${ticker} ${name}: Insufficient independent samples (${y.length}/${MIN_INDEPENDENT_SAMPLES}), ` +
+              `need ~${MIN_INDEPENDENT_SAMPLES * horizon + horizon + TREND_WINDOW} trading days`
+          );
+          predictions[name] = null;
+          continue;
+        }
+      } else {
+        X_full = allFullFeatures;
+        X_price = allPriceFeatures;
+        y = allLabels;
+
+        if (y.length < MIN_LABELS_NEXT) {
+          console.warn(
+            `[PredictionService] ${ticker} ${name}: Insufficient labels (${y.length}/${MIN_LABELS_NEXT})`
+          );
+          predictions[name] = null;
+          continue;
+        }
       }
 
-      // Truncate features to match label length
-      // (last `horizon` data points have no labels)
-      const X = features.slice(0, labels.length);
-      const y = labels;
-
       // Generate exponential decay weights for time-weighted sampling
-      // More recent data points get higher weight
-      // Weight = exp(-lambda * age), where age = (n-1-i) and lambda controls decay rate
       const n = y.length;
-      const halfLife = Math.max(10, n / 4); // Half-life: weight halves every halfLife samples
+      const halfLife = Math.max(10, n / 4);
       const lambda = Math.log(2) / halfLife;
       const sampleWeights: number[] = new Array(n);
       for (let i = 0; i < n; i++) {
-        const age = n - 1 - i; // 0 for most recent, n-1 for oldest
+        const age = n - 1 - i;
         sampleWeights[i] = Math.exp(-lambda * age);
       }
 
-      // Log weight distribution for diagnostics
-      const minWeight = Math.min(...sampleWeights);
-      const maxWeight = Math.max(...sampleWeights);
-      console.log(
-        `[PredictionService] ${ticker} ${name}: Sample weights range [${minWeight.toFixed(3)}, ${maxWeight.toFixed(3)}], halfLife=${halfLife.toFixed(0)}`
-      );
+      const trainOptions = {
+        sampleWeights,
+        classWeight: 'balanced' as const,
+        maxIterations: 2000,
+        learningRate: 0.005,
+      };
+      const k = Math.min(8, y.length);
 
-      // Scale features
-      const scaler = new StandardScaler();
-      const X_scaled = scaler.fitTransform(X);
+      if (horizon === 1) {
+        // --- NEXT: Full ensemble (15-feature + 5-feature merged by sentiment availability) ---
+        const fullScaler = new StandardScaler();
+        const X_full_scaled = fullScaler.fitTransform(X_full);
+        const fullModel = new LogisticRegressionCV();
+        if (k < 2) {
+          fullModel.fit(X_full_scaled, y, trainOptions);
+        } else {
+          fullModel.fitCV(X_full_scaled, y, k, trainOptions);
+        }
+        const X_full_recent = fullScaler.transform([fullFeatures[fullFeatures.length - 1]]);
+        const fullPred = fullModel.predictProba(X_full_recent)[0][1];
 
-      // Train model with weighted samples and balanced classes
-      const model = new LogisticRegressionCV();
-      const k = Math.min(8, y.length); // Can't have more folds than samples
-      if (k < 2) {
-        console.warn(`[PredictionService] ${ticker} ${name}: Only ${y.length} samples, skipping CV`);
-        // Train without CV if too few samples, but with weights
-        model.fit(X_scaled, y, {
-          sampleWeights,
-          classWeight: 'balanced',
-          maxIterations: 2000, // More iterations for better convergence
-          learningRate: 0.005, // Slower learning for stability
-        });
+        const priceScaler = new StandardScaler();
+        const X_price_scaled = priceScaler.fitTransform(X_price);
+        const priceModel = new LogisticRegressionCV();
+        if (k < 2) {
+          priceModel.fit(X_price_scaled, y, trainOptions);
+        } else {
+          priceModel.fitCV(X_price_scaled, y, k, trainOptions);
+        }
+        const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
+        const pricePred = priceModel.predictProba(X_price_recent)[0][1];
+
+        const mergedPred = fullPred * sentimentAvailability + pricePred * (1 - sentimentAvailability);
+        predictions[name] = mergedPred;
+
+        console.log(
+          `[Ensemble] ${ticker} ${name}: full=${fullPred.toFixed(4)}, price=${pricePred.toFixed(4)}, ` +
+            `weight=${sentimentAvailability.toFixed(2)}, merged=${mergedPred.toFixed(4)}`
+        );
       } else {
-        model.fitCV(X_scaled, y, k, {
-          sampleWeights,
-          classWeight: 'balanced',
-          maxIterations: 2000,
-          learningRate: 0.005,
-        });
+        // --- WEEK/MONTH: Price-only model (5 features) to avoid overfit with few samples ---
+        const priceScaler = new StandardScaler();
+        const X_price_scaled = priceScaler.fitTransform(X_price);
+        const priceModel = new LogisticRegressionCV();
+        if (k < 2) {
+          priceModel.fit(X_price_scaled, y, trainOptions);
+        } else {
+          priceModel.fitCV(X_price_scaled, y, k, trainOptions);
+        }
+        const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
+        const pricePred = priceModel.predictProba(X_price_recent)[0][1];
+        predictions[name] = pricePred;
+
+        console.log(
+          `[Ensemble] ${ticker} ${name}: price-only=${pricePred.toFixed(4)} (${y.length} samples, 5 features)`
+        );
       }
-
-      // Get CV score for diagnostics
-      const cvScore = model.getMeanCVScore();
-      console.log(
-        `[PredictionService] ${ticker} ${name}: CV score = ${cvScore?.toFixed(4) || 'N/A'}`
-      );
-
-      // Predict on most recent data point (after training on historical)
-      // Scale the most recent observation
-      const mostRecentFeature = features[features.length - 1];
-      const X_recent = scaler.transform([mostRecentFeature]);
-
-      // Get probability of class 1 (down) - predictProba returns [[p0, p1]]
-      const probabilities = model.predictProba(X_recent)[0];
-      const prediction = probabilities[1]; // Probability of "down"
-      predictions[name] = prediction;
     }
 
     const endTime = performance.now();
@@ -209,11 +261,11 @@ export async function getStockPredictions(
         `(${duration}ms)`
     );
 
-    // Format response - use 4 decimal places for precision
+    // Format response - null for insufficient data, 4 decimal places otherwise
     return {
-      next: predictions.NEXT.toFixed(4),
-      week: predictions.WEEK.toFixed(4),
-      month: predictions.MONTH.toFixed(4),
+      next: predictions.NEXT != null ? predictions.NEXT.toFixed(4) : null,
+      week: predictions.WEEK != null ? predictions.WEEK.toFixed(4) : null,
+      month: predictions.MONTH != null ? predictions.MONTH.toFixed(4) : null,
       ticker,
     };
   } catch (error) {
@@ -230,15 +282,15 @@ export async function getStockPredictions(
  * @returns Parsed prediction values as numbers
  */
 export function parsePredictionResponse(response: PredictionOutput): {
-  nextDay: number;
-  twoWeeks: number;
-  oneMonth: number;
+  nextDay: number | null;
+  twoWeeks: number | null;
+  oneMonth: number | null;
   ticker: string;
 } {
   return {
-    nextDay: parseFloat(response.next),
-    twoWeeks: parseFloat(response.week),
-    oneMonth: parseFloat(response.month),
+    nextDay: response.next != null ? parseFloat(response.next) : null,
+    twoWeeks: response.week != null ? parseFloat(response.week) : null,
+    oneMonth: response.month != null ? parseFloat(response.month) : null,
     ticker: response.ticker,
   };
 }

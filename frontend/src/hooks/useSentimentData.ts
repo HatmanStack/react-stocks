@@ -11,6 +11,7 @@ import * as WordCountRepository from '@/database/repositories/wordCount.reposito
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
 import * as StockRepository from '@/database/repositories/stock.repository';
 import { updatePredictions } from '@/services/sync/sentimentDataSync';
+import { syncStockData } from '@/services/sync/stockDataSync';
 import { getSentimentResults, getArticleSentiment, fetchLambdaNews, triggerSentimentAnalysis, type DailySentiment } from '@/services/api/lambdaSentiment.service';
 import { Environment } from '@/config/environment';
 import { formatDateForDB } from '@/utils/date/dateUtils';
@@ -19,13 +20,16 @@ import type { WordCountDetails, CombinedWordDetails, EventType } from '@/types/d
 import { getStockPredictions, parsePredictionResponse } from '@/ml/prediction/prediction.service';
 
 interface Predictions {
-    nextDay: { direction: 'up' | 'down'; probability: number };
-    twoWeek: { direction: 'up' | 'down'; probability: number };
-    oneMonth: { direction: 'up' | 'down'; probability: number };
+    nextDay: { direction: 'up' | 'down'; probability: number } | null;
+    twoWeek: { direction: 'up' | 'down'; probability: number } | null;
+    oneMonth: { direction: 'up' | 'down'; probability: number } | null;
 }
 
-/** Minimum data points needed for predictions (29 days for CV + horizon) */
-const MIN_PREDICTION_DATA = 29;
+/** Minimum sentiment records to attempt predictions (interpolation fills gaps) */
+const MIN_SENTIMENT_DATA = 25;
+
+/** Minimum stock trading days needed for prediction model (TREND_WINDOW + horizon + labels) */
+const MIN_STOCK_DATA = 46;
 
 /**
  * Generate predictions using browser-based logistic regression
@@ -35,31 +39,42 @@ const MIN_PREDICTION_DATA = 29;
  */
 async function generateBrowserPredictions(
   ticker: string,
-  sentimentData: CombinedWordDetails[]
+  sentimentData: CombinedWordDetails[],
+  days: number
 ): Promise<Predictions | null> {
   console.log(`[Predictions] === Starting prediction generation for ${ticker} ===`);
   console.log(`[Predictions] Sentiment data length: ${sentimentData.length}`);
 
   try {
     // Step 1: Validate sentiment data length
-    if (sentimentData.length < MIN_PREDICTION_DATA) {
-      console.log(`[Predictions] FAIL: Insufficient sentiment data for ${ticker}: ${sentimentData.length} days (need ${MIN_PREDICTION_DATA})`);
+    if (sentimentData.length < MIN_SENTIMENT_DATA) {
+      console.log(`[Predictions] FAIL: Insufficient sentiment data for ${ticker}: ${sentimentData.length} days (need ${MIN_SENTIMENT_DATA})`);
       return null;
     }
 
-    // HOLE 4 FIX: Get stock price data for the relevant date range only (not all history)
-    // Extend range slightly to ensure we have enough data for alignment
-    const sentimentMinDate = sentimentData.reduce((a, b) => a.date < b.date ? a : b).date;
-    const sentimentMaxDate = sentimentData.reduce((a, b) => a.date > b.date ? a : b).date;
+    // Fetch enough stock data for the model (at least MIN_STOCK_DATA trading days)
+    // Use user's timeframe if larger, otherwise expand to minimum needed
+    const minCalendarDays = Math.ceil(MIN_STOCK_DATA * 1.5); // ~69 calendar days for 46 trading days
+    const effectiveDays = Math.max(days, minCalendarDays);
+    const stockEndStr = formatDateForDB(new Date());
+    const stockStartStr = formatDateForDB(subDays(new Date(), effectiveDays));
+
+    console.log(`[Predictions] Syncing stock data for ${ticker} from ${stockStartStr} to ${stockEndStr} (${effectiveDays} cal days, requested ${days})...`);
+    try {
+      await syncStockData(ticker, stockStartStr, stockEndStr, MIN_STOCK_DATA);
+    } catch (syncError) {
+      console.warn(`[Predictions] Stock sync failed, using local data:`, syncError);
+    }
+
     const stockData = await StockRepository.findByTickerAndDateRange(
       ticker,
-      sentimentMinDate,
-      sentimentMaxDate
+      stockStartStr,
+      stockEndStr
     );
-    console.log(`[Predictions] Stock data length: ${stockData.length} (for range ${sentimentMinDate} to ${sentimentMaxDate})`);
+    console.log(`[Predictions] Stock data length: ${stockData.length} (for range ${stockStartStr} to ${stockEndStr})`);
 
-    if (stockData.length < MIN_PREDICTION_DATA) {
-      console.log(`[Predictions] FAIL: Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_PREDICTION_DATA})`);
+    if (stockData.length < MIN_STOCK_DATA) {
+      console.log(`[Predictions] FAIL: Insufficient stock data for ${ticker}: ${stockData.length} days (need ${MIN_STOCK_DATA})`);
       return null;
     }
 
@@ -91,36 +106,52 @@ async function generateBrowserPredictions(
     const stockByDate = new Map(sortedStocks.map(s => [s.date, s]));
     const sentimentByDate = new Map(sortedSentiment.map(s => [s.date, s]));
 
-    // Find dates present in BOTH datasets within the overlap range
-    // This ensures 1:1 alignment (handles trading days vs calendar days mismatch)
-    const commonDates = [...stockByDate.keys()]
-      .filter(d => d >= overlapStart && d <= overlapEnd && sentimentByDate.has(d))
-      .sort();
+    // Use ALL stock trading days (not limited to overlap) - we'll interpolate sentiment
+    const tradingDays = [...stockByDate.keys()].sort();
+    const sentimentDates = [...sentimentByDate.keys()].sort();
+    const firstSentimentDate = sentimentDates[0];
+    const lastSentimentDate = sentimentDates[sentimentDates.length - 1];
 
-    const trimmedStocks = commonDates.map(d => stockByDate.get(d)!);
-    const trimmedSentiment = commonDates.map(d => sentimentByDate.get(d)!);
+    console.log(`[Predictions] Using ${tradingDays.length} trading days with sentiment interpolation`);
 
-    // Log alignment stats
-    const stockDaysInRange = sortedStocks.filter(s => s.date >= overlapStart && s.date <= overlapEnd).length;
-    const sentimentDaysInRange = sortedSentiment.filter(s => s.date >= overlapStart && s.date <= overlapEnd).length;
-    const alignmentLoss = Math.max(stockDaysInRange, sentimentDaysInRange) - commonDates.length;
-    const alignmentLossPercent = ((alignmentLoss / Math.max(stockDaysInRange, sentimentDaysInRange)) * 100).toFixed(1);
+    // For each trading day, find sentiment using interpolation:
+    // - Exact match if available
+    // - Forward-fill: use most recent prior sentiment
+    // - Backfill: use earliest sentiment for dates before first sentiment
+    const trimmedStocks: typeof sortedStocks = [];
+    const trimmedSentiment: typeof sortedSentiment = [];
 
-    console.log(`[Predictions] After alignment: ${commonDates.length} common dates (lost ${alignmentLoss} days, ${alignmentLossPercent}%)`);
+    for (const tradingDay of tradingDays) {
+      const stock = stockByDate.get(tradingDay)!;
+      let sentiment = sentimentByDate.get(tradingDay);
 
-    // TODO: If alignment loss > 5%, consider interpolation instead of dropping days
-    if (parseFloat(alignmentLossPercent) > 5) {
-      console.warn(`[Predictions] WARNING: High alignment loss (${alignmentLossPercent}%) - consider revisiting data interpolation strategy`);
+      if (!sentiment) {
+        if (tradingDay < firstSentimentDate) {
+          // Backfill: use earliest sentiment
+          sentiment = sentimentByDate.get(firstSentimentDate);
+        } else if (tradingDay > lastSentimentDate) {
+          // Forward-fill past end: use latest sentiment
+          sentiment = sentimentByDate.get(lastSentimentDate);
+        } else {
+          // Forward-fill: use most recent prior sentiment
+          const priorDates = sentimentDates.filter(d => d <= tradingDay);
+          if (priorDates.length > 0) {
+            sentiment = sentimentByDate.get(priorDates[priorDates.length - 1]);
+          }
+        }
+      }
+
+      if (sentiment) {
+        trimmedStocks.push(stock);
+        trimmedSentiment.push(sentiment);
+      }
     }
+
+    console.log(`[Predictions] After alignment with interpolation: ${trimmedStocks.length} trading days`);
 
     // Step 4: Re-check that trimmed arrays meet minimum requirement
-    if (trimmedStocks.length < MIN_PREDICTION_DATA) {
-      console.log(`[Predictions] FAIL: After alignment, insufficient stock data: ${trimmedStocks.length} days (need ${MIN_PREDICTION_DATA})`);
-      return null;
-    }
-
-    if (trimmedSentiment.length < MIN_PREDICTION_DATA) {
-      console.log(`[Predictions] FAIL: After alignment, insufficient sentiment data: ${trimmedSentiment.length} days (need ${MIN_PREDICTION_DATA})`);
+    if (trimmedStocks.length < MIN_STOCK_DATA) {
+      console.log(`[Predictions] FAIL: After alignment, insufficient data: ${trimmedStocks.length} days (need ${MIN_STOCK_DATA})`);
       return null;
     }
 
@@ -188,8 +219,9 @@ async function generateBrowserPredictions(
 
     // Convert to Predictions format with direction and probability
     // The model outputs 0 (up) or 1 (down), we convert to probability
-    const toPrediction = (value: number): { direction: 'up' | 'down'; probability: number } => {
-      // Value is 0.0-1.0 where 0 = up, 1 = down
+    // Returns null for horizons with insufficient data
+    const toPrediction = (value: number | null): { direction: 'up' | 'down'; probability: number } | null => {
+      if (value == null) return null;
       const isDown = value >= 0.5;
       return {
         direction: isDown ? 'down' : 'up',
@@ -295,12 +327,18 @@ function transformLambdaToLocal(
 
     // Add Phase 2 prediction fields if this is the latest record and predictions exist
     if (isLatest && predictions) {
-        record.nextDayDirection = predictions.nextDay.direction;
-        record.nextDayProbability = predictions.nextDay.probability;
-        record.twoWeekDirection = predictions.twoWeek.direction;
-        record.twoWeekProbability = predictions.twoWeek.probability;
-        record.oneMonthDirection = predictions.oneMonth.direction;
-        record.oneMonthProbability = predictions.oneMonth.probability;
+        if (predictions.nextDay) {
+          record.nextDayDirection = predictions.nextDay.direction;
+          record.nextDayProbability = predictions.nextDay.probability;
+        }
+        if (predictions.twoWeek) {
+          record.twoWeekDirection = predictions.twoWeek.direction;
+          record.twoWeekProbability = predictions.twoWeek.probability;
+        }
+        if (predictions.oneMonth) {
+          record.oneMonthDirection = predictions.oneMonth.direction;
+          record.oneMonthProbability = predictions.oneMonth.probability;
+        }
     }
 
     return record;
@@ -461,9 +499,10 @@ export function useSentimentData(
       }
 
       // STEP 4: Generate predictions using browser-based logistic regression
-      // Only if we have sentiment data and the latest record doesn't have predictions
-      console.log(`[useSentimentData] STEP 4: Checking if predictions needed...`);
+      // Always regenerate when timeframe changes (data length differs from cached)
+      console.log(`[useSentimentData] STEP 4: Generating predictions for current timeframe...`);
       console.log(`[useSentimentData]   - sentimentData.length: ${sentimentData.length}`);
+      console.log(`[useSentimentData]   - days parameter: ${days}`);
 
       // Find latest record without mutating sentimentData array
       const latestRecord = sentimentData.length > 0
@@ -472,31 +511,30 @@ export function useSentimentData(
           )
         : null;
 
-      console.log(`[useSentimentData]   - latestRecord date: ${latestRecord?.date || 'none'}`);
-      console.log(`[useSentimentData]   - latestRecord.nextDayDirection: ${latestRecord?.nextDayDirection || 'undefined'}`);
-
-      const needsPredictions = latestRecord && !latestRecord.nextDayDirection;
-      console.log(`[useSentimentData]   - needsPredictions: ${needsPredictions}`);
+      // Always regenerate predictions for the current data window
+      // Different timeframes = different data = different predictions
+      const needsPredictions = latestRecord && sentimentData.length >= MIN_SENTIMENT_DATA;
+      console.log(`[useSentimentData]   - needsPredictions: ${needsPredictions} (have ${sentimentData.length} days, need ${MIN_SENTIMENT_DATA})`);
 
       if (needsPredictions && sentimentData.length > 0) {
         console.log(`[useSentimentData] GENERATING browser-based predictions for ${ticker}`);
-        const predictions = await generateBrowserPredictions(ticker, sentimentData);
+        const predictions = await generateBrowserPredictions(ticker, sentimentData, days);
 
         if (predictions && latestRecord) {
           console.log(`[useSentimentData] Predictions received:`, predictions);
-          // Update latest record with predictions
-          latestRecord.nextDayDirection = predictions.nextDay.direction;
-          latestRecord.nextDayProbability = predictions.nextDay.probability;
-          latestRecord.twoWeekDirection = predictions.twoWeek.direction;
-          latestRecord.twoWeekProbability = predictions.twoWeek.probability;
-          latestRecord.oneMonthDirection = predictions.oneMonth.direction;
-          latestRecord.oneMonthProbability = predictions.oneMonth.probability;
+          // Update latest record with predictions (clear stale values for null horizons)
+          latestRecord.nextDayDirection = predictions.nextDay?.direction ?? undefined;
+          latestRecord.nextDayProbability = predictions.nextDay?.probability ?? undefined;
+          latestRecord.twoWeekDirection = predictions.twoWeek?.direction ?? undefined;
+          latestRecord.twoWeekProbability = predictions.twoWeek?.probability ?? undefined;
+          latestRecord.oneMonthDirection = predictions.oneMonth?.direction ?? undefined;
+          latestRecord.oneMonthProbability = predictions.oneMonth?.probability ?? undefined;
           latestRecord.updateDate = formatDateForDB(new Date());
           console.log(`[useSentimentData] Updated latestRecord with predictions:`, {
-            nextDayDirection: latestRecord.nextDayDirection,
+            nextDayDirection: latestRecord.nextDayDirection ?? 'insufficient data',
             nextDayProbability: latestRecord.nextDayProbability,
-            twoWeekDirection: latestRecord.twoWeekDirection,
-            oneMonthDirection: latestRecord.oneMonthDirection,
+            twoWeekDirection: latestRecord.twoWeekDirection ?? 'insufficient data',
+            oneMonthDirection: latestRecord.oneMonthDirection ?? 'insufficient data',
           });
 
           // Store predictions in local SQLite (async, don't block)

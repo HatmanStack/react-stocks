@@ -65,9 +65,9 @@ export interface PredictionInput {
  * Prediction output for three time horizons
  */
 export interface PredictionOutput {
-  next: string; // Next day prediction (0=up, 1=down)
-  week: string; // 2-week prediction (0=up, 1=down)
-  month: string; // 1-month prediction (0=up, 1=down)
+  next: string | null; // Next day prediction (0=up, 1=down), null if insufficient data
+  week: string | null; // 2-week prediction (0=up, 1=down), null if insufficient data
+  month: string | null; // 1-month prediction (0=up, 1=down), null if insufficient data
   ticker: string;
 }
 

@@ -13,3 +13,4 @@ docs-data/
 *.swp
 backend/bin/sam
 **/__pycache__/
+.serena/

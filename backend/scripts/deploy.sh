@@ -43,6 +43,17 @@ if [ -z "$FINNHUB_API_KEY" ]; then
     exit 1
 fi
 
+# Get Alpha Vantage API key (optional - for historical news fallback)
+if [ -n "$ALPHA_VANTAGE_API_KEY" ]; then
+    echo "Alpha Vantage API Key: [hidden - press Enter to keep, or paste new key]"
+else
+    echo "Alpha Vantage API Key (optional, for historical news): [not set]"
+fi
+read -p "> " input_alphavantage
+if [ -n "$input_alphavantage" ]; then
+    ALPHA_VANTAGE_API_KEY="$input_alphavantage"
+fi
+
 # Allowed Origins with default
 DEFAULT_ORIGINS="${ALLOWED_ORIGINS:-*}"
 read -p "Allowed Origins [$DEFAULT_ORIGINS]: " input_origins
@@ -54,6 +65,7 @@ cat > "$ENV_DEPLOY_FILE" << EOF
 AWS_REGION=$AWS_REGION
 STACK_NAME=$STACK_NAME
 FINNHUB_API_KEY=$FINNHUB_API_KEY
+ALPHA_VANTAGE_API_KEY=$ALPHA_VANTAGE_API_KEY
 ALLOWED_ORIGINS=$ALLOWED_ORIGINS
 EOF
 # Restrict file permissions - contains sensitive API keys
@@ -66,6 +78,11 @@ echo "Using configuration:"
 echo "  Region: $AWS_REGION"
 echo "  Stack Name: $STACK_NAME"
 echo "  Finnhub Key: ${FINNHUB_API_KEY:0:8}..."
+if [ -n "$ALPHA_VANTAGE_API_KEY" ]; then
+    echo "  Alpha Vantage Key: ${ALPHA_VANTAGE_API_KEY:0:8}..."
+else
+    echo "  Alpha Vantage Key: (not configured)"
+fi
 echo "  Allowed Origins: $ALLOWED_ORIGINS"
 echo ""
 
@@ -226,6 +243,7 @@ sam deploy \
     --capabilities CAPABILITY_IAM \
     --parameter-overrides \
         FinnhubApiKey="$FINNHUB_API_KEY" \
+        AlphaVantageApiKey="$ALPHA_VANTAGE_API_KEY" \
         AllowedOrigins="$ALLOWED_ORIGINS" \
         DistilFinBERTApiUrl="$ML_API_URL" \
     --no-confirm-changeset \
