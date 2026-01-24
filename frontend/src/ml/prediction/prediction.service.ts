@@ -84,7 +84,7 @@ export async function getStockPredictions(
   _sentimentScores: string[] = [],
   eventTypes?: EventType[],
   aspectScores?: number[],
-  mlScores?: number[],
+  mlScores?: (number | null)[],
   signalScores?: number[]
 ): Promise<PredictionOutput> {
   const startTime = performance.now();
@@ -121,7 +121,7 @@ export async function getStockPredictions(
     console.log(`  - volumes: ${volumes.length}`);
     console.log(`  - eventTypes: ${eventTypes?.length || 0}`);
     console.log(`  - aspectScores: ${aspectScores?.length || 0} (non-zero: ${aspectScores?.filter(s => s !== 0).length || 0})`);
-    console.log(`  - mlScores: ${mlScores?.length || 0} (non-zero: ${mlScores?.filter(s => s !== 0).length || 0})`);
+    console.log(`  - mlScores: ${mlScores?.length || 0} (with data: ${mlScores?.filter(s => s !== null).length || 0})`);
     console.log(`  - signalScores: ${signalScores?.length || 0}`);
 
     // Build both feature matrices for ensemble

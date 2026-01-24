@@ -231,18 +231,19 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   // Use aspect scores or default to 0
   const aspectScores = aspectScore ?? Array(n).fill(0);
 
-  // Use ML scores or fallback to 0
-  const mlScores = mlScore ?? Array(n).fill(0);
-
-  // Use signal scores or default to 0.5 (neutral)
-  const signalScores = signalScore ?? Array(n).fill(0.5);
-
-  // Calculate sentiment availability (% of days with mlScore data)
-  // This is a stock-level metric, same for all rows
-  // Note: 0 is a valid neutral score, so only exclude null/undefined
+  // Calculate sentiment availability BEFORE coalescing nulls
+  // null entries = days with no sentiment analysis, 0 is a valid neutral score
   const sentimentAvailability = mlScore
     ? mlScore.filter((s) => s !== null && s !== undefined).length / n
     : 0;
+
+  // Coalesce null mlScores to 0 for feature matrix values
+  const mlScores = mlScore
+    ? mlScore.map((s) => s ?? 0)
+    : Array(n).fill(0) as number[];
+
+  // Use signal scores or default to 0.5 (neutral)
+  const signalScores = signalScore ?? Array(n).fill(0.5);
 
   // Build feature matrix (15 features)
   const features: FeatureMatrix = new Array(n);

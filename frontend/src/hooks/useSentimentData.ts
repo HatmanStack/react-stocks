@@ -162,7 +162,7 @@ async function generateBrowserPredictions(
     // Extract three-signal sentiment data (defaults to neutral if not available)
     const eventTypes: EventType[] = [];
     const aspectScores: number[] = [];
-    const mlScores: number[] = [];
+    const mlScores: (number | null)[] = [];
     const signalScores: number[] = [];
 
     for (const day of trimmedSentiment) {
@@ -182,19 +182,20 @@ async function generateBrowserPredictions(
       }
       eventTypes.push(dominantEvent);
       aspectScores.push(day.avgAspectScore ?? 0);
-      mlScores.push(day.avgMlScore ?? 0);
+      mlScores.push(day.avgMlScore ?? null); // Preserve null for availability calculation
       signalScores.push(day.avgSignalScore ?? 0.5); // Default 0.5 (neutral)
     }
 
-    // Calculate sentiment availability for logging
-    const sentimentAvailability = mlScores.filter(s => s !== 0).length / mlScores.length;
+    // Calculate sentiment availability for logging (null = no data for that day)
+    const sentimentAvailability = mlScores.filter(s => s !== null).length / mlScores.length;
 
     console.log(`[Predictions] Feature extraction complete:`);
     console.log(`[Predictions]   - closePrices: ${closePrices.length} points, range: [${Math.min(...closePrices).toFixed(2)}, ${Math.max(...closePrices).toFixed(2)}]`);
     console.log(`[Predictions]   - volumes: ${volumes.length} points`);
     console.log(`[Predictions]   - eventTypes: ${eventTypes.length} (unique: ${[...new Set(eventTypes)].join(', ')})`);
     console.log(`[Predictions]   - aspectScores: ${aspectScores.length} (non-zero: ${aspectScores.filter(s => s !== 0).length})`);
-    console.log(`[Predictions]   - mlScores: ${mlScores.length} (non-zero: ${mlScores.filter(s => s !== 0).length})`);
+    console.log(`[Predictions]   - mlScores: ${mlScores.length} (with data: ${mlScores.filter(s => s !== null).length})`);
+
     console.log(`[Predictions]   - signalScores: ${signalScores.length}`);
     console.log(`[Predictions]   - sentimentAvailability: ${(sentimentAvailability * 100).toFixed(1)}%`);
 
