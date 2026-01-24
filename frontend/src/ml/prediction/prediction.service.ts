@@ -130,8 +130,8 @@ export async function getStockPredictions(
     const priceFeatures = buildPriceOnlyFeatureMatrix(input);
     console.log(`[PredictionService] Full matrix: ${fullFeatures.length}x${fullFeatures[0]?.length || 0}, Price matrix: ${priceFeatures.length}x${priceFeatures[0]?.length || 0}`);
 
-    // Sentiment availability is feature index 13 in full matrix (same for all rows)
-    const sentimentAvailability = fullFeatures.length > 0 ? fullFeatures[0][13] : 0;
+    // Sentiment availability is feature index 8 in full matrix (same for all rows)
+    const sentimentAvailability = fullFeatures.length > 0 ? fullFeatures[0][8] : 0;
     console.log(`[PredictionService] Ensemble weights: full=${sentimentAvailability.toFixed(3)}, price=${(1 - sentimentAvailability).toFixed(3)}`);
 
     // Make predictions for each horizon using ensemble
