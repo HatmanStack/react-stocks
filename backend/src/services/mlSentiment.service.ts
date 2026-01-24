@@ -18,6 +18,33 @@ const TIMEOUT_MS = 5000; // 5 second timeout per request
 const MAX_RETRIES = 3; // Retry up to 3 times
 const INITIAL_RETRY_DELAY_MS = 1000; // Start with 1 second delay
 
+// Circuit breaker state (persists across warm Lambda invocations, resets on cold start)
+const FAILURE_THRESHOLD = 5;
+const COOLDOWN_MS = 30_000; // 30 seconds
+let consecutiveFailures = 0;
+let circuitOpenUntil = 0;
+
+function isCircuitOpen(): boolean {
+  if (consecutiveFailures >= FAILURE_THRESHOLD) {
+    if (Date.now() < circuitOpenUntil) return true;
+    // Half-open: allow one probe request
+    consecutiveFailures = FAILURE_THRESHOLD - 1;
+  }
+  return false;
+}
+
+function recordSuccess(): void {
+  consecutiveFailures = 0;
+}
+
+function recordFailure(): void {
+  consecutiveFailures++;
+  if (consecutiveFailures >= FAILURE_THRESHOLD) {
+    circuitOpenUntil = Date.now() + COOLDOWN_MS;
+    console.warn(`[MlSentimentService] Circuit OPEN after ${FAILURE_THRESHOLD} failures, cooldown ${COOLDOWN_MS}ms`);
+  }
+}
+
 /**
  * Get MlSentiment API URL from environment
  * @returns API URL or undefined if not configured
@@ -114,6 +141,12 @@ export async function getMlSentiment(
     return null;
   }
 
+  // Circuit breaker: fail-fast if service is down
+  if (isCircuitOpen()) {
+    console.warn('[MlSentimentService] Circuit open, skipping ML analysis');
+    return null;
+  }
+
   // Validate input
   if (!text || !text.trim()) {
     console.warn('[MlSentimentService] Empty text provided, skipping analysis');
@@ -165,6 +198,7 @@ export async function getMlSentiment(
         });
 
         if (isLastAttempt || !canRetry) {
+          recordFailure();
           return null;
         }
 
@@ -197,6 +231,7 @@ export async function getMlSentiment(
         label: data.label,
       });
 
+      recordSuccess();
       return rawScore;
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -216,6 +251,7 @@ export async function getMlSentiment(
         console.warn(
           '[MlSentimentService] All retries exhausted or non-retryable error, using fallback'
         );
+        recordFailure();
         logMlSentimentFallback('UNKNOWN', 1, 1, error instanceof Error ? error.message : 'Unknown error');
         return null;
       }

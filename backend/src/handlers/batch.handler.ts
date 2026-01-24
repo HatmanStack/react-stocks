@@ -1,6 +1,7 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
 import { logError } from '../utils/error.util';
+import { validateTicker, validateDateFormat } from '../utils/validation.util';
 import { logMetrics, MetricUnit } from '../utils/metrics.util';
 import { handleNewsWithCache } from './news.handler';
 import { getSentimentResults } from './sentiment.handler';
@@ -29,7 +30,7 @@ interface BatchSentimentRequest {
 }
 
 interface BatchSentimentResponse {
-  data: Record<string, any[]>; // Simplified type for now
+  data: Record<string, unknown[]>;
   errors: Record<string, string>;
   _meta: {
     successCount: number;
@@ -83,9 +84,9 @@ export async function handleBatchNewsRequest(
       return errorResponse('Invalid limit. Must be between 1 and 50.', 400);
     }
 
-    // Validate ticker format (allow dots and hyphens for tickers like BRK.A, BF-B)
+    // Validate ticker format
     for (const ticker of tickers) {
-      if (typeof ticker !== 'string' || !/^[A-Z0-9.-]+$/.test(ticker.toUpperCase())) {
+      if (!validateTicker(ticker)) {
         return errorResponse(`Invalid ticker format: ${ticker}. Must contain only letters, numbers, dots, and hyphens.`, 400);
       }
     }
@@ -211,17 +212,17 @@ export async function handleBatchSentimentRequest(
 
     // Validate ticker format
     for (const ticker of tickers) {
-      if (typeof ticker !== 'string' || !/^[A-Z0-9.-]+$/.test(ticker.toUpperCase())) {
+      if (!validateTicker(ticker)) {
         return errorResponse(`Invalid ticker format: ${ticker}. Must contain only letters, numbers, dots, and hyphens.`, 400);
       }
     }
 
     // Validate dates
-    if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+    if (!startDate || !validateDateFormat(startDate)) {
       return errorResponse('Invalid startDate format. Must be YYYY-MM-DD.', 400);
     }
 
-    if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+    if (endDate && !validateDateFormat(endDate)) {
       return errorResponse('Invalid endDate format. Must be YYYY-MM-DD.', 400);
     }
 

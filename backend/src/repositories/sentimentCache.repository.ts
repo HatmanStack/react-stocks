@@ -12,7 +12,7 @@ import {
   PutCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { dynamoDb, batchPutItems } from '../utils/dynamodb.util.js';
+import { dynamoDb, batchPutItems, batchGetItems } from '../utils/dynamodb.util.js';
 import { calculateTTLByDataType } from '../utils/cache.util.js';
 import type { SentimentCacheItem } from '../types/sentiment.types.js';
 
@@ -228,4 +228,22 @@ export async function existsInCache(
     });
     throw error;
   }
+}
+
+/**
+ * Batch check which article hashes already exist in cache.
+ * Uses BatchGetItem (100 per request) instead of N individual GetItem calls.
+ *
+ * @returns Set of article hashes that exist in cache
+ */
+export async function batchCheckExistence(
+  ticker: string,
+  hashes: string[]
+): Promise<Set<string>> {
+  if (hashes.length === 0) return new Set();
+
+  const normalizedTicker = ticker.toUpperCase();
+  const keys = hashes.map(h => ({ ticker: normalizedTicker, articleHash: h }));
+  const items = await batchGetItems<{ articleHash: string }>(TABLE_NAME, keys);
+  return new Set(items.map(item => item.articleHash));
 }

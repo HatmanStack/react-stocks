@@ -17,8 +17,8 @@ import { generateJobId } from '../utils/job.util.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
 import { aggregateDailySentiment } from '../utils/sentiment.util.js';
 import { logMlSentimentCacheHitRate } from '../utils/metrics.util.js';
-// Note: Predictions are now generated client-side using browser-based logistic regression.
-// This removes Lambda invocation complexity and provides instant predictions.
+import { validateDateFormat } from '../utils/validation.util.js';
+import type { DailySentiment } from '../types/sentiment.types.js';
 
 /**
  * POST /sentiment - Trigger sentiment analysis for a ticker
@@ -53,8 +53,7 @@ export async function handleSentimentRequest(
     }
 
     // Validate date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
+    if (!validateDateFormat(startDate) || !validateDateFormat(endDate)) {
       return errorResponse('Invalid date format. Use YYYY-MM-DD', 400);
     }
 
@@ -195,9 +194,13 @@ export async function getSentimentResults(
   ticker: string;
   startDate: string | null;
   endDate: string | null;
-  dailySentiment: any[]; // Use proper type if available
+  dailySentiment: DailySentiment[];
   cached: boolean;
-  predictions?: any;
+  predictions?: {
+    nextDay: { direction: 'up' | 'down'; probability: number };
+    twoWeek?: { direction: 'up' | 'down'; probability: number };
+    oneMonth?: { direction: 'up' | 'down'; probability: number };
+  };
 }> {
   console.log('[SentimentHandler] getSentimentResults called:', { ticker, startDate, endDate });
 

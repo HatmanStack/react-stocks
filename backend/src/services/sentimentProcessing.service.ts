@@ -201,28 +201,12 @@ async function partitionArticlesByCache(
   articlesToAnalyze: NewsCacheItem[];
   articlesCached: NewsCacheItem[];
 }> {
-  const articlesToAnalyze: NewsCacheItem[] = [];
-  const articlesCached: NewsCacheItem[] = [];
+  // Batch check existence (single BatchGetItem call per 100 articles)
+  const hashes = articles.map(a => a.articleHash);
+  const existingHashes = await SentimentCacheRepository.batchCheckExistence(ticker, hashes);
 
-  // Check each article for existing sentiment
-  // Note: Could be optimized with BatchGetItem for large batches
-  const existenceChecks = articles.map(async (article) => {
-    const exists = await SentimentCacheRepository.existsInCache(
-      ticker,
-      article.articleHash
-    );
-    return { article, exists };
-  });
-
-  const results = await Promise.all(existenceChecks);
-
-  for (const { article, exists } of results) {
-    if (exists) {
-      articlesCached.push(article);
-    } else {
-      articlesToAnalyze.push(article);
-    }
-  }
+  const articlesToAnalyze = articles.filter(a => !existingHashes.has(a.articleHash));
+  const articlesCached = articles.filter(a => existingHashes.has(a.articleHash));
 
   return { articlesToAnalyze, articlesCached };
 }

@@ -4,7 +4,8 @@
 
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
-import { logError } from '../utils/error.util';
+import { logError, hasStatusCode } from '../utils/error.util';
+import { validateTicker, validateDateFormat } from '../utils/validation.util';
 import { logMetrics, MetricUnit } from '../utils/metrics.util';
 import { transformFinnhubToCache, transformCacheToFinnhub } from '../utils/cacheTransform.util';
 import { generateArticleHash } from '../utils/hash.util';
@@ -290,8 +291,8 @@ export async function handleNewsRequest(
       return errorResponse('Missing required parameter: ticker', 400);
     }
 
-    // Validate ticker format (alphanumeric)
-    if (!/^[A-Z0-9]+$/.test(ticker)) {
+    // Validate ticker format (strict: Finnhub requires alphanumeric only)
+    if (!validateTicker(ticker, true)) {
       return errorResponse('Invalid ticker format. Must be alphanumeric.', 400);
     }
 
@@ -301,8 +302,7 @@ export async function handleNewsRequest(
     }
 
     // Validate date format (YYYY-MM-DD)
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(from) || !dateRegex.test(to)) {
+    if (!validateDateFormat(from) || !validateDateFormat(to)) {
       return errorResponse('Invalid date format. Use YYYY-MM-DD.', 400);
     }
 
@@ -368,7 +368,7 @@ export async function handleNewsRequest(
 
     // Extract error message and status
     const message = error instanceof Error ? error.message : 'Internal server error';
-    const statusCode = (error as any).statusCode || 500;
+    const statusCode = hasStatusCode(error) ? error.statusCode : 500;
 
     return errorResponse(message, statusCode);
   }
