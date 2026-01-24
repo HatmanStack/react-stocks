@@ -56,11 +56,8 @@ async function generateBrowserPredictions(
     // Use user's timeframe if larger, otherwise expand to minimum needed
     const minCalendarDays = Math.ceil(MIN_STOCK_DATA * 1.5); // ~69 calendar days for 46 trading days
     const effectiveDays = Math.max(days, minCalendarDays);
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - effectiveDays);
-    const stockEndStr = endDate.toISOString().split('T')[0];
-    const stockStartStr = startDate.toISOString().split('T')[0];
+    const stockEndStr = formatDateForDB(new Date());
+    const stockStartStr = formatDateForDB(subDays(new Date(), effectiveDays));
 
     console.log(`[Predictions] Syncing stock data for ${ticker} from ${stockStartStr} to ${stockEndStr} (${effectiveDays} cal days, requested ${days})...`);
     try {

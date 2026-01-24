@@ -153,17 +153,17 @@ export async function handleNewsWithCache(
     const needsHistoricalData = totalCachedDays < MIN_DAYS_FOR_PREDICTIONS && finnhubUniqueDays < MIN_DAYS_FOR_PREDICTIONS;
 
     // Fall back to Alpha Vantage if we don't have enough historical data anywhere
-    // IMPORTANT: Fetch 1 YEAR to maximize value of limited API calls (25/day free tier)
+    // Fetch 5 YEARS to maximize value of limited API calls (25/day free tier)
     if (needsHistoricalData && alphaVantageKey) {
       console.log(`[NewsHandler] Insufficient historical data (cache: ${totalCachedDays} days, Finnhub: ${finnhubUniqueDays} days)`);
       console.log(`[NewsHandler] Fetching 5 YEARS from Alpha Vantage to maximize API call value (max 1000 articles)...`);
 
       try {
-        // Calculate 1 year lookback
+        // Calculate 5 year lookback date
         const today = new Date();
-        const oneYearAgo = new Date(today);
-        oneYearAgo.setDate(oneYearAgo.getDate() - ALPHA_VANTAGE_LOOKBACK_DAYS);
-        const alphaFrom = oneYearAgo.toISOString().split('T')[0];
+        const lookbackDate = new Date(today);
+        lookbackDate.setDate(lookbackDate.getDate() - ALPHA_VANTAGE_LOOKBACK_DAYS);
+        const alphaFrom = lookbackDate.toISOString().split('T')[0];
         const alphaTo = today.toISOString().split('T')[0];
 
         const alphaArticles = await fetchAlphaVantageNews(ticker, alphaFrom, alphaTo, alphaVantageKey);
@@ -177,7 +177,7 @@ export async function handleNewsWithCache(
         console.log(`[NewsHandler] Alpha Vantage returned ${alphaArticles.length} articles spanning ${alphaUniqueDays} days (5 year fetch, max 1000)`);
 
         if (alphaArticles.length > 0) {
-          // Cache ALL Alpha Vantage articles (the whole year)
+          // Cache ALL Alpha Vantage articles (the full 5-year fetch)
           const { newArticles: newAlphaArticles } = await filterNewArticles(ticker, alphaArticles);
 
           if (newAlphaArticles.length > 0) {

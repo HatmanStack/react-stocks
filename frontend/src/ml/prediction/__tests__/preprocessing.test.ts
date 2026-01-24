@@ -255,8 +255,9 @@ describe('Preprocessing', () => {
       // Count ups and downs - should be roughly balanced (not all 0s or all 1s)
       const ones = labels.filter(l => l === 1).length;
       const zeros = labels.filter(l => l === 0).length;
-      // The key assertion: NOT all one class (which was the bug with raw labels)
-      expect(ones + zeros).toBe(labels.length);
+      // Both classes must be present (which was the bug with raw labels on trending data)
+      expect(ones).toBeGreaterThan(0);
+      expect(zeros).toBeGreaterThan(0);
     });
 
     it('should label positive shock as outperformance (0)', () => {

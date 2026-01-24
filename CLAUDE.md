@@ -51,7 +51,7 @@ PYTHONPATH=backend/python pytest backend/python_tests/ -k "test_name"
 
 ### Frontend Architecture (Expo Router + React Native Paper)
 
-```
+```text
 frontend/
 ├── app/(tabs)/          # File-based routing (Expo Router)
 │   ├── index.tsx        # Market overview screen
@@ -77,7 +77,7 @@ frontend/
 
 ### Backend Architecture (AWS SAM + Lambda)
 
-```
+```text
 backend/
 ├── src/                 # Node.js Lambda (news, sentiment, predict endpoints)
 │   ├── handlers/        # Route handlers
@@ -123,12 +123,12 @@ Both share API Gateway and some DynamoDB tables.
 ## Environment Variables
 
 Frontend `.env` (auto-updated by backend deploy):
-```
+```dotenv
 EXPO_PUBLIC_API_URL=https://xxx.execute-api.region.amazonaws.com
 ```
 
 Backend `.env.deploy`:
-```
+```dotenv
 FINNHUB_API_KEY=your_key
 ALLOWED_ORIGINS=*
 ```
