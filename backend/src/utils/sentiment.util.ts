@@ -119,20 +119,20 @@ export function aggregateDailySentiment(
     const aspectEntries = daySentiments
       .filter((s) => s.aspectScore !== undefined && s.aspectScore !== 0)
       .map((s) => ({ score: s.aspectScore!, weight: s.signalScore ?? 0.5 }));
+    const aspectTotalWeight = aspectEntries.reduce((sum, e) => sum + e.weight, 0);
     const avgAspectScore =
-      aspectEntries.length > 0
-        ? aspectEntries.reduce((sum, e) => sum + e.score * e.weight, 0) /
-          aspectEntries.reduce((sum, e) => sum + e.weight, 0)
+      aspectEntries.length > 0 && aspectTotalWeight > 0
+        ? aspectEntries.reduce((sum, e) => sum + e.score * e.weight, 0) / aspectTotalWeight
         : undefined;
 
     // Signal-weighted average MlSentiment scores (only for material events)
     const mlEntries = daySentiments
       .filter((s) => s.mlScore !== undefined)
       .map((s) => ({ score: s.mlScore!, weight: s.signalScore ?? 0.5 }));
+    const mlTotalWeight = mlEntries.reduce((sum, e) => sum + e.weight, 0);
     const avgMlScore =
-      mlEntries.length > 0
-        ? mlEntries.reduce((sum, e) => sum + e.score * e.weight, 0) /
-          mlEntries.reduce((sum, e) => sum + e.weight, 0)
+      mlEntries.length > 0 && mlTotalWeight > 0
+        ? mlEntries.reduce((sum, e) => sum + e.score * e.weight, 0) / mlTotalWeight
         : undefined;
     const materialEventCount = mlEntries.length;
 

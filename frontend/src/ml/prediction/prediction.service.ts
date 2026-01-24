@@ -59,10 +59,17 @@ function computeFeatureFStats(
 
     const msb = ssb / dfBetween;
     const msw = ssw / dfWithin;
-    const F = msw > 0 ? msb / msw : 0;
 
-    // Approximate p-value from F(1, n-2) using beta incomplete function approximation
-    const pValue = fDistPValue(F, dfBetween, dfWithin);
+    let F: number;
+    let pValue: number;
+    if (msw === 0) {
+      // Zero within-group variance
+      F = msb > 0 ? Infinity : 0;
+      pValue = msb > 0 ? 0 : 1;
+    } else {
+      F = msb / msw;
+      pValue = fDistPValue(F, dfBetween, dfWithin);
+    }
 
     results.push({ name: featureNames[j], F, pValue });
   }
@@ -337,7 +344,7 @@ export async function getStockPredictions(
           sig: f.pValue < 0.05 ? '***' : f.pValue < 0.1 ? '*' : '',
         })));
 
-        // --- NEXT: Full ensemble (10-feature + 5-feature merged by sentiment availability) ---
+        // --- NEXT: Full ensemble (8-feature + 4-feature merged by sentiment availability) ---
         const fullScaler = new StandardScaler();
         const X_full_scaled = fullScaler.fitTransform(X_full);
         const fullModel = new LogisticRegressionCV();
