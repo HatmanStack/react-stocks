@@ -213,11 +213,10 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   // Use signal scores or default to 0.5 (neutral)
   const signalScores = signalScore ?? Array(n).fill(0.5);
 
-  // Build feature matrix (10 features)
+  // Build feature matrix (9 features)
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
     features[i] = [
-      ratio1d[i], // price ratio 1-day
       ratio5d[i], // price ratio 5-day
       ratio10d[i], // price ratio 10-day
       volume[i], // volume
@@ -256,13 +255,12 @@ export function buildPriceOnlyFeatureMatrix(input: PredictionInput): FeatureMatr
     return [];
   }
 
-  const { ratio1d, ratio5d, ratio10d } = calculatePriceRatios(close);
+  const { ratio5d, ratio10d } = calculatePriceRatios(close);
   const vol = calculateVolatility(close);
 
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
     features[i] = [
-      ratio1d[i],
       ratio5d[i],
       ratio10d[i],
       volume[i],
@@ -330,7 +328,7 @@ export function createLabels(close: number[], horizon: number): Labels {
  * Number of features in the full feature matrix
  *
  * Breakdown:
- * - 3 price ratio features (1d, 5d, 10d)
+ * - 2 price ratio features (5d, 10d)
  * - 1 volume feature
  * - 1 event impact feature (ordinal 0-1)
  * - 1 aspect score feature
@@ -339,13 +337,12 @@ export function createLabels(close: number[], horizon: number): Labels {
  * - 1 sentiment availability feature (% of days with sentiment data)
  * - 1 volatility feature
  */
-export const FEATURE_COUNT = 10;
+export const FEATURE_COUNT = 9;
 
 /**
  * Feature names in order
  */
 export const FEATURE_NAMES = [
-  'price_ratio_1d',
   'price_ratio_5d',
   'price_ratio_10d',
   'volume',
@@ -360,13 +357,12 @@ export const FEATURE_NAMES = [
 /**
  * Price-only feature count (used by ensemble price model)
  */
-export const PRICE_ONLY_FEATURE_COUNT = 5;
+export const PRICE_ONLY_FEATURE_COUNT = 4;
 
 /**
  * Price-only feature names in order
  */
 export const PRICE_ONLY_FEATURE_NAMES = [
-  'price_ratio_1d',
   'price_ratio_5d',
   'price_ratio_10d',
   'volume',
