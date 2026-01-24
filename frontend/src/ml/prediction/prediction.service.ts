@@ -204,7 +204,6 @@ export async function getStockPredictions(
   eventTypes?: EventType[],
   aspectScores?: number[],
   mlScores?: (number | null)[],
-  signalScores?: number[]
 ): Promise<PredictionOutput> {
   const startTime = performance.now();
 
@@ -228,7 +227,6 @@ export async function getStockPredictions(
       eventType: eventTypes,
       aspectScore: aspectScores,
       mlScore: mlScores,
-      signalScore: signalScores,
     };
 
     console.log(
@@ -241,7 +239,6 @@ export async function getStockPredictions(
     console.log(`  - eventTypes: ${eventTypes?.length || 0}`);
     console.log(`  - aspectScores: ${aspectScores?.length || 0} (non-zero: ${aspectScores?.filter(s => s !== 0).length || 0})`);
     console.log(`  - mlScores: ${mlScores?.length || 0} (with data: ${mlScores?.filter(s => s !== null).length || 0})`);
-    console.log(`  - signalScores: ${signalScores?.length || 0}`);
 
     // Build both feature matrices for ensemble
     console.log(`[PredictionService] Building feature matrices (ensemble)...`);
@@ -249,8 +246,8 @@ export async function getStockPredictions(
     const priceFeatures = buildPriceOnlyFeatureMatrix(input);
     console.log(`[PredictionService] Full matrix: ${fullFeatures.length}x${fullFeatures[0]?.length || 0}, Price matrix: ${priceFeatures.length}x${priceFeatures[0]?.length || 0}`);
 
-    // Sentiment availability is feature index 7 in full matrix (same for all rows)
-    const sentimentAvailability = fullFeatures.length > 0 ? fullFeatures[0][7] : 0;
+    // Sentiment availability is feature index 6 in full matrix (same for all rows)
+    const sentimentAvailability = fullFeatures.length > 0 ? fullFeatures[0][6] : 0;
     console.log(`[PredictionService] Ensemble weights: full=${sentimentAvailability.toFixed(3)}, price=${(1 - sentimentAvailability).toFixed(3)}`);
 
     // Make predictions for each horizon using ensemble

@@ -192,18 +192,12 @@ export async function getMlSentiment(
         throw new Error(`Invalid sentiment score: ${rawScore}`);
       }
 
-      // Scale by confidence for nuance (prevents binary ±1 outputs)
-      const confidence = typeof data.confidence === 'number' ? Math.min(data.confidence, 1) : 1;
-      const sentimentScore = rawScore * confidence;
-
       console.log('[MlSentimentService] Analysis successful', {
-        raw: rawScore,
-        confidence,
-        scaled: sentimentScore,
+        score: rawScore,
         label: data.label,
       });
 
-      return sentimentScore;
+      return rawScore;
     } catch (error) {
       const duration = Date.now() - startTime;
       logMlSentimentCall('UNKNOWN', duration, false, false);

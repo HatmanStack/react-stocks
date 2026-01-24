@@ -4,12 +4,9 @@
  * Functions for converting raw stock data into feature matrices
  * and labels for logistic regression training.
  *
- * **Phase 4 Update:** Added support for three-signal sentiment architecture
- * (eventType, aspectScore, mlScore) increasing feature count from 8 to 13.
- *
- * **Phase 5 Update:** Added signalScore feature increasing count from 13 to 14.
- * **Phase 6 Update:** Added sentimentAvailability feature increasing count from 14 to 15.
- * This allows predictions to run even when sentiment data is incomplete.
+ * Full model: 8 features (price ratios, volume, event impact, aspect, ml, availability, volatility)
+ * Price-only model: 4 features (price ratios, volume, volatility)
+ * Signal score is used as a reliability weight during daily aggregation, not as a standalone feature.
  */
 
 import type { PredictionInput, FeatureMatrix, Labels } from './types';
@@ -138,17 +135,15 @@ function calculateVolatility(close: number[], window: number = 10): number[] {
 /**
  * Build feature matrix from raw prediction inputs
  *
- * Creates 10-feature matrix:
- * [price_ratio_1d, price_ratio_5d, price_ratio_10d, volume, event_impact, aspectScore, mlScore, signalScore, sentimentAvailability, volatility]
- *
- * Features: Price ratios (3), volume (1), event impact (1), aspectScore (1), mlScore (1), signalScore (1), sentimentAvailability (1), volatility (1)
+ * Creates 8-feature matrix:
+ * [price_ratio_5d, price_ratio_10d, volume, event_impact, aspect_score, ml_score, sentiment_availability, volatility]
  *
  * @param input - Raw prediction input data
- * @returns Feature matrix (n_samples × 10)
+ * @returns Feature matrix (n_samples × 8)
  * @throws Error if input arrays have inconsistent lengths
  */
 export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
-  const { close, volume, eventType, aspectScore, mlScore, signalScore } = input;
+  const { close, volume, eventType, aspectScore, mlScore } = input;
 
   // Validate input lengths
   const n = close.length;
@@ -175,12 +170,6 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
       `Preprocessing: mlScore length (${mlScore.length}) does not match close length (${n})`
     );
   }
-  if (signalScore && signalScore.length !== n) {
-    throw new Error(
-      `Preprocessing: signalScore length (${signalScore.length}) does not match close length (${n})`
-    );
-  }
-
   if (n === 0) {
     return [];
   }
@@ -210,10 +199,7 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
     ? mlScore.map((s) => s ?? 0)
     : Array(n).fill(0) as number[];
 
-  // Use signal scores or default to 0.5 (neutral)
-  const signalScores = signalScore ?? Array(n).fill(0.5);
-
-  // Build feature matrix (9 features)
+  // Build feature matrix (8 features)
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
     features[i] = [
@@ -223,7 +209,6 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
       eventImpact[i], // event impact score (0-1)
       aspectScores[i], // aspect score
       mlScores[i], // ML score
-      signalScores[i], // signal score (metadata quality)
       sentimentAvailability, // sentiment data availability (0-1)
       volatility[i], // volatility
     ];
@@ -333,11 +318,10 @@ export function createLabels(close: number[], horizon: number): Labels {
  * - 1 event impact feature (ordinal 0-1)
  * - 1 aspect score feature
  * - 1 ML score feature
- * - 1 signal score feature
  * - 1 sentiment availability feature (% of days with sentiment data)
  * - 1 volatility feature
  */
-export const FEATURE_COUNT = 9;
+export const FEATURE_COUNT = 8;
 
 /**
  * Feature names in order
@@ -349,7 +333,6 @@ export const FEATURE_NAMES = [
   'event_impact',
   'aspect_score',
   'ml_score',
-  'signal_score',
   'sentiment_availability',
   'volatility',
 ] as const;

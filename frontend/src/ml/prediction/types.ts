@@ -52,14 +52,6 @@ export interface PredictionInput {
    */
   mlScore?: (number | null)[];
 
-  /**
-   * Signal score from metadata analysis.
-   * Range: 0 to 1 (higher = stronger signal quality)
-   * Combines publisher authority, headline quality, volume context, recency.
-   * Less weight in predictions than aspectScore/mlScore.
-   * Defaults to 0.5 if not provided.
-   */
-  signalScore?: number[];
 }
 
 /**

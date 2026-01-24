@@ -139,8 +139,7 @@ export async function analyzeAspects(
 
   detectedAspects.forEach(detection => {
     const weight = ASPECT_WEIGHTS[detection.aspect];
-    // Scale score by confidence for nuance (1 signal=±0.33, 2=±0.67, 3+=±1.0)
-    weightedSum += detection.score * detection.confidence * weight;
+    weightedSum += detection.score * weight;
     totalWeight += weight;
   });
 

@@ -298,9 +298,10 @@ export function detectPolarity(
   const contextBoost = hasContext ? 1.2 : 1.0;
 
   // Calculate polarity score (-1 to +1)
-  // Use raw difference divided by maximum possible to preserve intensity effects
-  const maxScore = Math.max(positiveScore, negativeScore, 1);
-  const score = (positiveScore - negativeScore) / maxScore;
+  // tanh gives smooth, bounded output that preserves intensity modifiers
+  // SENSITIVITY=2: 1 signal=0.46, 2=0.76, 3=0.91
+  const SENSITIVITY = 2.0;
+  const score = Math.tanh((positiveScore - negativeScore) / SENSITIVITY);
 
   // Calculate confidence (0 to 1)
   // Based on signal count, capped at 1.0

@@ -295,7 +295,7 @@ async function analyzeArticles(
   const articleMetadata: ArticleMetadata[] = articles.map((item) => ({
     publisher: item.article.publisher,
     title: item.article.title || '',
-    date: item.article.date,
+    body: item.article.description || '',
   }));
   const signalScoreResults = calculateSignalScoresBatch(articleMetadata);
 
