@@ -58,7 +58,7 @@ export async function handleBatchNewsRequest(
     let requestBody: BatchNewsRequest;
     try {
       requestBody = JSON.parse(event.body);
-    } catch (e) {
+    } catch {
       return errorResponse('Invalid JSON body', 400);
     }
 
@@ -189,7 +189,7 @@ export async function handleBatchSentimentRequest(
     let requestBody: BatchSentimentRequest;
     try {
       requestBody = JSON.parse(event.body);
-    } catch (e) {
+    } catch {
       return errorResponse('Invalid JSON body', 400);
     }
 

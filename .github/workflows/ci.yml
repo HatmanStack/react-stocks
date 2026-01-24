@@ -17,7 +17,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Lint
-        run: npx expo lint
+        run: npx expo lint -- --max-warnings 0
         working-directory: frontend
       - name: Type check
         run: npx tsc --noEmit
@@ -47,7 +47,7 @@ jobs:
       - name: Install dependencies
         run: cd backend && npm ci
       - name: Lint
-        run: cd backend && npm run lint
+        run: cd backend && npx eslint "src/**/*.ts" --max-warnings 0
 
   backend-tests:
     runs-on: ubuntu-latest

@@ -2,7 +2,6 @@
   "workspaces": {
     "frontend": {
       "entry": [
-        "app/_layout.tsx",
         "app/**/*.tsx",
         "src/hooks/*.ts",
         "src/contexts/*.tsx"
@@ -16,5 +15,5 @@
       "ignore": ["**/__tests__/**", "**/*.test.ts"]
     }
   },
-  "ignoreDependencies": ["jest-expo", "@testing-library/*"]
+  "ignoreDependencies": ["jest-expo", "@testing-library/*", "babel-preset-expo"]
 }

@@ -117,7 +117,6 @@ export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
  *
  * These constants are kept for documentation purposes only.
  *
- * @see docs/plans/Phase-5.md Task 2 for migration rationale
  * @see src/database/database.ts:runMigrations for actual implementation
  */
 export const MIGRATE_PHASE_5_COLUMNS = `
@@ -149,7 +148,6 @@ export const MIGRATE_PHASE_5_COLUMNS = `
  *
  * These constants are kept for documentation purposes only.
  *
- * @see docs/plans/Phase-1.md Task 2
  * @see src/database/database.ts:runMigrations for actual implementation
  */
 export const MIGRATE_PREDICTION_FORMAT_FIELDS = `
@@ -182,7 +180,6 @@ export const MIGRATE_PREDICTION_FORMAT_FIELDS = `
  *
  * These constants are kept for documentation purposes only.
  *
- * @see docs/plans/Phase-1.md Task 3
  * @see src/database/database.ts:runMigrations for actual implementation
  */
 export const MIGRATE_PHASE_1_WORD_COUNT_FIELDS = `

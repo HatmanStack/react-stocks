@@ -139,11 +139,6 @@ class WebDatabase {
       console.log('[WebDB] Inserting symbol:', params?.[4]); // ticker is 5th param
       return this.insertSymbol(params || []);
     } else if (sqlLower.startsWith('insert into stock_details')) {
-      const ticker = params?.[2];
-      const date = params?.[1];
-      const close = params?.[3];
-      // Debug log disabled - too noisy
-      // console.log(`[WebDB] Inserting stock: ${ticker} ${date} close=$${close}`);
       return this.insertStock(params || []);
     } else if (sqlLower.startsWith('insert into news_details')) {
       console.log('[WebDB] Inserting news:', params?.[0]); // ticker

@@ -30,24 +30,23 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 * 🎨 **Material Design** - Beautiful, responsive UI with React Native Paper components
 * 🔄 **Smart Sync** - Automatic data synchronization with progress tracking
 * 🗄️ **Dual Database** - SQLite for native, localStorage for web - transparent abstraction
-* 🎯 **ML Predictions** - Lambda-based multi-signal predictions (next day, week, month) using logistic regression
+* 🎯 **ML Predictions** - Browser-based ensemble predictions (next day, 2-week, 1-month) using logistic regression
 * 🔒 **Secure Backend** - AWS Lambda backend protects API keys, no client-side exposure
 
 ---
 
 ## 🔧 Recent Improvements
 
-### v2.0.0 - Backend Migration & Multi-Signal ML
-- **Multi-Signal Prediction Model**: Replaced bag-of-words model with 14-feature logistic regression
-  - Combines OHLCV price data, Event Types, Aspect Scores, and FinBERT sentiment
-  - Server-side training on Lambda with TensorFlow.js
-  - Smart refresh logic minimizes compute costs
-- **AWS Lambda Backend**: Secure API proxy for stock/news data with DynamoDB caching
-  - Eliminates client-side API key exposure
-  - 7-30 day cache TTL for >80% hit rate
-  - Auto-updates frontend `.env` on deployment
-- **Testing & Security**: Comprehensive unit, integration, and E2E test coverage
-- **Production Ready**: SAM deployment templates, CloudWatch monitoring, cost optimization (<$20/month)
+### v2.0.0 - Multi-Signal Sentiment & Ensemble Predictions
+- **Three-Signal Sentiment Analysis**: Event classification, aspect-based scoring, ML contextual sentiment
+  - Backend orchestrates analysis per article, aggregates daily with signal-weighted averages
+  - Neutral dampening + temperature scaling for nuanced ML scores
+- **Ensemble Prediction Model**: Browser-based logistic regression with cross-validation
+  - Full model (8 features: price ratios, volume, event impact, aspect, ML score, sentiment availability, volatility)
+  - Price-only model (4 features) as fallback when sentiment unavailable
+  - Blended by sentiment availability ratio
+- **AWS Lambda Backend**: Secure API proxy with DynamoDB caching (>80% hit rate)
+- **Production Ready**: SAM deployment, CloudWatch monitoring, CI/CD with GitHub Actions
 
 ---
 
@@ -60,8 +59,8 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 * **Database:** Expo SQLite 16.0.9 (native) / localStorage (web)
 * **Backend:** AWS Lambda (Node.js 20.x) + API Gateway + DynamoDB
 * **APIs:** Tiingo & Finnhub (proxied through Lambda)
-* **ML:** Browser-based sentiment analysis + logistic regression predictions
-* **Testing:** Jest 30.2.0 + React Native Testing Library (618 tests, 94% pass rate)
+* **ML:** Browser-based sentiment analysis + ensemble logistic regression predictions
+* **Testing:** Jest 30.2.0 + React Native Testing Library + pytest
 
 ---
 
@@ -124,16 +123,16 @@ npm run test:watch         # Watch mode for TDD
 npm run test:coverage      # Generate coverage report
 
 # Code Quality
-npm run type-check         # TypeScript compilation check
-npm run lint               # Run ESLint
-npm run lint:fix           # Auto-fix ESLint issues
-npm run format             # Format with Prettier
+npm run lint               # Frontend lint (strict, 0 warnings)
+npm run lint:backend       # Backend lint + type-check
+npm run lint:ml            # Python lint (ruff)
+npm run check              # Full CI: all lint + all tests
+npm run hygiene            # Dead code detection (knip + vulture)
 
 # Backend
+npm run test:backend       # Backend tests (Jest + ESM)
 cd backend
-npm run deploy:guided      # First-time deployment
-npm run deploy             # Subsequent deployments
-npm run update-env         # Update frontend .env with API URL
+npm run deploy             # SAM deployment
 npm run logs               # View Lambda logs
 npm run warm-cache         # Pre-populate DynamoDB cache
 ```
@@ -151,7 +150,7 @@ npm run warm-cache         # Pre-populate DynamoDB cache
 
 **Key patterns:** Repository, Platform Abstraction, Service Layer, Hook Composition
 
-See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system architecture.
 
 ---
 

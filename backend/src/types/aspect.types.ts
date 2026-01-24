@@ -5,8 +5,7 @@
  * of financial news articles. The system identifies six key financial aspects and
  * assigns weighted sentiment scores based on their materiality to stock price movements.
  *
- * @see docs/plans/Phase-2.md for detailed system design
- * @see docs/plans/Phase-0.md ADR-003 for methodology rationale
+
  */
 
 /**

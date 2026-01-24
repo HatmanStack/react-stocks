@@ -5,8 +5,6 @@
  * Scores range from -5 (very negative) to +5 (very positive).
  */
 
-import type { LexiconEntry } from './types';
-
 /**
  * Financial sentiment terms not covered by standard AFINN lexicon
  * These terms are common in financial news and earnings reports
@@ -136,33 +134,3 @@ export const FINANCIAL_LEXICON: Record<string, number> = {
   sinking: -3,
 };
 
-/**
- * Get the sentiment score for a word from the financial lexicon
- * Note: Only checks FINANCIAL_LEXICON, not the base AFINN lexicon
- * @param word - Word to score (will be lowercased)
- * @returns Sentiment score from financial lexicon, or 0 if not found
- */
-export function getWordScore(word: string): number {
-  const lowerWord = word.toLowerCase();
-  return FINANCIAL_LEXICON[lowerWord] ?? 0;
-}
-
-/**
- * Get all financial lexicon entries
- * @returns Array of lexicon entries
- */
-export function getFinancialLexicon(): LexiconEntry[] {
-  return Object.entries(FINANCIAL_LEXICON).map(([word, score]) => ({
-    word,
-    score,
-  }));
-}
-
-/**
- * Check if a word exists in the financial lexicon
- * @param word - Word to check
- * @returns True if word is in lexicon
- */
-export function hasFinancialTerm(word: string): boolean {
-  return word.toLowerCase() in FINANCIAL_LEXICON;
-}

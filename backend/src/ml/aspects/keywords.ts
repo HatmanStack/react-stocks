@@ -4,7 +4,7 @@
  * Comprehensive keyword sets for detecting financial aspects in news articles.
  * Each aspect has base keywords, positive signals, negative signals, and context words.
  *
- * @see docs/plans/Phase-2.md Task 2 for keyword selection rationale
+
  */
 
 import { AspectType } from '../../types/aspect.types';

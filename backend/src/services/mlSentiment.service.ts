@@ -4,7 +4,7 @@
  * Provides HTTP client for calling the MlSentiment sentiment analysis service.
  * Includes retry logic, error handling, and graceful fallback on failures.
  *
- * @see docs/plans/Phase-3.md for integration details
+
  */
 
 import { logMlSentimentCall, logMlSentimentFallback } from '../utils/metrics.util.js';

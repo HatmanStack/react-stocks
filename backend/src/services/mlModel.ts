@@ -151,42 +151,6 @@ export async function trainModel(
 }
 
 /**
- * Validates the model against provided data.
- * @param model Trained model.
- * @param X Validation features.
- * @param y Validation labels.
- * @returns Metrics object.
- */
-export function validateModel(
-    model: LogisticRegressionModel,
-    X: number[][],
-    y: number[]
-): TrainingMetrics {
-    if (X.length === 0) {
-        throw new Error('Empty validation set: cannot compute metrics with zero samples');
-    }
-
-    let totalLoss = 0;
-    let correct = 0;
-
-    for (let i = 0; i < X.length; i++) {
-        const yPred = predict(X[i], model);
-        const yTrue = y[i];
-
-        totalLoss += binaryCrossEntropy(yTrue, yPred);
-
-        const predicted = yPred >= 0.5 ? 1 : 0;
-        if (predicted === yTrue) correct++;
-    }
-
-    return {
-        accuracy: correct / X.length,
-        loss: totalLoss / X.length,
-        epochs: 0
-    };
-}
-
-/**
  * Generates predictions for 3 time horizons (1, 14, 30 days).
  * @param model Trained logistic regression model.
  * @param scaler Fitted scaler.

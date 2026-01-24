@@ -41,33 +41,6 @@ export function encodeEventImpact(eventTypes: EventType[]): number[] {
 }
 
 /**
- * One-hot encode sentiment categories (DEPRECATED)
- *
- * @deprecated Use encodeEventImpact instead. This is kept for backward compatibility only.
- * @param sentiment - Array of sentiment strings ("POS", "NEG", "NEUT", or others)
- * @returns 2D array with 4 columns: [is_pos, is_neg, is_neut, is_unknown]
- */
-export function oneHotEncode(sentiment: string[]): number[][] {
-  const encoded: number[][] = [];
-
-  for (const s of sentiment) {
-    const normalized = s ? s.toUpperCase().trim() : 'UNKNOWN';
-
-    if (normalized === 'POS') {
-      encoded.push([1, 0, 0, 0]); // is_pos=1
-    } else if (normalized === 'NEG') {
-      encoded.push([0, 1, 0, 0]); // is_neg=1
-    } else if (normalized === 'NEUT' || normalized === 'NEUTRAL') {
-      encoded.push([0, 0, 1, 0]); // is_neut=1
-    } else {
-      encoded.push([0, 0, 0, 1]); // is_unknown=1
-    }
-  }
-
-  return encoded;
-}
-
-/**
  * Calculate price ratios for different time horizons
  *
  * @param close - Array of closing prices
@@ -175,7 +148,7 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   }
 
   // Calculate price ratios
-  const { ratio1d, ratio5d, ratio10d } = calculatePriceRatios(close);
+  const { ratio5d, ratio10d } = calculatePriceRatios(close);
 
   // Calculate volatility
   const volatility = calculateVolatility(close);

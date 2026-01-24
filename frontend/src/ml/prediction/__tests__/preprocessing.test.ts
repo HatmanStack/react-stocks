@@ -3,7 +3,6 @@
  */
 
 import {
-  oneHotEncode,
   buildFeatureMatrix,
   buildPriceOnlyFeatureMatrix,
   createLabels,
@@ -18,65 +17,6 @@ import {
 import type { PredictionInput } from '../types';
 
 describe('Preprocessing', () => {
-  describe('oneHotEncode', () => {
-    it('should encode POS sentiment correctly', () => {
-      const result = oneHotEncode(['POS']);
-      expect(result).toEqual([[1, 0, 0, 0]]);
-    });
-
-    it('should encode NEG sentiment correctly', () => {
-      const result = oneHotEncode(['NEG']);
-      expect(result).toEqual([[0, 1, 0, 0]]);
-    });
-
-    it('should encode NEUT sentiment correctly', () => {
-      const result = oneHotEncode(['NEUT']);
-      expect(result).toEqual([[0, 0, 1, 0]]);
-    });
-
-    it('should encode NEUTRAL as NEUT', () => {
-      const result = oneHotEncode(['NEUTRAL']);
-      expect(result).toEqual([[0, 0, 1, 0]]);
-    });
-
-    it('should encode unknown sentiment as UNKNOWN', () => {
-      const result = oneHotEncode(['INVALID']);
-      expect(result).toEqual([[0, 0, 0, 1]]);
-    });
-
-    it('should handle empty string as UNKNOWN', () => {
-      const result = oneHotEncode(['']);
-      expect(result).toEqual([[0, 0, 0, 1]]);
-    });
-
-    it('should handle mixed sentiments', () => {
-      const result = oneHotEncode(['POS', 'NEG', 'NEUT', 'OTHER']);
-      expect(result).toEqual([
-        [1, 0, 0, 0], // POS
-        [0, 1, 0, 0], // NEG
-        [0, 0, 1, 0], // NEUT
-        [0, 0, 0, 1], // OTHER (unknown)
-      ]);
-    });
-
-    it('should be case-insensitive', () => {
-      const result = oneHotEncode(['pos', 'Neg', 'NEUT']);
-      expect(result).toEqual([
-        [1, 0, 0, 0],
-        [0, 1, 0, 0],
-        [0, 0, 1, 0],
-      ]);
-    });
-
-    it('should trim whitespace', () => {
-      const result = oneHotEncode([' POS ', '  NEG  ']);
-      expect(result).toEqual([
-        [1, 0, 0, 0],
-        [0, 1, 0, 0],
-      ]);
-    });
-  });
-
   describe('buildFeatureMatrix', () => {
     it('should build 8-feature matrix with sentiment signals', () => {
       const input: PredictionInput = {

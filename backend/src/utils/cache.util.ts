@@ -55,7 +55,7 @@ export function calculateTTLByDataType(
         return calculateTTL(90); // Historical
       }
       return calculateTTL(1); // Current/Future
-    } catch (e) {
+    } catch {
       console.warn('Invalid date passed to calculateTTLByDataType:', date);
       return calculateTTL(1);
     }

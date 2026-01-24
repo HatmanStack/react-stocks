@@ -4,8 +4,7 @@
  * Main service for analyzing financial aspects in news articles.
  * Detects all aspects, scores them individually, and combines using materiality weights.
  *
- * @see docs/plans/Phase-2.md Task 4 for implementation details
- * @see docs/plans/Phase-0.md ADR-003 for methodology
+
  */
 
 import { detectAspect } from '../ml/aspects/detector';

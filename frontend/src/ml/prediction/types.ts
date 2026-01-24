@@ -7,21 +7,10 @@ import type { EventType } from '../../types/database.types';
 /**
  * Input data for stock price predictions
  *
- * **Phase 4 Update:**
- * - Price features: close prices (will be converted to price ratios internally)
- * - Volume: normalized volume
- * - Three-signal sentiment: eventType, aspectScore, mlScore
- * - Signal score: metadata-based quality signal
- * - Volatility: calculated from close prices
+ * Full model (8 features): price_ratio_5d, price_ratio_10d, volume,
+ * event_impact, aspect_score, ml_score, sentiment_availability, volatility
  *
- * The feature matrix will contain 14 features:
- * - 3 price ratios (1d, 5d, 10d)
- * - 1 volume
- * - 6 event type features (one-hot encoded)
- * - 1 aspect score
- * - 1 ML score
- * - 1 signal score
- * - 1 volatility
+ * Price-only model (4 features): price_ratio_5d, price_ratio_10d, volume, volatility
  */
 export interface PredictionInput {
   ticker: string;

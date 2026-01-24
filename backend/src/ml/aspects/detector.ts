@@ -4,7 +4,7 @@
  * Core logic for finding aspect mentions in text and determining their polarity.
  * Uses keyword-based matching with proximity detection and sentiment analysis.
  *
- * @see docs/plans/Phase-2.md Task 3 for implementation details
+
  */
 
 import {

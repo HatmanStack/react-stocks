@@ -281,18 +281,6 @@ export const EVENT_KEYWORDS: EventKeywords = {
 };
 
 /**
- * Get keywords for a specific event type
- *
- * @param eventType - Event type to get keywords for
- * @returns Keyword set for the event type
- */
-export function getKeywordsForEvent(
-  eventType: keyof EventKeywords
-): EventKeywords[keyof EventKeywords] {
-  return EVENT_KEYWORDS[eventType];
-}
-
-/**
  * Get all primary keywords across all event types
  * Useful for checking keyword overlap during validation
  *

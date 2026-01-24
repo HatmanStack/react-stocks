@@ -276,7 +276,7 @@ function classifySentiment(score: number): 'POS' | 'NEG' | 'NEUT' {
  * @param ticker - Stock ticker symbol
  * @returns Array of CombinedWordDetails for database storage
  *
- * @see docs/plans/Phase-5.md Task 2 for transformation rationale
+
  */
 function transformLambdaToLocal(
   dailySentiment: DailySentiment[],
@@ -400,7 +400,6 @@ export function useSentimentData(
       const hasGoodCoverage = coverageRatio >= 0.5; // At least 50% of expected
 
       // Freshness: check if latest record is recent (within 1 day)
-      const today = formatDateForDB(new Date());
       const yesterday = formatDateForDB(subDays(new Date(), 1));
       const latestLocalDate = localData.length > 0
         ? localData.reduce((a, b) => a.date > b.date ? a : b).date
@@ -462,7 +461,7 @@ export function useSentimentData(
                   try {
                     await CombinedWordRepository.upsert(record);
                     successCount++;
-                  } catch (err) {
+                  } catch {
                     failCount++;
                   }
                 }
@@ -682,7 +681,7 @@ export function useArticleSentiment(
                     } else {
                       skipCount++;
                     }
-                  } catch (err) {
+                  } catch {
                     failCount++;
                   }
                 }

@@ -53,37 +53,3 @@ export const createTestWrapper = () => {
   return TestWrapper;
 };
 
-/**
- * Creates a minimal test wrapper with only QueryClient
- * Use when you don't need theme provider
- */
-export const createQueryWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false, gcTime: 0 },
-      mutations: { retry: false },
-    },
-  });
-
-  const QueryWrapper = ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
-  );
-  QueryWrapper.displayName = 'QueryWrapper';
-  return QueryWrapper;
-};
-
-/**
- * Creates a minimal test wrapper with only PaperProvider
- * Use when you don't need React Query
- */
-export const createThemeWrapper = () => {
-  const ThemeWrapper = ({ children }: { children: React.ReactNode }) => (
-    <PaperProvider theme={theme}>
-      {children}
-    </PaperProvider>
-  );
-  ThemeWrapper.displayName = 'ThemeWrapper';
-  return ThemeWrapper;
-};
