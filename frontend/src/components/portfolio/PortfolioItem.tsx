@@ -15,8 +15,7 @@ import type { PortfolioDetails } from '@/types/database.types';
 import { MonoText, AnimatedCard, AnimatedNumber } from '@/components/common';
 import { MiniChart } from '@/components/charts';
 import { formatPrice, formatPercentage } from '@/utils/formatting';
-import { useLatestStockPrice, useStockData } from '@/hooks';
-import { useLayoutDensity } from '@/hooks';
+import { useLatestStockPrice, useStockData, useLayoutDensity } from '@/hooks';
 
 interface PortfolioItemProps {
   item: PortfolioDetails;

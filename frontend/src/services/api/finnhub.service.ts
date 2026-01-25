@@ -4,7 +4,7 @@
  * Backend proxies requests to Finnhub API (API keys secured in Lambda)
  */
 
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, isAxiosError } from 'axios';
 import type { FinnhubNewsArticle } from './finnhub.types';
 import type { NewsDetails } from '@/types/database.types';
 import { Environment } from '@/config/environment';
@@ -77,7 +77,7 @@ export async function fetchNews(
     console.log(`[FinnhubService] Fetched ${response.data.data.length} articles for ${ticker}`);
     return response.data.data;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
+    if (isAxiosError(error)) {
       const status = error.response?.status;
       const errorData = error.response?.data as { error?: string };
 

@@ -7,8 +7,7 @@ import { syncStockData } from './stockDataSync';
 import { syncSentimentData } from './sentimentDataSync';
 import { triggerSentimentAnalysis, fetchLambdaNews } from '@/services/api/lambdaSentiment.service';
 import { Environment } from '@/config/environment';
-import { formatDateForDB } from '@/utils/date/dateUtils';
-import { getDatesInRange } from '@/utils/date/dateUtils';
+import { formatDateForDB, getDatesInRange } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
 
 /**

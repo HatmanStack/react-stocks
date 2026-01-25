@@ -19,6 +19,7 @@ import { getMlSentiment } from './mlSentiment.service.js';
 import { calculateSignalScoresBatch, type ArticleMetadata } from './signalScore.service.js';
 import { isMaterialEvent } from '../types/event.types.js';
 import type { EventType } from '../types/event.types.js';
+import type { AspectBreakdown } from '../types/aspect.types.js';
 import type {
   NewsCacheItem,
   SentimentCacheItem,
@@ -337,7 +338,7 @@ async function analyzeArticles(
   );
 
   // Create map of articleHash -> aspect scores
-  const aspectScoreMap = new Map<string, { score: number; breakdown: any }>();
+  const aspectScoreMap = new Map<string, { score: number; breakdown: AspectBreakdown }>();
   aspectAnalysisResults.forEach((result) => {
     if (result.status === 'fulfilled') {
       aspectScoreMap.set(result.value.articleHash, {

@@ -5,10 +5,9 @@
 
 import { useEffect, useCallback } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, withLayoutContext } from 'expo-router';
 import { Appbar, useTheme } from 'react-native-paper';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { withLayoutContext } from 'expo-router';
 import { useSymbolDetails } from '@/hooks/useSymbolSearch';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useStock } from '@/contexts/StockContext';
