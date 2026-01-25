@@ -2,7 +2,7 @@
 
 ## Endpoints
 
-All endpoints served via API Gateway v2 (HTTP API). Base URL stored in `frontend/.env` as `EXPO_PUBLIC_API_URL`.
+All endpoints served via API Gateway v2 (HTTP API). Base URL stored in `frontend/.env` as `EXPO_PUBLIC_BACKEND_URL`.
 
 ### Python Lambda (yfinance)
 
@@ -42,47 +42,43 @@ All endpoints served via API Gateway v2 (HTTP API). Base URL stored in `frontend
    → Returns aggregated daily sentiment array
 ```
 
-## DynamoDB Tables
+## DynamoDB Table
 
-All tables use PAY_PER_REQUEST billing. Names prefixed with stack name.
+Single-table design with composite keys. PAY_PER_REQUEST billing.
 
-### Cache Tables
+Table name: `${StackName}-Table`
 
-| Table | PK | SK | TTL | Purpose |
-|-------|----|----|-----|---------|
-| StocksCache | ticker (S) | date (S) | ttl | Price data cache |
-| NewsCache | ticker (S) | articleHash (S) | ttl | News article cache |
-| SentimentCache | ticker (S) | articleHash (S) | ttl | Per-article sentiment + 3 signals |
-| SentimentJobs | jobId (S) | - | ttl | Async job tracking |
+| Entity | PK | SK | TTL | Purpose |
+|--------|----|----|-----|---------|
+| Stock Cache | `STOCK#ticker` | `DATE#YYYY-MM-DD` | 7-90 days | Price data cache |
+| News Cache | `NEWS#ticker` | `HASH#articleHash` | 7 days | News article cache |
+| Sentiment Cache | `SENT#ticker` | `HASH#articleHash` | 30 days | Per-article sentiment |
+| Sentiment Job | `JOB#jobId` | `META` | 1 day | Async job tracking |
+| Historical Data | `HIST#ticker` | `DATE#YYYY-MM-DD` | None | ML training data |
+| Article Analysis | `ARTICLE#ticker` | `HASH#hash#DATE#date` | None | Article analysis |
+| Daily Aggregate | `DAILY#ticker` | `DATE#YYYY-MM-DD` | None | Aggregated signals |
+| Circuit Breaker | `CIRCUIT#service` | `STATE` | None | ML service health |
 
-### ML Data Tables
-
-| Table | PK | SK | Purpose |
-|-------|----|----|---------|
-| StockHistoricalData | ticker (S) | date (S) | OHLCV for prediction training |
-| ArticleAnalysisData | ticker (S) | articleHash (S) | Full article analysis results |
-| DailySentimentAggregate | ticker (S) | date (S) | Aggregated daily signals |
-
-### SentimentCache Item Schema
+### Sentiment Cache Item Schema
 
 ```typescript
 {
-  ticker: string,              // PK
-  articleHash: string,         // SK
-  sentiment: {
-    positive: [count, confidence],
-    negative: [count, confidence],
-    neutral: [count, confidence],
-    sentimentScore: number,    // -1 to +1
-    classification: string     // POS|NEG|NEUT
-  },
-  eventType?: EventType,       // EARNINGS|M&A|GUIDANCE|ANALYST_RATING|PRODUCT_LAUNCH|GENERAL
+  pk: string,                  // SENT#ticker
+  sk: string,                  // HASH#articleHash
+  entityType: 'SENTIMENT',
+  ticker: string,
+  articleHash: string,
+  headline: string,
+  summary: string,
+  publishedAt: string,
+  eventType?: string,          // EARNINGS|M&A|GUIDANCE|ANALYST_RATING|PRODUCT_LAUNCH|GENERAL
+  eventConfidence?: number,
   aspectScore?: number,        // -1 to +1
-  aspectBreakdown?: {...},     // Per-aspect scores
   mlScore?: number,            // -1 to +1 (null for non-material)
   signalScore?: number,        // 0 to 1 (reliability weight)
-  analyzedAt: number,          // Unix timestamp
-  ttl: number                  // DynamoDB TTL
+  ttl: number,                 // DynamoDB TTL
+  createdAt: string,
+  updatedAt: string
 }
 ```
 
@@ -101,7 +97,7 @@ All tables use PAY_PER_REQUEST billing. Names prefixed with stack name.
 
 | Variable | Required | Source |
 |----------|----------|--------|
-| EXPO_PUBLIC_API_URL | Yes | API Gateway URL (set by deploy) |
+| EXPO_PUBLIC_BACKEND_URL | Yes | API Gateway URL (set by deploy) |
 | EXPO_PUBLIC_BROWSER_SENTIMENT | No | Enable browser sentiment |
 | EXPO_PUBLIC_BROWSER_PREDICTION | No | Enable browser predictions |
 | EXPO_PUBLIC_USE_LAMBDA_SENTIMENT | No | Use Lambda for sentiment |
