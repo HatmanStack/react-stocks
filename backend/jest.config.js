@@ -19,7 +19,7 @@ export default {
   },
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^@aws-sdk/(.*)$': '<rootDir>/node_modules/@aws-sdk/$1',
+    '^@aws-sdk/(.*)$': '<rootDir>/../node_modules/@aws-sdk/$1',
   },
   extensionsToTreatAsEsm: ['.ts'],
   transform: {
