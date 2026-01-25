@@ -16,7 +16,21 @@ import type { EventType } from '../../types/database.types';
 
 /**
  * Compute ANOVA F-statistic for each feature vs binary labels.
- * Higher F = more discriminative. p-value from F(1, n-2) distribution.
+ *
+ * DEVELOPMENT INSTRUMENTATION: This function provides feature importance
+ * analysis during model development. Results are logged to console for
+ * developer inspection when debugging prediction accuracy.
+ *
+ * - Higher F values indicate more discriminative features
+ * - p-values from F(1, n-2) distribution
+ * - Output sorted by F-statistic descending
+ *
+ * This is NOT shown to end users. Control logging via LOG_LEVEL env var.
+ *
+ * @param X - Feature matrix (n_samples x n_features)
+ * @param y - Binary labels (0 or 1)
+ * @param featureNames - Names for each feature column
+ * @returns Array of {name, F, pValue} sorted by F descending
  */
 function computeFeatureFStats(
   X: number[][],
@@ -326,7 +340,9 @@ export async function getStockPredictions(
       const k = Math.min(8, y.length);
 
       if (horizon === 1) {
-        // --- F-test diagnostic (NEXT horizon has most samples) ---
+        // DEV INSTRUMENTATION: Log feature importance for model debugging.
+        // F-test diagnostics help identify which features are most predictive
+        // during model development. NOT shown to end users.
         const fStats = computeFeatureFStats(X_full, y, FEATURE_NAMES);
         console.log(`[F-Test] ${ticker} NEXT (${y.length} samples, class split: ${y.filter(v=>v===0).length}/${y.filter(v=>v===1).length}):`);
         console.table(fStats.map(f => ({
