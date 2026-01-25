@@ -1,29 +1,32 @@
-import {
-  GetCommand,
-  PutCommand,
-  QueryCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { dynamoDb } from '../utils/dynamodb.util';
-import type { DailySentimentAggregateItem } from '../types/dynamodb.types';
+/**
+ * DailySentimentAggregate Repository
+ *
+ * Provides CRUD operations for daily sentiment aggregate data using single-table DynamoDB design.
+ * Uses composite keys: PK = DAILY#TICKER, SK = DATE#YYYY-MM-DD
+ *
+ * Note: This table has NO TTL (persistent ML training data).
+ */
 
-const TABLE_NAME = process.env.DAILY_SENTIMENT_TABLE || 'DailySentimentAggregate';
+import {
+  getItem,
+  putItem,
+  queryItems,
+} from '../utils/dynamodb.util.js';
+import {
+  makeDailyPK,
+  makeDateSK,
+  SortKeyPrefix,
+} from '../types/dynamodb.types.js';
+import type { DailySentimentItem } from '../types/dynamodb.types.js';
+import type { DailySentimentAggregateItem } from '../types/dynamodb.types.js';
 
 /**
  * Put daily sentiment aggregate (including predictions)
  */
 export async function putDailyAggregate(item: DailySentimentAggregateItem): Promise<void> {
   try {
-    // Normalize ticker to uppercase to match read operations
-    const normalizedItem = {
-      ...item,
-      ticker: item.ticker?.toUpperCase() || item.ticker
-    };
-
-    const command = new PutCommand({
-      TableName: TABLE_NAME,
-      Item: normalizedItem
-    });
-    await dynamoDb.send(command);
+    const cacheItem = transformToInternal(item);
+    await putItem(cacheItem);
   } catch (error) {
     console.error('[DailySentimentAggregateRepository] Error putting item:', error);
     throw error;
@@ -35,15 +38,16 @@ export async function putDailyAggregate(item: DailySentimentAggregateItem): Prom
  */
 export async function getDailyAggregate(ticker: string, date: string): Promise<DailySentimentAggregateItem | null> {
   try {
-    const command = new GetCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        ticker: ticker.toUpperCase(),
-        date
-      }
-    });
-    const response = await dynamoDb.send(command);
-    return (response.Item as DailySentimentAggregateItem) || null;
+    const pk = makeDailyPK(ticker);
+    const sk = makeDateSK(date);
+
+    const item = await getItem<DailySentimentItem>(pk, sk);
+
+    if (!item) {
+      return null;
+    }
+
+    return transformToExternal(item);
   } catch (error) {
     console.error('[DailySentimentAggregateRepository] Error getting item:', error);
     throw error;
@@ -56,22 +60,102 @@ export async function getDailyAggregate(ticker: string, date: string): Promise<D
  */
 export async function getLatestDailyAggregate(ticker: string): Promise<DailySentimentAggregateItem | null> {
   try {
-    const command = new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: 'ticker = :ticker',
-      ExpressionAttributeValues: {
-        ':ticker': ticker.toUpperCase()
-      },
-      ScanIndexForward: false, // Descending order
-      Limit: 1
+    const pk = makeDailyPK(ticker);
+
+    const items = await queryItems<DailySentimentItem>(pk, {
+      skPrefix: `${SortKeyPrefix.DATE}#`,
+      limit: 1,
+      scanIndexForward: false, // Descending order (most recent first)
     });
-    const response = await dynamoDb.send(command);
-    if (response.Items && response.Items.length > 0) {
-      return response.Items[0] as DailySentimentAggregateItem;
+
+    if (items.length === 0) {
+      return null;
     }
-    return null;
+
+    return transformToExternal(items[0]);
   } catch (error) {
     console.error('[DailySentimentAggregateRepository] Error getting latest item:', error);
     throw error;
   }
+}
+
+/**
+ * Query daily sentiment aggregates by ticker and date range
+ */
+export async function queryByTickerAndDateRange(
+  ticker: string,
+  startDate: string,
+  endDate: string,
+): Promise<DailySentimentAggregateItem[]> {
+  try {
+    const pk = makeDailyPK(ticker);
+
+    const items = await queryItems<DailySentimentItem>(pk, {
+      skBetween: {
+        start: makeDateSK(startDate),
+        end: makeDateSK(endDate),
+      },
+    });
+
+    return items.map(transformToExternal);
+  } catch (error) {
+    console.error('[DailySentimentAggregateRepository] Error querying by date range:', error);
+    throw error;
+  }
+}
+
+// ============================================================
+// Internal Transform Functions
+// ============================================================
+
+/**
+ * Transform from legacy external format to single-table internal format
+ */
+function transformToInternal(item: DailySentimentAggregateItem): DailySentimentItem {
+  const now = new Date().toISOString();
+  const pk = makeDailyPK(item.ticker);
+  const sk = makeDateSK(item.date);
+
+  return {
+    pk,
+    sk,
+    entityType: 'DAILY',
+    ticker: item.ticker?.toUpperCase() || item.ticker,
+    date: item.date,
+    eventCounts: item.eventCounts,
+    avgAspectScore: item.avgAspectScore,
+    avgMlScore: item.avgMlScore,
+    avgSignalScore: item.avgSignalScore,
+    materialEventCount: item.materialEventCount,
+    nextDayDirection: item.nextDayDirection,
+    nextDayProbability: item.nextDayProbability,
+    twoWeekDirection: item.twoWeekDirection,
+    twoWeekProbability: item.twoWeekProbability,
+    oneMonthDirection: item.oneMonthDirection,
+    oneMonthProbability: item.oneMonthProbability,
+    // No TTL - persistent data
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Transform from single-table internal format to legacy external format
+ */
+function transformToExternal(item: DailySentimentItem): DailySentimentAggregateItem {
+  return {
+    ticker: item.ticker,
+    date: item.date,
+    eventCounts: item.eventCounts,
+    avgAspectScore: item.avgAspectScore,
+    avgMlScore: item.avgMlScore,
+    avgSignalScore: item.avgSignalScore,
+    materialEventCount: item.materialEventCount,
+    nextDayDirection: item.nextDayDirection,
+    nextDayProbability: item.nextDayProbability,
+    twoWeekDirection: item.twoWeekDirection,
+    twoWeekProbability: item.twoWeekProbability,
+    oneMonthDirection: item.oneMonthDirection,
+    oneMonthProbability: item.oneMonthProbability,
+  };
 }

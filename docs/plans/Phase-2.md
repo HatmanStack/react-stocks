@@ -824,10 +824,10 @@ refactor(backend): migrate sentimentJobs repository to single-table
 3. Note: This table has NO TTL (persistent ML training data)
 
 **Verification Checklist:**
-- [ ] Date range queries work correctly
-- [ ] No TTL (persistent data)
-- [ ] Event counts JSON preserved
-- [ ] TypeScript compilation succeeds
+- [x] Date range queries work correctly
+- [x] No TTL (persistent data)
+- [x] Event counts JSON preserved
+- [x] TypeScript compilation succeeds
 - [ ] Unit tests created in Task 10 (repository tests don't exist yet)
 
 **Testing Instructions:**
