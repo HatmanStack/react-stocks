@@ -2,21 +2,270 @@
  * DynamoDB Utility Functions
  *
  * Provides reusable utilities for DynamoDB operations including
- * update expression building, batch operations, and retry logic.
+ * update expression building, batch operations, retry logic, and
+ * single-table design helpers.
  */
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  QueryCommand,
+  DeleteCommand,
+  UpdateCommand,
   BatchGetCommand,
   BatchWriteCommand,
+} from '@aws-sdk/lib-dynamodb';
+import type {
+  GetCommandInput,
+  PutCommandInput,
+  QueryCommandInput,
+  DeleteCommandInput,
+  UpdateCommandInput,
   BatchGetCommandInput,
-  BatchWriteCommandInput
+  BatchWriteCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 
 // Initialize DynamoDB client (reused across Lambda invocations)
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
-export const dynamoDb = DynamoDBDocumentClient.from(client);
+
+// Create document client with marshalling options
+export const dynamoDb = DynamoDBDocumentClient.from(client, {
+  marshallOptions: {
+    removeUndefinedValues: true,
+    convertEmptyValues: false,
+  },
+  unmarshallOptions: {
+    wrapNumbers: false,
+  },
+});
+
+// Alias for backward compatibility
+export const docClient = dynamoDb;
+
+// ============================================================
+// Single-Table Design Helpers
+// ============================================================
+
+/**
+ * Get the unified table name from environment.
+ *
+ * Uses DYNAMODB_TABLE_NAME env var, falling back to stack-based naming.
+ */
+export function getTableName(): string {
+  const tableName = process.env.DYNAMODB_TABLE_NAME;
+  if (!tableName) {
+    throw new Error('DYNAMODB_TABLE_NAME environment variable not set');
+  }
+  return tableName;
+}
+
+/**
+ * Get a single item by PK and SK
+ */
+export async function getItem<T>(
+  pk: string,
+  sk: string,
+): Promise<T | null> {
+  const params: GetCommandInput = {
+    TableName: getTableName(),
+    Key: { pk, sk },
+  };
+
+  const result = await dynamoDb.send(new GetCommand(params));
+  return (result.Item as T) ?? null;
+}
+
+/**
+ * Put a single item
+ */
+export async function putItem<T extends { pk: string; sk: string; createdAt?: string }>(
+  item: T,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const params: PutCommandInput = {
+    TableName: getTableName(),
+    Item: {
+      ...item,
+      updatedAt: now,
+      createdAt: item.createdAt ?? now,
+    },
+  };
+
+  await dynamoDb.send(new PutCommand(params));
+}
+
+/**
+ * Put a single item with conditional expression (for duplicate prevention)
+ */
+export async function putItemConditional<T extends { pk: string; sk: string; createdAt?: string }>(
+  item: T,
+  conditionExpression: string,
+): Promise<boolean> {
+  const now = new Date().toISOString();
+  const params: PutCommandInput = {
+    TableName: getTableName(),
+    Item: {
+      ...item,
+      updatedAt: now,
+      createdAt: item.createdAt ?? now,
+    },
+    ConditionExpression: conditionExpression,
+  };
+
+  try {
+    await dynamoDb.send(new PutCommand(params));
+    return true;
+  } catch (error) {
+    if ((error as { name?: string }).name === 'ConditionalCheckFailedException') {
+      return false; // Item already exists
+    }
+    throw error;
+  }
+}
+
+/**
+ * Query items by PK with optional SK conditions
+ */
+export async function queryItems<T>(
+  pk: string,
+  options?: {
+    skPrefix?: string;
+    skBetween?: { start: string; end: string };
+    limit?: number;
+    scanIndexForward?: boolean;
+  },
+): Promise<T[]> {
+  let keyConditionExpression = 'pk = :pk';
+  const expressionAttributeValues: Record<string, unknown> = { ':pk': pk };
+
+  if (options?.skPrefix) {
+    keyConditionExpression += ' AND begins_with(sk, :skPrefix)';
+    expressionAttributeValues[':skPrefix'] = options.skPrefix;
+  } else if (options?.skBetween) {
+    keyConditionExpression += ' AND sk BETWEEN :skStart AND :skEnd';
+    expressionAttributeValues[':skStart'] = options.skBetween.start;
+    expressionAttributeValues[':skEnd'] = options.skBetween.end;
+  }
+
+  const params: QueryCommandInput = {
+    TableName: getTableName(),
+    KeyConditionExpression: keyConditionExpression,
+    ExpressionAttributeValues: expressionAttributeValues,
+    Limit: options?.limit,
+    ScanIndexForward: options?.scanIndexForward ?? true,
+  };
+
+  const result = await dynamoDb.send(new QueryCommand(params));
+  return (result.Items as T[]) ?? [];
+}
+
+/**
+ * Delete a single item
+ */
+export async function deleteItem(pk: string, sk: string): Promise<void> {
+  const params: DeleteCommandInput = {
+    TableName: getTableName(),
+    Key: { pk, sk },
+  };
+
+  await dynamoDb.send(new DeleteCommand(params));
+}
+
+/**
+ * Batch get items for single-table design (max 100 per call)
+ */
+export async function batchGetItemsSingleTable<T>(
+  keys: Array<{ pk: string; sk: string }>,
+): Promise<T[]> {
+  if (keys.length === 0) return [];
+  if (keys.length > 100) {
+    throw new Error('batchGetItemsSingleTable supports max 100 keys');
+  }
+
+  const tableName = getTableName();
+  const params: BatchGetCommandInput = {
+    RequestItems: {
+      [tableName]: {
+        Keys: keys,
+      },
+    },
+  };
+
+  const result = await dynamoDb.send(new BatchGetCommand(params));
+  return (result.Responses?.[tableName] as T[]) ?? [];
+}
+
+/**
+ * Batch put items for single-table design (max 25 per call)
+ */
+export async function batchPutItemsSingleTable<T extends { pk: string; sk: string; createdAt?: string }>(
+  items: T[],
+): Promise<void> {
+  if (items.length === 0) return;
+  if (items.length > 25) {
+    throw new Error('batchPutItemsSingleTable supports max 25 items');
+  }
+
+  const tableName = getTableName();
+  const now = new Date().toISOString();
+
+  const params: BatchWriteCommandInput = {
+    RequestItems: {
+      [tableName]: items.map((item) => ({
+        PutRequest: {
+          Item: {
+            ...item,
+            updatedAt: now,
+            createdAt: item.createdAt ?? now,
+          },
+        },
+      })),
+    },
+  };
+
+  await dynamoDb.send(new BatchWriteCommand(params));
+}
+
+/**
+ * Update specific attributes of an item
+ */
+export async function updateItem(
+  pk: string,
+  sk: string,
+  updates: Record<string, unknown>,
+): Promise<void> {
+  const updateParts: string[] = ['#updatedAt = :updatedAt'];
+  const expressionAttributeValues: Record<string, unknown> = {
+    ':updatedAt': new Date().toISOString(),
+  };
+  const expressionAttributeNames: Record<string, string> = {
+    '#updatedAt': 'updatedAt',
+  };
+
+  for (const [key, value] of Object.entries(updates)) {
+    const attrName = `#${key}`;
+    const attrValue = `:${key}`;
+    expressionAttributeNames[attrName] = key;
+    expressionAttributeValues[attrValue] = value;
+    updateParts.push(`${attrName} = ${attrValue}`);
+  }
+
+  const params: UpdateCommandInput = {
+    TableName: getTableName(),
+    Key: { pk, sk },
+    UpdateExpression: 'SET ' + updateParts.join(', '),
+    ExpressionAttributeValues: expressionAttributeValues,
+    ExpressionAttributeNames: expressionAttributeNames,
+  };
+
+  await dynamoDb.send(new UpdateCommand(params));
+}
+
+// ============================================================
+// Legacy Multi-Table Helpers (for backward compatibility)
+// ============================================================
 
 /**
  * Build DynamoDB UpdateExpression from an object of updates
@@ -32,10 +281,10 @@ export const dynamoDb = DynamoDBDocumentClient.from(client);
  * //   ExpressionAttributeValues: { ':status': 'COMPLETED', ':completedAt': 1234567890 }
  * // }
  */
-export function buildUpdateExpression(updates: Record<string, any>): {
+export function buildUpdateExpression(updates: Record<string, unknown>): {
   UpdateExpression: string;
   ExpressionAttributeNames: Record<string, string>;
-  ExpressionAttributeValues: Record<string, any>;
+  ExpressionAttributeValues: Record<string, unknown>;
 } {
   const keys = Object.keys(updates);
 
@@ -45,7 +294,7 @@ export function buildUpdateExpression(updates: Record<string, any>): {
 
   const setExpressions: string[] = [];
   const expressionAttributeNames: Record<string, string> = {};
-  const expressionAttributeValues: Record<string, any> = {};
+  const expressionAttributeValues: Record<string, unknown> = {};
 
   keys.forEach((key) => {
     const attributeName = `#${key}`;
@@ -77,9 +326,9 @@ export function buildUpdateExpression(updates: Record<string, any>): {
  *   { ticker: 'GOOGL', date: '2025-01-01' }
  * ]);
  */
-export async function batchGetItems<T = any>(
+export async function batchGetItems<T = unknown, K extends object = Record<string, unknown>>(
   tableName: string,
-  keys: Record<string, any>[]
+  keys: K[]
 ): Promise<T[]> {
   if (keys.length === 0) {
     return [];
@@ -110,10 +359,9 @@ export async function batchGetItems<T = any>(
     // Handle unprocessed keys (retry)
     if (response.UnprocessedKeys && Object.keys(response.UnprocessedKeys).length > 0) {
       console.warn('[DynamoDB] Unprocessed keys detected, retrying...', response.UnprocessedKeys);
-      // Recursively process unprocessed keys
       const unprocessedKeys = response.UnprocessedKeys[tableName]?.Keys || [];
       if (unprocessedKeys.length > 0) {
-        const retryResults = await batchGetItems<T>(tableName, unprocessedKeys);
+        const retryResults = await batchGetItems<T>(tableName, unprocessedKeys as Record<string, unknown>[]);
         results.push(...retryResults);
       }
     }
@@ -135,9 +383,9 @@ export async function batchGetItems<T = any>(
  *   { ticker: 'GOOGL', date: '2025-01-01', price: 2800 }
  * ]);
  */
-export async function batchPutItems(
+export async function batchPutItems<T extends object>(
   tableName: string,
-  items: Record<string, any>[]
+  items: T[]
 ): Promise<void> {
   if (items.length === 0) {
     return;
@@ -166,7 +414,7 @@ export async function batchPutItems(
     if (response.UnprocessedItems && Object.keys(response.UnprocessedItems).length > 0) {
       console.warn('[DynamoDB] Unprocessed items detected, retrying...', response.UnprocessedItems);
       const unprocessedItems = response.UnprocessedItems[tableName]?.map((req) => req.PutRequest?.Item) || [];
-      const validItems = unprocessedItems.filter((item): item is Record<string, any> => item !== undefined);
+      const validItems = unprocessedItems.filter((item): item is Record<string, unknown> => item !== undefined);
 
       if (validItems.length > 0) {
         await batchPutItems(tableName, validItems);
@@ -204,7 +452,7 @@ export async function withRetry<T>(
       lastError = error as Error;
 
       // Check if error is retryable
-      const errorName = (error as any).name || '';
+      const errorName = (error as { name?: string }).name || '';
       const isRetryable =
         errorName === 'ProvisionedThroughputExceededException' ||
         errorName === 'RequestLimitExceeded' ||
