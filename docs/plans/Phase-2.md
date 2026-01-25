@@ -1,5 +1,29 @@
 # Phase 2: DynamoDB Single-Table Migration + Circuit Breaker Persistence
 
+---
+
+## Review Feedback (Iteration 1) - RESOLVED
+
+### Task 10: Repository Unit Tests - ✅ Complete
+
+All 5 test files created in `backend/src/repositories/__tests__/`:
+- `circuitBreaker.repository.test.ts` ✓
+- `newsCache.repository.test.ts` ✓
+- `sentimentCache.repository.test.ts` ✓
+- `sentimentJobs.repository.test.ts` ✓
+- `dailySentimentAggregate.repository.test.ts` ✓
+
+### Task 10: Circuit Breaker Tests - ✅ Fixed
+
+Tests now properly mock `dynamodb.util` using `jest.unstable_mockModule` and test actual repository logic:
+- `getCircuitState` - tests default state and stored state retrieval
+- `recordSuccess` - tests circuit reset
+- `recordFailure` - tests failure counting and circuit opening
+
+All 41 repository tests pass (264 total tests in suite).
+
+---
+
 ## Phase Goal
 
 Consolidate 7 DynamoDB tables into a true single-table design using composite keys. Persist circuit breaker state to DynamoDB to survive Lambda cold starts. This is the largest change in this plan.
@@ -1269,11 +1293,11 @@ refactor(infra): consolidate 7 DynamoDB tables into single-table
    - Cover CRUD operations and edge cases
 
 **Verification Checklist:**
-- [ ] `__tests__` directory created
-- [ ] Circuit breaker repository fully tested
-- [ ] All repository tests created and passing
-- [ ] Mocking strategy consistent across tests
-- [ ] Edge cases covered (empty results, errors)
+- [x] `__tests__` directory created
+- [x] Circuit breaker repository fully tested
+- [x] All repository tests created and passing
+- [x] Mocking strategy consistent across tests
+- [x] Edge cases covered (empty results, errors)
 
 **Testing Instructions:**
 ```bash
