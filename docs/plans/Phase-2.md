@@ -962,10 +962,10 @@ refactor(backend): migrate dailySentimentAggregate to single-table
 2. Add to repository index exports
 
 **Verification Checklist:**
-- [ ] Get/update functions work correctly
-- [ ] Default closed state returned when no record
-- [ ] Failure threshold logic correct
-- [ ] TypeScript compilation succeeds
+- [x] Get/update functions work correctly
+- [x] Default closed state returned when no record
+- [x] Failure threshold logic correct
+- [x] TypeScript compilation succeeds
 
 **Testing Instructions:**
 ```bash
