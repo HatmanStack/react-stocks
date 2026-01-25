@@ -32,7 +32,7 @@ interface EMFMetric {
       }[];
     }[];
   };
-  [key: string]: any; // Metric values and dimensions
+  [key: string]: unknown; // Metric values and dimensions
 }
 
 const NAMESPACE = 'ReactStocks';

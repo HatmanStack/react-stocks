@@ -4,7 +4,7 @@
  * Handles job triggering, status polling, and result fetching
  */
 
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, isAxiosError } from 'axios';
 import { Environment } from '@/config/environment';
 
 // Backend API configuration
@@ -186,7 +186,7 @@ export async function triggerSentimentAnalysis(
 
     return result;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
+    if (isAxiosError(error)) {
       const status = error.response?.status;
       const errorData = error.response?.data as { error?: string };
 
@@ -253,7 +253,7 @@ export async function getSentimentJobStatus(
 
     return result;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
+    if (isAxiosError(error)) {
       const status = error.response?.status;
       const errorData = error.response?.data as { error?: string };
 
@@ -341,7 +341,7 @@ export async function getArticleSentiment(
 
     return result;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
+    if (isAxiosError(error)) {
       const status = error.response?.status;
       const errorData = error.response?.data as { error?: string };
 
@@ -409,7 +409,7 @@ export async function fetchLambdaNews(
       cachedArticles: meta.cachedArticles,
     };
   } catch (error) {
-    if (axios.isAxiosError(error)) {
+    if (isAxiosError(error)) {
       const status = error.response?.status;
       const errorData = error.response?.data as { error?: string };
 
@@ -469,7 +469,7 @@ export async function getSentimentResults(
 
     return result;
   } catch (error) {
-    if (axios.isAxiosError(error)) {
+    if (isAxiosError(error)) {
       const status = error.response?.status;
       const errorData = error.response?.data as { error?: string };
 

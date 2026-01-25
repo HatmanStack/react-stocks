@@ -2,6 +2,16 @@
  * Cache Utility Functions
  */
 
+import {
+  TTL_STOCK_HISTORICAL_DAYS,
+  TTL_STOCK_CURRENT_DAYS,
+  TTL_NEWS_DAYS,
+  TTL_SENTIMENT_DAYS,
+  TTL_METADATA_DAYS,
+  TTL_JOB_DAYS,
+  TTL_DEFAULT_DAYS,
+} from '../constants/cache.constants.js';
+
 /**
  * Calculate TTL (Time To Live) for DynamoDB items
  * Returns Unix timestamp (in seconds) for when the item should expire
@@ -52,21 +62,21 @@ export function calculateTTLByDataType(
       const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
       if (itemDate < todayUTC) {
-        return calculateTTL(90); // Historical
+        return calculateTTL(TTL_STOCK_HISTORICAL_DAYS);
       }
-      return calculateTTL(1); // Current/Future
+      return calculateTTL(TTL_STOCK_CURRENT_DAYS);
     } catch {
       console.warn('Invalid date passed to calculateTTLByDataType:', date);
-      return calculateTTL(1);
+      return calculateTTL(TTL_DEFAULT_DAYS);
     }
   }
 
   switch (dataType) {
-    case 'news': return calculateTTL(7);
-    case 'sentiment': return calculateTTL(30);
-    case 'metadata': return calculateTTL(30);
-    case 'job': return calculateTTL(1);
-    default: return calculateTTL(1);
+    case 'news': return calculateTTL(TTL_NEWS_DAYS);
+    case 'sentiment': return calculateTTL(TTL_SENTIMENT_DAYS);
+    case 'metadata': return calculateTTL(TTL_METADATA_DAYS);
+    case 'job': return calculateTTL(TTL_JOB_DAYS);
+    default: return calculateTTL(TTL_DEFAULT_DAYS);
   }
 }
 

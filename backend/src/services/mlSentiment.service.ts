@@ -2,21 +2,30 @@
  * MlSentiment Client Service
  *
  * Provides HTTP client for calling the MlSentiment sentiment analysis service.
- * Includes retry logic, error handling, and graceful fallback on failures.
+ * Includes retry logic, error handling, graceful fallback on failures,
+ * and circuit breaker pattern with DynamoDB persistence.
  *
-
+ * Circuit breaker state persists across Lambda cold starts.
+ * See Phase 0 ADR-004 for design rationale.
  */
 
 import { logMlSentimentCall, logMlSentimentFallback } from '../utils/metrics.util.js';
+import {
+  ML_TIMEOUT_MS,
+  ML_MAX_RETRIES,
+  ML_INITIAL_RETRY_DELAY_MS,
+  ML_MAX_TEXT_LENGTH,
+  CIRCUIT_FAILURE_THRESHOLD,
+  CIRCUIT_COOLDOWN_MS,
+} from '../constants/ml.constants.js';
+import * as CircuitBreakerRepo from '../repositories/circuitBreaker.repository.js';
 
 /**
  * MlSentiment API configuration
  *
  * Note: API URL is read at runtime from process.env to support testing
+ * Constants imported from ml.constants.ts with full derivation documentation.
  */
-const TIMEOUT_MS = 5000; // 5 second timeout per request
-const MAX_RETRIES = 3; // Retry up to 3 times
-const INITIAL_RETRY_DELAY_MS = 1000; // Start with 1 second delay
 
 /**
  * Get MlSentiment API URL from environment
@@ -46,7 +55,7 @@ interface MlSentimentResponse {
  */
 async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), ML_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, {
@@ -94,6 +103,40 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Check if circuit is open (should skip ML calls)
+ */
+async function isCircuitOpen(): Promise<boolean> {
+  const state = await CircuitBreakerRepo.getCircuitState();
+
+  if (state.consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD) {
+    if (Date.now() < state.circuitOpenUntil) {
+      return true;
+    }
+    // Half-open: allow one probe request (state will be updated on success/failure)
+  }
+  return false;
+}
+
+/**
+ * Record a successful ML call (resets circuit)
+ */
+async function recordSuccess(): Promise<void> {
+  await CircuitBreakerRepo.recordSuccess();
+}
+
+/**
+ * Record a failed ML call (may open circuit)
+ */
+async function recordFailure(): Promise<void> {
+  const state = await CircuitBreakerRepo.getCircuitState();
+  await CircuitBreakerRepo.recordFailure(
+    state.consecutiveFailures,
+    CIRCUIT_FAILURE_THRESHOLD,
+    CIRCUIT_COOLDOWN_MS,
+  );
+}
+
+/**
  * Get sentiment score from MlSentiment service
  *
  * Calls external MlSentiment API with retry logic and error handling.
@@ -114,6 +157,12 @@ export async function getMlSentiment(
     return null;
   }
 
+  // Circuit breaker: fail-fast if service is down
+  if (await isCircuitOpen()) {
+    console.warn('[MlSentimentService] Circuit open, skipping ML analysis');
+    return null;
+  }
+
   // Validate input
   if (!text || !text.trim()) {
     console.warn('[MlSentimentService] Empty text provided, skipping analysis');
@@ -121,18 +170,17 @@ export async function getMlSentiment(
   }
 
   // Truncate very long texts (API has max length)
-  const MAX_TEXT_LENGTH = 5000;
   let processedText = text;
-  if (text.length > MAX_TEXT_LENGTH) {
+  if (text.length > ML_MAX_TEXT_LENGTH) {
     console.warn('[MlSentimentService] Text truncated', {
       originalLength: text.length,
-      truncatedLength: MAX_TEXT_LENGTH,
+      truncatedLength: ML_MAX_TEXT_LENGTH,
     });
-    processedText = text.substring(0, MAX_TEXT_LENGTH);
+    processedText = text.substring(0, ML_MAX_TEXT_LENGTH);
   }
 
   // Retry loop
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 1; attempt <= ML_MAX_RETRIES; attempt++) {
     const startTime = Date.now();
     try {
       console.log('[MlSentimentService] Calling MlSentiment API', {
@@ -153,7 +201,7 @@ export async function getMlSentiment(
 
       if (!response.ok) {
         logMlSentimentCall('UNKNOWN', duration, false, false); // Ticker not available here, use UNKNOWN
-        const isLastAttempt = attempt === MAX_RETRIES;
+        const isLastAttempt = attempt === ML_MAX_RETRIES;
         const canRetry = shouldRetry(null, response.status);
 
         console.error('[MlSentimentService] HTTP request failed', {
@@ -165,10 +213,11 @@ export async function getMlSentiment(
         });
 
         if (isLastAttempt || !canRetry) {
+          await recordFailure();
           return null;
         }
 
-        const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+        const delay = ML_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
         await sleep(delay);
         continue;
       }
@@ -197,12 +246,13 @@ export async function getMlSentiment(
         label: data.label,
       });
 
+      await recordSuccess();
       return rawScore;
     } catch (error) {
       const duration = Date.now() - startTime;
       logMlSentimentCall('UNKNOWN', duration, false, false);
 
-      const isLastAttempt = attempt === MAX_RETRIES;
+      const isLastAttempt = attempt === ML_MAX_RETRIES;
       const canRetry = shouldRetry(error);
 
       console.error('[MlSentimentService] Request error', {
@@ -216,11 +266,12 @@ export async function getMlSentiment(
         console.warn(
           '[MlSentimentService] All retries exhausted or non-retryable error, using fallback'
         );
+        await recordFailure();
         logMlSentimentFallback('UNKNOWN', 1, 1, error instanceof Error ? error.message : 'Unknown error');
         return null;
       }
 
-      const delay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+      const delay = ML_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
       console.log('[MlSentimentService] Retrying after delay', {
         attempt,
         delayMs: delay,

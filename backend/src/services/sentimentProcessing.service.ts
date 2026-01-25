@@ -19,6 +19,7 @@ import { getMlSentiment } from './mlSentiment.service.js';
 import { calculateSignalScoresBatch, type ArticleMetadata } from './signalScore.service.js';
 import { isMaterialEvent } from '../types/event.types.js';
 import type { EventType } from '../types/event.types.js';
+import type { AspectBreakdown } from '../types/aspect.types.js';
 import type {
   NewsCacheItem,
   SentimentCacheItem,
@@ -201,28 +202,12 @@ async function partitionArticlesByCache(
   articlesToAnalyze: NewsCacheItem[];
   articlesCached: NewsCacheItem[];
 }> {
-  const articlesToAnalyze: NewsCacheItem[] = [];
-  const articlesCached: NewsCacheItem[] = [];
+  // Batch check existence (single BatchGetItem call per 100 articles)
+  const hashes = articles.map(a => a.articleHash);
+  const existingHashes = await SentimentCacheRepository.batchCheckExistence(ticker, hashes);
 
-  // Check each article for existing sentiment
-  // Note: Could be optimized with BatchGetItem for large batches
-  const existenceChecks = articles.map(async (article) => {
-    const exists = await SentimentCacheRepository.existsInCache(
-      ticker,
-      article.articleHash
-    );
-    return { article, exists };
-  });
-
-  const results = await Promise.all(existenceChecks);
-
-  for (const { article, exists } of results) {
-    if (exists) {
-      articlesCached.push(article);
-    } else {
-      articlesToAnalyze.push(article);
-    }
-  }
+  const articlesToAnalyze = articles.filter(a => !existingHashes.has(a.articleHash));
+  const articlesCached = articles.filter(a => existingHashes.has(a.articleHash));
 
   return { articlesToAnalyze, articlesCached };
 }
@@ -353,7 +338,7 @@ async function analyzeArticles(
   );
 
   // Create map of articleHash -> aspect scores
-  const aspectScoreMap = new Map<string, { score: number; breakdown: any }>();
+  const aspectScoreMap = new Map<string, { score: number; breakdown: AspectBreakdown }>();
   aspectAnalysisResults.forEach((result) => {
     if (result.status === 'fulfilled') {
       aspectScoreMap.set(result.value.articleHash, {

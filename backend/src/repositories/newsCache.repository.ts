@@ -1,21 +1,27 @@
 /**
  * NewsCache Repository
  *
- * Provides CRUD operations for news article data in DynamoDB cache
+ * Provides CRUD operations for news article data using single-table DynamoDB design.
+ * Uses composite keys: PK = NEWS#TICKER, SK = HASH#articleHash
  */
 
 import {
-  GetCommand,
-  PutCommand,
-  QueryCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { dynamoDb, batchPutItems } from '../utils/dynamodb.util.js';
+  getItem,
+  putItemConditional,
+  queryItems,
+  batchPutItemsSingleTable,
+  batchGetItemsSingleTable,
+} from '../utils/dynamodb.util.js';
+import {
+  makeNewsPK,
+  makeHashSK,
+  SortKeyPrefix,
+} from '../types/dynamodb.types.js';
+import type { NewsCacheItem } from '../types/dynamodb.types.js';
 import { calculateTTLByDataType } from '../utils/cache.util.js';
 
-const TABLE_NAME = process.env.NEWS_CACHE_TABLE || 'NewsCache';
-
 /**
- * News article interface
+ * News article interface (external format)
  */
 export interface NewsArticle {
   title: string;
@@ -27,15 +33,18 @@ export interface NewsArticle {
 }
 
 /**
- * News cache item interface
+ * Legacy news cache item interface (for external API)
  */
-export interface NewsCacheItem {
+export interface LegacyNewsCacheItem {
   ticker: string;
   articleHash: string;
   article: NewsArticle;
   ttl: number;
   fetchedAt: number;
 }
+
+// Re-export LegacyNewsCacheItem as NewsCacheItem for backward compatibility
+export type { LegacyNewsCacheItem as NewsCacheItem };
 
 /**
  * Get news article for a specific ticker and article hash
@@ -50,23 +59,19 @@ export interface NewsCacheItem {
 export async function getArticle(
   ticker: string,
   articleHash: string
-): Promise<NewsCacheItem | null> {
+): Promise<LegacyNewsCacheItem | null> {
   try {
-    const command = new GetCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        ticker: ticker.toUpperCase(),
-        articleHash,
-      },
-    });
+    const pk = makeNewsPK(ticker);
+    const sk = makeHashSK(articleHash);
 
-    const response = await dynamoDb.send(command);
+    const item = await getItem<NewsCacheItem>(pk, sk);
 
-    if (!response.Item) {
+    if (!item) {
       return null;
     }
 
-    return response.Item as NewsCacheItem;
+    // Transform to legacy format for backward compatibility
+    return transformToLegacy(item);
   } catch (error) {
     console.error('[NewsCacheRepository] Error getting article:', error, { ticker, articleHash });
     throw error;
@@ -75,9 +80,9 @@ export async function getArticle(
 
 /**
  * Cache news article
- * Automatically sets TTL to 7 days from now (was 30 days)
+ * Automatically sets TTL to 7 days from now
  *
- * @param item - News cache item to store
+ * @param item - News cache item to store (legacy format)
  *
  * @example
  * await putArticle({
@@ -92,33 +97,23 @@ export async function getArticle(
  *   fetchedAt: Date.now()
  * });
  */
-export async function putArticle(item: Omit<NewsCacheItem, 'ttl'>): Promise<void> {
+export async function putArticle(item: Omit<LegacyNewsCacheItem, 'ttl'>): Promise<void> {
   try {
-    const newsItem: NewsCacheItem = {
-      ...item,
-      ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTLByDataType('news'), // 7 days expiration
-      fetchedAt: item.fetchedAt || Date.now(),
-    };
+    const cacheItem = transformFromLegacy(item);
 
-    const command = new PutCommand({
-      TableName: TABLE_NAME,
-      Item: newsItem,
-      // Prevent duplicate articles with conditional expression
-      ConditionExpression: 'attribute_not_exists(articleHash)',
-    });
+    // Use conditional put to prevent duplicates
+    const wasCreated = await putItemConditional(
+      cacheItem,
+      'attribute_not_exists(pk)'
+    );
 
-    await dynamoDb.send(command);
-  } catch (error) {
-    // ConditionalCheckFailedException means article already exists - this is OK
-    if ((error as any).name === 'ConditionalCheckFailedException') {
+    if (!wasCreated) {
       console.log('[NewsCacheRepository] Article already exists (duplicate prevented):', {
         ticker: item.ticker,
         articleHash: item.articleHash,
       });
-      return; // Don't throw error for duplicates
     }
-
+  } catch (error) {
     console.error('[NewsCacheRepository] Error putting article:', error, {
       ticker: item.ticker,
       articleHash: item.articleHash,
@@ -136,27 +131,10 @@ export async function putArticle(item: Omit<NewsCacheItem, 'ttl'>): Promise<void
  * BatchWriteItem operation does not support ConditionExpression. Existing items with
  * the same keys will be silently overwritten.
  *
- * **Recommendations for Duplicate Prevention:**
- * 1. Pre-filter items: Use `existsInCache` or BatchGetItem to check for existing keys
- *    and filter them out before calling this function
- * 2. Use individual puts: For critical use cases requiring duplicate prevention, use
- *    `putArticle` in a loop (with appropriate parallelism/retries)
- *
- * **Trade-offs:**
- * - Pre-filtering adds extra read capacity cost but prevents overwrites
- * - Individual puts increase latency but provide conditional write guarantees
- * - Batch writes are fastest but may overwrite existing data
- *
  * @param items - Array of news cache items to store
- *
- * @example
- * await batchPutArticles([
- *   { ticker: 'AAPL', articleHash: 'hash_1', article: {...}, fetchedAt: Date.now() },
- *   { ticker: 'AAPL', articleHash: 'hash_2', article: {...}, fetchedAt: Date.now() }
- * ]);
  */
 export async function batchPutArticles(
-  items: Omit<NewsCacheItem, 'ttl'>[]
+  items: Omit<LegacyNewsCacheItem, 'ttl'>[]
 ): Promise<void> {
   if (items.length === 0) {
     return;
@@ -178,14 +156,14 @@ export async function batchPutArticles(
       console.log(`[NewsCacheRepository] Deduped ${items.length - dedupedItems.length} duplicate articles in batch`);
     }
 
-    const newsItems: NewsCacheItem[] = dedupedItems.map((item) => ({
-      ...item,
-      ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTLByDataType('news'),
-      fetchedAt: item.fetchedAt || Date.now(),
-    }));
+    const cacheItems = dedupedItems.map((item) => transformFromLegacy(item));
 
-    await batchPutItems(TABLE_NAME, newsItems);
+    // Process in batches of 25
+    const batchSize = 25;
+    for (let i = 0; i < cacheItems.length; i += batchSize) {
+      const batch = cacheItems.slice(i, i + batchSize);
+      await batchPutItemsSingleTable(batch);
+    }
   } catch (error) {
     console.error('[NewsCacheRepository] Error batch putting articles:', error, {
       itemCount: items.length,
@@ -205,22 +183,15 @@ export async function batchPutArticles(
  */
 export async function queryArticlesByTicker(
   ticker: string
-): Promise<NewsCacheItem[]> {
+): Promise<LegacyNewsCacheItem[]> {
   try {
-    const command = new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: '#ticker = :ticker',
-      ExpressionAttributeNames: {
-        '#ticker': 'ticker',
-      },
-      ExpressionAttributeValues: {
-        ':ticker': ticker.toUpperCase(),
-      },
+    const pk = makeNewsPK(ticker);
+
+    const items = await queryItems<NewsCacheItem>(pk, {
+      skPrefix: `${SortKeyPrefix.HASH}#`,
     });
 
-    const response = await dynamoDb.send(command);
-
-    return (response.Items as NewsCacheItem[]) || [];
+    return items.map(transformToLegacy);
   } catch (error) {
     console.error('[NewsCacheRepository] Error querying articles by ticker:', error, {
       ticker,
@@ -254,4 +225,86 @@ export async function existsInCache(
     });
     throw error;
   }
+}
+
+/**
+ * Batch check which article hashes already exist in cache.
+ * Uses BatchGetItem (100 per request) instead of N individual GetItem calls.
+ *
+ * @returns Set of article hashes that exist in cache
+ */
+export async function batchCheckExistence(
+  ticker: string,
+  hashes: string[]
+): Promise<Set<string>> {
+  if (hashes.length === 0) return new Set();
+
+  const normalizedTicker = ticker.toUpperCase();
+  const keys = hashes.map(h => ({
+    pk: makeNewsPK(normalizedTicker),
+    sk: makeHashSK(h),
+  }));
+
+  // Process in batches of 100
+  const results: NewsCacheItem[] = [];
+  const batchSize = 100;
+  for (let i = 0; i < keys.length; i += batchSize) {
+    const batch = keys.slice(i, i + batchSize);
+    const batchResults = await batchGetItemsSingleTable<NewsCacheItem>(batch);
+    results.push(...batchResults);
+  }
+
+  return new Set(results.map(item => item.articleHash));
+}
+
+// ============================================================
+// Internal Transform Functions
+// ============================================================
+
+/**
+ * Transform from legacy format to single-table format
+ */
+function transformFromLegacy(item: Omit<LegacyNewsCacheItem, 'ttl'>): NewsCacheItem {
+  const pk = makeNewsPK(item.ticker);
+  const sk = makeHashSK(item.articleHash);
+
+  // Preserve legacy fetchedAt timestamp if present, otherwise use current time
+  const timestamp = item.fetchedAt
+    ? new Date(item.fetchedAt).toISOString()
+    : new Date().toISOString();
+
+  return {
+    pk,
+    sk,
+    entityType: 'NEWS',
+    ticker: item.ticker.toUpperCase(),
+    articleHash: item.articleHash,
+    headline: item.article.title,
+    summary: item.article.description || '',
+    source: item.article.publisher || '',
+    url: item.article.url,
+    publishedAt: item.article.date,
+    ttl: calculateTTLByDataType('news'),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/**
+ * Transform from single-table format to legacy format
+ */
+function transformToLegacy(item: NewsCacheItem): LegacyNewsCacheItem {
+  return {
+    ticker: item.ticker,
+    articleHash: item.articleHash,
+    article: {
+      title: item.headline,
+      url: item.url,
+      description: item.summary,
+      date: item.publishedAt,
+      publisher: item.source,
+    },
+    ttl: item.ttl || 0,
+    fetchedAt: new Date(item.createdAt).getTime(),
+  };
 }

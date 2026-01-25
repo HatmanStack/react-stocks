@@ -41,7 +41,7 @@ const CORS_HEADERS = {
 export function successResponse<T>(
   data: T,
   statusCode: number = 200,
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 ): APIGatewayResponse {
   return {
     statusCode,

@@ -64,3 +64,12 @@ export function getErrorMessage(error: unknown): string {
 
   return String(error);
 }
+
+/**
+ * Type guard for errors with a statusCode property.
+ * Replaces unsafe `(error as any).statusCode` casts.
+ */
+export function hasStatusCode(e: unknown): e is { statusCode: number } {
+  return typeof e === 'object' && e !== null && 'statusCode' in e &&
+    typeof (e as Record<string, unknown>).statusCode === 'number';
+}

@@ -12,7 +12,7 @@ import type { NewsArticle } from '../../repositories/newsCache.repository';
 /**
  * Helper to create mock API Gateway event
  */
-function createAPIGatewayEvent(body: any): APIGatewayProxyEventV2 {
+function createAPIGatewayEvent(body: Record<string, unknown>): APIGatewayProxyEventV2 {
   return {
     body: JSON.stringify(body),
     headers: {},

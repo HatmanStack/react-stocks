@@ -3,7 +3,7 @@
  * Fetches stock prices and company metadata from Lambda backend
  */
 
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, isAxiosError } from 'axios';
 import type { TiingoStockPrice, TiingoSymbolMetadata, TiingoSearchResult } from './tiingo.types';
 import type { StockDetails, SymbolDetails } from '@/types/database.types';
 import { Environment } from '@/config/environment';
@@ -12,7 +12,7 @@ import { logger } from '@/utils/logger';
 const BACKEND_TIMEOUT = 30000;
 
 function handleApiError(error: unknown, context: string, ticker?: string): never {
-  if (axios.isAxiosError(error)) {
+  if (isAxiosError(error)) {
     const status = error.response?.status;
     const errorData = error.response?.data as { error?: string };
     if (status === 404) throw new Error(ticker ? `Ticker '${ticker}' not found` : 'Not found');
@@ -51,7 +51,7 @@ async function retryWithBackoff<T>(
       return await fn();
     } catch (error) {
       lastError = error as Error;
-      if (axios.isAxiosError(error)) {
+      if (isAxiosError(error)) {
         const status = error.response?.status;
         if (status && status >= 400 && status < 500 && status !== 429) throw error;
       }
@@ -160,7 +160,7 @@ export async function searchTickers(query: string): Promise<TiingoSearchResult[]
       return response.data.data;
     } catch (error) {
       logger.error(`[TiingoService] Search error for "${trimmedQuery}":`, error);
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
+      if (isAxiosError(error) && error.response?.status === 404) {
         return []; // No results
       }
       handleApiError(error, 'Failed to search tickers');

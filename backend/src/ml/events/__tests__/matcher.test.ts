@@ -247,9 +247,9 @@ describe('Text Validation', () => {
   });
 
   it('should reject non-string input', () => {
-    expect(isValidText(null as any)).toBe(false);
-    expect(isValidText(undefined as any)).toBe(false);
-    expect(isValidText(123 as any)).toBe(false);
+    expect(isValidText(null as unknown as string)).toBe(false);
+    expect(isValidText(undefined as unknown as string)).toBe(false);
+    expect(isValidText(123 as unknown as string)).toBe(false);
   });
 });
 
