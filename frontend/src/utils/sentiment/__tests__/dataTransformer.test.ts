@@ -159,9 +159,10 @@ describe('dataTransformer', () => {
       expect(result.mlScore).toBe(0.6);
     });
 
-    it('parses hash as hex integer', () => {
+    it('parses hash as hex integer (max 8 chars for safety)', () => {
+      // Only first 8 hex chars are parsed to stay within Number.MAX_SAFE_INTEGER
       const result = transformArticleToLocal(makeArticle({ hash: 'ff0000000000abcdef' }), 0);
-      expect(result.hash).toBe(parseInt('ff0000000000', 16));
+      expect(result.hash).toBe(parseInt('ff000000', 16)); // 4278190080
     });
 
     it('uses fallback for unparseable hash', () => {

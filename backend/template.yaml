@@ -150,6 +150,8 @@ Resources:
       TimeToLiveSpecification:
         Enabled: true
         AttributeName: ttl
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       Tags:
         - Key: Project
           Value: react-stocks

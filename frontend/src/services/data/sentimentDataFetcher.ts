@@ -45,12 +45,30 @@ export async function fetchCombinedSentiment(
     console.log(`[SentimentFetcher] Local insufficient: ${quality.reasons.join(', ')}. Fetching backend.`);
 
     try {
-      // Trigger news + sentiment pipeline
+      // Trigger news + sentiment pipeline with polling
       try {
         await fetchLambdaNews(ticker, startDate, endDate);
         const triggerResult = await triggerSentimentAnalysis({ ticker, startDate, endDate });
+
+        // Poll for completion with exponential backoff
         if (triggerResult.status !== 'COMPLETED') {
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          const maxAttempts = 10;
+          const baseDelay = 500;
+          const maxDelay = 5000;
+
+          for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+            await new Promise(resolve => setTimeout(resolve, delay));
+
+            try {
+              const statusResult = await triggerSentimentAnalysis({ ticker, startDate, endDate });
+              if (statusResult.status === 'COMPLETED' || statusResult.status === 'FAILED') {
+                break;
+              }
+            } catch {
+              // Continue polling on transient errors
+            }
+          }
         }
       } catch (newsErr) {
         console.warn(`[SentimentFetcher] News/sentiment trigger failed: ${newsErr}`);

@@ -265,9 +265,13 @@ export async function batchCheckExistence(
  * Transform from legacy format to single-table format
  */
 function transformFromLegacy(item: Omit<LegacyNewsCacheItem, 'ttl'>): NewsCacheItem {
-  const now = new Date().toISOString();
   const pk = makeNewsPK(item.ticker);
   const sk = makeHashSK(item.articleHash);
+
+  // Preserve legacy fetchedAt timestamp if present, otherwise use current time
+  const timestamp = item.fetchedAt
+    ? new Date(item.fetchedAt).toISOString()
+    : new Date().toISOString();
 
   return {
     pk,
@@ -281,8 +285,8 @@ function transformFromLegacy(item: Omit<LegacyNewsCacheItem, 'ttl'>): NewsCacheI
     url: item.article.url,
     publishedAt: item.article.date,
     ttl: calculateTTLByDataType('news'),
-    createdAt: now,
-    updatedAt: now,
+    createdAt: timestamp,
+    updatedAt: timestamp,
   };
 }
 

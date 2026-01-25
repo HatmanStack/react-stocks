@@ -130,8 +130,16 @@ export class DynamoDBClientWrapper {
   /**
    * Query articles by ticker (with client-side date filtering)
    *
-   * Note: Since SK is HASH#hash#DATE#date, we can't efficiently query by date range
-   * at the DynamoDB level. We fetch all articles for the ticker and filter client-side.
+   * **Design Note:** Since SK is HASH#hash#DATE#date, we can't efficiently query by
+   * date range at the DynamoDB level. We fetch all articles for the ticker and filter
+   * client-side.
+   *
+   * **Expected Volumes:** This is acceptable for the prediction pipeline use case:
+   * - Typical ticker: 50-200 articles over 90 days
+   * - Max expected: ~500 articles for high-coverage tickers
+   * - Memory: Each article ~1KB, so ~500KB max per query
+   *
+   * For higher volumes, consider adding a GSI with date as sort key.
    */
   async queryArticlesByTicker(
     ticker: string,

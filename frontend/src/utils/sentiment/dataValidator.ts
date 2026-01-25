@@ -29,6 +29,17 @@ export function validateCombinedData(
   const { minRecords = 10, coverageThreshold = 0.5 } = options;
   const reasons: string[] = [];
 
+  // Guard against division by zero when days <= 0
+  if (days <= 0) {
+    return {
+      isAcceptable: false,
+      reasons: ['invalid days parameter'],
+      coverageRatio: 0,
+      latestDate: null,
+      isFresh: false,
+    };
+  }
+
   const hasPhase5Data = data.some(d => d.avgSignalScore != null || d.avgMlScore != null);
   const expectedDays = days * 0.7;
   const coverageRatio = data.length / expectedDays;
@@ -61,6 +72,17 @@ export function validateArticleData(
 ): DataQualityResult {
   const { minRecords = 5, coverageThreshold = 0.3 } = options;
   const reasons: string[] = [];
+
+  // Guard against division by zero when days <= 0
+  if (days <= 0) {
+    return {
+      isAcceptable: false,
+      reasons: ['invalid days parameter'],
+      coverageRatio: 0,
+      latestDate: null,
+      isFresh: false,
+    };
+  }
 
   const hasPhase5Data = data.some(item => item.signalScore != null || item.mlScore != null);
   const hasPublisherData = data.some(item => item.publisher && item.url);

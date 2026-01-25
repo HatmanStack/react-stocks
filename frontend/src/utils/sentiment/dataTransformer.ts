@@ -102,9 +102,20 @@ export function transformArticleToLocal(
   },
   index: number
 ): WordCountDetails {
+  // Safely parse hex hash to number
+  // Use max 8 chars to stay within Number.MAX_SAFE_INTEGER
+  let numericHash = Date.now() + index; // Fallback
+  if (article.hash && typeof article.hash === 'string' && /^[0-9a-fA-F]+$/.test(article.hash)) {
+    const safeHex = article.hash.slice(0, 8);
+    const parsed = parseInt(safeHex, 16);
+    if (!isNaN(parsed) && parsed > 0 && parsed <= Number.MAX_SAFE_INTEGER) {
+      numericHash = parsed;
+    }
+  }
+
   return {
     date: article.date,
-    hash: parseInt(article.hash.slice(0, 12), 16) || (Date.now() + index),
+    hash: numericHash,
     ticker: article.ticker,
     title: article.title,
     url: article.url,

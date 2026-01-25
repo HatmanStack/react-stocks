@@ -57,6 +57,9 @@ export async function updateCircuitState(
   const sk = makeStateSK();
   const now = new Date().toISOString();
 
+  // Fetch existing item to preserve createdAt timestamp
+  const existing = await getItem<CircuitBreakerItem>(pk, sk);
+
   const item: CircuitBreakerItem = {
     pk,
     sk,
@@ -64,9 +67,9 @@ export async function updateCircuitState(
     serviceName: ML_SENTIMENT_SERVICE,
     consecutiveFailures,
     circuitOpenUntil,
-    lastSuccess: event === 'success' ? now : undefined,
-    lastFailure: event === 'failure' ? now : undefined,
-    createdAt: now,
+    lastSuccess: event === 'success' ? now : existing?.lastSuccess,
+    lastFailure: event === 'failure' ? now : existing?.lastFailure,
+    createdAt: existing?.createdAt ?? now, // Preserve original creation time
     updatedAt: now,
   };
 

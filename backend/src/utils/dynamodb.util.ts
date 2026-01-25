@@ -126,7 +126,8 @@ export async function putItemConditional<T extends { pk: string; sk: string; cre
 }
 
 /**
- * Query items by PK with optional SK conditions
+ * Query items by PK with optional SK conditions.
+ * Automatically paginates through all results when no limit is specified.
  */
 export async function queryItems<T>(
   pk: string,
@@ -149,16 +150,32 @@ export async function queryItems<T>(
     expressionAttributeValues[':skEnd'] = options.skBetween.end;
   }
 
-  const params: QueryCommandInput = {
-    TableName: getTableName(),
-    KeyConditionExpression: keyConditionExpression,
-    ExpressionAttributeValues: expressionAttributeValues,
-    Limit: options?.limit,
-    ScanIndexForward: options?.scanIndexForward ?? true,
-  };
+  const allItems: T[] = [];
+  let exclusiveStartKey: Record<string, unknown> | undefined;
 
-  const result = await dynamoDb.send(new QueryCommand(params));
-  return (result.Items as T[]) ?? [];
+  do {
+    const params: QueryCommandInput = {
+      TableName: getTableName(),
+      KeyConditionExpression: keyConditionExpression,
+      ExpressionAttributeValues: expressionAttributeValues,
+      Limit: options?.limit,
+      ScanIndexForward: options?.scanIndexForward ?? true,
+      ExclusiveStartKey: exclusiveStartKey,
+    };
+
+    const result = await dynamoDb.send(new QueryCommand(params));
+    const items = (result.Items as T[]) ?? [];
+    allItems.push(...items);
+
+    exclusiveStartKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
+
+    // If a limit was specified, stop after first page (caller manages pagination)
+    if (options?.limit) {
+      break;
+    }
+  } while (exclusiveStartKey);
+
+  return allItems;
 }
 
 /**
@@ -174,7 +191,8 @@ export async function deleteItem(pk: string, sk: string): Promise<void> {
 }
 
 /**
- * Batch get items for single-table design (max 100 per call)
+ * Batch get items for single-table design (max 100 per call).
+ * Automatically retries UnprocessedKeys with exponential backoff.
  */
 export async function batchGetItemsSingleTable<T>(
   keys: Array<{ pk: string; sk: string }>,
@@ -185,20 +203,51 @@ export async function batchGetItemsSingleTable<T>(
   }
 
   const tableName = getTableName();
-  const params: BatchGetCommandInput = {
-    RequestItems: {
-      [tableName]: {
-        Keys: keys,
-      },
-    },
-  };
+  const allResults: T[] = [];
+  let remainingKeys = keys;
+  const maxAttempts = 5;
+  const baseDelayMs = 100;
 
-  const result = await dynamoDb.send(new BatchGetCommand(params));
-  return (result.Responses?.[tableName] as T[]) ?? [];
+  for (let attempt = 0; attempt < maxAttempts && remainingKeys.length > 0; attempt++) {
+    const params: BatchGetCommandInput = {
+      RequestItems: {
+        [tableName]: {
+          Keys: remainingKeys,
+        },
+      },
+    };
+
+    const result = await dynamoDb.send(new BatchGetCommand(params));
+
+    if (result.Responses?.[tableName]) {
+      allResults.push(...(result.Responses[tableName] as T[]));
+    }
+
+    // Check for unprocessed keys
+    const unprocessedKeys = result.UnprocessedKeys?.[tableName]?.Keys;
+    if (!unprocessedKeys || unprocessedKeys.length === 0) {
+      break;
+    }
+
+    remainingKeys = unprocessedKeys as Array<{ pk: string; sk: string }>;
+
+    if (attempt < maxAttempts - 1) {
+      const delayMs = baseDelayMs * Math.pow(2, attempt);
+      console.warn(`[DynamoDB] batchGetItemsSingleTable: ${remainingKeys.length} unprocessed keys, retrying in ${delayMs}ms`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+
+  if (remainingKeys.length > 0) {
+    throw new Error(`batchGetItemsSingleTable: ${remainingKeys.length} keys still unprocessed after ${maxAttempts} attempts`);
+  }
+
+  return allResults;
 }
 
 /**
- * Batch put items for single-table design (max 25 per call)
+ * Batch put items for single-table design (max 25 per call).
+ * Automatically retries UnprocessedItems with exponential backoff.
  */
 export async function batchPutItemsSingleTable<T extends { pk: string; sk: string; createdAt?: string }>(
   items: T[],
@@ -210,22 +259,49 @@ export async function batchPutItemsSingleTable<T extends { pk: string; sk: strin
 
   const tableName = getTableName();
   const now = new Date().toISOString();
+  const maxAttempts = 5;
+  const baseDelayMs = 100;
 
-  const params: BatchWriteCommandInput = {
-    RequestItems: {
-      [tableName]: items.map((item) => ({
-        PutRequest: {
-          Item: {
-            ...item,
-            updatedAt: now,
-            createdAt: item.createdAt ?? now,
-          },
-        },
-      })),
+  // Build initial write requests
+  // Use generic type to support reassignment from UnprocessedItems
+  type PutWriteRequest = { PutRequest: { Item: Record<string, unknown> } };
+  let writeRequests: PutWriteRequest[] = items.map((item) => ({
+    PutRequest: {
+      Item: {
+        ...item,
+        updatedAt: now,
+        createdAt: item.createdAt ?? now,
+      },
     },
-  };
+  }));
 
-  await dynamoDb.send(new BatchWriteCommand(params));
+  for (let attempt = 0; attempt < maxAttempts && writeRequests.length > 0; attempt++) {
+    const params: BatchWriteCommandInput = {
+      RequestItems: {
+        [tableName]: writeRequests,
+      },
+    };
+
+    const result = await dynamoDb.send(new BatchWriteCommand(params));
+
+    // Check for unprocessed items
+    const unprocessedItems = result.UnprocessedItems?.[tableName];
+    if (!unprocessedItems || unprocessedItems.length === 0) {
+      return; // All items written successfully
+    }
+
+    writeRequests = unprocessedItems as PutWriteRequest[];
+
+    if (attempt < maxAttempts - 1) {
+      const delayMs = baseDelayMs * Math.pow(2, attempt);
+      console.warn(`[DynamoDB] batchPutItemsSingleTable: ${writeRequests.length} unprocessed items, retrying in ${delayMs}ms`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+
+  if (writeRequests.length > 0) {
+    throw new Error(`batchPutItemsSingleTable: ${writeRequests.length} items still unprocessed after ${maxAttempts} attempts`);
+  }
 }
 
 /**

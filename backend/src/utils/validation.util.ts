@@ -28,18 +28,38 @@ export function validateTicker(raw: unknown, strict?: boolean): string | null {
 }
 
 /**
- * Validate a date string format (YYYY-MM-DD).
+ * Validate a date string format (YYYY-MM-DD) and verify it's a real calendar date.
+ * Rejects impossible dates like 2024-02-31 or 2024-13-01.
  */
 export function validateDateFormat(raw: unknown): raw is string {
-  return typeof raw === 'string' && DATE_REGEX.test(raw);
+  if (typeof raw !== 'string' || !DATE_REGEX.test(raw)) {
+    return false;
+  }
+
+  // Parse components and verify the date is valid
+  const [year, month, day] = raw.split('-').map(Number);
+  const date = new Date(year, month - 1, day); // month is 0-indexed
+
+  // Check if Date auto-corrected (e.g., Feb 31 -> Mar 3)
+  return (
+    !isNaN(date.getTime()) &&
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
 }
 
 /**
  * Validate that a date range is logically valid (start <= end).
+ * Assumes both dates have been validated with validateDateFormat.
  * @returns Error message or null if valid
  */
 export function validateDateRange(start: string, end: string): string | null {
-  if (start > end) {
+  // Parse dates for proper comparison
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+
+  if (startDate.getTime() > endDate.getTime()) {
     return `Invalid date range: startDate (${start}) must be before endDate (${end})`;
   }
   return null;

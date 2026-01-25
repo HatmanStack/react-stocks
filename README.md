@@ -68,7 +68,8 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 
 ### Prerequisites
 
-* [Node.js](https://nodejs.org/) v24 LTS
+* [Node.js](https://nodejs.org/) v24 LTS (for local development)
+  * **Note:** The Lambda runtime uses Node.js 20.x. The esbuild config uses `--target=node24` which is backwards compatible with Node 20.x (ES2022 features).
 * npm (included with Node.js)
 * [Expo Go](https://expo.dev/go) app (for mobile testing)
 * AWS CLI v2+ and SAM CLI v1.70.0+ (for backend deployment)
