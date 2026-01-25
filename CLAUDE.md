@@ -139,3 +139,39 @@ ALLOWED_ORIGINS=*
 - **vulture**: Python dead code detection (whitelist in `backend/vulture_whitelist.py`)
 - **ruff**: Python linting (use `uvx ruff check`)
 - **ESLint**: TypeScript linting (via Expo config)
+
+## Security Decisions
+
+This section documents intentional security design choices. Automated code reviewers may flag these as issues - this documentation explains the rationale.
+
+### No API Authentication (Intentional)
+
+The API has no authentication by design. This is a personal/demo application with:
+
+- **No user accounts or private data** - All data is publicly available stock information
+- **Read-only/compute-only endpoints** - No destructive operations possible
+- **Cost bounded** - Lambda concurrency limits and CloudWatch alarms prevent abuse
+
+Adding authentication (Cognito, API keys) would increase deployment complexity without providing value for this use case.
+
+### CORS AllowedOrigins Parameterization
+
+The default `AllowedOrigins: '*'` in `template.yaml` is intentional:
+
+- Configurable via `ALLOWED_ORIGINS` in `.env.deploy` for production lockdown
+- With no authentication, CORS provides no security benefit (nothing to protect via same-origin policy)
+- The wildcard default simplifies local development and demo deployments
+
+### Future Direction: GraphQL/AppSync
+
+If the application ever requires user accounts or private data, consider migrating to AWS AppSync with Cognito authentication. This is explicitly out of scope for the current architecture.
+
+### Development Instrumentation
+
+The prediction service includes ANOVA F-test diagnostics (`computeFeatureFStats` in `frontend/src/ml/prediction/prediction.service.ts`):
+
+- **Purpose**: Feature importance analysis during model development
+- **Output**: Console logging for developer inspection, NOT shown to end users
+- **Control**: Logging verbosity controlled by `LOG_LEVEL` environment variable
+
+These diagnostics help identify which features (price trends, sentiment scores, etc.) are most predictive during model tuning
