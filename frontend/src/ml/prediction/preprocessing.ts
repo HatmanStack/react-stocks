@@ -11,6 +11,10 @@
 
 import type { PredictionInput, FeatureMatrix, Labels } from './types';
 import type { EventType } from '../../types/database.types';
+import { TREND_WINDOW } from '../../constants/ml.constants';
+
+// Re-export for backward compatibility with existing imports
+export { TREND_WINDOW };
 
 /**
  * Event impact scores (0-1 scale by expected market impact)
@@ -229,11 +233,8 @@ export function buildPriceOnlyFeatureMatrix(input: PredictionInput): FeatureMatr
   return features;
 }
 
-/**
- * Rolling window for computing expected returns (trading days).
- * 20 days ≈ 1 month of trading history for baseline trend estimation.
- */
-export const TREND_WINDOW = 20;
+// TREND_WINDOW is now imported from constants/ml.constants.ts
+// and re-exported at the top of this file for backward compatibility
 
 /**
  * Create binary labels based on abnormal returns.

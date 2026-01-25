@@ -12,12 +12,7 @@ import { subDays } from 'date-fns';
 import { getStockPredictions, parsePredictionResponse } from '@/ml/prediction/prediction.service';
 import type { CombinedWordDetails, EventType } from '@/types/database.types';
 import type { Predictions } from '@/utils/sentiment/dataTransformer';
-
-/** Minimum sentiment records to attempt predictions */
-const MIN_SENTIMENT_DATA = 25;
-
-/** Minimum stock trading days needed for prediction model */
-const MIN_STOCK_DATA = 46;
+import { MIN_SENTIMENT_DATA, MIN_STOCK_DATA } from '@/constants/ml.constants';
 
 /**
  * Generate predictions using browser-based logistic regression.

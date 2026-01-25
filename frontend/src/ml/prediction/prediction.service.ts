@@ -10,9 +10,16 @@
 import { StandardScaler } from './scaler';
 import { LogisticRegressionCV, walkForwardCV } from './cross-validation';
 import { LogisticRegression } from './model';
-import { buildFeatureMatrix, buildPriceOnlyFeatureMatrix, createLabels, TREND_WINDOW, FEATURE_NAMES, PRICE_ONLY_FEATURE_NAMES } from './preprocessing';
+import { buildFeatureMatrix, buildPriceOnlyFeatureMatrix, createLabels, FEATURE_NAMES, PRICE_ONLY_FEATURE_NAMES } from './preprocessing';
 import type { PredictionInput, PredictionOutput } from './types';
 import type { EventType } from '../../types/database.types';
+import {
+  HORIZONS,
+  MIN_DATA_POINTS,
+  MIN_LABELS_NEXT,
+  MIN_INDEPENDENT_SAMPLES,
+  TREND_WINDOW,
+} from '../../constants/ml.constants';
 
 /**
  * Compute ANOVA F-statistic for each feature vs binary labels.
@@ -154,31 +161,6 @@ function lnGamma(z: number): number {
   return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
 }
 
-/**
- * Time horizons for predictions (in trading days)
- */
-const HORIZONS = {
-  NEXT: 1, // Next day
-  WEEK: 10, // 2 weeks
-  MONTH: 21, // 1 month
-} as const;
-
-/**
- * Minimum data points required for predictions.
- * Must cover TREND_WINDOW (20) + horizon (1 min) + MIN_LABELS_PER_HORIZON (25) = 46
- */
-const MIN_DATA_POINTS = 46;
-
-/**
- * Minimum labels for NEXT horizon (independent, no overlap).
- */
-const MIN_LABELS_NEXT = 25;
-
-/**
- * Minimum independent (non-overlapping) samples for WEEK/MONTH horizons.
- * 10 independent observations ≈ 6 months (WEEK) or 1 year (MONTH).
- */
-const MIN_INDEPENDENT_SAMPLES = 10;
 
 /**
  * Get stock price predictions using logistic regression model

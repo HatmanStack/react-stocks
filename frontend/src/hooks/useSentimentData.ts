@@ -13,9 +13,7 @@ import { subDays } from 'date-fns';
 import { fetchCombinedSentiment, fetchArticleSentiment } from '@/services/data/sentimentDataFetcher';
 import { generateBrowserPredictions } from '@/ml/prediction/browserPredictions';
 import type { CombinedWordDetails, WordCountDetails } from '@/types/database.types';
-
-/** Minimum sentiment records to attempt predictions */
-const MIN_SENTIMENT_DATA = 25;
+import { MIN_SENTIMENT_DATA } from '@/constants/ml.constants';
 
 export interface UseSentimentDataOptions {
   /** Number of days of sentiment data to fetch (default: 30) */
