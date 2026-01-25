@@ -17,9 +17,7 @@ import {
   existsInCache,
 } from '../repositories/newsCache.repository';
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
-
-/** Minimum unique days needed for ML predictions */
-const MIN_DAYS_FOR_PREDICTIONS = 29;
+import { MIN_DAYS_FOR_PREDICTIONS } from '../constants/ml.constants.js';
 
 /** Alpha Vantage: Fetch 5 years to maximize value of limited API calls (25/day free tier)
  *  API returns max 1000 articles, sorted by most recent - older articles truncated for popular stocks */

@@ -18,25 +18,11 @@ import {
   isValidText,
 } from '../ml/events/matcher.js';
 import { logMetric, logMetrics, MetricUnit } from '../utils/metrics.util.js';
-
-/**
- * Weight for headline vs summary in classification
- *
- * Headlines are weighted 3x more than summaries as they typically
- * contain the primary topic of the article.
- */
-const HEADLINE_WEIGHT = 3.0;
-const SUMMARY_WEIGHT = 1.0;
-
-/**
- * Minimum confidence threshold for classification
- *
- * Articles with all scores below this threshold are classified as GENERAL.
- *
- * Set to 0.2 to account for normalized scoring after keyword optimization.
- * Clear event matches typically score 0.2-0.6 after normalization.
- */
-const MIN_CONFIDENCE_THRESHOLD = 0.2;
+import {
+  HEADLINE_WEIGHT,
+  SUMMARY_WEIGHT,
+  MIN_EVENT_CONFIDENCE,
+} from '../constants/ml.constants.js';
 
 /**
  * Classification metrics tracker
@@ -230,13 +216,13 @@ function trackClassificationMetrics(
   metrics.durationSum += duration;
 
   // Track low confidence classifications
-  if (result.confidence < MIN_CONFIDENCE_THRESHOLD) {
+  if (result.confidence < MIN_EVENT_CONFIDENCE) {
     metrics.lowConfidenceCount++;
   }
 
   // Track multi-event conflicts
   const candidateEvents = Object.values(scores).filter(
-    (s) => s.score >= MIN_CONFIDENCE_THRESHOLD
+    (s) => s.score >= MIN_EVENT_CONFIDENCE
   );
   if (candidateEvents.length > 1) {
     metrics.multiEventConflicts++;
@@ -363,13 +349,13 @@ function resolveEventType(
     }
 
     // Track all events with score above threshold
-    if (score >= MIN_CONFIDENCE_THRESHOLD) {
+    if (score >= MIN_EVENT_CONFIDENCE) {
       candidateEvents.push({ eventType, score });
     }
   }
 
   // Case 1: No event meets threshold -> GENERAL
-  if (maxScore < MIN_CONFIDENCE_THRESHOLD) {
+  if (maxScore < MIN_EVENT_CONFIDENCE) {
     return {
       eventType: 'GENERAL',
       confidence: maxScore,
