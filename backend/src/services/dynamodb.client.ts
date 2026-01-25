@@ -1,121 +1,256 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, QueryCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
-import { StockHistoricalDataItem, ArticleAnalysisDataItem, DailySentimentAggregateItem } from '../types/dynamodb.types';
+/**
+ * DynamoDB Client Wrapper for Prediction Pipeline
+ *
+ * Migrated to single-table design (Phase 2).
+ * Uses the unified dynamodb.util for all operations.
+ *
+ * See Phase 0 ADR-003 for single-table design rationale.
+ */
 
-const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
-const docClient = DynamoDBDocumentClient.from(client);
+import { getItem, putItem, queryItems } from '../utils/dynamodb.util.js';
+import {
+  makeHistoricalPK,
+  makeDateSK,
+  makeArticlePK,
+  makeDailyPK,
+  SortKeyPrefix,
+} from '../types/dynamodb.types.js';
+import type {
+  StockHistoricalItem,
+  ArticleAnalysisItem,
+  DailySentimentItem,
+  StockHistoricalDataItem,
+  ArticleAnalysisDataItem,
+  DailySentimentAggregateItem,
+} from '../types/dynamodb.types.js';
 
+/**
+ * DynamoDB client wrapper for prediction pipeline operations.
+ *
+ * Uses single-table design with composite keys:
+ * - Historical stock data: PK=HIST#ticker, SK=DATE#date
+ * - Article analysis: PK=ARTICLE#ticker, SK=HASH#hash#DATE#date
+ * - Daily sentiment: PK=DAILY#ticker, SK=DATE#date
+ */
 export class DynamoDBClientWrapper {
-  private readonly stockTable: string;
-  private readonly articleTable: string;
-  private readonly sentimentTable: string;
+  // No constructor validation needed - single table from environment
 
-  constructor() {
-    this.stockTable = process.env.STOCK_HISTORICAL_TABLE || '';
-    this.articleTable = process.env.ARTICLE_ANALYSIS_TABLE || '';
-    this.sentimentTable = process.env.DAILY_SENTIMENT_TABLE || '';
-
-    // Validate that all required table names are configured
-    if (!this.stockTable) {
-      throw new Error('Missing required environment variable: STOCK_HISTORICAL_TABLE');
-    }
-    if (!this.articleTable) {
-      throw new Error('Missing required environment variable: ARTICLE_ANALYSIS_TABLE');
-    }
-    if (!this.sentimentTable) {
-      throw new Error('Missing required environment variable: DAILY_SENTIMENT_TABLE');
-    }
-  }
-
+  /**
+   * Put historical stock data
+   */
   async putStockData(data: StockHistoricalDataItem): Promise<void> {
-    const command = new PutCommand({
-      TableName: this.stockTable,
-      Item: data,
-    });
-    await docClient.send(command);
+    const pk = makeHistoricalPK(data.ticker);
+    const sk = makeDateSK(data.date);
+    const now = new Date().toISOString();
+
+    const item: StockHistoricalItem = {
+      pk,
+      sk,
+      entityType: 'HISTORICAL',
+      ticker: data.ticker.toUpperCase(),
+      date: data.date,
+      open: data.open,
+      high: data.high,
+      low: data.low,
+      close: data.close,
+      volume: data.volume,
+      adjClose: data.adjClose,
+      marketCap: data.marketCap,
+      peRatio: data.peRatio,
+      pbRatio: data.pbRatio,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await putItem(item);
   }
 
+  /**
+   * Get historical stock data for a specific date
+   */
   async getStockData(ticker: string, date: string): Promise<StockHistoricalDataItem | undefined> {
-    const command = new GetCommand({
-      TableName: this.stockTable,
-      Key: { ticker, date },
-    });
-    const result = await docClient.send(command);
-    return result.Item as StockHistoricalDataItem | undefined;
+    const pk = makeHistoricalPK(ticker);
+    const sk = makeDateSK(date);
+
+    const item = await getItem<StockHistoricalItem>(pk, sk);
+    if (!item) return undefined;
+
+    return this.transformStockToLegacy(item);
   }
 
-  async queryStockDataByDateRange(ticker: string, startDate: string, endDate: string): Promise<StockHistoricalDataItem[]> {
-    const command = new QueryCommand({
-      TableName: this.stockTable,
-      KeyConditionExpression: 'ticker = :ticker AND #date BETWEEN :startDate AND :endDate',
-      ExpressionAttributeNames: {
-        '#date': 'date',
-      },
-      ExpressionAttributeValues: {
-        ':ticker': ticker,
-        ':startDate': startDate,
-        ':endDate': endDate,
+  /**
+   * Query historical stock data by date range
+   */
+  async queryStockDataByDateRange(
+    ticker: string,
+    startDate: string,
+    endDate: string
+  ): Promise<StockHistoricalDataItem[]> {
+    const pk = makeHistoricalPK(ticker);
+    const items = await queryItems<StockHistoricalItem>(pk, {
+      skBetween: {
+        start: makeDateSK(startDate),
+        end: makeDateSK(endDate),
       },
     });
-    const result = await docClient.send(command);
-    return (result.Items || []) as StockHistoricalDataItem[];
+
+    return items.map((item) => this.transformStockToLegacy(item));
   }
 
+  /**
+   * Put article analysis data
+   */
   async putArticleAnalysis(data: ArticleAnalysisDataItem): Promise<void> {
-    const command = new PutCommand({
-      TableName: this.articleTable,
-      Item: data,
-    });
-    await docClient.send(command);
+    const pk = makeArticlePK(data.ticker);
+    const sk = `${SortKeyPrefix.HASH}#${data.articleHash}#${SortKeyPrefix.DATE}#${data.date}`;
+    const now = new Date().toISOString();
+
+    const item: ArticleAnalysisItem = {
+      pk,
+      sk,
+      entityType: 'ARTICLE',
+      ticker: data.ticker.toUpperCase(),
+      articleHash: data.articleHash,
+      date: data.date,
+      headline: data.title,
+      eventType: data.eventType,
+      aspectScore: data.aspectScore,
+      mlScore: data.mlScore,
+      materialityScore: data.materialityScore,
+      signalScore: data.signalScore,
+      articleUrl: data.articleUrl,
+      publisher: data.publisher,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await putItem(item);
   }
 
-  async queryArticlesByTicker(ticker: string, startDate: string, endDate: string): Promise<ArticleAnalysisDataItem[]> {
-    // Note: This query pattern assumes we can scan or that articleHash#date supports this.
-    // Since articleHash#date is a composite string, a pure BETWEEN query might be tricky if only prefix matches.
-    // However, if the sort key is just the composite string, we might need a GSI or scan if we don't know the hash.
-    // But the task says "SortKey: articleHash#date".
-    // Actually, if we want to query by date, we usually need a GSI with date as key, OR the sort key starts with date.
-    // The plan says "SortKey: articleHash#date". This makes querying by date range for a ticker hard without GSI.
-    // Plan also says "GSI (optional): date-based queries".
-    // For now, I'll assume we might need to scan or the SortKey is actually date#articleHash which allows range queries.
-    // Wait, checking the plan: "SortKey: articleHash#date (STRING, composite)".
-    // And "GSI (optional): date-based queries".
-    // If I follow the plan exactly, I cannot efficiently query by date range without GSI or changed Sort Key.
-    // However, for this implementation, I will implement a query that might filter client side or assume GSI.
-    // Let's check the template I created. I didn't add GSI.
-    // So I will query by ticker and filter results or just return all for now, assuming volume isn't massive per ticker.
-    // Or better, I'll implement it using 'begins_with' if I can, but I can't with hash first.
-    // Let's just use Query on Partition Key and filter client side (in Lambda) if needed, or assume we fetch all for the ticker.
+  /**
+   * Query articles by ticker (with client-side date filtering)
+   *
+   * Note: Since SK is HASH#hash#DATE#date, we can't efficiently query by date range
+   * at the DynamoDB level. We fetch all articles for the ticker and filter client-side.
+   */
+  async queryArticlesByTicker(
+    ticker: string,
+    startDate: string,
+    endDate: string
+  ): Promise<ArticleAnalysisDataItem[]> {
+    const pk = makeArticlePK(ticker);
 
-    const command = new QueryCommand({
-      TableName: this.articleTable,
-      KeyConditionExpression: 'ticker = :ticker',
-      ExpressionAttributeValues: {
-        ':ticker': ticker,
-      },
+    // Query all articles for this ticker (SK starts with HASH#)
+    const items = await queryItems<ArticleAnalysisItem>(pk, {
+      skPrefix: `${SortKeyPrefix.HASH}#`,
     });
 
-    const result = await docClient.send(command);
-    const items = (result.Items || []) as ArticleAnalysisDataItem[];
-
-    // Filter by date range in memory
-    return items.filter(item => item.date >= startDate && item.date <= endDate);
+    // Filter by date range client-side and transform to legacy format
+    return items
+      .filter((item) => item.date >= startDate && item.date <= endDate)
+      .map((item) => this.transformArticleToLegacy(item));
   }
 
+  /**
+   * Put daily sentiment aggregate
+   */
   async putDailySentiment(data: DailySentimentAggregateItem): Promise<void> {
-    const command = new PutCommand({
-      TableName: this.sentimentTable,
-      Item: data,
-    });
-    await docClient.send(command);
+    const pk = makeDailyPK(data.ticker);
+    const sk = makeDateSK(data.date);
+    const now = new Date().toISOString();
+
+    const item: DailySentimentItem = {
+      pk,
+      sk,
+      entityType: 'DAILY',
+      ticker: data.ticker.toUpperCase(),
+      date: data.date,
+      eventCounts: data.eventCounts,
+      avgAspectScore: data.avgAspectScore,
+      avgMlScore: data.avgMlScore,
+      avgSignalScore: data.avgSignalScore,
+      materialEventCount: data.materialEventCount,
+      nextDayDirection: data.nextDayDirection,
+      nextDayProbability: data.nextDayProbability,
+      twoWeekDirection: data.twoWeekDirection,
+      twoWeekProbability: data.twoWeekProbability,
+      oneMonthDirection: data.oneMonthDirection,
+      oneMonthProbability: data.oneMonthProbability,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await putItem(item);
   }
 
-  async getDailySentiment(ticker: string, date: string): Promise<DailySentimentAggregateItem | undefined> {
-    const command = new GetCommand({
-      TableName: this.sentimentTable,
-      Key: { ticker, date },
-    });
-    const result = await docClient.send(command);
-    return result.Item as DailySentimentAggregateItem | undefined;
+  /**
+   * Get daily sentiment aggregate for a specific date
+   */
+  async getDailySentiment(
+    ticker: string,
+    date: string
+  ): Promise<DailySentimentAggregateItem | undefined> {
+    const pk = makeDailyPK(ticker);
+    const sk = makeDateSK(date);
+
+    const item = await getItem<DailySentimentItem>(pk, sk);
+    if (!item) return undefined;
+
+    return this.transformDailyToLegacy(item);
+  }
+
+  // ============================================================
+  // Transform helpers (single-table -> legacy format)
+  // ============================================================
+
+  private transformStockToLegacy(item: StockHistoricalItem): StockHistoricalDataItem {
+    return {
+      ticker: item.ticker,
+      date: item.date,
+      open: item.open,
+      high: item.high,
+      low: item.low,
+      close: item.close,
+      volume: item.volume,
+      adjClose: item.adjClose,
+      marketCap: item.marketCap,
+      peRatio: item.peRatio,
+      pbRatio: item.pbRatio,
+    };
+  }
+
+  private transformArticleToLegacy(item: ArticleAnalysisItem): ArticleAnalysisDataItem {
+    return {
+      ticker: item.ticker,
+      'articleHash#date': `${item.articleHash}#${item.date}`,
+      articleHash: item.articleHash,
+      date: item.date,
+      eventType: item.eventType,
+      aspectScore: item.aspectScore,
+      mlScore: item.mlScore,
+      materialityScore: item.materialityScore,
+      signalScore: item.signalScore,
+      title: item.headline,
+      articleUrl: item.articleUrl,
+      publisher: item.publisher,
+    };
+  }
+
+  private transformDailyToLegacy(item: DailySentimentItem): DailySentimentAggregateItem {
+    return {
+      ticker: item.ticker,
+      date: item.date,
+      eventCounts: item.eventCounts,
+      avgAspectScore: item.avgAspectScore,
+      avgMlScore: item.avgMlScore,
+      avgSignalScore: item.avgSignalScore,
+      materialEventCount: item.materialEventCount,
+      nextDayDirection: item.nextDayDirection,
+      nextDayProbability: item.nextDayProbability,
+      twoWeekDirection: item.twoWeekDirection,
+      twoWeekProbability: item.twoWeekProbability,
+      oneMonthDirection: item.oneMonthDirection,
+      oneMonthProbability: item.oneMonthProbability,
+    };
   }
 }
