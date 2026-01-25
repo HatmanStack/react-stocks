@@ -1063,12 +1063,12 @@ feat(backend): add circuit breaker repository
    ```
 
 **Verification Checklist:**
-- [ ] Module-level state removed
-- [ ] All circuit operations use repository
-- [ ] Constants imported from ml.constants.ts
-- [ ] Async/await used correctly throughout
-- [ ] Error handling preserved
-- [ ] TypeScript compilation succeeds
+- [x] Module-level state removed
+- [x] All circuit operations use repository
+- [x] Constants imported from ml.constants.ts
+- [x] Async/await used correctly throughout
+- [x] Error handling preserved
+- [x] TypeScript compilation succeeds
 - [ ] Unit tests created in Task 10 (repository tests don't exist yet)
 
 **Testing Instructions:**

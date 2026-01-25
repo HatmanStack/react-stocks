@@ -2,9 +2,11 @@
  * MlSentiment Client Service
  *
  * Provides HTTP client for calling the MlSentiment sentiment analysis service.
- * Includes retry logic, error handling, and graceful fallback on failures.
+ * Includes retry logic, error handling, graceful fallback on failures,
+ * and circuit breaker pattern with DynamoDB persistence.
  *
-
+ * Circuit breaker state persists across Lambda cold starts.
+ * See Phase 0 ADR-004 for design rationale.
  */
 
 import { logMlSentimentCall, logMlSentimentFallback } from '../utils/metrics.util.js';
@@ -16,6 +18,7 @@ import {
   CIRCUIT_FAILURE_THRESHOLD,
   CIRCUIT_COOLDOWN_MS,
 } from '../constants/ml.constants.js';
+import * as CircuitBreakerRepo from '../repositories/circuitBreaker.repository.js';
 
 /**
  * MlSentiment API configuration
@@ -23,31 +26,6 @@ import {
  * Note: API URL is read at runtime from process.env to support testing
  * Constants imported from ml.constants.ts with full derivation documentation.
  */
-
-// Circuit breaker state (persists across warm Lambda invocations, resets on cold start)
-let consecutiveFailures = 0;
-let circuitOpenUntil = 0;
-
-function isCircuitOpen(): boolean {
-  if (consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD) {
-    if (Date.now() < circuitOpenUntil) return true;
-    // Half-open: allow one probe request
-    consecutiveFailures = CIRCUIT_FAILURE_THRESHOLD - 1;
-  }
-  return false;
-}
-
-function recordSuccess(): void {
-  consecutiveFailures = 0;
-}
-
-function recordFailure(): void {
-  consecutiveFailures++;
-  if (consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD) {
-    circuitOpenUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
-    console.warn(`[MlSentimentService] Circuit OPEN after ${CIRCUIT_FAILURE_THRESHOLD} failures, cooldown ${CIRCUIT_COOLDOWN_MS}ms`);
-  }
-}
 
 /**
  * Get MlSentiment API URL from environment
@@ -125,6 +103,40 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Check if circuit is open (should skip ML calls)
+ */
+async function isCircuitOpen(): Promise<boolean> {
+  const state = await CircuitBreakerRepo.getCircuitState();
+
+  if (state.consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD) {
+    if (Date.now() < state.circuitOpenUntil) {
+      return true;
+    }
+    // Half-open: allow one probe request (state will be updated on success/failure)
+  }
+  return false;
+}
+
+/**
+ * Record a successful ML call (resets circuit)
+ */
+async function recordSuccess(): Promise<void> {
+  await CircuitBreakerRepo.recordSuccess();
+}
+
+/**
+ * Record a failed ML call (may open circuit)
+ */
+async function recordFailure(): Promise<void> {
+  const state = await CircuitBreakerRepo.getCircuitState();
+  await CircuitBreakerRepo.recordFailure(
+    state.consecutiveFailures,
+    CIRCUIT_FAILURE_THRESHOLD,
+    CIRCUIT_COOLDOWN_MS,
+  );
+}
+
+/**
  * Get sentiment score from MlSentiment service
  *
  * Calls external MlSentiment API with retry logic and error handling.
@@ -146,7 +158,7 @@ export async function getMlSentiment(
   }
 
   // Circuit breaker: fail-fast if service is down
-  if (isCircuitOpen()) {
+  if (await isCircuitOpen()) {
     console.warn('[MlSentimentService] Circuit open, skipping ML analysis');
     return null;
   }
@@ -201,7 +213,7 @@ export async function getMlSentiment(
         });
 
         if (isLastAttempt || !canRetry) {
-          recordFailure();
+          await recordFailure();
           return null;
         }
 
@@ -234,7 +246,7 @@ export async function getMlSentiment(
         label: data.label,
       });
 
-      recordSuccess();
+      await recordSuccess();
       return rawScore;
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -254,7 +266,7 @@ export async function getMlSentiment(
         console.warn(
           '[MlSentimentService] All retries exhausted or non-retryable error, using fallback'
         );
-        recordFailure();
+        await recordFailure();
         logMlSentimentFallback('UNKNOWN', 1, 1, error instanceof Error ? error.message : 'Unknown error');
         return null;
       }
