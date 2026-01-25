@@ -12,6 +12,10 @@ Parameters:
     Description: Alpha Vantage API key for historical news (optional fallback)
     Default: ''
 
+  # SECURITY NOTE: Default '*' is intentional for this personal/demo app.
+  # With no authentication, CORS provides no security benefit (nothing to protect
+  # via same-origin policy). Configure via .env.deploy for production if needed.
+  # See CLAUDE.md "Security Decisions" for full rationale.
   AllowedOrigins:
     Type: String
     Description: Comma-separated list of allowed CORS origins (e.g., https://example.com,https://www.example.com). Use '*' for development only.
@@ -273,6 +277,7 @@ Resources:
     Properties:
       Name: !Sub '${AWS::StackName}-api'
       ProtocolType: HTTP
+      # CORS configuration - see AllowedOrigins parameter for security rationale
       CorsConfiguration:
         AllowOrigins: !Split [',', !Ref AllowedOrigins]
         AllowMethods:
@@ -438,6 +443,11 @@ Resources:
                 - !GetAtt StocksCacheTable.Arn
       Tracing: Active
 
+  # NOTE: No API authentication by design. This is a personal/demo app with:
+  # - No user accounts or private data
+  # - Read-only/compute-only endpoints (no destructive operations)
+  # - Cost bounded by Lambda concurrency and CloudWatch alarms
+  # See CLAUDE.md "Security Decisions" for full rationale.
   ReactStocksFunction:
     Type: AWS::Serverless::Function
     Properties:
