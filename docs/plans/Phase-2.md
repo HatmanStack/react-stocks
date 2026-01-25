@@ -664,10 +664,10 @@ feat(backend): add DynamoDB client utility for single-table
 6. Remove old table name references and DynamoDB client instantiation
 
 **Verification Checklist:**
-- [ ] All functions use new key structure
-- [ ] TTL still applied correctly
-- [ ] No references to old table name
-- [ ] TypeScript compilation succeeds
+- [x] All functions use new key structure
+- [x] TTL still applied correctly
+- [x] No references to old table name
+- [x] TypeScript compilation succeeds
 - [ ] Unit tests created in Task 10 (repository tests don't exist yet)
 
 **Testing Instructions:**
