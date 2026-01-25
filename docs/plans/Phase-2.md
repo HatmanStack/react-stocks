@@ -766,11 +766,11 @@ refactor(backend): migrate sentimentCache repository to single-table
 3. Update job ID generation to remain consistent
 
 **Verification Checklist:**
-- [ ] Job ID format unchanged
-- [ ] TTL (1 day) still applied
-- [ ] Status updates work correctly
-- [ ] Idempotent creation preserved
-- [ ] TypeScript compilation succeeds
+- [x] Job ID format unchanged
+- [x] TTL (1 day) still applied
+- [x] Status updates work correctly
+- [x] Idempotent creation preserved
+- [x] TypeScript compilation succeeds
 - [ ] Unit tests created in Task 10 (repository tests don't exist yet)
 
 **Testing Instructions:**

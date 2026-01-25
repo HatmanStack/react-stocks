@@ -2,21 +2,25 @@
  * SentimentJobs Repository
  *
  * Provides job tracking operations for async sentiment analysis processing
+ * using single-table DynamoDB design.
+ * Uses composite keys: PK = JOB#jobId, SK = META
  */
 
 import {
-  GetCommand,
-  PutCommand,
-  UpdateCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { dynamoDb, buildUpdateExpression } from '../utils/dynamodb.util.js';
+  getItem,
+  putItem,
+  updateItem,
+} from '../utils/dynamodb.util.js';
+import {
+  makeJobPK,
+  makeMetaSK,
+} from '../types/dynamodb.types.js';
+import type { SentimentJobItem } from '../types/dynamodb.types.js';
 import { calculateTTL } from '../utils/cache.util.js';
 import type { JobStatus } from '../utils/job.util.js';
 
-const TABLE_NAME = process.env.SENTIMENT_JOBS_TABLE || 'SentimentJobs';
-
 /**
- * Sentiment job interface
+ * Sentiment job interface (external format)
  */
 export interface SentimentJob {
   jobId: string;
@@ -42,20 +46,16 @@ export interface SentimentJob {
  */
 export async function getJob(jobId: string): Promise<SentimentJob | null> {
   try {
-    const command = new GetCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        jobId,
-      },
-    });
+    const pk = makeJobPK(jobId);
+    const sk = makeMetaSK();
 
-    const response = await dynamoDb.send(command);
+    const item = await getItem<SentimentJobItem>(pk, sk);
 
-    if (!response.Item) {
+    if (!item) {
       return null;
     }
 
-    return response.Item as SentimentJob;
+    return transformToExternal(item);
   } catch (error) {
     console.error('[SentimentJobsRepository] Error getting job:', error, { jobId });
     throw error;
@@ -100,18 +100,8 @@ export async function createJob(job: Omit<SentimentJob, 'ttl'>): Promise<void> {
       return;
     }
 
-    const jobItem: SentimentJob = {
-      ...job,
-      ttl: calculateTTL(1), // 24 hours expiration
-      status: job.status || 'PENDING',
-    };
-
-    const command = new PutCommand({
-      TableName: TABLE_NAME,
-      Item: jobItem,
-    });
-
-    await dynamoDb.send(command);
+    const cacheItem = transformToInternal(job);
+    await putItem(cacheItem);
   } catch (error) {
     console.error('[SentimentJobsRepository] Error creating job:', error, {
       jobId: job.jobId,
@@ -139,25 +129,22 @@ export async function updateJobStatus(
   updates: Partial<SentimentJob> = {}
 ): Promise<void> {
   try {
-    const updateData = {
+    const pk = makeJobPK(jobId);
+    const sk = makeMetaSK();
+
+    const updateData: Record<string, unknown> = {
       ...updates,
       status, // Status always wins
     };
 
-    const { UpdateExpression, ExpressionAttributeNames, ExpressionAttributeValues } =
-      buildUpdateExpression(updateData);
-
-    const command = new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        jobId,
-      },
-      UpdateExpression,
-      ExpressionAttributeNames,
-      ExpressionAttributeValues,
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
     });
 
-    await dynamoDb.send(command);
+    await updateItem(pk, sk, updateData);
   } catch (error) {
     console.error('[SentimentJobsRepository] Error updating job status:', error, {
       jobId,
@@ -202,4 +189,53 @@ export async function markJobFailed(jobId: string, error: string): Promise<void>
     error,
     completedAt: Date.now(), // Record when it failed
   });
+}
+
+// ============================================================
+// Internal Transform Functions
+// ============================================================
+
+/**
+ * Transform from external format to single-table internal format
+ */
+function transformToInternal(job: Omit<SentimentJob, 'ttl'>): SentimentJobItem {
+  const now = new Date().toISOString();
+  const pk = makeJobPK(job.jobId);
+  const sk = makeMetaSK();
+
+  return {
+    pk,
+    sk,
+    entityType: 'JOB',
+    jobId: job.jobId,
+    ticker: job.ticker.toUpperCase(),
+    startDate: job.startDate,
+    endDate: job.endDate,
+    status: (job.status || 'PENDING') as SentimentJobItem['status'],
+    startedAt: job.startedAt,
+    completedAt: job.completedAt,
+    articlesProcessed: job.articlesProcessed,
+    error: job.error,
+    ttl: calculateTTL(1), // 24 hours expiration
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Transform from single-table internal format to external format
+ */
+function transformToExternal(item: SentimentJobItem): SentimentJob {
+  return {
+    jobId: item.jobId,
+    status: item.status as JobStatus,
+    ticker: item.ticker,
+    startDate: item.startDate,
+    endDate: item.endDate,
+    startedAt: item.startedAt,
+    completedAt: item.completedAt,
+    articlesProcessed: item.articlesProcessed,
+    error: item.error,
+    ttl: item.ttl ?? 0,
+  };
 }
