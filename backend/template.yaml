@@ -114,21 +114,38 @@ Globals:
     Tracing: Active  # Enable X-Ray tracing for debugging
 
 Resources:
-  # DynamoDB Tables for Shared Caching
-  StocksCacheTable:
+  # ============================================================
+  # Unified DynamoDB Table (Single-Table Design)
+  # ============================================================
+  # See docs/plans/Phase-0.md ADR-003 for design rationale
+  #
+  # This table consolidates 7 previous tables into one using composite keys:
+  # - PK: Entity type prefix + identifier (e.g., STOCK#AAPL, NEWS#AAPL, JOB#id)
+  # - SK: Context-specific sort key (e.g., DATE#2024-01-15, HASH#abc123, META)
+  #
+  # Entity Types:
+  # - STOCK#ticker + DATE#date: Stock price cache (TTL: 7-90 days)
+  # - NEWS#ticker + HASH#hash: News article cache (TTL: 7 days)
+  # - SENT#ticker + HASH#hash: Sentiment analysis cache (TTL: 30 days)
+  # - JOB#jobId + META: Sentiment job status (TTL: 1 day)
+  # - HIST#ticker + DATE#date: Historical price data (persistent)
+  # - ARTICLE#ticker + HASH#hash#DATE#date: Article analysis (persistent)
+  # - DAILY#ticker + DATE#date: Daily sentiment aggregate (persistent)
+  # - CIRCUIT#service + STATE: Circuit breaker state (persistent)
+  ReactStocksTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub '${AWS::StackName}-StocksCache'
+      TableName: !Sub '${AWS::StackName}-Table'
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: ticker
+        - AttributeName: pk
           AttributeType: S
-        - AttributeName: date
+        - AttributeName: sk
           AttributeType: S
       KeySchema:
-        - AttributeName: ticker
+        - AttributeName: pk
           KeyType: HASH
-        - AttributeName: date
+        - AttributeName: sk
           KeyType: RANGE
       TimeToLiveSpecification:
         Enabled: true
@@ -136,142 +153,12 @@ Resources:
       Tags:
         - Key: Project
           Value: react-stocks
-        - Key: CacheType
-          Value: stocks
+        - Key: Design
+          Value: single-table
 
-  NewsCacheTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub '${AWS::StackName}-NewsCache'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: ticker
-          AttributeType: S
-        - AttributeName: articleHash
-          AttributeType: S
-      KeySchema:
-        - AttributeName: ticker
-          KeyType: HASH
-        - AttributeName: articleHash
-          KeyType: RANGE
-      TimeToLiveSpecification:
-        Enabled: true
-        AttributeName: ttl
-      Tags:
-        - Key: Project
-          Value: react-stocks
-        - Key: CacheType
-          Value: news
-
-  SentimentCacheTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub '${AWS::StackName}-SentimentCache'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: ticker
-          AttributeType: S
-        - AttributeName: articleHash
-          AttributeType: S
-      KeySchema:
-        - AttributeName: ticker
-          KeyType: HASH
-        - AttributeName: articleHash
-          KeyType: RANGE
-      TimeToLiveSpecification:
-        Enabled: true
-        AttributeName: ttl
-      Tags:
-        - Key: Project
-          Value: react-stocks
-        - Key: CacheType
-          Value: sentiment
-
-  SentimentJobsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub '${AWS::StackName}-SentimentJobs'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: jobId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: jobId
-          KeyType: HASH
-      TimeToLiveSpecification:
-        Enabled: true
-        AttributeName: ttl
-      Tags:
-        - Key: Project
-          Value: react-stocks
-        - Key: CacheType
-          Value: jobs
-
-  # New Persistent Historical Tables for ML
-  StockHistoricalData:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub '${AWS::StackName}-StockHistoricalData'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: ticker
-          AttributeType: S
-        - AttributeName: date
-          AttributeType: S
-      KeySchema:
-        - AttributeName: ticker
-          KeyType: HASH
-        - AttributeName: date
-          KeyType: RANGE
-      Tags:
-        - Key: Project
-          Value: react-stocks
-        - Key: DataType
-          Value: historical-prices
-
-  ArticleAnalysisData:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub '${AWS::StackName}-ArticleAnalysisData'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: ticker
-          AttributeType: S
-        - AttributeName: articleHash#date
-          AttributeType: S
-      KeySchema:
-        - AttributeName: ticker
-          KeyType: HASH
-        - AttributeName: articleHash#date
-          KeyType: RANGE
-      Tags:
-        - Key: Project
-          Value: react-stocks
-        - Key: DataType
-          Value: article-analysis
-
-  DailySentimentAggregate:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub '${AWS::StackName}-DailySentimentAggregate'
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: ticker
-          AttributeType: S
-        - AttributeName: date
-          AttributeType: S
-      KeySchema:
-        - AttributeName: ticker
-          KeyType: HASH
-        - AttributeName: date
-          KeyType: RANGE
-      Tags:
-        - Key: Project
-          Value: react-stocks
-        - Key: DataType
-          Value: daily-sentiment
-
+  # ============================================================
   # API Gateway v2 HTTP API
+  # ============================================================
   ReactStocksApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -413,6 +300,10 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ReactStocksApi}/*'
 
+  # ============================================================
+  # Lambda Functions
+  # ============================================================
+
   # Python Lambda Function for Stock Data (yfinance)
   PythonStocksFunction:
     Type: AWS::Serverless::Function
@@ -427,7 +318,7 @@ Resources:
       Environment:
         Variables:
           ALLOWED_ORIGINS: !Ref AllowedOrigins
-          STOCKS_CACHE_TABLE: !Ref StocksCacheTable
+          DYNAMODB_TABLE_NAME: !Ref ReactStocksTable
           LOG_LEVEL: INFO
       Policies:
         - Statement:
@@ -440,7 +331,7 @@ Resources:
                 - dynamodb:BatchGetItem
                 - dynamodb:BatchWriteItem
               Resource:
-                - !GetAtt StocksCacheTable.Arn
+                - !GetAtt ReactStocksTable.Arn
       Tracing: Active
 
   # NOTE: No API authentication by design. This is a personal/demo app with:
@@ -460,13 +351,7 @@ Resources:
           FINNHUB_API_KEY: !Ref FinnhubApiKey
           ALPHA_VANTAGE_API_KEY: !Ref AlphaVantageApiKey
           ALLOWED_ORIGINS: !Ref AllowedOrigins
-          STOCKS_CACHE_TABLE: !Ref StocksCacheTable
-          NEWS_CACHE_TABLE: !Ref NewsCacheTable
-          SENTIMENT_CACHE_TABLE: !Ref SentimentCacheTable
-          SENTIMENT_JOBS_TABLE: !Ref SentimentJobsTable
-          STOCK_HISTORICAL_TABLE: !Ref StockHistoricalData
-          ARTICLE_ANALYSIS_TABLE: !Ref ArticleAnalysisData
-          DAILY_SENTIMENT_TABLE: !Ref DailySentimentAggregate
+          DYNAMODB_TABLE_NAME: !Ref ReactStocksTable
           PREDICTION_FUNCTION_NAME: !Sub '${AWS::StackName}-api'
           DISTILFINBERT_API_URL: !Ref DistilFinBERTApiUrl
       Policies:
@@ -481,17 +366,15 @@ Resources:
                 - dynamodb:BatchGetItem
                 - dynamodb:BatchWriteItem
               Resource:
-                - !GetAtt StocksCacheTable.Arn
-                - !GetAtt NewsCacheTable.Arn
-                - !GetAtt SentimentCacheTable.Arn
-                - !GetAtt SentimentJobsTable.Arn
-                - !GetAtt StockHistoricalData.Arn
-                - !GetAtt ArticleAnalysisData.Arn
-                - !GetAtt DailySentimentAggregate.Arn
+                - !GetAtt ReactStocksTable.Arn
             - Effect: Allow
               Action:
                 - lambda:InvokeFunction
               Resource: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${AWS::StackName}-api'
+
+  # ============================================================
+  # CloudWatch Alarms & Monitoring
+  # ============================================================
 
   # SNS Topic for Cost Anomaly Notifications
   CostAnomalySNSTopic:
@@ -530,7 +413,7 @@ Resources:
       Namespace: AWS/DynamoDB
       Dimensions:
         - Name: TableName
-          Value: !Ref StocksCacheTable
+          Value: !Ref ReactStocksTable
       Statistic: Sum
       Period: 86400 # 1 day
       EvaluationPeriods: 1
@@ -615,17 +498,17 @@ Outputs:
     Export:
       Name: !Sub '${AWS::StackName}-PythonFunctionArn'
 
-  StocksCacheTableArn:
-    Description: ARN of StocksCache DynamoDB table
-    Value: !GetAtt StocksCacheTable.Arn
+  ReactStocksTableArn:
+    Description: ARN of unified DynamoDB table
+    Value: !GetAtt ReactStocksTable.Arn
     Export:
-      Name: !Sub '${AWS::StackName}-StocksCacheTableArn'
+      Name: !Sub '${AWS::StackName}-TableArn'
 
-  NewsCacheTableArn:
-    Description: ARN of NewsCache DynamoDB table
-    Value: !GetAtt NewsCacheTable.Arn
+  ReactStocksTableName:
+    Description: Name of unified DynamoDB table
+    Value: !Ref ReactStocksTable
     Export:
-      Name: !Sub '${AWS::StackName}-NewsCacheTableArn'
+      Name: !Sub '${AWS::StackName}-TableName'
 
   CostAnomalySNSTopicArn:
     Description: SNS Topic ARN for cost anomaly alerts
