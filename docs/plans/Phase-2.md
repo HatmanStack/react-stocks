@@ -1397,11 +1397,11 @@ After completing all tasks:
 
 3. **Code Review Checklist:**
    - [ ] All 7 old table references removed
-   - [ ] Single table with pk/sk keys
-   - [ ] TTL per entity type preserved
-   - [ ] Circuit breaker persists to DynamoDB
-   - [ ] All tests pass
-   - [ ] No hardcoded table names (all from env)
+   - [x] Single table with pk/sk keys
+   - [x] TTL per entity type preserved
+   - [x] Circuit breaker persists to DynamoDB
+   - [x] All tests pass
+   - [x] No hardcoded table names (all from env)
 
 4. **Deployment Considerations:**
    - The old tables will remain until items TTL expire
