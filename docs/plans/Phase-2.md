@@ -710,10 +710,10 @@ refactor(backend): migrate newsCache repository to single-table
    - New: `pk = SENT#AAPL, sk = HASH#abc123` in unified table
 
 **Verification Checklist:**
-- [ ] All functions use new key structure
-- [ ] Phase 5 fields preserved (eventType, aspectScore, mlScore, signalScore)
-- [ ] TTL (30 days) still applied correctly
-- [ ] TypeScript compilation succeeds
+- [x] All functions use new key structure
+- [x] Phase 5 fields preserved (eventType, aspectScore, mlScore, signalScore)
+- [x] TTL (30 days) still applied correctly
+- [x] TypeScript compilation succeeds
 - [ ] Unit tests created in Task 10 (repository tests don't exist yet)
 
 **Testing Instructions:**

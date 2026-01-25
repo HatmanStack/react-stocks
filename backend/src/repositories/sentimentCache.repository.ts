@@ -1,22 +1,29 @@
 /**
  * SentimentCache Repository
  *
- * Provides CRUD operations for sentiment analysis results in DynamoDB cache.
+ * Provides CRUD operations for sentiment analysis results using single-table DynamoDB design.
+ * Uses composite keys: PK = SENT#TICKER, SK = HASH#articleHash
+ *
  * Uses three-signal sentiment architecture (event type, aspect score, MlSentiment score).
  *
  * @see types/sentiment.types.ts for complete schema documentation
  */
 
 import {
-  GetCommand,
-  PutCommand,
-  QueryCommand,
-} from '@aws-sdk/lib-dynamodb';
-import { dynamoDb, batchPutItems, batchGetItems } from '../utils/dynamodb.util.js';
-import { calculateTTLByDataType } from '../utils/cache.util.js';
+  getItem,
+  putItemConditional,
+  queryItems,
+  batchPutItemsSingleTable,
+  batchGetItemsSingleTable,
+} from '../utils/dynamodb.util.js';
+import {
+  makeSentimentPK,
+  makeHashSK,
+  SortKeyPrefix,
+} from '../types/dynamodb.types.js';
+import type { SentimentCacheItem as SingleTableSentimentItem } from '../types/dynamodb.types.js';
 import type { SentimentCacheItem } from '../types/sentiment.types.js';
-
-const TABLE_NAME = process.env.SENTIMENT_CACHE_TABLE || 'SentimentCache';
+import { calculateTTLByDataType } from '../utils/cache.util.js';
 
 // Re-export types for convenience
 export type { SentimentCacheItem, SentimentData } from '../types/sentiment.types.js';
@@ -36,21 +43,16 @@ export async function getSentiment(
   articleHash: string
 ): Promise<SentimentCacheItem | null> {
   try {
-    const command = new GetCommand({
-      TableName: TABLE_NAME,
-      Key: {
-        ticker: ticker.toUpperCase(),
-        articleHash,
-      },
-    });
+    const pk = makeSentimentPK(ticker);
+    const sk = makeHashSK(articleHash);
 
-    const response = await dynamoDb.send(command);
+    const item = await getItem<SingleTableSentimentItem>(pk, sk);
 
-    if (!response.Item) {
+    if (!item) {
       return null;
     }
 
-    return response.Item as SentimentCacheItem;
+    return transformToExternal(item);
   } catch (error) {
     console.error('[SentimentCacheRepository] Error getting sentiment:', error, {
       ticker,
@@ -62,7 +64,7 @@ export async function getSentiment(
 
 /**
  * Cache sentiment analysis result
- * Automatically sets TTL to 30 days from now (was 90 days)
+ * Automatically sets TTL to 30 days from now
  *
  * @param item - Sentiment cache item to store
  *
@@ -83,31 +85,21 @@ export async function putSentiment(
   item: Omit<SentimentCacheItem, 'ttl'>
 ): Promise<void> {
   try {
-    const sentimentItem: SentimentCacheItem = {
-      ...item,
-      ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTLByDataType('sentiment'), // 30 days expiration
-      analyzedAt: item.analyzedAt || Date.now(),
-    };
+    const cacheItem = transformToInternal(item);
 
-    const command = new PutCommand({
-      TableName: TABLE_NAME,
-      Item: sentimentItem,
-      // Prevent duplicate sentiment analysis
-      ConditionExpression: 'attribute_not_exists(articleHash)',
-    });
+    // Use conditional put to prevent duplicates
+    const wasCreated = await putItemConditional(
+      cacheItem,
+      'attribute_not_exists(pk)'
+    );
 
-    await dynamoDb.send(command);
-  } catch (error) {
-    // ConditionalCheckFailedException means sentiment already exists - this is OK
-    if ((error as any).name === 'ConditionalCheckFailedException') {
+    if (!wasCreated) {
       console.log('[SentimentCacheRepository] Sentiment already exists (duplicate prevented):', {
         ticker: item.ticker,
         articleHash: item.articleHash,
       });
-      return; // Don't throw error for duplicates
     }
-
+  } catch (error) {
     console.error('[SentimentCacheRepository] Error putting sentiment:', error, {
       ticker: item.ticker,
       articleHash: item.articleHash,
@@ -125,24 +117,7 @@ export async function putSentiment(
  * BatchWriteItem operation does not support ConditionExpression. Existing items with
  * the same keys will be silently overwritten.
  *
- * **Recommendations for Duplicate Prevention:**
- * 1. Pre-filter items: Use `existsInCache` or BatchGetItem to check for existing keys
- *    and filter them out before calling this function
- * 2. Use individual puts: For critical use cases requiring duplicate prevention, use
- *    `putSentiment` in a loop (with appropriate parallelism/retries)
- *
- * **Trade-offs:**
- * - Pre-filtering adds extra read capacity cost but prevents overwrites
- * - Individual puts increase latency but provide conditional write guarantees
- * - Batch writes are fastest but may overwrite existing data
- *
  * @param items - Array of sentiment cache items to store
- *
- * @example
- * await batchPutSentiments([
- *   { ticker: 'AAPL', articleHash: 'hash_1', sentiment: {...}, analyzedAt: Date.now() },
- *   { ticker: 'AAPL', articleHash: 'hash_2', sentiment: {...}, analyzedAt: Date.now() }
- * ]);
  */
 export async function batchPutSentiments(
   items: Omit<SentimentCacheItem, 'ttl'>[]
@@ -152,14 +127,14 @@ export async function batchPutSentiments(
   }
 
   try {
-    const sentimentItems: SentimentCacheItem[] = items.map((item) => ({
-      ...item,
-      ticker: item.ticker.toUpperCase(),
-      ttl: calculateTTLByDataType('sentiment'),
-      analyzedAt: item.analyzedAt || Date.now(),
-    }));
+    const cacheItems = items.map((item) => transformToInternal(item));
 
-    await batchPutItems(TABLE_NAME, sentimentItems);
+    // Process in batches of 25
+    const batchSize = 25;
+    for (let i = 0; i < cacheItems.length; i += batchSize) {
+      const batch = cacheItems.slice(i, i + batchSize);
+      await batchPutItemsSingleTable(batch);
+    }
   } catch (error) {
     console.error('[SentimentCacheRepository] Error batch putting sentiments:', error, {
       itemCount: items.length,
@@ -181,20 +156,13 @@ export async function querySentimentsByTicker(
   ticker: string
 ): Promise<SentimentCacheItem[]> {
   try {
-    const command = new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: '#ticker = :ticker',
-      ExpressionAttributeNames: {
-        '#ticker': 'ticker',
-      },
-      ExpressionAttributeValues: {
-        ':ticker': ticker.toUpperCase(),
-      },
+    const pk = makeSentimentPK(ticker);
+
+    const items = await queryItems<SingleTableSentimentItem>(pk, {
+      skPrefix: `${SortKeyPrefix.HASH}#`,
     });
 
-    const response = await dynamoDb.send(command);
-
-    return (response.Items as SentimentCacheItem[]) || [];
+    return items.map(transformToExternal);
   } catch (error) {
     console.error('[SentimentCacheRepository] Error querying sentiments by ticker:', error, {
       ticker,
@@ -243,7 +211,84 @@ export async function batchCheckExistence(
   if (hashes.length === 0) return new Set();
 
   const normalizedTicker = ticker.toUpperCase();
-  const keys = hashes.map(h => ({ ticker: normalizedTicker, articleHash: h }));
-  const items = await batchGetItems<{ articleHash: string }>(TABLE_NAME, keys);
-  return new Set(items.map(item => item.articleHash));
+  const keys = hashes.map(h => ({
+    pk: makeSentimentPK(normalizedTicker),
+    sk: makeHashSK(h),
+  }));
+
+  // Process in batches of 100
+  const results: SingleTableSentimentItem[] = [];
+  const batchSize = 100;
+  for (let i = 0; i < keys.length; i += batchSize) {
+    const batch = keys.slice(i, i + batchSize);
+    const batchResults = await batchGetItemsSingleTable<SingleTableSentimentItem>(batch);
+    results.push(...batchResults);
+  }
+
+  return new Set(results.map(item => item.articleHash));
+}
+
+// ============================================================
+// Internal Transform Functions
+// ============================================================
+
+/**
+ * Transform from external format to single-table internal format
+ */
+function transformToInternal(item: Omit<SentimentCacheItem, 'ttl'>): SingleTableSentimentItem {
+  const now = new Date().toISOString();
+  const pk = makeSentimentPK(item.ticker);
+  const sk = makeHashSK(item.articleHash);
+
+  return {
+    pk,
+    sk,
+    entityType: 'SENTIMENT',
+    ticker: item.ticker.toUpperCase(),
+    articleHash: item.articleHash,
+    headline: '', // Not stored in legacy format
+    summary: '', // Not stored in legacy format
+    publishedAt: now, // Not stored in legacy format
+    // Legacy sentiment fields
+    positive: item.sentiment?.positive,
+    negative: item.sentiment?.negative,
+    neutral: undefined, // Not in original interface
+    // Phase 5 fields
+    eventType: item.eventType,
+    eventConfidence: undefined, // Convert if needed
+    aspectScore: item.aspectScore,
+    mlScore: item.mlScore,
+    signalScore: item.signalScore,
+    ttl: calculateTTLByDataType('sentiment'),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Transform from single-table internal format to external format
+ */
+function transformToExternal(item: SingleTableSentimentItem): SentimentCacheItem {
+  // Compute classification from scores
+  const sentimentScore = item.aspectScore ?? item.mlScore ?? 0;
+  let classification: 'POS' | 'NEG' | 'NEUT' = 'NEUT';
+  if (sentimentScore > 0.1) classification = 'POS';
+  else if (sentimentScore < -0.1) classification = 'NEG';
+
+  return {
+    ticker: item.ticker,
+    articleHash: item.articleHash,
+    sentiment: {
+      positive: item.positive ?? 0,
+      negative: item.negative ?? 0,
+      sentimentScore,
+      classification,
+    },
+    eventType: item.eventType as SentimentCacheItem['eventType'],
+    aspectScore: item.aspectScore,
+    mlScore: item.mlScore,
+    signalScore: item.signalScore,
+    analyzedAt: new Date(item.createdAt).getTime(),
+    ttl: item.ttl ?? 0,
+  };
 }
