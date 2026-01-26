@@ -5,3 +5,4 @@
  */
 export * from './ml.constants.js';
 export * from './cache.constants.js';
+export * from './news.constants.js';
