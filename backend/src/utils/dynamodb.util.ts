@@ -205,41 +205,67 @@ export async function batchGetItemsSingleTable<T>(
   const tableName = getTableName();
   const allResults: T[] = [];
   let remainingKeys = keys;
-  const maxAttempts = 5;
-  const baseDelayMs = 100;
+  const maxAttempts = 7; // Increased from 5
+  const baseDelayMs = 150; // Increased from 100
 
   for (let attempt = 0; attempt < maxAttempts && remainingKeys.length > 0; attempt++) {
     const params: BatchGetCommandInput = {
       RequestItems: {
         [tableName]: {
           Keys: remainingKeys,
+          ConsistentRead: false, // Eventual consistency is fine and faster
         },
       },
     };
 
-    const result = await dynamoDb.send(new BatchGetCommand(params));
+    try {
+      const result = await dynamoDb.send(new BatchGetCommand(params));
 
-    if (result.Responses?.[tableName]) {
-      allResults.push(...(result.Responses[tableName] as T[]));
-    }
+      if (result.Responses?.[tableName]) {
+        allResults.push(...(result.Responses[tableName] as T[]));
+      }
 
-    // Check for unprocessed keys
-    const unprocessedKeys = result.UnprocessedKeys?.[tableName]?.Keys;
-    if (!unprocessedKeys || unprocessedKeys.length === 0) {
-      break;
-    }
+      // Check for unprocessed keys
+      const unprocessedKeys = result.UnprocessedKeys?.[tableName]?.Keys;
+      if (!unprocessedKeys || unprocessedKeys.length === 0) {
+        break;
+      }
 
-    remainingKeys = unprocessedKeys as Array<{ pk: string; sk: string }>;
+      // If ALL keys are unprocessed and we got no results, log more details
+      const gotResults = result.Responses?.[tableName]?.length ?? 0;
+      if (gotResults === 0 && unprocessedKeys.length === remainingKeys.length) {
+        console.warn(`[DynamoDB] batchGetItemsSingleTable: ALL ${remainingKeys.length} keys unprocessed (attempt ${attempt + 1}), possible throttling or cold partition`);
+      }
 
-    if (attempt < maxAttempts - 1) {
-      const delayMs = baseDelayMs * Math.pow(2, attempt);
-      console.warn(`[DynamoDB] batchGetItemsSingleTable: ${remainingKeys.length} unprocessed keys, retrying in ${delayMs}ms`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      remainingKeys = unprocessedKeys as Array<{ pk: string; sk: string }>;
+
+      if (attempt < maxAttempts - 1) {
+        // More aggressive backoff: 150, 300, 600, 1200, 2400, 4800ms
+        const delayMs = baseDelayMs * Math.pow(2, attempt);
+        console.warn(`[DynamoDB] batchGetItemsSingleTable: ${remainingKeys.length} unprocessed keys, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    } catch (error) {
+      const errorName = (error as { name?: string }).name || 'Unknown';
+      console.error(`[DynamoDB] batchGetItemsSingleTable error (attempt ${attempt + 1}):`, errorName, error);
+
+      // Retry on transient errors
+      if (attempt < maxAttempts - 1 && (
+        errorName === 'ProvisionedThroughputExceededException' ||
+        errorName === 'ThrottlingException' ||
+        errorName === 'InternalServerError'
+      )) {
+        const delayMs = baseDelayMs * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        continue;
+      }
+      throw error;
     }
   }
 
   if (remainingKeys.length > 0) {
-    throw new Error(`batchGetItemsSingleTable: ${remainingKeys.length} keys still unprocessed after ${maxAttempts} attempts`);
+    // Return partial results instead of throwing - caller can handle gracefully
+    console.error(`[DynamoDB] batchGetItemsSingleTable: ${remainingKeys.length} keys still unprocessed after ${maxAttempts} attempts, returning partial results (${allResults.length} found)`);
   }
 
   return allResults;

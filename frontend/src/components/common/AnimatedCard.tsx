@@ -12,7 +12,15 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
+  interpolate,
 } from 'react-native-reanimated';
+
+// Enhanced spring config for bouncier feel
+const SPRING_CONFIG = {
+  damping: 12,
+  stiffness: 200,
+  mass: 0.8,
+};
 
 export interface AnimatedCardProps extends Omit<CardProps, 'onPress'> {
   onPress?: () => void;
@@ -38,25 +46,26 @@ export function AnimatedCard({
 }: AnimatedCardProps) {
   const theme = useTheme();
   const scale = useSharedValue(1);
+  const pressProgress = useSharedValue(0); // 0 = not pressed, 1 = pressed
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }]
+    transform: [{ scale: scale.value }],
+    // Animate shadow during press for depth feedback
+    shadowOpacity: interpolate(pressProgress.value, [0, 1], [0.2, 0.35]),
+    shadowRadius: interpolate(pressProgress.value, [0, 1], [2, 6]),
+    elevation: interpolate(pressProgress.value, [0, 1], [2, 4]),
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.98, {
-      damping: 15,
-      stiffness: 150,
-    });
+    scale.value = withSpring(0.97, SPRING_CONFIG);
+    pressProgress.value = withSpring(1, SPRING_CONFIG);
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1, {
-      damping: 15,
-      stiffness: 150,
-    });
+    scale.value = withSpring(1, SPRING_CONFIG);
+    pressProgress.value = withSpring(0, SPRING_CONFIG);
   };
 
   const handleMouseEnter = () => {

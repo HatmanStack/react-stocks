@@ -57,6 +57,21 @@ export const shadows = {
     shadowRadius: 4.0,
     elevation: 5,
   },
+  // Enhanced shadows for modern UI
+  glow: {
+    shadowColor: '#2196F3',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  elevated: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
+  },
 };
 
 /**
@@ -89,7 +104,7 @@ export const theme = {
     ...MD3DarkTheme.fonts,
     mono: {
       fontFamily: typography.fonts.mono,
-      fontWeight: '400',
+      fontWeight: '400' as const,
       fontSize: 14,
       lineHeight: 20,
       letterSpacing: 0,
@@ -102,6 +117,23 @@ export const theme = {
     spacing,
     borderRadius,
     shadows,
+    // Display fonts for tickers and headlines (separate from Paper's fonts to avoid type conflicts)
+    displayFonts: {
+      display: {
+        fontFamily: typography.fonts.display,
+        fontWeight: '700' as const,
+        fontSize: 20,
+        lineHeight: 24,
+        letterSpacing: 0.5,
+      },
+      displayMedium: {
+        fontFamily: typography.fonts.displayMedium,
+        fontWeight: '500' as const,
+        fontSize: 18,
+        lineHeight: 22,
+        letterSpacing: 0.25,
+      },
+    },
   },
 };
 

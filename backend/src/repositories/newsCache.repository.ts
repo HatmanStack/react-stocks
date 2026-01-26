@@ -245,13 +245,18 @@ export async function batchCheckExistence(
     sk: makeHashSK(h),
   }));
 
-  // Process in batches of 100
+  // Process in batches of 100 with individual error handling per batch
   const results: NewsCacheItem[] = [];
   const batchSize = 100;
   for (let i = 0; i < keys.length; i += batchSize) {
     const batch = keys.slice(i, i + batchSize);
-    const batchResults = await batchGetItemsSingleTable<NewsCacheItem>(batch);
-    results.push(...batchResults);
+    try {
+      const batchResults = await batchGetItemsSingleTable<NewsCacheItem>(batch);
+      results.push(...batchResults);
+    } catch (error) {
+      // Log but continue with other batches - partial results are better than total failure
+      console.warn(`[NewsCacheRepository] Batch ${Math.floor(i / batchSize) + 1} failed, continuing:`, error);
+    }
   }
 
   return new Set(results.map(item => item.articleHash));

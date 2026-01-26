@@ -60,6 +60,20 @@ export const colors = {
 
   // Transparent
   transparent: 'transparent',
+
+  // Gradient colors (for use with LinearGradient components)
+  gradients: {
+    // Primary blue gradients
+    primaryToTransparent: ['#2196F3', 'rgba(33, 150, 243, 0)'] as const,
+    primaryToDark: ['#2196F3', '#1565C0'] as const,
+    // Sentiment gradients (subtle backgrounds)
+    positiveSubtle: ['rgba(76, 175, 80, 0.15)', 'rgba(76, 175, 80, 0.02)'] as const,
+    negativeSubtle: ['rgba(244, 67, 54, 0.15)', 'rgba(244, 67, 54, 0.02)'] as const,
+    // Card glow effect
+    cardGlow: ['rgba(33, 150, 243, 0.08)', 'transparent'] as const,
+    // Shimmer gradient
+    shimmer: ['transparent', 'rgba(255, 255, 255, 0.08)', 'transparent'] as const,
+  },
 };
 
 export type ColorName = keyof typeof colors;

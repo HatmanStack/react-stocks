@@ -7,22 +7,26 @@ import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 
-export type TimeRange = '1M' | '3M' | '6M' | 'YTD' | '1Y' | '2Y' | '5Y';
+// 'custom' is set programmatically when user picks custom dates via DateRangePicker
+export type TimeRange = '1M' | '3M' | '6M' | 'YTD' | '1Y' | '2Y' | '5Y' | 'custom';
+
+// Preset ranges shown as buttons (custom is not in this list)
+const PRESET_RANGES: Exclude<TimeRange, 'custom'>[] = ['1M', '3M', '6M', 'YTD', '1Y', '2Y', '5Y'];
 
 interface TimeRangeSelectorProps {
   selectedRange: TimeRange;
   onRangeChange: (range: TimeRange) => void;
 }
 
-const RANGES: TimeRange[] = ['1M', '3M', '6M', 'YTD', '1Y', '2Y', '5Y'];
-
 export function TimeRangeSelector({ selectedRange, onRangeChange }: TimeRangeSelectorProps) {
   const theme = useTheme();
+  const isCustomRange = selectedRange === 'custom';
 
   return (
     <View style={styles.container}>
-      {RANGES.map((range) => {
-        const isSelected = range === selectedRange;
+      {PRESET_RANGES.map((range) => {
+        // When custom range is active, no preset buttons are selected
+        const isSelected = !isCustomRange && range === selectedRange;
         return (
           <Pressable
             key={range}
@@ -31,6 +35,8 @@ export function TimeRangeSelector({ selectedRange, onRangeChange }: TimeRangeSel
               styles.button,
               {
                 backgroundColor: isSelected ? theme.colors.primary : 'transparent',
+                borderWidth: 1,
+                borderColor: isSelected ? theme.colors.primary : theme.colors.outline,
               },
             ]}
           >
@@ -48,6 +54,13 @@ export function TimeRangeSelector({ selectedRange, onRangeChange }: TimeRangeSel
           </Pressable>
         );
       })}
+      {isCustomRange && (
+        <View style={[styles.customBadge, { backgroundColor: theme.colors.primaryContainer }]}>
+          <Text style={[styles.buttonText, { color: theme.colors.onPrimaryContainer }]}>
+            Custom
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -113,6 +126,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 4,
     marginBottom: 8,
+    alignItems: 'center',
   },
   button: {
     paddingVertical: 4,
@@ -121,5 +135,10 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 11,
+  },
+  customBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
   },
 });

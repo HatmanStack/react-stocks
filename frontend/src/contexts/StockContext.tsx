@@ -43,6 +43,8 @@ export function StockProvider({ children }: StockProviderProps) {
   const setDateRange = useCallback((start: string, end: string) => {
     setStartDate(start);
     setEndDate(end);
+    // Mark as custom range when dates are set manually via DateRangePicker
+    setSelectedTimeRange('custom');
   }, []);
 
   // Set time range and automatically update date range

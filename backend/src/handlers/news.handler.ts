@@ -29,10 +29,13 @@ const ALPHA_VANTAGE_LOOKBACK_DAYS = 365 * 5; // 5 years
  * Returns only new articles with pre-computed hashes to avoid double hashing
  *
  * Uses batch existence check for O(ceil(N/100)) DynamoDB calls instead of O(N)
+ *
+ * @param skipCacheCheck - If true, skip batch existence check (optimization for fresh stocks)
  */
 async function filterNewArticles(
   ticker: string,
-  apiArticles: FinnhubNewsArticle[]
+  apiArticles: FinnhubNewsArticle[],
+  skipCacheCheck = false
 ): Promise<{
   newArticles: { article: FinnhubNewsArticle; hash: string }[];
   duplicateCount: number;
@@ -46,6 +49,12 @@ async function filterNewArticles(
     article,
     hash: generateArticleHash(article.url),
   }));
+
+  // For fresh stocks (no cached items), skip expensive batch check
+  if (skipCacheCheck) {
+    console.log(`[NewsHandler] Skipping cache check for fresh stock ${ticker} (${articlesWithHashes.length} articles)`);
+    return { newArticles: articlesWithHashes, duplicateCount: 0 };
+  }
 
   // Batch check existence (100 per DynamoDB call)
   const hashes = articlesWithHashes.map((a) => a.hash);
@@ -225,8 +234,9 @@ export async function handleNewsWithCache(
       console.log(`[NewsHandler] Sufficient historical data in cache (${totalCachedDays} days), skipping Alpha Vantage API call`);
     }
 
-    // Filter out articles already in cache
-    const { newArticles, duplicateCount } = await filterNewArticles(ticker, apiArticles);
+    // Filter out articles already in cache (skip check for fresh stocks)
+    const isFreshStock = cachedItems.length === 0;
+    const { newArticles, duplicateCount } = await filterNewArticles(ticker, apiArticles, isFreshStock);
 
     console.log(`[NewsHandler] API returned ${apiArticles.length} articles: ${newArticles.length} new, ${duplicateCount} duplicates`);
 

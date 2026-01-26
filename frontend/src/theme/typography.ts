@@ -19,6 +19,19 @@ export const typography = {
       web: 'Monaco, Consolas, "Courier New", monospace',
       default: 'monospace',
     }) as string,
+    // Display font for tickers and headlines (Inter)
+    display: Platform.select({
+      ios: 'Inter_700Bold',
+      android: 'Inter_700Bold',
+      web: "'Inter', system-ui, -apple-system, sans-serif",
+      default: 'System',
+    }) as string,
+    displayMedium: Platform.select({
+      ios: 'Inter_500Medium',
+      android: 'Inter_500Medium',
+      web: "'Inter', system-ui, -apple-system, sans-serif",
+      default: 'System',
+    }) as string,
   },
 
   // Font sizes
@@ -90,6 +103,23 @@ export const typography = {
       fontWeight: '600' as const,
       lineHeight: 20,
       textTransform: 'uppercase' as const,
+    },
+    // Display styles for tickers and headlines
+    ticker: {
+      fontSize: 20,
+      fontWeight: '700' as const,
+      lineHeight: 24,
+      letterSpacing: 0.5,
+    },
+    headline: {
+      fontSize: 24,
+      fontWeight: '700' as const,
+      lineHeight: 30,
+    },
+    headlineMedium: {
+      fontSize: 20,
+      fontWeight: '500' as const,
+      lineHeight: 26,
     },
   },
 };

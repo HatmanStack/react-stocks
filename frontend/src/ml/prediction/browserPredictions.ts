@@ -39,11 +39,10 @@ export async function generateBrowserPredictions(
       return null;
     }
 
-    // Fetch enough stock data for the model
-    const minCalendarDays = Math.ceil(MIN_STOCK_DATA * 1.5);
-    const effectiveDays = Math.max(days, minCalendarDays);
+    // Fetch stock data for the user's selected timeframe
+    // Don't override user's selection - let predictions fail naturally if insufficient data
     const stockEndStr = formatDateForDB(new Date());
-    const stockStartStr = formatDateForDB(subDays(new Date(), effectiveDays));
+    const stockStartStr = formatDateForDB(subDays(new Date(), days));
 
     try {
       await syncStockData(ticker, stockStartStr, stockEndStr, MIN_STOCK_DATA);

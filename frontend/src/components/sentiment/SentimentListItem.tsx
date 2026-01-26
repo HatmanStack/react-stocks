@@ -23,6 +23,7 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
     return score >= 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
   };
 
+  // Check if score crosses threshold (for MonoText positive/negative props)
   const isScorePositive = (score: number | null | undefined): boolean => {
     return score !== null && score !== undefined && score > 0.1;
   };
@@ -44,52 +45,109 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
     return score.toFixed(2);
   };
 
+  // Calculate color with intensity based on score magnitude
+  // Stronger scores = more saturated colors
+  const getColorWithIntensity = (
+    score: number | null | undefined,
+    isPositive: boolean,
+    isNegative: boolean
+  ): string | undefined => {
+    if (score === null || score === undefined) return undefined;
+
+    const magnitude = Math.abs(score);
+    // Map magnitude (0-1) to opacity (0.5-1.0) for visible but graduated intensity
+    const opacity = 0.5 + magnitude * 0.5;
+
+    if (isPositive) {
+      // Green with intensity: rgba(76, 175, 80, opacity)
+      return `rgba(76, 175, 80, ${opacity.toFixed(2)})`;
+    } else if (isNegative) {
+      // Red with intensity: rgba(244, 67, 54, opacity)
+      return `rgba(244, 67, 54, ${opacity.toFixed(2)})`;
+    }
+    return undefined;
+  };
+
+  // Get signal color with intensity (0-1 scale, centered at 0.5)
+  const getSignalColorWithIntensity = (score: number | null | undefined): string | undefined => {
+    if (score === null || score === undefined) return undefined;
+
+    // Distance from neutral (0.5)
+    const deviation = Math.abs(score - 0.5);
+    // Map deviation (0-0.5) to opacity (0.5-1.0)
+    const opacity = 0.5 + deviation;
+
+    if (score >= 0.7) {
+      return `rgba(76, 175, 80, ${opacity.toFixed(2)})`;
+    } else if (score <= 0.4) {
+      return `rgba(244, 67, 54, ${opacity.toFixed(2)})`;
+    }
+    return undefined;
+  };
+
+  // Pre-compute color intensities
+  const signalColor = getSignalColorWithIntensity(item.avgSignalScore);
+  const mlColor = getColorWithIntensity(
+    item.avgMlScore,
+    isScorePositive(item.avgMlScore),
+    isScoreNegative(item.avgMlScore)
+  );
+  const aspectColor = getColorWithIntensity(
+    item.avgAspectScore,
+    isScorePositive(item.avgAspectScore),
+    isScoreNegative(item.avgAspectScore)
+  );
+
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.surfaceVariant, borderBottomColor: theme.colors.outline }]}>
-      <View style={styles.row}>
-        {/* Date */}
-        <View style={styles.dateColumn}>
-          <Text variant="bodyMedium" style={[styles.text, { color: theme.colors.onSurface }]}>
-            {formatShortDate(item.date)}
-          </Text>
-        </View>
+    <View style={styles.wrapper}>
+      <View style={styles.container}>
+        <View style={styles.row}>
+          {/* Date */}
+          <View style={styles.dateColumn}>
+            <Text variant="bodyMedium" style={[styles.text, { color: theme.colors.onSurface }]}>
+              {formatShortDate(item.date)}
+            </Text>
+          </View>
 
-        {/* Signal Score */}
-        <View style={styles.centerColumn}>
-          <MonoText
-            variant="price"
-            style={styles.text}
-            positive={isSignalPositive(item.avgSignalScore)}
-            negative={isSignalNegative(item.avgSignalScore)}
-          >
-            {formatSignalScore(item.avgSignalScore)}
-          </MonoText>
-        </View>
+          {/* Signal Score */}
+          <View style={styles.centerColumn}>
+            <MonoText
+              variant="price"
+              style={[styles.text, signalColor ? { color: signalColor } : undefined]}
+              positive={!signalColor && isSignalPositive(item.avgSignalScore)}
+              negative={!signalColor && isSignalNegative(item.avgSignalScore)}
+            >
+              {formatSignalScore(item.avgSignalScore)}
+            </MonoText>
+          </View>
 
-        {/* Sentiment (ML Score) */}
-        <View style={styles.centerColumn}>
-          <MonoText
-            variant="price"
-            style={styles.text}
-            positive={isScorePositive(item.avgMlScore)}
-            negative={isScoreNegative(item.avgMlScore)}
-          >
-            {formatScore(item.avgMlScore)}
-          </MonoText>
-        </View>
+          {/* Sentiment (ML Score) */}
+          <View style={styles.centerColumn}>
+            <MonoText
+              variant="price"
+              style={[styles.text, mlColor ? { color: mlColor } : undefined]}
+              positive={!mlColor && isScorePositive(item.avgMlScore)}
+              negative={!mlColor && isScoreNegative(item.avgMlScore)}
+            >
+              {formatScore(item.avgMlScore)}
+            </MonoText>
+          </View>
 
-        {/* Aspect Score */}
-        <View style={styles.centerColumn}>
-          <MonoText
-            variant="price"
-            style={styles.text}
-            positive={isScorePositive(item.avgAspectScore)}
-            negative={isScoreNegative(item.avgAspectScore)}
-          >
-            {formatScore(item.avgAspectScore)}
-          </MonoText>
+          {/* Aspect Score */}
+          <View style={styles.centerColumn}>
+            <MonoText
+              variant="price"
+              style={[styles.text, aspectColor ? { color: aspectColor } : undefined]}
+              positive={!aspectColor && isScorePositive(item.avgAspectScore)}
+              negative={!aspectColor && isScoreNegative(item.avgAspectScore)}
+            >
+              {formatScore(item.avgAspectScore)}
+            </MonoText>
+          </View>
         </View>
       </View>
+      {/* Inset divider */}
+      <View style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
     </View>
   );
 });
@@ -97,15 +155,21 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
 SentimentListItem.displayName = 'SentimentListItem';
 
 const styles = StyleSheet.create({
+  wrapper: {
+    backgroundColor: 'transparent',
+  },
   container: {
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderBottomWidth: 1,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 12,
   },
   dateColumn: {
     flex: 1.2,

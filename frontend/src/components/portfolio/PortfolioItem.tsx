@@ -105,11 +105,14 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
       >
         <AnimatedCard
           onPress={onPress}
+          mode="contained"
+          elevation={1}
           style={[
             styles.card,
             {
               marginHorizontal: 12,
               marginVertical: cardSpacing,
+              backgroundColor: `${theme.colors.surface}E6`, // Semi-transparent for lighter feel
             },
           ]}
           accessibilityLabel={
@@ -127,7 +130,11 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
               <Text
                 style={[
                   styles.ticker,
-                  { color: theme.colors.primary, fontSize: fontSize.title + 2 },
+                  {
+                    color: theme.colors.primary,
+                    fontSize: fontSize.title + 2,
+                    fontFamily: theme.custom.displayFonts?.display?.fontFamily,
+                  },
                 ]}
                 allowFontScaling={true}
               >
@@ -212,9 +219,9 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
               )}
             </View>
 
-            {/* Mini chart */}
+            {/* Mini chart - larger for better visibility */}
             {chartData.length > 0 ? (
-              <MiniChart data={chartData} width={60} height={28} positive={isPositive} />
+              <MiniChart data={chartData} width={80} height={36} positive={isPositive} />
             ) : (
               <View style={[styles.chartPlaceholder, { backgroundColor: `${theme.colors.surfaceVariant}19` }]}>
                 <Text style={[styles.chartText, { color: theme.colors.onSurfaceVariant }]}>
@@ -290,8 +297,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chartPlaceholder: {
-    width: 60,
-    height: 30,
+    width: 80,
+    height: 36,
     borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center',
