@@ -13,23 +13,19 @@ export interface APIGatewayResponse {
 }
 
 /**
- * Get allowed origins from environment variable
+ * Get CORS headers dynamically from environment variable
+ * Called on each request to ensure environment changes are picked up
  * Defaults to '*' for development, should be set to specific domains in production
  */
-function getAllowedOrigin(): string {
-  return process.env.ALLOWED_ORIGINS || '*';
+function getCorsHeadersInternal(): Record<string, string> {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS || '*';
+  return {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': allowedOrigins,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 }
-
-/**
- * CORS headers for all responses
- * Uses ALLOWED_ORIGINS environment variable for production security
- */
-const CORS_HEADERS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': getAllowedOrigin(),
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
 
 /**
  * Create a successful API response
@@ -45,7 +41,7 @@ export function successResponse<T>(
 ): APIGatewayResponse {
   return {
     statusCode,
-    headers: CORS_HEADERS,
+    headers: getCorsHeadersInternal(),
     body: JSON.stringify(meta ? { data, ...meta } : { data }),
   };
 }
@@ -62,7 +58,7 @@ export function errorResponse(
 ): APIGatewayResponse {
   return {
     statusCode,
-    headers: CORS_HEADERS,
+    headers: getCorsHeadersInternal(),
     body: JSON.stringify({ error: message }),
   };
 }
@@ -72,5 +68,5 @@ export function errorResponse(
  * @returns CORS headers object
  */
 export function getCorsHeaders(): Record<string, string> {
-  return { ...CORS_HEADERS };
+  return getCorsHeadersInternal();
 }
