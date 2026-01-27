@@ -6,7 +6,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Card, useTheme } from 'react-native-paper';
-import { MonoText } from '@/components/common';
+import { MonoText, SentimentGradient } from '@/components/common';
 import { formatPercentage } from '@/utils/formatting/numberFormatting';
 import { formatShortDate } from '@/utils/date/dateUtils';
 import type { CombinedWordDetails } from '@/types/database.types';
@@ -54,6 +54,12 @@ export const PredictionSummaryCard: React.FC<PredictionSummaryCardProps> = ({
     const hasValue = pred.direction && pred.probability !== undefined;
     const isUp = pred.direction === 'up';
     const arrow = isUp ? '↑' : '↓';
+    // Convert probability (0.5-1) to sentiment value (-1 to 1)
+    const sentimentValue = hasValue
+      ? isUp
+        ? (pred.probability! - 0.5) * 2  // 0.5→0, 1→1
+        : -(pred.probability! - 0.5) * 2 // 0.5→0, 1→-1
+      : 0;
 
     return (
       <View key={pred.label} style={styles.predictionItem}>
@@ -64,14 +70,24 @@ export const PredictionSummaryCard: React.FC<PredictionSummaryCardProps> = ({
           {pred.label}
         </Text>
         {hasValue ? (
-          <MonoText
-            variant="price"
-            style={styles.predictionValue}
-            positive={isUp}
-            negative={!isUp}
-          >
-            {arrow} {formatPercentage(pred.probability!)}
-          </MonoText>
+          <>
+            <MonoText
+              variant="price"
+              style={styles.predictionValue}
+              positive={isUp}
+              negative={!isUp}
+            >
+              {arrow} {formatPercentage(pred.probability!)}
+            </MonoText>
+            <SentimentGradient
+              value={sentimentValue}
+              variant="bar"
+              width={60}
+              height={4}
+              animated
+              style={styles.predictionBar}
+            />
+          </>
         ) : (
           <Text style={[styles.noData, { color: theme.colors.onSurfaceVariant }]}>
             —
@@ -176,5 +192,8 @@ const styles = StyleSheet.create({
   helpText: {
     marginTop: 4,
     textAlign: 'center',
+  },
+  predictionBar: {
+    marginTop: 6,
   },
 });

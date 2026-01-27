@@ -27,6 +27,9 @@ import { colors } from '../src/theme/colors';
 // Error Boundary
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
 
+// Toast Provider
+import { ToastProvider } from '../src/components/common';
+
 // Register date picker locale
 registerTranslation('en', enGB);
 
@@ -145,8 +148,10 @@ export default function RootLayout() {
             <Portal.Host>
               <QueryClientProvider client={queryClient}>
                 <StockProvider>
-                  <Slot />
-                  <StatusBar style="light" />
+                  <ToastProvider>
+                    <Slot />
+                    <StatusBar style="light" />
+                  </ToastProvider>
                 </StockProvider>
               </QueryClientProvider>
             </Portal.Host>

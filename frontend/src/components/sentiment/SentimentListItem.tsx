@@ -9,7 +9,7 @@ import { Text } from 'react-native-paper';
 import { useAppTheme } from '@/hooks/useAppTheme';
 import type { CombinedWordDetails } from '@/types/database.types';
 import { formatShortDate } from '@/utils/date/dateUtils';
-import { MonoText } from '@/components/common';
+import { MonoText, SentimentGradient } from '@/components/common';
 
 interface SentimentListItemProps {
   item: CombinedWordDetails;
@@ -111,14 +111,22 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
 
           {/* Signal Score */}
           <View style={styles.centerColumn}>
-            <MonoText
-              variant="price"
-              style={[styles.text, signalColor ? { color: signalColor } : undefined]}
-              positive={!signalColor && isSignalPositive(item.avgSignalScore)}
-              negative={!signalColor && isSignalNegative(item.avgSignalScore)}
-            >
-              {formatSignalScore(item.avgSignalScore)}
-            </MonoText>
+            <View style={styles.scoreWithDot}>
+              <SentimentGradient
+                value={(item.avgSignalScore ?? 0.5) * 2 - 1}
+                variant="dot"
+                animated
+                style={styles.dot}
+              />
+              <MonoText
+                variant="price"
+                style={[styles.text, signalColor ? { color: signalColor } : undefined]}
+                positive={!signalColor && isSignalPositive(item.avgSignalScore)}
+                negative={!signalColor && isSignalNegative(item.avgSignalScore)}
+              >
+                {formatSignalScore(item.avgSignalScore)}
+              </MonoText>
+            </View>
           </View>
 
           {/* Sentiment (ML Score) */}
@@ -182,5 +190,15 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 12,
+  },
+  scoreWithDot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 });
