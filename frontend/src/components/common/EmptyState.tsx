@@ -15,6 +15,7 @@ import Animated, {
   interpolate,
   Easing,
 } from 'react-native-reanimated';
+import { AuraButton, AuraButtonVariant } from './AuraButton';
 
 /** Variant configurations for different empty state contexts */
 type EmptyStateVariant = 'default' | 'search' | 'portfolio' | 'data' | 'error';
@@ -54,12 +55,21 @@ const VARIANT_CONFIG: Record<
   },
 };
 
+interface EmptyStateAction {
+  label: string;
+  onPress: () => void;
+  icon?: keyof typeof Ionicons.glyphMap;
+  variant?: AuraButtonVariant;
+}
+
 interface EmptyStateProps {
   message: string;
   icon?: keyof typeof Ionicons.glyphMap;
   description?: string;
   /** Contextual variant for different empty state types */
   variant?: EmptyStateVariant;
+  /** Optional action button */
+  action?: EmptyStateAction;
 }
 
 export function EmptyState({
@@ -67,6 +77,7 @@ export function EmptyState({
   icon,
   description,
   variant = 'default',
+  action,
 }: EmptyStateProps) {
   const theme = useTheme();
   const pulseValue = useSharedValue(0);
@@ -121,6 +132,17 @@ export function EmptyState({
           {description}
         </Text>
       )}
+      {action && (
+        <View style={styles.actionContainer}>
+          <AuraButton
+            label={action.label}
+            onPress={action.onPress}
+            icon={action.icon}
+            variant={action.variant || 'primary'}
+            size="medium"
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -143,5 +165,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  actionContainer: {
+    marginTop: 24,
   },
 });
