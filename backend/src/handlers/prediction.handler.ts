@@ -1,9 +1,10 @@
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { APIGatewayResponse, getCorsHeaders } from '../utils/response.util';
-import { PredictionRequest, PredictionResponse } from '../types/prediction.types';
+import { PredictionResponse } from '../types/prediction.types';
 import { runPredictionPipeline } from '../services/pipeline';
 import { putDailyAggregate, getDailyAggregate } from '../repositories/dailySentimentAggregate.repository';
 import { DailySentimentAggregateItem } from '../types/dynamodb.types';
+import { predictionRequestSchema, parseBody, formatZodError } from '../utils/schemas.util';
 
 /** Direct Lambda invocation payload (not from API Gateway) */
 interface DirectInvocationEvent {
@@ -27,39 +28,56 @@ export async function predictionHandler(
     console.log('[PredictionHandler] Request received. Event type:', typeof event);
 
     try {
-        // Parse request
-        let request: PredictionRequest;
+        // Parse and validate request using Zod
+        let ticker: string;
+        let days: number;
 
-        // Case 1: API Gateway Event with body
-        if (isAPIGatewayEvent(event) && event.body) {
-            try {
-                request = JSON.parse(event.body);
-            } catch {
+        // Case 1: Direct Lambda Invocation (event is the payload)
+        if (isDirectInvocation(event)) {
+            console.log('[PredictionHandler] Direct Lambda invocation detected');
+            const parsed = predictionRequestSchema.safeParse({
+                ticker: event.ticker,
+                days: event.days
+            });
+            if (!parsed.success) {
                 return {
                     statusCode: 400,
                     headers: getCorsHeaders(),
-                    body: JSON.stringify({ error: 'Invalid JSON in request body' })
+                    body: JSON.stringify({ error: formatZodError(parsed.error) })
                 };
             }
+            ticker = parsed.data.ticker;
+            days = parsed.data.days;
         }
-        // Case 2: Direct Lambda Invocation (event is the payload)
-        else if (isDirectInvocation(event)) {
-             console.log('[PredictionHandler] Direct Lambda invocation detected');
-             request = {
-                 ticker: event.ticker,
-                 days: event.days || 90
-             };
+        // Case 2: API Gateway Event with body
+        else if (isAPIGatewayEvent(event) && event.body) {
+            const parsed = parseBody(event.body, predictionRequestSchema);
+            if (!parsed.success) {
+                return {
+                    statusCode: 400,
+                    headers: getCorsHeaders(),
+                    body: JSON.stringify({ error: parsed.error })
+                };
+            }
+            ticker = parsed.data.ticker;
+            days = parsed.data.days;
         }
         // Case 3: API Gateway GET Request (Query Parameters)
         else if (isAPIGatewayEvent(event)) {
-             // Handle query params if body missing (optional, but good for testing)
-             const daysParam = event.queryStringParameters?.days;
-             const parsedDays = daysParam ? Number(daysParam) : 90;
-
-             request = {
-                 ticker: event.queryStringParameters?.ticker || '',
-                 days: isNaN(parsedDays) ? 90 : parsedDays
-             };
+            const daysParam = event.queryStringParameters?.days;
+            const parsed = predictionRequestSchema.safeParse({
+                ticker: event.queryStringParameters?.ticker || '',
+                days: daysParam ? Number(daysParam) : undefined
+            });
+            if (!parsed.success) {
+                return {
+                    statusCode: 400,
+                    headers: getCorsHeaders(),
+                    body: JSON.stringify({ error: formatZodError(parsed.error) })
+                };
+            }
+            ticker = parsed.data.ticker;
+            days = parsed.data.days;
         }
         // Fallback - shouldn't reach here
         else {
@@ -70,30 +88,8 @@ export async function predictionHandler(
             };
         }
 
-        // Validate ticker
-        if (!request.ticker || typeof request.ticker !== 'string') {
-            return {
-                statusCode: 400,
-                headers: getCorsHeaders(),
-                body: JSON.stringify({ error: 'Missing or invalid ticker symbol' })
-            };
-        }
-
-        // Validate days parameter
-        const parsedDays = Number(request.days);
-        if (request.days !== undefined && (!Number.isFinite(parsedDays) || parsedDays < 30)) {
-             return {
-                statusCode: 400,
-                headers: getCorsHeaders(),
-                body: JSON.stringify({ error: 'Days parameter must be a number >= 30' })
-            };
-        }
-
-        // Default days if not provided or use parsed value
-        const days = Number.isFinite(parsedDays) && parsedDays >= 30 ? parsedDays : 90;
-
         // Run pipeline
-        const predictions = await runPredictionPipeline(request.ticker, days);
+        const predictions = await runPredictionPipeline(ticker, days);
 
         // Helper to extract and format prediction
         const getPred = (h: number) => {
@@ -113,7 +109,7 @@ export async function predictionHandler(
 
         // Format response
         const response: PredictionResponse = {
-            ticker: request.ticker,
+            ticker,
             predictions: {
                 nextDay: predNextDay,
                 twoWeek: predTwoWeek,
@@ -127,11 +123,11 @@ export async function predictionHandler(
 
         try {
              // Read existing aggregate item if it exists
-             const existingItem = await getDailyAggregate(request.ticker, today);
+             const existingItem = await getDailyAggregate(ticker, today);
 
              // Merge prediction fields into existing item (or create new)
              const aggregateItem: DailySentimentAggregateItem = {
-                 ticker: request.ticker,
+                 ticker,
                  date: today,
                  // Preserve existing fields if present, otherwise use defaults
                  eventCounts: existingItem?.eventCounts || {},
@@ -148,7 +144,7 @@ export async function predictionHandler(
              };
 
              await putDailyAggregate(aggregateItem);
-             console.log('[PredictionHandler] Saved prediction to DynamoDB:', { ticker: request.ticker, date: today });
+             console.log('[PredictionHandler] Saved prediction to DynamoDB:', { ticker, date: today });
 
         } catch (dbError) {
             console.error('[PredictionHandler] Failed to save prediction to DynamoDB:', dbError);

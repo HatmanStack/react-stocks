@@ -17,7 +17,8 @@ import { generateJobId } from '../utils/job.util.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
 import { aggregateDailySentiment } from '../utils/sentiment.util.js';
 import { logMlSentimentCacheHitRate } from '../utils/metrics.util.js';
-import { validateDateFormat } from '../utils/validation.util.js';
+import { validateDateFormat, validateTicker } from '../utils/validation.util.js';
+import { sentimentRequestSchema, parseBody } from '../utils/schemas.util.js';
 import type { DailySentiment } from '../types/sentiment.types.js';
 
 /**
@@ -33,29 +34,13 @@ export async function handleSentimentRequest(
   event: APIGatewayProxyEventV2
 ): Promise<APIGatewayResponse> {
   try {
-    // Parse and validate request body
-    if (!event.body) {
-      return errorResponse('Request body is required', 400);
+    // Parse and validate request body using Zod
+    const parsed = parseBody(event.body, sentimentRequestSchema);
+    if (!parsed.success) {
+      return errorResponse(parsed.error, 400);
     }
 
-    let body: { ticker?: string; startDate?: string; endDate?: string };
-    try {
-      body = JSON.parse(event.body);
-    } catch {
-      return errorResponse('Invalid JSON in request body', 400);
-    }
-
-    const { ticker, startDate, endDate } = body;
-
-    // Validate required fields
-    if (!ticker || !startDate || !endDate) {
-      return errorResponse('Missing required fields: ticker, startDate, endDate', 400);
-    }
-
-    // Validate date format
-    if (!validateDateFormat(startDate) || !validateDateFormat(endDate)) {
-      return errorResponse('Invalid date format. Use YYYY-MM-DD', 400);
-    }
+    const { ticker, startDate, endDate } = parsed.data;
 
     // Generate deterministic job ID
     const jobId = generateJobId(ticker, startDate, endDate);
@@ -318,21 +303,26 @@ export async function handleArticleSentimentRequest(
   try {
     // Parse query parameters
     const params = event.queryStringParameters || {};
-    const ticker = params.ticker;
+    const rawTicker = params.ticker;
     const startDate = params.startDate;
     const endDate = params.endDate;
 
     // Validate ticker
-    if (!ticker) {
+    if (!rawTicker) {
       return errorResponse('Query parameter "ticker" is required', 400);
     }
 
+    // Validate ticker format using centralized validation
+    const ticker = validateTicker(rawTicker);
+    if (!ticker) {
+      return errorResponse('Invalid ticker format. Must contain only letters, numbers, dots, and hyphens.', 400);
+    }
+
     // Validate date format if provided
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (startDate && !dateRegex.test(startDate)) {
+    if (startDate && !validateDateFormat(startDate)) {
       return errorResponse('Query parameter "startDate" must be in YYYY-MM-DD format', 400);
     }
-    if (endDate && !dateRegex.test(endDate)) {
+    if (endDate && !validateDateFormat(endDate)) {
       return errorResponse('Query parameter "endDate" must be in YYYY-MM-DD format', 400);
     }
 
@@ -422,21 +412,26 @@ export async function handleSentimentResultsRequest(
   try {
     // Parse query parameters
     const params = event.queryStringParameters || {};
-    const ticker = params.ticker;
+    const rawTicker = params.ticker;
     const startDate = params.startDate;
     const endDate = params.endDate;
 
     // Validate ticker
-    if (!ticker) {
+    if (!rawTicker) {
       return errorResponse('Query parameter "ticker" is required', 400);
     }
 
+    // Validate ticker format using centralized validation
+    const ticker = validateTicker(rawTicker);
+    if (!ticker) {
+      return errorResponse('Invalid ticker format. Must contain only letters, numbers, dots, and hyphens.', 400);
+    }
+
     // Validate date format if provided
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (startDate && !dateRegex.test(startDate)) {
+    if (startDate && !validateDateFormat(startDate)) {
       return errorResponse('Query parameter "startDate" must be in YYYY-MM-DD format', 400);
     }
-    if (endDate && !dateRegex.test(endDate)) {
+    if (endDate && !validateDateFormat(endDate)) {
       return errorResponse('Query parameter "endDate" must be in YYYY-MM-DD format', 400);
     }
 

@@ -3,6 +3,8 @@
  * Custom error classes and logging helpers
  */
 
+import { logger, getCorrelationId } from './logger.util.js';
+
 /**
  * Custom API error with HTTP status code
  */
@@ -18,7 +20,10 @@ export class APIError extends Error {
 }
 
 /**
- * Log error with context information
+ * Log error with context information using structured logging
+ *
+ * Outputs JSON with correlationId from AsyncLocalStorage context.
+ *
  * @param context - Context identifier (e.g., handler name)
  * @param error - Error object
  * @param additionalInfo - Additional context information
@@ -28,13 +33,12 @@ export function logError(
   error: unknown,
   additionalInfo?: Record<string, unknown>
 ): void {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  const errorStack = error instanceof Error ? error.stack : undefined;
+  const correlationId = getCorrelationId();
 
-  console.error(`[${context}] Error:`, {
-    message: errorMessage,
-    stack: errorStack,
+  logger.error(`[${context}] Error`, error, {
+    context,
     ...additionalInfo,
+    ...(correlationId && { correlationId }),
   });
 }
 

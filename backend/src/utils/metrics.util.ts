@@ -260,3 +260,76 @@ export function logMlSentimentFallback(
     }
   );
 }
+
+/**
+ * Log request metrics for handler responses
+ *
+ * @param endpoint - API endpoint path
+ * @param statusCode - HTTP status code
+ * @param durationMs - Request duration in milliseconds
+ * @param cached - Whether response was served from cache
+ *
+ * @example
+ * logRequestMetrics('/sentiment', 200, 1500, false);
+ */
+export function logRequestMetrics(
+  endpoint: string,
+  statusCode: number,
+  durationMs: number,
+  cached: boolean = false
+): void {
+  const success = statusCode >= 200 && statusCode < 400;
+
+  logMetrics(
+    [
+      { name: 'RequestDuration', value: durationMs, unit: MetricUnit.Milliseconds },
+      { name: 'RequestCount', value: 1, unit: MetricUnit.Count },
+      ...(success ? [{ name: 'RequestSuccess', value: 1, unit: MetricUnit.Count }] : []),
+      ...(!success ? [{ name: 'RequestError', value: 1, unit: MetricUnit.Count }] : []),
+    ],
+    {
+      Endpoint: endpoint,
+      StatusCode: String(statusCode),
+      Cached: cached ? 'true' : 'false',
+    }
+  );
+}
+
+/**
+ * Log DynamoDB operation metrics
+ *
+ * @param operation - DynamoDB operation type (GetItem, PutItem, Query, etc.)
+ * @param tableName - Table name (or entity type for single-table design)
+ * @param durationMs - Operation duration in milliseconds
+ * @param success - Whether operation succeeded
+ * @param itemCount - Number of items affected (optional)
+ *
+ * @example
+ * logDynamoDBMetrics('Query', 'SentimentCache', 45, true, 25);
+ */
+export function logDynamoDBMetrics(
+  operation: string,
+  tableName: string,
+  durationMs: number,
+  success: boolean,
+  itemCount?: number
+): void {
+  const metrics: { name: string; value: number; unit: MetricUnit }[] = [
+    { name: 'DynamoDBDuration', value: durationMs, unit: MetricUnit.Milliseconds },
+    { name: 'DynamoDBOperations', value: 1, unit: MetricUnit.Count },
+  ];
+
+  if (itemCount !== undefined) {
+    metrics.push({ name: 'DynamoDBItemCount', value: itemCount, unit: MetricUnit.Count });
+  }
+
+  if (!success) {
+    metrics.push({ name: 'DynamoDBErrors', value: 1, unit: MetricUnit.Count });
+  }
+
+  logMetrics(metrics, {
+    Operation: operation,
+    Table: tableName,
+    Success: success ? 'true' : 'false',
+  });
+}

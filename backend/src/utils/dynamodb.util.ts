@@ -27,6 +27,9 @@ import type {
   BatchWriteCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 
+/** Default timeout for DynamoDB operations (5 seconds) */
+const DYNAMODB_TIMEOUT_MS = 5000;
+
 // Initialize DynamoDB client (reused across Lambda invocations)
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
@@ -366,6 +369,48 @@ export async function updateItem(
 }
 
 /**
+ * Execute an operation with a timeout
+ *
+ * Wraps any async operation with a timeout to prevent Lambda from hanging
+ * on unresponsive DynamoDB calls.
+ *
+ * @param operation - Async function to execute
+ * @param timeoutMs - Timeout in milliseconds (default: 5000)
+ * @param operationName - Name for error messages
+ * @returns Result of the operation
+ * @throws Error if operation times out
+ *
+ * @example
+ * const result = await withTimeout(
+ *   () => dynamoDb.send(new GetCommand(params)),
+ *   3000,
+ *   'GetItem'
+ * );
+ */
+export async function withTimeout<T>(
+  operation: () => Promise<T>,
+  timeoutMs: number = DYNAMODB_TIMEOUT_MS,
+  operationName: string = 'DynamoDB'
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${operationName} operation timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([operation(), timeoutPromise]);
+    clearTimeout(timeoutId!);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId!);
+    throw error;
+  }
+}
+
+/**
  * Retry a function with exponential backoff
  * Useful for handling throttling errors from DynamoDB
  *
@@ -414,4 +459,35 @@ export async function withRetry<T>(
   }
 
   throw lastError;
+}
+
+/**
+ * Execute DynamoDB operation with both timeout and retry protection
+ *
+ * Combines withTimeout and withRetry for robust DynamoDB operations.
+ *
+ * @param operation - Async function to execute
+ * @param operationName - Name for logging/error messages
+ * @param options - Timeout and retry options
+ * @returns Result of the operation
+ *
+ * @example
+ * const result = await withProtection(
+ *   () => dynamoDb.send(new GetCommand(params)),
+ *   'GetItem',
+ *   { timeoutMs: 3000, maxRetries: 2 }
+ * );
+ */
+export async function withProtection<T>(
+  operation: () => Promise<T>,
+  operationName: string = 'DynamoDB',
+  options?: { timeoutMs?: number; maxRetries?: number; baseDelayMs?: number }
+): Promise<T> {
+  const { timeoutMs = DYNAMODB_TIMEOUT_MS, maxRetries = 3, baseDelayMs = 100 } = options || {};
+
+  return withRetry(
+    () => withTimeout(operation, timeoutMs, operationName),
+    maxRetries,
+    baseDelayMs
+  );
 }
