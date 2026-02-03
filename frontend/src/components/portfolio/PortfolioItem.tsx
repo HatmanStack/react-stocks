@@ -12,7 +12,7 @@ import { useAppTheme } from '@/hooks/useAppTheme';
 import Animated, { FadeOut } from 'react-native-reanimated';
 import { Swipeable } from 'react-native-gesture-handler';
 import type { PortfolioDetails } from '@/types/database.types';
-import { MonoText, GlowingCard, AnimatedNumber } from '@/components/common';
+import { MonoText, AnimatedCard, AnimatedNumber } from '@/components/common';
 import { MiniChart } from '@/components/charts';
 import { formatPrice, formatPercentage } from '@/utils/formatting';
 import { useLatestStockPrice, useStockData, useLayoutDensity } from '@/hooks';
@@ -103,12 +103,10 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
         friction={2}
         rightThreshold={40}
       >
-        <GlowingCard
+        <AnimatedCard
           onPress={onPress}
           mode="contained"
           elevation={1}
-          glowColor={isPositive ? theme.colors.positive : isNegative ? theme.colors.negative : theme.colors.primary}
-          glowIntensity={0.8}
           style={[
             styles.card,
             {
@@ -241,7 +239,7 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
              {renderPrediction()}
           </View>
         </View>
-        </GlowingCard>
+        </AnimatedCard>
       </Swipeable>
     </Animated.View>
   );
