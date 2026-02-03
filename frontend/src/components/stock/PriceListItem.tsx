@@ -19,12 +19,6 @@ interface PriceListItemProps {
 export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item }) => {
   const theme = useAppTheme();
 
-  // Determine row color based on close vs open (use surfaceVariant for dark theme compatibility)
-  const getRowColor = (): string => {
-    // Use subtle theme colors instead of hardcoded light theme colors
-    return theme.colors.surfaceVariant;
-  };
-
   const getTextColor = (): string => {
     if (item.close > item.open) {
       return theme.colors.positive; // Green for gains
@@ -37,8 +31,9 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
   const textColor = getTextColor();
 
   return (
-    <View style={[styles.container, { backgroundColor: getRowColor(), borderBottomColor: theme.colors.outline }]}>
-      <View style={styles.row}>
+    <View style={styles.wrapper}>
+      <View style={styles.container}>
+        <View style={styles.row}>
         {/* Date */}
         <View style={styles.dateColumn}>
           <Text variant="bodyMedium" style={[styles.text, { color: textColor }]}>
@@ -101,6 +96,9 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
           </MonoText>
         </View>
       </View>
+      </View>
+      {/* Inset divider */}
+      <View style={[styles.divider, { backgroundColor: theme.colors.outline }]} />
     </View>
   );
 });
@@ -108,15 +106,21 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
 PriceListItem.displayName = 'PriceListItem';
 
 const styles = StyleSheet.create({
+  wrapper: {
+    backgroundColor: 'transparent',
+  },
   container: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderBottomWidth: 1,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 12,
   },
   dateColumn: {
     flex: 1.5,

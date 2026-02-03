@@ -3,11 +3,16 @@ Lambda entry point for yfinance stock data service.
 Routes requests to appropriate handlers based on path and method.
 """
 
-import logging
+import time
 from typing import Any
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+from utils.logger import get_structured_logger, set_request_context, clear_request_context
+from utils.metrics import log_lambda_start_status, log_request_metrics
+
+logger = get_structured_logger(__name__)
+
+# Track cold start - only the first invocation is a cold start
+_is_first_invocation = True
 
 
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -21,6 +26,8 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     Returns:
         API Gateway response
     """
+    global _is_first_invocation
+
     # Import handlers here to avoid circular imports and improve cold start
     from handlers.stocks import handle_stocks_request
     from handlers.search import handle_search_request
@@ -32,24 +39,48 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     request_context = event.get("requestContext", {})
     http_info = request_context.get("http", {})
     method = http_info.get("method", "GET")
+    request_id = request_context.get("requestId", "")
+    start_time = time.time()
 
-    logger.info(f"[Router] {method} {raw_path}")
+    # Cold Start Detection - only first invocation per container is cold
+    is_cold_start = _is_first_invocation
+    _is_first_invocation = False
+    log_lambda_start_status(is_cold_start, raw_path)
+
+    # Set request context for structured logging
+    set_request_context(correlation_id=request_id, path=raw_path, method=method)
 
     try:
+        logger.info("Incoming request", isColdStart=is_cold_start)
+
+        response: dict[str, Any]
+
         # Route to appropriate handler
         if raw_path == "/stocks" and method == "GET":
-            return handle_stocks_request(event)
+            response = handle_stocks_request(event)
 
         elif raw_path == "/search" and method == "GET":
-            return handle_search_request(event)
+            response = handle_search_request(event)
 
         elif raw_path == "/batch/stocks" and method == "POST":
-            return handle_batch_stocks_request(event)
+            response = handle_batch_stocks_request(event)
 
         else:
-            logger.warning(f"[Router] Unknown route: {method} {raw_path}")
-            return error_response(f"Not found: {method} {raw_path}", 404)
+            logger.warning("Unknown route", path=raw_path)
+            response = error_response(f"Not found: {method} {raw_path}", 404)
+
+        # Log request metrics
+        duration_ms = (time.time() - start_time) * 1000
+        log_request_metrics(raw_path, response.get("statusCode", 500), duration_ms)
+
+        return response
 
     except Exception as e:
-        logger.error(f"[Router] Unhandled error: {e}", exc_info=True)
+        logger.error(f"Unhandled error: {e}", exc_info=True)
+        duration_ms = (time.time() - start_time) * 1000
+        log_request_metrics(raw_path, 500, duration_ms)
         return error_response("Internal server error", 500)
+
+    finally:
+        # Clear request context
+        clear_request_context()

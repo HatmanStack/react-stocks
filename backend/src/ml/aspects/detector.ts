@@ -301,7 +301,14 @@ export function detectPolarity(
   // tanh gives smooth, bounded output that preserves intensity modifiers
   // SENSITIVITY=2: 1 signal=0.46, 2=0.76, 3=0.91
   const SENSITIVITY = 2.0;
-  const score = Math.tanh((positiveScore - negativeScore) / SENSITIVITY);
+  const rawScore = Math.tanh((positiveScore - negativeScore) / SENSITIVITY);
+
+  // Hard cap at ±0.95 to prevent extreme scores
+  // This ensures scores never saturate at ±1.0 which would:
+  // 1. Lose information about relative intensity
+  // 2. Create calibration issues in downstream models
+  const SCORE_CAP = 0.95;
+  const score = Math.max(-SCORE_CAP, Math.min(SCORE_CAP, rawScore));
 
   // Calculate confidence (0 to 1)
   // Based on signal count, capped at 1.0

@@ -223,6 +223,6 @@ backend/src/
 ├── utils/sentiment.util.ts            # Daily aggregation (signal-weighted)
 └── ml/sentiment/analyzer.ts           # AFINN + financial lexicon (server-side)
 
-backend/services/ml/
+backend/python/services/ml/
 └── model_onnx.py                      # DistilRoBERTa inference + calibration
 ```

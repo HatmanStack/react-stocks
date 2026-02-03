@@ -3,7 +3,7 @@
  * Displays user's saved stocks
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
@@ -18,6 +18,7 @@ import { AddStockModal } from '@/components/portfolio/AddStockModal';
 import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { OfflineIndicator } from '@/components/common/OfflineIndicator';
+import { StockCarousel, CarouselItem } from '@/components/common';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useStock } from '@/contexts/StockContext';
 import { syncAllData } from '@/services/sync/syncOrchestrator';
@@ -66,6 +67,20 @@ export default function PortfolioScreen() {
   const handleAddStock = useCallback(() => {
     setModalVisible(true);
   }, []);
+
+  // Convert portfolio items to carousel items
+  const carouselItems: CarouselItem[] = useMemo(() => {
+    return portfolio.slice(0, 5).map((item) => ({
+      id: item.ticker,
+      title: item.ticker,
+      subtitle: item.name || undefined,
+      value: item.nextDayProbability !== null && item.nextDayProbability !== undefined
+        ? `${item.nextDayDirection === 'up' ? '↑' : '↓'} ${(item.nextDayProbability * 100).toFixed(0)}%`
+        : undefined,
+      valueColor: item.nextDayDirection === 'up' ? 'positive' as const : item.nextDayDirection === 'down' ? 'negative' as const : 'neutral' as const,
+      badge: item.nextDayDirection === 'up' && item.nextDayProbability && item.nextDayProbability > 0.7 ? 'BULLISH' : undefined,
+    }));
+  }, [portfolio]);
 
   const handleCloseModal = useCallback(() => {
     setModalVisible(false);
@@ -124,8 +139,32 @@ export default function PortfolioScreen() {
       message="No stocks in portfolio"
       description="Add stocks to your watchlist to track their performance"
       icon="briefcase-outline"
+      action={{
+        label: 'Add Your First Stock',
+        onPress: handleAddStock,
+        icon: 'add',
+        variant: 'primary',
+      }}
     />
   );
+
+  const handleCarouselItemPress = useCallback((item: CarouselItem) => {
+    const portfolioItem = portfolio.find(p => p.ticker === item.id);
+    if (portfolioItem) {
+      handleStockPress(portfolioItem);
+    }
+  }, [portfolio, handleStockPress]);
+
+  const renderListHeader = useCallback(() => {
+    if (carouselItems.length < 2) return null;
+    return (
+      <StockCarousel
+        title="Quick View"
+        items={carouselItems}
+        onItemPress={handleCarouselItemPress}
+      />
+    );
+  }, [carouselItems, handleCarouselItemPress]);
 
   if (error) {
     return (
@@ -164,6 +203,7 @@ export default function PortfolioScreen() {
           data={portfolio}
           renderItem={renderPortfolioItem}
           keyExtractor={(item) => item.ticker}
+          ListHeaderComponent={renderListHeader}
           ListEmptyComponent={renderEmptyState}
           contentContainerStyle={portfolio.length === 0 ? styles.emptyContent : styles.listContent}
           removeClippedSubviews={true}

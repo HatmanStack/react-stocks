@@ -26,13 +26,21 @@ export function sigmoid(z: number): number {
 /**
  * Logistic Regression Classifier
  *
- * Uses gradient descent with L2 regularization to match scikit-learn.
+ * Supports both SGD and Adam optimizers with L2 regularization.
+ * Adam typically converges 3-10x faster than SGD.
  */
 export class LogisticRegression {
   private weights: number[] | null = null;
   private bias: number = 0;
   private converged: boolean = false;
   private iterations: number = 0;
+
+  // Adam optimizer state
+  private mWeights: number[] = []; // First moment estimate for weights
+  private vWeights: number[] = []; // Second moment estimate for weights
+  private mBias: number = 0; // First moment estimate for bias
+  private vBias: number = 0; // Second moment estimate for bias
+  private t: number = 0; // Timestep counter
 
   /**
    * Train the model using gradient descent with sample/class weighting
@@ -50,6 +58,10 @@ export class LogisticRegression {
       verbose = false,
       sampleWeights,
       classWeight,
+      optimizer = 'sgd',
+      beta1 = 0.9,
+      beta2 = 0.999,
+      epsilon = 1e-8,
     } = options || {};
 
     if (X.length === 0 || y.length === 0) {
@@ -75,6 +87,15 @@ export class LogisticRegression {
     // Initialize weights and bias to zero (scikit-learn default)
     this.weights = new Array(nFeatures).fill(0);
     this.bias = 0;
+
+    // Initialize Adam state (reset for new training)
+    if (optimizer === 'adam') {
+      this.mWeights = new Array(nFeatures).fill(0);
+      this.vWeights = new Array(nFeatures).fill(0);
+      this.mBias = 0;
+      this.vBias = 0;
+      this.t = 0;
+    }
 
     // Regularization strength (alpha = 1/C)
     const alpha = 1.0 / regularization;
@@ -114,10 +135,31 @@ export class LogisticRegression {
         weightGradients[j] = weightGradients[j] / totalWeight + alpha * this.weights[j];
       }
 
-      // Update weights and bias
-      this.bias -= learningRate * biasGradient;
-      for (let j = 0; j < nFeatures; j++) {
-        this.weights[j] -= learningRate * weightGradients[j];
+      // Update weights and bias using selected optimizer
+      if (optimizer === 'adam') {
+        this.t += 1;
+
+        // Update bias with Adam
+        this.mBias = beta1 * this.mBias + (1 - beta1) * biasGradient;
+        this.vBias = beta2 * this.vBias + (1 - beta2) * biasGradient * biasGradient;
+        const mBiasHat = this.mBias / (1 - Math.pow(beta1, this.t));
+        const vBiasHat = this.vBias / (1 - Math.pow(beta2, this.t));
+        this.bias -= learningRate * mBiasHat / (Math.sqrt(vBiasHat) + epsilon);
+
+        // Update weights with Adam
+        for (let j = 0; j < nFeatures; j++) {
+          this.mWeights[j] = beta1 * this.mWeights[j] + (1 - beta1) * weightGradients[j];
+          this.vWeights[j] = beta2 * this.vWeights[j] + (1 - beta2) * weightGradients[j] * weightGradients[j];
+          const mHat = this.mWeights[j] / (1 - Math.pow(beta1, this.t));
+          const vHat = this.vWeights[j] / (1 - Math.pow(beta2, this.t));
+          this.weights[j] -= learningRate * mHat / (Math.sqrt(vHat) + epsilon);
+        }
+      } else {
+        // Standard SGD update
+        this.bias -= learningRate * biasGradient;
+        for (let j = 0; j < nFeatures; j++) {
+          this.weights[j] -= learningRate * weightGradients[j];
+        }
       }
 
       // Compute weighted loss for convergence check

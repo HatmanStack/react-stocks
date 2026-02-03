@@ -1,16 +1,11 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
 import { logError } from '../utils/error.util';
-import { validateTicker, validateDateFormat } from '../utils/validation.util';
 import { logMetrics, MetricUnit } from '../utils/metrics.util';
 import { handleNewsWithCache } from './news.handler';
 import { getSentimentResults } from './sentiment.handler';
+import { batchNewsRequestSchema, batchSentimentRequestSchema, parseBody } from '../utils/schemas.util';
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
-
-interface BatchNewsRequest {
-  tickers: string[];
-  limit?: number;
-}
 
 interface BatchNewsResponse {
   data: Record<string, FinnhubNewsArticle[]>;
@@ -21,12 +16,6 @@ interface BatchNewsResponse {
     cached: Record<string, boolean>;
     timestamp: string;
   };
-}
-
-interface BatchSentimentRequest {
-  tickers: string[];
-  startDate: string;
-  endDate?: string;
 }
 
 interface BatchSentimentResponse {
@@ -51,45 +40,13 @@ export async function handleBatchNewsRequest(
   const startTime = Date.now();
 
   try {
-    // Parse request body
-    if (!event.body) {
-      return errorResponse('Missing request body', 400);
+    // Parse and validate request body using Zod
+    const parsed = parseBody(event.body, batchNewsRequestSchema);
+    if (!parsed.success) {
+      return errorResponse(parsed.error, 400);
     }
 
-    let requestBody: BatchNewsRequest;
-    try {
-      requestBody = JSON.parse(event.body);
-    } catch {
-      return errorResponse('Invalid JSON body', 400);
-    }
-
-    const { tickers, limit = 10 } = requestBody;
-
-    // Validate tickers
-    if (!tickers || !Array.isArray(tickers)) {
-      return errorResponse('Missing or invalid "tickers" field. Must be an array of strings.', 400);
-    }
-
-    if (tickers.length === 0) {
-      return errorResponse('Tickers array cannot be empty', 400);
-    }
-
-    // Rate limiting: Max 10 tickers per batch
-    if (tickers.length > 10) {
-      return errorResponse('Maximum 10 tickers per batch', 400);
-    }
-
-    // Validate limit
-    if (typeof limit !== 'number' || limit < 1 || limit > 50) {
-      return errorResponse('Invalid limit. Must be between 1 and 50.', 400);
-    }
-
-    // Validate ticker format
-    for (const ticker of tickers) {
-      if (!validateTicker(ticker)) {
-        return errorResponse(`Invalid ticker format: ${ticker}. Must contain only letters, numbers, dots, and hyphens.`, 400);
-      }
-    }
+    const { tickers, limit } = parsed.data;
 
     // Get API key
     const apiKey = process.env.FINNHUB_API_KEY;
@@ -182,58 +139,13 @@ export async function handleBatchSentimentRequest(
   const startTime = Date.now();
 
   try {
-    // Parse request body
-    if (!event.body) {
-      return errorResponse('Missing request body', 400);
+    // Parse and validate request body using Zod
+    const parsed = parseBody(event.body, batchSentimentRequestSchema);
+    if (!parsed.success) {
+      return errorResponse(parsed.error, 400);
     }
 
-    let requestBody: BatchSentimentRequest;
-    try {
-      requestBody = JSON.parse(event.body);
-    } catch {
-      return errorResponse('Invalid JSON body', 400);
-    }
-
-    const { tickers, startDate, endDate } = requestBody;
-
-    // Validate tickers
-    if (!tickers || !Array.isArray(tickers)) {
-      return errorResponse('Missing or invalid "tickers" field. Must be an array of strings.', 400);
-    }
-
-    if (tickers.length === 0) {
-      return errorResponse('Tickers array cannot be empty', 400);
-    }
-
-    // Rate limiting: Max 10 tickers per batch
-    if (tickers.length > 10) {
-      return errorResponse('Maximum 10 tickers per batch', 400);
-    }
-
-    // Validate ticker format
-    for (const ticker of tickers) {
-      if (!validateTicker(ticker)) {
-        return errorResponse(`Invalid ticker format: ${ticker}. Must contain only letters, numbers, dots, and hyphens.`, 400);
-      }
-    }
-
-    // Validate dates
-    if (!startDate || !validateDateFormat(startDate)) {
-      return errorResponse('Invalid startDate format. Must be YYYY-MM-DD.', 400);
-    }
-
-    if (endDate && !validateDateFormat(endDate)) {
-      return errorResponse('Invalid endDate format. Must be YYYY-MM-DD.', 400);
-    }
-
-    // Validate date range
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      if (start > end) {
-        return errorResponse('Invalid date range. startDate must be before or equal to endDate.', 400);
-      }
-    }
+    const { tickers, startDate, endDate } = parsed.data;
 
     // Process tickers in parallel
     const results = await Promise.allSettled(

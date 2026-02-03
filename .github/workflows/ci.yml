@@ -32,8 +32,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx jest --config jest.config.js --ci --forceExit
-        working-directory: frontend
+      - name: Run frontend tests
+        run: npm test
 
   backend-lint:
     runs-on: ubuntu-latest

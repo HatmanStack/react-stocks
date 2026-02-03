@@ -90,6 +90,27 @@ export interface TrainingOptions {
   verbose?: boolean;
   sampleWeights?: SampleWeights; // Per-sample weights for weighted training
   classWeight?: 'balanced' | { [key: number]: number }; // Class weighting strategy
+
+  /**
+   * Optimizer type: 'sgd' (default) or 'adam'
+   * Adam typically converges 3-10x faster than SGD
+   */
+  optimizer?: 'sgd' | 'adam';
+
+  /**
+   * Adam: exponential decay rate for first moment (default 0.9)
+   */
+  beta1?: number;
+
+  /**
+   * Adam: exponential decay rate for second moment (default 0.999)
+   */
+  beta2?: number;
+
+  /**
+   * Adam: small constant for numerical stability (default 1e-8)
+   */
+  epsilon?: number;
 }
 
 /**

@@ -27,6 +27,9 @@ import type {
   BatchWriteCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 
+/** Default timeout for DynamoDB operations (5 seconds) */
+const DYNAMODB_TIMEOUT_MS = 5000;
+
 // Initialize DynamoDB client (reused across Lambda invocations)
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
@@ -193,6 +196,18 @@ export async function deleteItem(pk: string, sk: string): Promise<void> {
 /**
  * Batch get items for single-table design (max 100 per call).
  * Automatically retries UnprocessedKeys with exponential backoff.
+ *
+ * **Important**: This function may return partial results if some keys remain
+ * unprocessed after all retry attempts (up to maxAttempts). It favors returning
+ * partial results over total failure to allow callers to handle incomplete data
+ * gracefully. Callers must handle the possibility of receiving fewer items than
+ * requested keys.
+ *
+ * Existing callers like sentimentCache.repository and newsCache.repository
+ * follow this pattern by treating missing items as cache misses.
+ *
+ * @param keys - Array of primary key objects (pk, sk)
+ * @returns Promise resolving to array of found items (may be fewer than keys.length)
  */
 export async function batchGetItemsSingleTable<T>(
   keys: Array<{ pk: string; sk: string }>,
@@ -205,41 +220,67 @@ export async function batchGetItemsSingleTable<T>(
   const tableName = getTableName();
   const allResults: T[] = [];
   let remainingKeys = keys;
-  const maxAttempts = 5;
-  const baseDelayMs = 100;
+  const maxAttempts = 7; // Increased from 5
+  const baseDelayMs = 150; // Increased from 100
 
   for (let attempt = 0; attempt < maxAttempts && remainingKeys.length > 0; attempt++) {
     const params: BatchGetCommandInput = {
       RequestItems: {
         [tableName]: {
           Keys: remainingKeys,
+          ConsistentRead: false, // Eventual consistency is fine and faster
         },
       },
     };
 
-    const result = await dynamoDb.send(new BatchGetCommand(params));
+    try {
+      const result = await dynamoDb.send(new BatchGetCommand(params));
 
-    if (result.Responses?.[tableName]) {
-      allResults.push(...(result.Responses[tableName] as T[]));
-    }
+      if (result.Responses?.[tableName]) {
+        allResults.push(...(result.Responses[tableName] as T[]));
+      }
 
-    // Check for unprocessed keys
-    const unprocessedKeys = result.UnprocessedKeys?.[tableName]?.Keys;
-    if (!unprocessedKeys || unprocessedKeys.length === 0) {
-      break;
-    }
+      // Check for unprocessed keys
+      const unprocessedKeys = result.UnprocessedKeys?.[tableName]?.Keys;
+      if (!unprocessedKeys || unprocessedKeys.length === 0) {
+        break;
+      }
 
-    remainingKeys = unprocessedKeys as Array<{ pk: string; sk: string }>;
+      // If ALL keys are unprocessed and we got no results, log more details
+      const gotResults = result.Responses?.[tableName]?.length ?? 0;
+      if (gotResults === 0 && unprocessedKeys.length === remainingKeys.length) {
+        console.warn(`[DynamoDB] batchGetItemsSingleTable: ALL ${remainingKeys.length} keys unprocessed (attempt ${attempt + 1}), possible throttling or cold partition`);
+      }
 
-    if (attempt < maxAttempts - 1) {
-      const delayMs = baseDelayMs * Math.pow(2, attempt);
-      console.warn(`[DynamoDB] batchGetItemsSingleTable: ${remainingKeys.length} unprocessed keys, retrying in ${delayMs}ms`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      remainingKeys = unprocessedKeys as Array<{ pk: string; sk: string }>;
+
+      if (attempt < maxAttempts - 1) {
+        // More aggressive backoff: 150, 300, 600, 1200, 2400, 4800ms
+        const delayMs = baseDelayMs * Math.pow(2, attempt);
+        console.warn(`[DynamoDB] batchGetItemsSingleTable: ${remainingKeys.length} unprocessed keys, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxAttempts})`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    } catch (error) {
+      const errorName = (error as { name?: string }).name || 'Unknown';
+      console.error(`[DynamoDB] batchGetItemsSingleTable error (attempt ${attempt + 1}):`, errorName, error);
+
+      // Retry on transient errors
+      if (attempt < maxAttempts - 1 && (
+        errorName === 'ProvisionedThroughputExceededException' ||
+        errorName === 'ThrottlingException' ||
+        errorName === 'InternalServerError'
+      )) {
+        const delayMs = baseDelayMs * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        continue;
+      }
+      throw error;
     }
   }
 
   if (remainingKeys.length > 0) {
-    throw new Error(`batchGetItemsSingleTable: ${remainingKeys.length} keys still unprocessed after ${maxAttempts} attempts`);
+    // Return partial results instead of throwing - caller can handle gracefully
+    console.error(`[DynamoDB] batchGetItemsSingleTable: ${remainingKeys.length} keys still unprocessed after ${maxAttempts} attempts, returning partial results (${allResults.length} found)`);
   }
 
   return allResults;
@@ -339,163 +380,45 @@ export async function updateItem(
   await dynamoDb.send(new UpdateCommand(params));
 }
 
-// ============================================================
-// Legacy Multi-Table Helpers (for backward compatibility)
-// ============================================================
-
 /**
- * Build DynamoDB UpdateExpression from an object of updates
+ * Execute an operation with a timeout
  *
- * @param updates - Object containing field names and values to update
- * @returns UpdateExpression, ExpressionAttributeNames, and ExpressionAttributeValues
+ * Wraps any async operation with a timeout to prevent Lambda from hanging
+ * on unresponsive DynamoDB calls.
+ *
+ * @param operation - Async function to execute
+ * @param timeoutMs - Timeout in milliseconds (default: 5000)
+ * @param operationName - Name for error messages
+ * @returns Result of the operation
+ * @throws Error if operation times out
  *
  * @example
- * const result = buildUpdateExpression({ status: 'COMPLETED', completedAt: 1234567890 });
- * // Returns: {
- * //   UpdateExpression: 'SET #status = :status, #completedAt = :completedAt',
- * //   ExpressionAttributeNames: { '#status': 'status', '#completedAt': 'completedAt' },
- * //   ExpressionAttributeValues: { ':status': 'COMPLETED', ':completedAt': 1234567890 }
- * // }
+ * const result = await withTimeout(
+ *   () => dynamoDb.send(new GetCommand(params)),
+ *   3000,
+ *   'GetItem'
+ * );
  */
-export function buildUpdateExpression(updates: Record<string, unknown>): {
-  UpdateExpression: string;
-  ExpressionAttributeNames: Record<string, string>;
-  ExpressionAttributeValues: Record<string, unknown>;
-} {
-  const keys = Object.keys(updates);
+export async function withTimeout<T>(
+  operation: () => Promise<T>,
+  timeoutMs: number = DYNAMODB_TIMEOUT_MS,
+  operationName: string = 'DynamoDB'
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout>;
 
-  if (keys.length === 0) {
-    throw new Error('Updates object cannot be empty');
-  }
-
-  const setExpressions: string[] = [];
-  const expressionAttributeNames: Record<string, string> = {};
-  const expressionAttributeValues: Record<string, unknown> = {};
-
-  keys.forEach((key) => {
-    const attributeName = `#${key}`;
-    const attributeValue = `:${key}`;
-
-    setExpressions.push(`${attributeName} = ${attributeValue}`);
-    expressionAttributeNames[attributeName] = key;
-    expressionAttributeValues[attributeValue] = updates[key];
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${operationName} operation timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
   });
 
-  return {
-    UpdateExpression: `SET ${setExpressions.join(', ')}`,
-    ExpressionAttributeNames: expressionAttributeNames,
-    ExpressionAttributeValues: expressionAttributeValues,
-  };
-}
-
-/**
- * Batch get items from DynamoDB with automatic pagination
- * Handles DynamoDB limit of 100 items per request
- *
- * @param tableName - Name of the DynamoDB table
- * @param keys - Array of key objects to retrieve
- * @returns Array of retrieved items
- *
- * @example
- * const items = await batchGetItems('MyTable', [
- *   { ticker: 'AAPL', date: '2025-01-01' },
- *   { ticker: 'GOOGL', date: '2025-01-01' }
- * ]);
- */
-export async function batchGetItems<T = unknown, K extends object = Record<string, unknown>>(
-  tableName: string,
-  keys: K[]
-): Promise<T[]> {
-  if (keys.length === 0) {
-    return [];
-  }
-
-  const results: T[] = [];
-  const batchSize = 100; // DynamoDB limit
-
-  // Process in chunks of 100
-  for (let i = 0; i < keys.length; i += batchSize) {
-    const batch = keys.slice(i, i + batchSize);
-
-    const params: BatchGetCommandInput = {
-      RequestItems: {
-        [tableName]: {
-          Keys: batch,
-        },
-      },
-    };
-
-    const command = new BatchGetCommand(params);
-    const response = await dynamoDb.send(command);
-
-    if (response.Responses && response.Responses[tableName]) {
-      results.push(...(response.Responses[tableName] as T[]));
-    }
-
-    // Handle unprocessed keys (retry)
-    if (response.UnprocessedKeys && Object.keys(response.UnprocessedKeys).length > 0) {
-      console.warn('[DynamoDB] Unprocessed keys detected, retrying...', response.UnprocessedKeys);
-      const unprocessedKeys = response.UnprocessedKeys[tableName]?.Keys || [];
-      if (unprocessedKeys.length > 0) {
-        const retryResults = await batchGetItems<T>(tableName, unprocessedKeys as Record<string, unknown>[]);
-        results.push(...retryResults);
-      }
-    }
-  }
-
-  return results;
-}
-
-/**
- * Batch put items to DynamoDB with automatic batching
- * Handles DynamoDB limit of 25 items per request
- *
- * @param tableName - Name of the DynamoDB table
- * @param items - Array of items to put
- *
- * @example
- * await batchPutItems('MyTable', [
- *   { ticker: 'AAPL', date: '2025-01-01', price: 150 },
- *   { ticker: 'GOOGL', date: '2025-01-01', price: 2800 }
- * ]);
- */
-export async function batchPutItems<T extends object>(
-  tableName: string,
-  items: T[]
-): Promise<void> {
-  if (items.length === 0) {
-    return;
-  }
-
-  const batchSize = 25; // DynamoDB BatchWriteItem limit
-
-  // Process in chunks of 25
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-
-    const params: BatchWriteCommandInput = {
-      RequestItems: {
-        [tableName]: batch.map((item) => ({
-          PutRequest: {
-            Item: item,
-          },
-        })),
-      },
-    };
-
-    const command = new BatchWriteCommand(params);
-    const response = await dynamoDb.send(command);
-
-    // Handle unprocessed items (retry)
-    if (response.UnprocessedItems && Object.keys(response.UnprocessedItems).length > 0) {
-      console.warn('[DynamoDB] Unprocessed items detected, retrying...', response.UnprocessedItems);
-      const unprocessedItems = response.UnprocessedItems[tableName]?.map((req) => req.PutRequest?.Item) || [];
-      const validItems = unprocessedItems.filter((item): item is Record<string, unknown> => item !== undefined);
-
-      if (validItems.length > 0) {
-        await batchPutItems(tableName, validItems);
-      }
-    }
+  try {
+    const result = await Promise.race([operation(), timeoutPromise]);
+    clearTimeout(timeoutId!);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId!);
+    throw error;
   }
 }
 
@@ -548,4 +471,35 @@ export async function withRetry<T>(
   }
 
   throw lastError;
+}
+
+/**
+ * Execute DynamoDB operation with both timeout and retry protection
+ *
+ * Combines withTimeout and withRetry for robust DynamoDB operations.
+ *
+ * @param operation - Async function to execute
+ * @param operationName - Name for logging/error messages
+ * @param options - Timeout and retry options
+ * @returns Result of the operation
+ *
+ * @example
+ * const result = await withProtection(
+ *   () => dynamoDb.send(new GetCommand(params)),
+ *   'GetItem',
+ *   { timeoutMs: 3000, maxRetries: 2 }
+ * );
+ */
+export async function withProtection<T>(
+  operation: () => Promise<T>,
+  operationName: string = 'DynamoDB',
+  options?: { timeoutMs?: number; maxRetries?: number; baseDelayMs?: number }
+): Promise<T> {
+  const { timeoutMs = DYNAMODB_TIMEOUT_MS, maxRetries = 3, baseDelayMs = 100 } = options || {};
+
+  return withRetry(
+    () => withTimeout(operation, timeoutMs, operationName),
+    maxRetries,
+    baseDelayMs
+  );
 }

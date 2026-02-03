@@ -1,11 +1,12 @@
 /**
  * Stock Metadata Card
- * Displays company information at the top of the Price screen
+ * Displays company information using DisclosureCard for expandable description
  */
 
-import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { Card, Text, useTheme } from 'react-native-paper';
+import { DisclosureCard } from '@/components/common';
 import type { SymbolDetails } from '@/types/database.types';
 
 interface StockMetadataCardProps {
@@ -18,7 +19,6 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
   isLoading,
 }) => {
   const theme = useTheme();
-  const [isExpanded, setIsExpanded] = useState(false);
 
   if (isLoading) {
     return (
@@ -40,6 +40,45 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
     );
   }
 
+  // If there's a long description, use DisclosureCard
+  if (symbol.longDescription) {
+    return (
+      <View style={styles.card}>
+        <DisclosureCard
+          title={symbol.ticker}
+          subtitle={symbol.name}
+          icon="business"
+          summary={
+            <View style={styles.summaryRow}>
+              <Text
+                variant="bodySmall"
+                style={{ color: theme.colors.onSurfaceVariant }}
+                numberOfLines={2}
+              >
+                {symbol.longDescription}
+              </Text>
+            </View>
+          }
+        >
+          <View style={styles.expandedContent}>
+            <View style={styles.exchangeBadge}>
+              <Text style={[styles.exchangeText, { color: theme.colors.primary }]}>
+                {symbol.exchangeCode}
+              </Text>
+            </View>
+            <Text
+              variant="bodyMedium"
+              style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
+            >
+              {symbol.longDescription}
+            </Text>
+          </View>
+        </DisclosureCard>
+      </View>
+    );
+  }
+
+  // Simple card without description
   return (
     <Card style={styles.card}>
       <Card.Content>
@@ -51,30 +90,9 @@ export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
             {symbol.exchangeCode}
           </Text>
         </View>
-
         <Text variant="titleMedium" style={styles.name}>
           {symbol.name}
         </Text>
-
-        {symbol.longDescription && (
-          <View>
-            <Text
-              variant="bodyMedium"
-              style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
-              numberOfLines={isExpanded ? undefined : 4}
-            >
-              {symbol.longDescription}
-            </Text>
-            <TouchableOpacity
-              onPress={() => setIsExpanded(!isExpanded)}
-              style={styles.moreButton}
-            >
-              <Text variant="bodySmall" style={[styles.moreText, { color: theme.colors.primary }]}>
-                {isExpanded ? 'Show less' : 'Show more'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </Card.Content>
     </Card>
   );
@@ -106,11 +124,22 @@ const styles = StyleSheet.create({
   description: {
     lineHeight: 20,
   },
-  moreButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
+  summaryRow: {
+    marginTop: -4,
   },
-  moreText: {
+  expandedContent: {
+    gap: 12,
+  },
+  exchangeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+  },
+  exchangeText: {
+    fontSize: 11,
     fontWeight: '600',
+    textTransform: 'uppercase',
   },
 });

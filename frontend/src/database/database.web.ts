@@ -5,13 +5,129 @@
 
 import { DB_NAME } from '@/constants/database.constants';
 
+/** Stored symbol data */
+interface StoredSymbol {
+  ticker: string;
+  name: string;
+  exchangeCode: string;
+  longDescription?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+/** Stored stock price data */
+interface StoredStock {
+  hash: string;
+  date: string;
+  ticker: string;
+  close: number;
+  high: number;
+  low: number;
+  open: number;
+  volume: number;
+  adjClose?: number;
+  adjHigh?: number;
+  adjLow?: number;
+  adjOpen?: number;
+  adjVolume?: number;
+  divCash?: number;
+  splitFactor?: number;
+  marketCap?: number;
+  enterpriseVal?: number;
+  peRatio?: number;
+  pbRatio?: number;
+  trailingPEG1Y?: number;
+}
+
+/** Stored news article */
+interface StoredNews {
+  date: string;
+  ticker: string;
+  articleTickers: string;
+  title: string;
+  articleDate: string;
+  articleUrl: string;
+  publisher?: string;
+  ampUrl?: string;
+  articleDescription?: string;
+}
+
+/** Stored daily sentiment aggregate */
+interface StoredSentiment {
+  date: string;
+  ticker: string;
+  positive: number;
+  negative: number;
+  sentimentNumber: number;
+  sentiment: string;
+  nextDay?: number;
+  twoWks?: number;
+  oneMnth?: number;
+  updateDate?: string;
+  nextDayDirection?: string;
+  nextDayProbability?: number;
+  twoWeekDirection?: string;
+  twoWeekProbability?: number;
+  oneMonthDirection?: string;
+  oneMonthProbability?: number;
+}
+
+/** Stored article-level sentiment */
+interface StoredArticleSentiment {
+  ticker: string;
+  hash: number;
+  date: string;
+  positive: number;
+  negative: number;
+  nextDay: number;
+  twoWks: number;
+  oneMnth: number;
+  body: string;
+  sentiment: string;
+  sentimentNumber: number;
+}
+
+/** Stored portfolio item */
+interface StoredPortfolio {
+  ticker: string;
+  next: string;
+  name: string;
+  wks: string;
+  mnth: string;
+  nextDayDirection?: string;
+  nextDayProbability?: number;
+  twoWeekDirection?: string;
+  twoWeekProbability?: number;
+  oneMonthDirection?: string;
+  oneMonthProbability?: number;
+}
+
+/** Type-safe storage structure */
 interface StorageData {
-  symbols: Record<string, any>;
-  stocks: Record<string, any[]>;
-  news: Record<string, any[]>;
-  sentiment: Record<string, any[]>;
-  articleSentiment: Record<string, any[]>;
-  portfolio: Record<string, any>;
+  symbols: Record<string, StoredSymbol>;
+  stocks: Record<string, StoredStock[]>;
+  news: Record<string, StoredNews[]>;
+  sentiment: Record<string, StoredSentiment[]>;
+  articleSentiment: Record<string, StoredArticleSentiment[]>;
+  portfolio: Record<string, StoredPortfolio>;
+}
+
+/**
+ * Safely parse an integer from unknown value
+ */
+function safeParseInt(value: unknown, fallback = 0): number {
+  if (typeof value === 'number') return Math.floor(value);
+  const parsed = parseInt(String(value), 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+/**
+ * Safely parse a float from unknown value
+ */
+function safeParseFloat(value: unknown, fallback = 0): number {
+  if (typeof value === 'number') return value;
+  const parsed = parseFloat(String(value));
+  return Number.isNaN(parsed) ? fallback : parsed;
 }
 
 class WebDatabase {
@@ -470,31 +586,32 @@ class WebDatabase {
   }
 
   // Article sentiment operations
-  private insertArticleSentiment(params: any[]): any {
+  private insertArticleSentiment(params: unknown[]): { changes: number } {
     // Parameters: date, hash, ticker, positive, negative, nextDay, twoWks, oneMnth, body, sentiment, sentimentNumber
     const [date, hash, ticker, positive, negative, nextDay, twoWks, oneMnth, body, sentiment, sentimentNumber] = params;
 
-    if (!this.data.articleSentiment[ticker]) {
-      this.data.articleSentiment[ticker] = [];
+    const tickerStr = String(ticker);
+    if (!this.data.articleSentiment[tickerStr]) {
+      this.data.articleSentiment[tickerStr] = [];
     }
 
-    // Ensure hash is a number
-    const hashNum = typeof hash === 'number' ? hash : parseInt(hash);
+    // Ensure hash is a number using safe parsing
+    const hashNum = safeParseInt(hash);
 
-    const exists = this.data.articleSentiment[ticker].some((s) => s.hash === hashNum);
+    const exists = this.data.articleSentiment[tickerStr].some((s) => s.hash === hashNum);
     if (!exists) {
-      this.data.articleSentiment[ticker].push({
-        ticker,
+      this.data.articleSentiment[tickerStr].push({
+        ticker: tickerStr,
         hash: hashNum,
-        date,
-        positive: parseInt(positive),
-        negative: parseInt(negative),
-        nextDay: parseFloat(nextDay),
-        twoWks: parseFloat(twoWks),
-        oneMnth: parseFloat(oneMnth),
-        body,
-        sentiment,
-        sentimentNumber: parseFloat(sentimentNumber),
+        date: String(date),
+        positive: safeParseInt(positive),
+        negative: safeParseInt(negative),
+        nextDay: safeParseFloat(nextDay),
+        twoWks: safeParseFloat(twoWks),
+        oneMnth: safeParseFloat(oneMnth),
+        body: String(body ?? ''),
+        sentiment: String(sentiment ?? 'NEUT'),
+        sentimentNumber: safeParseFloat(sentimentNumber),
       });
     }
     this.saveData();

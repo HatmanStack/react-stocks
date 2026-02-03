@@ -366,7 +366,12 @@ export async function getStockPredictions(
 
         if (holdoutSplit >= 25 && y.length - holdoutSplit >= 20) {
           const holdoutModel = new LogisticRegression();
-          holdoutModel.fit(X_full_scaled.slice(0, holdoutSplit), y.slice(0, holdoutSplit), trainOptions);
+          // Slice sample weights to match holdout training set size
+          const holdoutTrainOptions = {
+            ...trainOptions,
+            sampleWeights: sampleWeights.slice(0, holdoutSplit),
+          };
+          holdoutModel.fit(X_full_scaled.slice(0, holdoutSplit), y.slice(0, holdoutSplit), holdoutTrainOptions);
           holdoutScore = holdoutModel.score(X_full_scaled.slice(holdoutSplit), y.slice(holdoutSplit));
           console.log(`[Holdout] ${ticker} NEXT: holdout=${holdoutScore.toFixed(3)} (${y.length - holdoutSplit} samples)`);
 

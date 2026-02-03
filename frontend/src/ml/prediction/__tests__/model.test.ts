@@ -374,4 +374,101 @@ describe('LogisticRegression', () => {
       expect(params.iterations).toBe(1);
     });
   });
+
+  describe('Adam Optimizer', () => {
+    it('should train successfully with Adam optimizer', () => {
+      const model = new LogisticRegression();
+
+      const X = [[1, 2], [2, 3], [3, 4], [4, 5]];
+      const y = [0, 0, 1, 1];
+
+      model.fit(X, y, {
+        optimizer: 'adam',
+        maxIterations: 500,
+        learningRate: 0.1,
+      });
+
+      const params = model.getParams();
+      expect(params.weights).not.toBeNull();
+      expect(params.iterations).toBeGreaterThan(0);
+    });
+
+    it('should achieve similar accuracy as SGD', () => {
+      const X = [[-2], [-1], [1], [2]];
+      const y = [0, 0, 1, 1];
+
+      const sgdModel = new LogisticRegression();
+      sgdModel.fit(X, y, {
+        optimizer: 'sgd',
+        maxIterations: 1000,
+        learningRate: 0.1,
+      });
+
+      const adamModel = new LogisticRegression();
+      adamModel.fit(X, y, {
+        optimizer: 'adam',
+        maxIterations: 1000,
+        learningRate: 0.1,
+      });
+
+      const sgdAccuracy = sgdModel.score(X, y);
+      const adamAccuracy = adamModel.score(X, y);
+
+      // Both should achieve good accuracy on this simple problem
+      expect(sgdAccuracy).toBeGreaterThanOrEqual(0.75);
+      expect(adamAccuracy).toBeGreaterThanOrEqual(0.75);
+    });
+
+    it('should converge on typical problems with both optimizers', () => {
+      // Create a slightly more complex dataset
+      const X = [
+        [0.1, 0.2], [0.2, 0.3], [0.3, 0.4], [0.4, 0.5],
+        [0.6, 0.5], [0.7, 0.6], [0.8, 0.7], [0.9, 0.8],
+      ];
+      const y = [0, 0, 0, 0, 1, 1, 1, 1];
+
+      const sgdModel = new LogisticRegression();
+      sgdModel.fit(X, y, {
+        optimizer: 'sgd',
+        maxIterations: 2000,
+        learningRate: 0.1,
+        tolerance: 1e-6,
+      });
+
+      const adamModel = new LogisticRegression();
+      adamModel.fit(X, y, {
+        optimizer: 'adam',
+        maxIterations: 2000,
+        learningRate: 0.1,
+        tolerance: 1e-6,
+      });
+
+      const sgdParams = sgdModel.getParams();
+      const adamParams = adamModel.getParams();
+
+      // Both optimizers should converge on this simple problem
+      expect(sgdParams.converged).toBe(true);
+      expect(adamParams.converged).toBe(true);
+    });
+
+    it('should respect Adam hyperparameters', () => {
+      const model = new LogisticRegression();
+
+      const X = [[1], [2]];
+      const y = [0, 1];
+
+      // Should not throw with custom Adam parameters
+      expect(() => {
+        model.fit(X, y, {
+          optimizer: 'adam',
+          beta1: 0.95,
+          beta2: 0.9999,
+          epsilon: 1e-7,
+          maxIterations: 100,
+        });
+      }).not.toThrow();
+
+      expect(model.isFitted()).toBe(true);
+    });
+  });
 });

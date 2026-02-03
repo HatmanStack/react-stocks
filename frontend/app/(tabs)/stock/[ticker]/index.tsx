@@ -14,6 +14,7 @@ import { useContentWidth } from '@/hooks/useContentWidth';
 import { StockMetadataCard } from '@/components/stock/StockMetadataCard';
 import { PriceListHeader } from '@/components/stock/PriceListHeader';
 import { PriceListItem } from '@/components/stock/PriceListItem';
+import { DataTable, DataTableColumn, MonoText } from '@/components/common';
 import { PriceChart } from '@/components/charts/PriceChart';
 import { TimeRangeSelector } from '@/components/common/TimeRangeSelector';
 import type { TimeRange } from '@/components/common/TimeRangeSelector';
@@ -72,6 +73,74 @@ export default function PriceScreen() {
     if (!stockData) return [];
     return [...stockData].sort((a, b) => b.date.localeCompare(a.date));
   }, [stockData]);
+
+  // DataTable columns for price history
+  const priceColumns: DataTableColumn<StockDetails>[] = useMemo(() => [
+    {
+      key: 'date',
+      title: 'Date',
+      width: 'flex',
+      sortable: true,
+      getValue: (item) => item.date,
+      render: (item) => (
+        <MonoText variant="price" style={{ fontSize: 12 }}>
+          {item.date}
+        </MonoText>
+      ),
+    },
+    {
+      key: 'open',
+      title: 'Open',
+      width: 70,
+      align: 'right',
+      sortable: true,
+      getValue: (item) => item.open,
+      render: (item) => (
+        <MonoText variant="price" style={{ fontSize: 12 }}>
+          ${item.open.toFixed(2)}
+        </MonoText>
+      ),
+    },
+    {
+      key: 'high',
+      title: 'High',
+      width: 70,
+      align: 'right',
+      sortable: true,
+      getValue: (item) => item.high,
+      render: (item) => (
+        <MonoText variant="price" style={{ fontSize: 12 }} positive>
+          ${item.high.toFixed(2)}
+        </MonoText>
+      ),
+    },
+    {
+      key: 'low',
+      title: 'Low',
+      width: 70,
+      align: 'right',
+      sortable: true,
+      getValue: (item) => item.low,
+      render: (item) => (
+        <MonoText variant="price" style={{ fontSize: 12 }} negative>
+          ${item.low.toFixed(2)}
+        </MonoText>
+      ),
+    },
+    {
+      key: 'close',
+      title: 'Close',
+      width: 70,
+      align: 'right',
+      sortable: true,
+      getValue: (item) => item.close,
+      render: (item) => (
+        <MonoText variant="price" style={{ fontSize: 12 }}>
+          ${item.close.toFixed(2)}
+        </MonoText>
+      ),
+    },
+  ], []);
 
   // Render loading state
   if (isSymbolLoading || isPriceLoading) {
@@ -133,10 +202,14 @@ export default function PriceScreen() {
             />
             <View style={styles.desktopLayout}>
               <View style={styles.desktopLeftColumn}>
-                <PriceListHeader />
-                {sortedStockData.map((item) => (
-                  <PriceListItem key={keyExtractor(item)} item={item} />
-                ))}
+                <DataTable
+                  data={sortedStockData}
+                  columns={priceColumns}
+                  keyExtractor={keyExtractor}
+                  maxHeight={400}
+                  showRowNumbers
+                  animateRows
+                />
               </View>
               <View style={styles.desktopRightColumn}>
                 <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />

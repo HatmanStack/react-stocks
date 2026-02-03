@@ -153,6 +153,14 @@ export default function SentimentScreen() {
           keyExtractor={keyExtractorArticle}
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
+          ListHeaderComponent={() => (
+            <View style={styles.timeRangeRow}>
+              <TimeRangeSelector
+                selectedRange={selectedTimeRange}
+                onRangeChange={handleRangeChange}
+              />
+            </View>
+          )}
           contentContainerStyle={styles.listContent}
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}

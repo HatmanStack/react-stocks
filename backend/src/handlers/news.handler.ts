@@ -14,10 +14,11 @@ import { fetchAlphaVantageNews } from '../services/alphavantage.service';
 import {
   queryArticlesByTicker,
   batchPutArticles,
-  existsInCache,
+  batchCheckExistence,
 } from '../repositories/newsCache.repository';
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
 import { MIN_DAYS_FOR_PREDICTIONS } from '../constants/ml.constants.js';
+import { NEWS_COVERAGE } from '../constants/news.constants.js';
 
 /** Alpha Vantage: Fetch 5 years to maximize value of limited API calls (25/day free tier)
  *  API returns max 1000 articles, sorted by most recent - older articles truncated for popular stocks */
@@ -26,27 +27,44 @@ const ALPHA_VANTAGE_LOOKBACK_DAYS = 365 * 5; // 5 years
 /**
  * Filter out articles already in cache
  * Returns only new articles with pre-computed hashes to avoid double hashing
+ *
+ * Uses batch existence check for O(ceil(N/100)) DynamoDB calls instead of O(N)
+ *
+ * @param skipCacheCheck - If true, skip batch existence check (optimization for fresh stocks)
  */
 async function filterNewArticles(
   ticker: string,
-  apiArticles: FinnhubNewsArticle[]
+  apiArticles: FinnhubNewsArticle[],
+  skipCacheCheck = false
 ): Promise<{
   newArticles: { article: FinnhubNewsArticle; hash: string }[];
   duplicateCount: number;
 }> {
-  const newArticles: { article: FinnhubNewsArticle; hash: string }[] = [];
-  let duplicateCount = 0;
-
-  for (const article of apiArticles) {
-    const hash = generateArticleHash(article.url);
-    const exists = await existsInCache(ticker, hash);
-
-    if (!exists) {
-      newArticles.push({ article, hash }); // Return hash to avoid recomputing
-    } else {
-      duplicateCount++;
-    }
+  if (apiArticles.length === 0) {
+    return { newArticles: [], duplicateCount: 0 };
   }
+
+  // Pre-compute all hashes in a single pass
+  const articlesWithHashes = apiArticles.map((article) => ({
+    article,
+    hash: generateArticleHash(article.url),
+  }));
+
+  // For fresh stocks (no cached items), skip expensive batch check
+  if (skipCacheCheck) {
+    console.log(`[NewsHandler] Skipping cache check for fresh stock ${ticker} (${articlesWithHashes.length} articles)`);
+    return { newArticles: articlesWithHashes, duplicateCount: 0 };
+  }
+
+  // Batch check existence (100 per DynamoDB call)
+  const hashes = articlesWithHashes.map((a) => a.hash);
+  const existingHashes = await batchCheckExistence(ticker, hashes);
+
+  // Filter to only new articles
+  const newArticles = articlesWithHashes.filter(
+    ({ hash }) => !existingHashes.has(hash)
+  );
+  const duplicateCount = articlesWithHashes.length - newArticles.length;
 
   return { newArticles, duplicateCount };
 }
@@ -91,19 +109,21 @@ export async function handleNewsWithCache(
     console.log(`[NewsHandler] Coverage: ${daysWithArticles}/${totalDays} days (${(coverageRatio * 100).toFixed(1)}%)`);
 
     // Tier 2: Determine if we need to fetch from API
-    // Adaptive coverage threshold based on date range:
-    // - Short ranges (< 60 days): require 30% coverage (news doesn't come every day)
-    // - Medium ranges (60-180 days): require 15% coverage
-    // - Long ranges (> 180 days): require 10 articles AND at least 15 unique days
-    //   (Finnhub returns max ~250 articles, so coverage % is naturally lower for long ranges)
+    // Adaptive coverage threshold based on date range (see news.constants.ts for rationale)
     let hasGoodCoverage: boolean;
-    if (totalDays <= 60) {
-      hasGoodCoverage = cachedInRange.length >= 10 && coverageRatio >= 0.3;
-    } else if (totalDays <= 180) {
-      hasGoodCoverage = cachedInRange.length >= 10 && coverageRatio >= 0.15;
+    if (totalDays <= NEWS_COVERAGE.SHORT_RANGE_DAYS) {
+      hasGoodCoverage =
+        cachedInRange.length >= NEWS_COVERAGE.MIN_ARTICLES &&
+        coverageRatio >= NEWS_COVERAGE.SHORT_RANGE_COVERAGE;
+    } else if (totalDays <= NEWS_COVERAGE.MEDIUM_RANGE_DAYS) {
+      hasGoodCoverage =
+        cachedInRange.length >= NEWS_COVERAGE.MIN_ARTICLES &&
+        coverageRatio >= NEWS_COVERAGE.MEDIUM_RANGE_COVERAGE;
     } else {
-      // For long ranges, just check we have reasonable data (15+ unique days)
-      hasGoodCoverage = cachedInRange.length >= 10 && daysWithArticles >= 15;
+      // For long ranges, check minimum article count and unique days
+      hasGoodCoverage =
+        cachedInRange.length >= NEWS_COVERAGE.MIN_ARTICLES &&
+        daysWithArticles >= NEWS_COVERAGE.LONG_RANGE_MIN_UNIQUE_DAYS;
     }
 
     if (hasGoodCoverage) {
@@ -214,8 +234,9 @@ export async function handleNewsWithCache(
       console.log(`[NewsHandler] Sufficient historical data in cache (${totalCachedDays} days), skipping Alpha Vantage API call`);
     }
 
-    // Filter out articles already in cache
-    const { newArticles, duplicateCount } = await filterNewArticles(ticker, apiArticles);
+    // Filter out articles already in cache (skip check for fresh stocks)
+    const isFreshStock = cachedItems.length === 0;
+    const { newArticles, duplicateCount } = await filterNewArticles(ticker, apiArticles, isFreshStock);
 
     console.log(`[NewsHandler] API returned ${apiArticles.length} articles: ${newArticles.length} new, ${duplicateCount} duplicates`);
 

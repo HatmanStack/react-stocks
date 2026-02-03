@@ -13,6 +13,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { enGB, registerTranslation } from 'react-native-paper-dates';
+import { useFonts } from 'expo-font';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 
 // Contexts
 import { StockProvider } from '../src/contexts/StockContext';
@@ -23,6 +26,9 @@ import { colors } from '../src/theme/colors';
 
 // Error Boundary
 import { ErrorBoundary } from '../src/components/common/ErrorBoundary';
+
+// Toast Provider
+import { ToastProvider } from '../src/components/common';
 
 // Register date picker locale
 registerTranslation('en', enGB);
@@ -40,6 +46,10 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
+  const [fontsLoaded] = useFonts({
+    Inter_500Medium,
+    Inter_700Bold,
+  });
 
   useEffect(() => {
     async function initialize() {
@@ -85,7 +95,7 @@ export default function RootLayout() {
     initialize();
   }, []);
 
-  if (!isReady) {
+  if (!isReady || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -138,8 +148,10 @@ export default function RootLayout() {
             <Portal.Host>
               <QueryClientProvider client={queryClient}>
                 <StockProvider>
-                  <Slot />
-                  <StatusBar style="light" />
+                  <ToastProvider>
+                    <Slot />
+                    <StatusBar style="light" />
+                  </ToastProvider>
                 </StockProvider>
               </QueryClientProvider>
             </Portal.Host>

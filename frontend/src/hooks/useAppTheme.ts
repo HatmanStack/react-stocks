@@ -107,6 +107,22 @@ export interface AppTheme {
     spacing: Record<string, number>;
     borderRadius: Record<string, number>;
     shadows: Record<string, object>;
+    displayFonts?: {
+      display?: {
+        fontFamily: string;
+        fontWeight: string;
+        fontSize: number;
+        lineHeight: number;
+        letterSpacing: number;
+      };
+      displayMedium?: {
+        fontFamily: string;
+        fontWeight: string;
+        fontSize: number;
+        lineHeight: number;
+        letterSpacing: number;
+      };
+    };
   };
 }
 

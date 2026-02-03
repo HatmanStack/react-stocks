@@ -13,10 +13,6 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 
 ---
 
-<!-- ![Stock Insights Banner](assets/banner.png) -->
-
----
-
 </div>
 
 ## ✨ Features
@@ -57,7 +53,7 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 * **UI:** React Native Paper 5.14.5 (Material Design 3)
 * **State Management:** React Context + TanStack Query 5.90.7
 * **Database:** Expo SQLite 16.0.9 (native) / localStorage (web)
-* **Backend:** AWS Lambda (Node.js 20.x) + API Gateway + DynamoDB
+* **Backend:** AWS Lambda (Node.js 24.x, Python 3.13) + API Gateway + DynamoDB
 * **APIs:** yfinance (stock data) & Finnhub (news) via Lambda
 * **ML:** Browser-based sentiment analysis + ensemble logistic regression predictions
 * **Testing:** Jest 30.2.0 + React Native Testing Library + pytest
@@ -68,8 +64,7 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 
 ### Prerequisites
 
-* [Node.js](https://nodejs.org/) v24 LTS (for local development)
-  * **Note:** The Lambda runtime uses Node.js 20.x. The esbuild config uses `--target=node24` which is backwards compatible with Node 20.x (ES2022 features).
+* [Node.js](https://nodejs.org/) v24 LTS
 * npm (included with Node.js)
 * [Expo Go](https://expo.dev/go) app (for mobile testing)
 * AWS CLI v2+ and SAM CLI v1.70.0+ (for backend deployment)
@@ -91,8 +86,7 @@ A cross-platform application that lets you monitor real-time stock prices, analy
     ```bash
     cd backend
     npm install
-    npm run deploy:guided  # Enter API keys when prompted
-    # Returns to root directory and auto-updates .env
+    npm run deploy  # Enter API keys when prompted
     ```
 
 4.  **Start the app:**

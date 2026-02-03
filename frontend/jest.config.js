@@ -3,7 +3,7 @@ module.exports = {
   rootDir: '.',
   roots: ['<rootDir>/src'],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|d3-.*|react-native-svg-charts)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|d3-.*|react-native-svg-charts|react-native-reanimated|react-native-worklets)',
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
