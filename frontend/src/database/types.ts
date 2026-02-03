@@ -26,7 +26,6 @@ export interface DatabaseClient {
    * @param sql - SQL statement to execute
    * @param params - Optional parameters for the statement
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   runAsync(sql: string, params?: SqlParam[]): Promise<any>;
 
   /**
@@ -35,7 +34,6 @@ export interface DatabaseClient {
    * @param params - Optional parameters for the query
    * @returns Array of result rows
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getAllAsync<T = any>(sql: string, params?: SqlParam[]): Promise<T[]>;
 
   /**
@@ -44,7 +42,6 @@ export interface DatabaseClient {
    * @param params - Optional parameters for the query
    * @returns First result row or null if no match
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getFirstAsync<T = any>(sql: string, params?: SqlParam[]): Promise<T | null>;
 
   /**
