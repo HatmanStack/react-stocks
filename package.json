@@ -17,6 +17,9 @@
     "deploy": "./backend/scripts/deploy.sh",
     "hygiene": "./scripts/code-hygiene.sh"
   },
+  "dependencies": {
+    "react-native-worklets": "^0.6.1"
+  },
   "devDependencies": {
     "knip": "^5.80.0"
   }
