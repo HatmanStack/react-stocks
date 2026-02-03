@@ -204,7 +204,7 @@ function SentimentText({
     };
   });
 
-  const displayText = label || (showValue ? `${(value * 100).toFixed(0)}%` : `${value.toFixed(2)}`);
+  const displayText = label ?? (showValue ? `${(value * 100).toFixed(0)}%` : '');
 
   return (
     <Animated.Text style={[styles.text, textStyle, style]}>

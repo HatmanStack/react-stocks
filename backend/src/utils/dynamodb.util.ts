@@ -196,6 +196,18 @@ export async function deleteItem(pk: string, sk: string): Promise<void> {
 /**
  * Batch get items for single-table design (max 100 per call).
  * Automatically retries UnprocessedKeys with exponential backoff.
+ *
+ * **Important**: This function may return partial results if some keys remain
+ * unprocessed after all retry attempts (up to maxAttempts). It favors returning
+ * partial results over total failure to allow callers to handle incomplete data
+ * gracefully. Callers must handle the possibility of receiving fewer items than
+ * requested keys.
+ *
+ * Existing callers like sentimentCache.repository and newsCache.repository
+ * follow this pattern by treating missing items as cache misses.
+ *
+ * @param keys - Array of primary key objects (pk, sk)
+ * @returns Promise resolving to array of found items (may be fewer than keys.length)
  */
 export async function batchGetItemsSingleTable<T>(
   keys: Array<{ pk: string; sk: string }>,

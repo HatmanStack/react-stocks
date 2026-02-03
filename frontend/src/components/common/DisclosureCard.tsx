@@ -11,7 +11,7 @@
  * - Optional summary view when collapsed
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Pressable, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -75,6 +75,11 @@ export function DisclosureCard({
   // Animation values
   const expandProgress = useSharedValue(isExpanded ? 1 : 0);
   const pressProgress = useSharedValue(0);
+
+  // Sync animation with external controlled state changes
+  useEffect(() => {
+    expandProgress.value = withSpring(isExpanded ? 1 : 0, SPRING_CONFIG);
+  }, [isExpanded, expandProgress]);
 
   const handlePress = useCallback(() => {
     if (disabled) return;

@@ -8,6 +8,7 @@ Uses contextvars for request context across async operations.
 import json
 import logging
 import os
+import sys
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Any
@@ -185,7 +186,18 @@ class StructuredLogger:
             **kwargs: Additional fields to include
         """
         if exc_info:
-            self._logger.error(message, exc_info=True)
+            # Log with exception info but also include extra fields
+            record = self._logger.makeRecord(
+                self._logger.name,
+                logging.ERROR,
+                "(unknown file)",
+                0,
+                message,
+                (),
+                sys.exc_info(),
+            )
+            record.extra_data = kwargs if kwargs else None
+            self._logger.handle(record)
         else:
             self._log(logging.ERROR, message, **kwargs)
 

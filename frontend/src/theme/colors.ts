@@ -76,4 +76,4 @@ export const colors = {
   },
 };
 
-export type ColorName = keyof typeof colors;
+export type ColorName = Exclude<keyof typeof colors, 'gradients'>;

@@ -41,8 +41,10 @@ export async function generateBrowserPredictions(
 
     // Fetch stock data for the user's selected timeframe
     // Don't override user's selection - let predictions fail naturally if insufficient data
+    // Clamp days to at least 1 to avoid future dates or empty ranges
+    const safeDays = Math.max(1, days);
     const stockEndStr = formatDateForDB(new Date());
-    const stockStartStr = formatDateForDB(subDays(new Date(), days));
+    const stockStartStr = formatDateForDB(subDays(new Date(), safeDays));
 
     try {
       await syncStockData(ticker, stockStartStr, stockEndStr, MIN_STOCK_DATA);

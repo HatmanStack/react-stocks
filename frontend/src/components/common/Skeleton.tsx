@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
   interpolate,
   Easing,
+  cancelAnimation,
 } from 'react-native-reanimated';
 
 export interface SkeletonProps extends ViewProps {
@@ -35,13 +36,22 @@ export function Skeleton({
   const shimmerPosition = useSharedValue(0);
 
   useEffect(() => {
-    if (disableAnimation) return;
+    if (disableAnimation) {
+      cancelAnimation(shimmerPosition);
+      shimmerPosition.value = 0;
+      return;
+    }
 
     shimmerPosition.value = withRepeat(
       withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
       -1, // infinite
       false // don't reverse
     );
+
+    // Cleanup: cancel animation on unmount
+    return () => {
+      cancelAnimation(shimmerPosition);
+    };
   }, [shimmerPosition, disableAnimation]);
 
   const animatedStyle = useAnimatedStyle(() => {

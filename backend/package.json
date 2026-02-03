@@ -34,7 +34,7 @@
     "@aws-sdk/client-dynamodb": "^3.931.0",
     "@aws-sdk/lib-dynamodb": "^3.931.0",
     "sentiment": "^5.0.2",
-    "zod": "^3.24.0"
+    "zod": "^3.24.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.16.0",

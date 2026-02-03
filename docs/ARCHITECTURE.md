@@ -75,7 +75,7 @@ Post-processing applied to raw softmax output:
 1. **Neutral dampening**: If `neut_prob >= 0.003`, reduce directional score by `min((neut - 0.003) * 200, 0.9)`
 2. **Temperature scaling**: `tanh(arctanh(dampened) / 3.0)` — spreads compressed scores for better nuance
 
-File: `backend/python/services/ml/model_onnx.py`
+File: `backend/services/ml/model_onnx.py`
 
 ### Signal Score (Reliability Weight)
 

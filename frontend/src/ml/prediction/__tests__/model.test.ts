@@ -419,7 +419,7 @@ describe('LogisticRegression', () => {
       expect(adamAccuracy).toBeGreaterThanOrEqual(0.75);
     });
 
-    it('should converge faster than SGD on typical problems', () => {
+    it('should converge on typical problems with both optimizers', () => {
       // Create a slightly more complex dataset
       const X = [
         [0.1, 0.2], [0.2, 0.3], [0.3, 0.4], [0.4, 0.5],
@@ -446,9 +446,9 @@ describe('LogisticRegression', () => {
       const sgdParams = sgdModel.getParams();
       const adamParams = adamModel.getParams();
 
-      // Adam should typically converge in fewer iterations
-      // Allow some variance - main point is both converge
-      expect(adamParams.converged || adamParams.iterations <= sgdParams.iterations).toBe(true);
+      // Both optimizers should converge on this simple problem
+      expect(sgdParams.converged).toBe(true);
+      expect(adamParams.converged).toBe(true);
     });
 
     it('should respect Adam hyperparameters', () => {
