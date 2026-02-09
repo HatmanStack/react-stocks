@@ -49,11 +49,12 @@ export function AnimatedNumber({
   }, [value, animatedValue]);
 
   const animatedProps = useAnimatedProps(() => {
-    // Format the animated value
     const formattedValue = formatter(animatedValue.value);
     return {
       text: formattedValue,
-    } as any;
+      // Reanimated's AnimatedProps type doesn't include 'text' for custom components.
+      // This is a known gap — the prop is correctly applied at runtime.
+    } as unknown as Record<string, unknown>;
   });
 
   return (

@@ -3,7 +3,6 @@ Stocks endpoint handler with DynamoDB caching.
 Handles GET /stocks requests for prices and metadata.
 """
 
-import logging
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -13,9 +12,9 @@ from utils.transform import transform_history_to_tiingo, transform_info_to_metad
 from utils.response import success_response, error_response
 from utils.error import APIError
 from utils.validation import TICKER_PATTERN, DATE_PATTERN
+from utils.logger import get_structured_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_structured_logger(__name__)
 
 
 def generate_date_range(start_date: str, end_date: str) -> list[str]:

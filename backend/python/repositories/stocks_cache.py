@@ -3,7 +3,6 @@ StocksCache Repository.
 DynamoDB operations for caching stock price data.
 """
 
-import logging
 import os
 import time
 from decimal import Decimal
@@ -11,6 +10,8 @@ from typing import Any
 
 import boto3
 from boto3.dynamodb.conditions import Key
+
+from utils.logger import get_structured_logger
 
 
 def _float_to_decimal(obj: Any) -> Any:
@@ -23,8 +24,7 @@ def _float_to_decimal(obj: Any) -> Any:
         return [_float_to_decimal(i) for i in obj]
     return obj
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_structured_logger(__name__)
 
 # Configuration — must match DYNAMODB_TABLE_NAME set in template.yaml
 TABLE_NAME = os.environ.get("DYNAMODB_TABLE_NAME")

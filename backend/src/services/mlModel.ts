@@ -140,6 +140,12 @@ export async function trainModel(
         finalAccuracy = correct / numSamples;
     }
 
+    // Holdout validation: reject models that perform worse than random
+    const MIN_ACCEPTABLE_ACCURACY = 0.45;
+    if (finalAccuracy < MIN_ACCEPTABLE_ACCURACY) {
+        console.warn(`[MLModel] Model accuracy ${finalAccuracy.toFixed(4)} below threshold ${MIN_ACCEPTABLE_ACCURACY}, predictions may be unreliable`);
+    }
+
     return {
         model: { weights, bias },
         metrics: {

@@ -134,8 +134,12 @@ export async function runPredictionPipeline(ticker: string, days: number = 90): 
     const model = trainingResult.model;
     console.log(`[Pipeline] Model trained. Accuracy: ${trainingResult.metrics.accuracy.toFixed(4)}, Loss: ${trainingResult.metrics.loss.toFixed(4)}`);
 
-    // 7. Cache trained model for future requests
-    await cacheModel(ticker, model, scaler, X.length, trainingResult.metrics.accuracy);
+    // 7. Cache trained model for future requests (skip if accuracy is too low)
+    if (trainingResult.metrics.accuracy >= 0.45) {
+        await cacheModel(ticker, model, scaler, X.length, trainingResult.metrics.accuracy);
+    } else {
+        console.warn(`[Pipeline] Accuracy ${trainingResult.metrics.accuracy.toFixed(4)} too low to cache for ${ticker}`);
+    }
 
     // 8. Prediction Generation
     const latestFeatures = dailyFeatures[dailyFeatures.length - 1];
