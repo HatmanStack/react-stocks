@@ -149,29 +149,8 @@ export function aggregate_daily_features(priceData: StockPrice[], sentimentData:
             label = generate_label(previousPrice.close, price.close);
         }
 
-        // If we want to exclude noisy data from the RESULT list entirely, we could do it here or later.
-        // The prompt says "Skip days where label is None (noise exclusion)".
-        // "Attach label to DailyFeatures.label. Skip days where label is None".
-        // Wait, if we skip days where label is None, we lose the feature vector for that day.
-        // If this function is used for TRAINING, skipping is fine.
-        // If used for PREDICTION (inference), we need the features for the LATEST day regardless of label (we don't have label for today/tomorrow).
-        // However, for training data preparation, we filter later in `preprocessing.ts` -> `prepare_training_data`.
-        // "Filter out rows where label is None" is listed in Task 8 (preprocessing).
-        // But Task 7 says "Skip days where label is None (noise exclusion)" in "Update aggregate_daily_features()".
-        // If I skip here, I don't have to filter in Task 8.
-        // BUT: For INFERENCE, we call this function to get features for the "current" day (to predict tomorrow).
-        // The current day DOES NOT have a label (future unknown). So label will be null.
-        // If we skip it, we can't predict.
-        // So I should probably KEEP it here with null label, and filter in `prepare_training_data` which is specifically for training.
-        // Let's re-read Task 7.
-        // "Skip days where label is None (noise exclusion)"
-        // It seems to imply I should skip here.
-        // But "Feature Engineering - Daily Aggregation" suggests it produces features.
-        // If I skip here, I break inference pipeline which needs the latest day (which has no label).
-        // I will NOT skip here. I will let `label` be null.
-        // Wait, if I don't skip, `label` is `number | null` in `DailyFeatures`.
-        // Task 8 says "Filter out rows where label is None".
-        // So it confirms I should allow nulls here.
+        // Label is nullable: null for current day (no future data) and noise-threshold days.
+        // Filtering happens in prepare_training_data (preprocessing.ts), not here.
 
         dailyFeatures.push({
             date: price.date,

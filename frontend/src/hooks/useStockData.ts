@@ -104,7 +104,7 @@ export function useStockData(
     },
     enabled: enabled && !!ticker, // Only run if ticker is provided and enabled
     staleTime,
-    refetchOnMount: 'always', // Always refetch when component mounts
+    refetchOnMount: true, // Refetch only if stale (staleTime governs freshness)
   });
 }
 
