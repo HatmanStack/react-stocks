@@ -5,8 +5,8 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
 import { logError, hasStatusCode } from '../utils/error.util';
-import { validateTicker, validateDateFormat } from '../utils/validation.util';
 import { logMetrics, MetricUnit } from '../utils/metrics.util';
+import { newsRequestSchema, parseQueryParams } from '../utils/schemas.util';
 import { transformFinnhubToCache, transformCacheToFinnhub } from '../utils/cacheTransform.util';
 import { generateArticleHash } from '../utils/hash.util';
 import { fetchCompanyNews } from '../services/finnhub.service';
@@ -299,38 +299,12 @@ export async function handleNewsRequest(
   const startTime = Date.now();
 
   try {
-    // Parse query parameters
-    const params = event.queryStringParameters || {};
-    const ticker = params.ticker?.toUpperCase();
-    const from = params.from;
-    const to = params.to;
-
-    // Validate required parameters
-    if (!ticker) {
-      return errorResponse('Missing required parameter: ticker', 400);
+    // Validate query parameters with Zod schema
+    const parsed = parseQueryParams(event.queryStringParameters, newsRequestSchema);
+    if (!parsed.success) {
+      return errorResponse(parsed.error, 400);
     }
-
-    // Validate ticker format (strict: Finnhub requires alphanumeric only)
-    if (!validateTicker(ticker, true)) {
-      return errorResponse('Invalid ticker format. Must be alphanumeric.', 400);
-    }
-
-    // Validate date parameters (Finnhub requires from and to)
-    if (!from || !to) {
-      return errorResponse('Missing required parameters: from and to dates (YYYY-MM-DD)', 400);
-    }
-
-    // Validate date format (YYYY-MM-DD)
-    if (!validateDateFormat(from) || !validateDateFormat(to)) {
-      return errorResponse('Invalid date format. Use YYYY-MM-DD.', 400);
-    }
-
-    // Validate date range (from must be <= to)
-    const fromDate = new Date(from);
-    const toDate = new Date(to);
-    if (fromDate > toDate) {
-      return errorResponse('Invalid date range. from date must be before or equal to to date.', 400);
-    }
+    const { ticker, from, to } = parsed.data;
 
     // Get API keys from environment
     const apiKey = process.env.FINNHUB_API_KEY;

@@ -4,7 +4,6 @@ Handles GET /stocks requests for prices and metadata.
 """
 
 import logging
-import re
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -13,13 +12,10 @@ from repositories.stocks_cache import query_stocks_by_date_range, batch_put_stoc
 from utils.transform import transform_history_to_tiingo, transform_info_to_metadata
 from utils.response import success_response, error_response
 from utils.error import APIError
+from utils.validation import TICKER_PATTERN, DATE_PATTERN
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-# Validation patterns
-TICKER_PATTERN = re.compile(r"^[A-Z0-9.\-]+$")
-DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def generate_date_range(start_date: str, end_date: str) -> list[str]:

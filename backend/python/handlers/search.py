@@ -10,12 +10,10 @@ from services.yfinance_service import search_tickers
 from utils.transform import transform_search_to_tiingo
 from utils.response import success_response, error_response
 from utils.error import APIError
+from utils.validation import MAX_QUERY_LENGTH
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-# Configuration
-MAX_QUERY_LENGTH = 100
 
 
 def handle_search_request(event: dict[str, Any]) -> dict[str, Any]:

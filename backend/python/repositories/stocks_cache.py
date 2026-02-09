@@ -26,8 +26,10 @@ def _float_to_decimal(obj: Any) -> Any:
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-# Configuration
-TABLE_NAME = os.environ.get("STOCKS_CACHE_TABLE", "StocksCache")
+# Configuration — must match DYNAMODB_TABLE_NAME set in template.yaml
+TABLE_NAME = os.environ.get("DYNAMODB_TABLE_NAME")
+if not TABLE_NAME:
+    raise RuntimeError("DYNAMODB_TABLE_NAME environment variable not set")
 BATCH_SIZE = 25  # DynamoDB batch limit
 
 # TTL configuration (in seconds)

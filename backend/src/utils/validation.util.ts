@@ -5,6 +5,8 @@
  * Eliminates inconsistent ticker/date regex patterns.
  */
 
+import type { Ticker, DateString } from '../types/branded.types.js';
+
 /** General ticker pattern: letters, numbers, dots, hyphens (BRK.A, BF-B) */
 export const TICKER_REGEX = /^[A-Z0-9.-]+$/;
 
@@ -18,13 +20,13 @@ export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
  * Validate and normalize a ticker symbol.
  * @param raw - Raw ticker input
  * @param strict - Use strict mode (no dots/hyphens) for Finnhub
- * @returns Normalized uppercase ticker or null if invalid
+ * @returns Branded Ticker or null if invalid
  */
-export function validateTicker(raw: unknown, strict?: boolean): string | null {
+export function validateTicker(raw: unknown, strict?: boolean): Ticker | null {
   if (typeof raw !== 'string' || raw.length === 0) return null;
   const normalized = raw.toUpperCase().trim();
   const pattern = strict ? TICKER_REGEX_STRICT : TICKER_REGEX;
-  return pattern.test(normalized) ? normalized : null;
+  return pattern.test(normalized) ? (normalized as Ticker) : null;
 }
 
 /**

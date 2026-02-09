@@ -117,10 +117,13 @@ export async function generateBrowserPredictions(
       let dominantEvent: EventType = 'GENERAL';
       if (day.eventCounts) {
         try {
-          const counts = JSON.parse(day.eventCounts) as Record<string, number>;
+          const parsed: unknown = JSON.parse(day.eventCounts);
+          const counts = typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+            ? parsed as Record<string, number>
+            : {};
           // Filter out GENERAL and entries with count <= 0
           const nonGeneral = Object.entries(counts).filter(
-            ([t, count]) => t !== 'GENERAL' && count > 0
+            ([t, count]) => t !== 'GENERAL' && typeof count === 'number' && count > 0
           );
           if (nonGeneral.length > 0) {
             const [type] = nonGeneral.reduce((max, curr) => curr[1] > max[1] ? curr : max);

@@ -10,13 +10,7 @@ import { classifyEvent } from '../services/eventClassification.service.js';
 import type { NewsArticle } from '../repositories/newsCache.repository.js';
 import type { EventClassificationResult } from '../types/event.types.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
-
-/**
- * Request body interface
- */
-interface EventClassificationRequest {
-  articles: NewsArticle[];
-}
+import { eventClassificationRequestSchema, parseBody } from '../utils/schemas.util.js';
 
 /**
  * Response body interface
@@ -25,11 +19,6 @@ interface EventClassificationResponse {
   classifications: (EventClassificationResult & { articleUrl: string })[];
   processingTimeMs: number;
 }
-
-/**
- * Maximum batch size to prevent timeouts
- */
-const MAX_BATCH_SIZE = 100;
 
 /**
  * POST /events/classify - Classify batch of articles
@@ -46,62 +35,15 @@ export async function handleEventClassification(
   const startTime = Date.now();
 
   try {
-    // Parse and validate request body
-    if (!event.body) {
-      return errorResponse('Request body is required', 400);
+    // Parse and validate request body with Zod schema
+    const parsed = parseBody(event.body, eventClassificationRequestSchema);
+    if (!parsed.success) {
+      return errorResponse(parsed.error, 400);
     }
-
-    let body: Partial<EventClassificationRequest>;
-    try {
-      body = JSON.parse(event.body);
-    } catch {
-      return errorResponse('Invalid JSON in request body', 400);
-    }
-
-    // Validate articles array
-    if (!body.articles || !Array.isArray(body.articles)) {
-      return errorResponse('Missing or invalid "articles" field. Must be an array.', 400);
-    }
-
-    if (body.articles.length === 0) {
-      return errorResponse('Articles array cannot be empty', 400);
-    }
-
-    if (body.articles.length > MAX_BATCH_SIZE) {
-      return errorResponse(
-        `Batch size exceeds maximum of ${MAX_BATCH_SIZE} articles`,
-        400
-      );
-    }
-
-    // Validate article structure
-    for (let i = 0; i < body.articles.length; i++) {
-      const article = body.articles[i];
-
-      if (!article.title && !article.description) {
-        return errorResponse(
-          `Article at index ${i} must have at least a title or description`,
-          400
-        );
-      }
-
-      if (!article.url) {
-        return errorResponse(
-          `Article at index ${i} is missing required field: url`,
-          400
-        );
-      }
-
-      if (!article.date) {
-        return errorResponse(
-          `Article at index ${i} is missing required field: date`,
-          400
-        );
-      }
-    }
+    const { articles } = parsed.data;
 
     // Classify articles in parallel
-    const classificationPromises = body.articles.map(async (article) => {
+    const classificationPromises = (articles as NewsArticle[]).map(async (article) => {
       try {
         const result = await classifyEvent(article);
 
@@ -131,7 +73,7 @@ export async function handleEventClassification(
 
     // Log summary
     console.log('[EventsHandler] Batch classification complete:', {
-      articleCount: body.articles.length,
+      articleCount: articles.length,
       processingTimeMs,
       eventTypeDistribution: classifications.reduce((acc, c) => {
         acc[c.eventType] = (acc[c.eventType] || 0) + 1;
