@@ -4,7 +4,7 @@
 
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util';
-import { logError, hasStatusCode } from '../utils/error.util';
+import { logError, hasStatusCode, sanitizeErrorMessage } from '../utils/error.util';
 import { logMetrics, MetricUnit } from '../utils/metrics.util';
 import { newsRequestSchema, parseQueryParams } from '../utils/schemas.util';
 import { transformFinnhubToCache, transformCacheToFinnhub } from '../utils/cacheTransform.util';
@@ -359,9 +359,8 @@ export async function handleNewsRequest(
 
     logError('NewsHandler', error, { requestId });
 
-    // Extract error message and status
-    const message = error instanceof Error ? error.message : 'Internal server error';
     const statusCode = hasStatusCode(error) ? error.statusCode : 500;
+    const message = sanitizeErrorMessage(error, statusCode);
 
     return errorResponse(message, statusCode);
   }

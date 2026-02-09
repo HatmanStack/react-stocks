@@ -5,6 +5,12 @@
 
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
 import { APIError } from '../utils/error.util';
+import * as CircuitBreakerRepo from '../repositories/circuitBreaker.repository.js';
+import {
+  FINNHUB_FAILURE_THRESHOLD,
+  FINNHUB_COOLDOWN_MS,
+  CIRCUIT_SERVICE_FINNHUB,
+} from '../constants/ml.constants.js';
 
 // Finnhub API configuration
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
@@ -88,6 +94,13 @@ export async function fetchCompanyNews(
   to: string,
   apiKey: string
 ): Promise<FinnhubNewsArticle[]> {
+  // Circuit breaker: fail-fast if Finnhub is rate-limited or down
+  const cbState = await CircuitBreakerRepo.getCircuitState(CIRCUIT_SERVICE_FINNHUB);
+  if (cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD && Date.now() < cbState.circuitOpenUntil) {
+    console.warn(`[FinnhubService] Circuit open for ${CIRCUIT_SERVICE_FINNHUB}, skipping API call`);
+    return [];
+  }
+
   const fetchFn = async () => {
     console.log(`[FinnhubService] Fetching news for ${ticker} from ${from} to ${to}`);
 
@@ -121,8 +134,19 @@ export async function fetchCompanyNews(
 
     const data = await response.json() as FinnhubNewsArticle[];
     console.log(`[FinnhubService] Fetched ${data.length} news articles for ${ticker}`);
+    await CircuitBreakerRepo.recordSuccess(CIRCUIT_SERVICE_FINNHUB);
     return data;
   };
 
-  return retryWithBackoff(fetchFn);
+  try {
+    return await retryWithBackoff(fetchFn);
+  } catch (error) {
+    await CircuitBreakerRepo.recordFailure(
+      cbState.consecutiveFailures,
+      FINNHUB_FAILURE_THRESHOLD,
+      FINNHUB_COOLDOWN_MS,
+      CIRCUIT_SERVICE_FINNHUB,
+    );
+    throw error;
+  }
 }

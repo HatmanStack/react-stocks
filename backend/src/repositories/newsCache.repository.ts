@@ -172,8 +172,11 @@ export async function batchPutArticles(
   }
 }
 
+/** Safety cap to prevent unbounded queries for high-volume tickers */
+const MAX_ARTICLES_PER_TICKER = 2000;
+
 /**
- * Query all articles for a specific ticker
+ * Query all articles for a specific ticker (capped at MAX_ARTICLES_PER_TICKER)
  *
  * @param ticker - Stock ticker symbol
  * @returns Array of news cache items for the ticker
@@ -190,6 +193,13 @@ export async function queryArticlesByTicker(
     const items = await queryItems<NewsCacheItem>(pk, {
       skPrefix: `${SortKeyPrefix.HASH}#`,
     });
+
+    if (items.length > MAX_ARTICLES_PER_TICKER) {
+      console.warn(`[NewsCacheRepository] Ticker ${ticker} has ${items.length} articles, capping to ${MAX_ARTICLES_PER_TICKER}`);
+      // Sort by publishedAt descending and keep most recent
+      items.sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''));
+      items.length = MAX_ARTICLES_PER_TICKER;
+    }
 
     return items.map(transformToLegacy);
   } catch (error) {

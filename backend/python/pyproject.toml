@@ -1,0 +1,14 @@
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+# Third-party libraries without stubs
+[[tool.mypy.overrides]]
+module = [
+    "boto3.*",
+    "botocore.*",
+    "yfinance.*",
+]
+ignore_missing_imports = true

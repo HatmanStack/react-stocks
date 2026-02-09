@@ -6,6 +6,12 @@
 
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
 import { APIError } from '../utils/error.util';
+import * as CircuitBreakerRepo from '../repositories/circuitBreaker.repository.js';
+import {
+  FINNHUB_FAILURE_THRESHOLD,
+  FINNHUB_COOLDOWN_MS,
+  CIRCUIT_SERVICE_ALPHAVANTAGE,
+} from '../constants/ml.constants.js';
 
 const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
 const ALPHA_VANTAGE_TIMEOUT = 15000; // 15 seconds (larger response)
@@ -127,6 +133,13 @@ export async function fetchAlphaVantageNews(
   to: string,
   apiKey: string
 ): Promise<FinnhubNewsArticle[]> {
+  // Circuit breaker: fail-fast if Alpha Vantage is rate-limited or down
+  const cbState = await CircuitBreakerRepo.getCircuitState(CIRCUIT_SERVICE_ALPHAVANTAGE);
+  if (cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD && Date.now() < cbState.circuitOpenUntil) {
+    console.warn(`[AlphaVantageService] Circuit open, skipping API call`);
+    return [];
+  }
+
   console.log(`[AlphaVantageService] Fetching news for ${ticker} from ${from} to ${to}`);
 
   const params = new URLSearchParams({
@@ -184,8 +197,15 @@ export async function fetchAlphaVantageNews(
       `[AlphaVantageService] Fetched ${articles.length} articles for ${ticker} spanning ${uniqueDays} days`
     );
 
+    await CircuitBreakerRepo.recordSuccess(CIRCUIT_SERVICE_ALPHAVANTAGE);
     return articles;
   } catch (error) {
+    await CircuitBreakerRepo.recordFailure(
+      cbState.consecutiveFailures,
+      FINNHUB_FAILURE_THRESHOLD,
+      FINNHUB_COOLDOWN_MS,
+      CIRCUIT_SERVICE_ALPHAVANTAGE,
+    );
     if (error instanceof APIError) {
       throw error;
     }

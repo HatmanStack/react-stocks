@@ -89,10 +89,6 @@ export async function handleEventClassification(
     return successResponse(response);
   } catch (error) {
     console.error('[EventsHandler] Unexpected error:', error);
-
-    return errorResponse(
-      `Internal server error: ${error instanceof Error ? error.message : String(error)}`,
-      500
-    );
+    return errorResponse('Internal server error', 500);
   }
 }
