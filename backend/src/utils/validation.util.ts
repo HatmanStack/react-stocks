@@ -5,7 +5,8 @@
  * Eliminates inconsistent ticker/date regex patterns.
  */
 
-import type { Ticker, DateString } from '../types/branded.types.js';
+import type { Ticker } from '../types/branded.types.js';
+export type { Ticker, DateString } from '../types/branded.types.js';
 
 /** General ticker pattern: letters, numbers, dots, hyphens (BRK.A, BF-B) */
 export const TICKER_REGEX = /^[A-Z0-9.-]+$/;

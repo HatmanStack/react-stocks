@@ -20,7 +20,7 @@ export type DateString = string & { readonly [DateStringBrand]: typeof DateStrin
  */
 export function asTicker(raw: string): Ticker {
   const normalized = raw.toUpperCase().trim();
-  if (!/^[A-Z0-9.\-]+$/.test(normalized) || normalized.length === 0) {
+  if (!/^[A-Z0-9.-]+$/.test(normalized) || normalized.length === 0) {
     throw new Error(`Invalid ticker: "${raw}"`);
   }
   return normalized as Ticker;

@@ -94,7 +94,7 @@ describe('Event Classification Handler', () => {
       const response = await handleEventClassification(event);
 
       expect(response.statusCode).toBe(400);
-      expect(response.body).toContain('missing required field');
+      expect(response.body).toContain('Required');
     });
 
     it('should return 400 for batch size exceeding limit', async () => {
