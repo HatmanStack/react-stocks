@@ -47,7 +47,7 @@ def retry_with_backoff(func):
     """Decorator for retry logic with exponential backoff."""
 
     def wrapper(*args, **kwargs):
-        last_error = None
+        last_error: Exception | None = None
         for attempt in range(MAX_RETRIES + 1):
             try:
                 return func(*args, **kwargs)
@@ -74,7 +74,7 @@ def fetch_stock_prices(
     ticker: str,
     start_date: str,
     end_date: str | None = None,
-):
+) -> Any:
     """
     Fetch historical stock prices from yfinance.
 

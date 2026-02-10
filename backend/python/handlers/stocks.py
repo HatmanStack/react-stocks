@@ -209,6 +209,7 @@ def handle_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
         if request_type == "metadata":
             result = handle_metadata_request(ticker)
         else:
+            assert start_date is not None  # validated above for prices
             result = handle_prices_request(ticker, start_date, end_date)
 
         # Return response with cache metadata

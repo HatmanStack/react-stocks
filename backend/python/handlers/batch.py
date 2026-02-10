@@ -114,7 +114,7 @@ def handle_batch_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
         )
 
         # Process tickers in parallel
-        results: dict[str, list] = {}
+        results: dict[str, list[Any]] = {}
         errors: dict[str, str] = {}
         cached: dict[str, bool] = {}
 

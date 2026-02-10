@@ -6,7 +6,7 @@ Converts yfinance data format to Tiingo API format for response compatibility.
 from typing import Any
 
 
-def transform_history_to_tiingo(df, ticker: str) -> list[dict[str, Any]]:
+def transform_history_to_tiingo(df: Any, ticker: str) -> list[dict[str, Any]]:
     """
     Transform yfinance history DataFrame to Tiingo price format.
 
