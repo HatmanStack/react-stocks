@@ -52,7 +52,7 @@ export function logMetric(
   name: string,
   value: number,
   unit: MetricUnit = MetricUnit.None,
-  dimensions: Record<string, string> = {}
+  dimensions: Record<string, string> = {},
 ): void {
   const timestamp = Date.now();
 
@@ -109,7 +109,7 @@ export function logMetrics(
     value: number;
     unit?: MetricUnit;
   }[],
-  dimensions: Record<string, string> = {}
+  dimensions: Record<string, string> = {},
 ): void {
   const timestamp = Date.now();
 
@@ -147,16 +147,10 @@ export function logMetrics(
 /**
  * Log Lambda cold/warm start status
  */
-export function logLambdaStartStatus(
-  isColdStart: boolean,
-  endpoint: string
-): void {
-  logMetric(
-    isColdStart ? 'LambdaColdStart' : 'LambdaWarmStart',
-    1,
-    MetricUnit.Count,
-    { Endpoint: endpoint }
-  );
+export function logLambdaStartStatus(isColdStart: boolean, endpoint: string): void {
+  logMetric(isColdStart ? 'LambdaColdStart' : 'LambdaWarmStart', 1, MetricUnit.Count, {
+    Endpoint: endpoint,
+  });
 }
 
 /**
@@ -176,7 +170,7 @@ export function logMlSentimentCall(
   ticker: string,
   durationMs: number,
   success: boolean,
-  cacheHit: boolean
+  cacheHit: boolean,
 ): void {
   logMetrics(
     [
@@ -188,7 +182,7 @@ export function logMlSentimentCall(
       Success: success ? 'true' : 'false',
       CacheHit: cacheHit ? 'true' : 'false',
       Service: 'MlSentiment',
-    }
+    },
   );
 }
 
@@ -204,11 +198,7 @@ export function logMlSentimentCall(
  * @example
  * logMlSentimentCacheHitRate('AAPL', 18, 2); // 90% hit rate
  */
-export function logMlSentimentCacheHitRate(
-  ticker: string,
-  hits: number,
-  misses: number
-): void {
+export function logMlSentimentCacheHitRate(ticker: string, hits: number, misses: number): void {
   const total = hits + misses;
   const hitRate = total > 0 ? (hits / total) * 100 : 0;
 
@@ -221,7 +211,7 @@ export function logMlSentimentCacheHitRate(
     {
       Ticker: ticker,
       Service: 'MlSentiment',
-    }
+    },
   );
 }
 
@@ -243,10 +233,9 @@ export function logMlSentimentFallback(
   ticker: string,
   fallbackCount: number,
   totalMaterialEvents: number,
-  reason: string
+  reason: string,
 ): void {
-  const fallbackRate =
-    totalMaterialEvents > 0 ? (fallbackCount / totalMaterialEvents) * 100 : 0;
+  const fallbackRate = totalMaterialEvents > 0 ? (fallbackCount / totalMaterialEvents) * 100 : 0;
 
   logMetrics(
     [
@@ -257,7 +246,7 @@ export function logMlSentimentFallback(
       Ticker: ticker,
       Service: 'MlSentiment',
       FallbackReason: reason,
-    }
+    },
   );
 }
 
@@ -276,7 +265,7 @@ export function logRequestMetrics(
   endpoint: string,
   statusCode: number,
   durationMs: number,
-  cached: boolean = false
+  cached: boolean = false,
 ): void {
   const success = statusCode >= 200 && statusCode < 400;
 
@@ -291,7 +280,7 @@ export function logRequestMetrics(
       Endpoint: endpoint,
       StatusCode: String(statusCode),
       Cached: cached ? 'true' : 'false',
-    }
+    },
   );
 }
 
@@ -312,7 +301,7 @@ export function logDynamoDBMetrics(
   tableName: string,
   durationMs: number,
   success: boolean,
-  itemCount?: number
+  itemCount?: number,
 ): void {
   const metrics: { name: string; value: number; unit: MetricUnit }[] = [
     { name: 'DynamoDBDuration', value: durationMs, unit: MetricUnit.Milliseconds },

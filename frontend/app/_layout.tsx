@@ -59,24 +59,33 @@ export default function RootLayout() {
       try {
         // Validate environment configuration
         const envStart = performance.now();
-        const { validateEnvironment, logEnvironmentStatus } = await import('../src/config/environment');
+        const { validateEnvironment, logEnvironmentStatus } =
+          await import('../src/config/environment');
         validateEnvironment();
         logEnvironmentStatus();
-        console.log(`[App] Environment config loaded in ${(performance.now() - envStart).toFixed(0)}ms`);
+        console.log(
+          `[App] Environment config loaded in ${(performance.now() - envStart).toFixed(0)}ms`,
+        );
 
         // Log feature flags for debugging
         const flagsStart = performance.now();
         const { logFeatureFlags } = await import('../src/config/features');
         logFeatureFlags();
-        console.log(`[App] Feature flags loaded in ${(performance.now() - flagsStart).toFixed(0)}ms`);
+        console.log(
+          `[App] Feature flags loaded in ${(performance.now() - flagsStart).toFixed(0)}ms`,
+        );
 
         // Initialize database - platform-specific implementation
         const dbStart = performance.now();
         const { initializeDatabase } = await import('../src/database');
         await initializeDatabase();
-        console.log(`[App] Database initialized in ${(performance.now() - dbStart).toFixed(0)}ms (${Platform.OS})`);
+        console.log(
+          `[App] Database initialized in ${(performance.now() - dbStart).toFixed(0)}ms (${Platform.OS})`,
+        );
 
-        console.log(`[App] Total initialization time: ${(performance.now() - startTime).toFixed(0)}ms`);
+        console.log(
+          `[App] Total initialization time: ${(performance.now() - startTime).toFixed(0)}ms`,
+        );
         setIsReady(true);
       } catch (error) {
         console.error('[App] Initialization error:', error);

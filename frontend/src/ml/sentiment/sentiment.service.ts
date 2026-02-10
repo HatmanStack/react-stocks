@@ -25,7 +25,7 @@ import type { SentimentAnalysisResponse } from '@/types/api.types';
  */
 export async function analyzeSentiment(
   articleText: string,
-  hash: string
+  hash: string,
 ): Promise<SentimentAnalysisResponse> {
   const startTime = performance.now();
 
@@ -42,14 +42,14 @@ export async function analyzeSentiment(
 
     console.error(
       `[ML SentimentService] Error analyzing sentiment (${duration.toFixed(2)}ms):`,
-      error
+      error,
     );
 
     // Wrap in Error for consistent error handling
     throw new Error(
       `Browser sentiment analysis failed: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
   }
 }
@@ -111,7 +111,7 @@ const perfTracker = new PerformanceTracker();
  */
 export async function analyzeSentimentWithMetrics(
   articleText: string,
-  hash: string
+  hash: string,
 ): Promise<SentimentAnalysisResponse> {
   const startTime = performance.now();
   const result = await analyzeSentiment(articleText, hash);

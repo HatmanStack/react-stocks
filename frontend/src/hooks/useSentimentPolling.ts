@@ -115,15 +115,9 @@ export function useSentimentPolling(
   ticker: string,
   startDate: string,
   endDate: string,
-  options: UseSentimentPollingOptions = {}
+  options: UseSentimentPollingOptions = {},
 ): UseSentimentPollingReturn {
-  const {
-    enabled = true,
-    pollInterval = 2000,
-    maxAttempts = 60,
-    onComplete,
-    onError,
-  } = options;
+  const { enabled = true, pollInterval = 2000, maxAttempts = 60, onComplete, onError } = options;
 
   const [isPolling, setIsPolling] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -189,7 +183,7 @@ export function useSentimentPolling(
         attemptCountRef.current += 1;
         if (attemptCountRef.current >= maxAttempts) {
           const timeoutError = new Error(
-            `Sentiment analysis timed out after ${maxAttempts} attempts (${(maxAttempts * pollInterval) / 1000}s)`
+            `Sentiment analysis timed out after ${maxAttempts} attempts (${(maxAttempts * pollInterval) / 1000}s)`,
           );
           console.error(`[useSentimentPolling] Job ${currentJobId} timed out`);
 
@@ -216,7 +210,7 @@ export function useSentimentPolling(
         onError?.(pollingError);
       }
     },
-    [ticker, startDate, endDate, maxAttempts, pollInterval, cancelPolling, onComplete, onError]
+    [ticker, startDate, endDate, maxAttempts, pollInterval, cancelPolling, onComplete, onError],
   );
 
   /**
@@ -236,7 +230,7 @@ export function useSentimentPolling(
       // Start polling (will self-reschedule)
       pollJobStatus(currentJobId);
     },
-    [enabled, pollJobStatus]
+    [enabled, pollJobStatus],
   );
 
   /**
@@ -244,7 +238,9 @@ export function useSentimentPolling(
    */
   const triggerAnalysis = useCallback(async () => {
     try {
-      console.log(`[useSentimentPolling] Triggering analysis for ${ticker} from ${startDate} to ${endDate}`);
+      console.log(
+        `[useSentimentPolling] Triggering analysis for ${ticker} from ${startDate} to ${endDate}`,
+      );
 
       setError(null);
       setSentimentData(null);

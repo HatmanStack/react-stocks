@@ -3,8 +3,6 @@ Stocks endpoint handler with DynamoDB caching.
 Handles GET /stocks requests for prices and metadata.
 """
 
-import logging
-import re
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -13,13 +11,10 @@ from repositories.stocks_cache import query_stocks_by_date_range, batch_put_stoc
 from utils.transform import transform_history_to_tiingo, transform_info_to_metadata
 from utils.response import success_response, error_response
 from utils.error import APIError
+from utils.validation import TICKER_PATTERN, DATE_PATTERN
+from utils.logger import get_structured_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Validation patterns
-TICKER_PATTERN = re.compile(r"^[A-Z0-9.\-]+$")
-DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+logger = get_structured_logger(__name__)
 
 
 def generate_date_range(start_date: str, end_date: str) -> list[str]:
@@ -214,6 +209,7 @@ def handle_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
         if request_type == "metadata":
             result = handle_metadata_request(ticker)
         else:
+            assert start_date is not None  # validated above for prices
             result = handle_prices_request(ticker, start_date, end_date)
 
         # Return response with cache metadata

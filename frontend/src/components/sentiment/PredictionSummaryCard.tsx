@@ -48,7 +48,7 @@ export const PredictionSummaryCard: React.FC<PredictionSummaryCardProps> = ({
     },
   ];
 
-  const hasPredictions = predictions.some(p => p.direction && p.probability !== undefined);
+  const hasPredictions = predictions.some((p) => p.direction && p.probability !== undefined);
 
   const renderPredictionItem = (pred: PredictionDisplay) => {
     const hasValue = pred.direction && pred.probability !== undefined;
@@ -57,7 +57,7 @@ export const PredictionSummaryCard: React.FC<PredictionSummaryCardProps> = ({
     // Convert probability (0.5-1) to sentiment value (-1 to 1)
     const sentimentValue = hasValue
       ? isUp
-        ? (pred.probability! - 0.5) * 2  // 0.5→0, 1→1
+        ? (pred.probability! - 0.5) * 2 // 0.5→0, 1→1
         : -(pred.probability! - 0.5) * 2 // 0.5→0, 1→-1
       : 0;
 
@@ -89,9 +89,7 @@ export const PredictionSummaryCard: React.FC<PredictionSummaryCardProps> = ({
             />
           </>
         ) : (
-          <Text style={[styles.noData, { color: theme.colors.onSurfaceVariant }]}>
-            —
-          </Text>
+          <Text style={[styles.noData, { color: theme.colors.onSurfaceVariant }]}>—</Text>
         )}
       </View>
     );
@@ -104,9 +102,7 @@ export const PredictionSummaryCard: React.FC<PredictionSummaryCardProps> = ({
           <Text variant="titleMedium" style={styles.title}>
             Price Movement Predictions
           </Text>
-          <Text style={{ color: theme.colors.onSurfaceVariant }}>
-            Generating predictions...
-          </Text>
+          <Text style={{ color: theme.colors.onSurfaceVariant }}>Generating predictions...</Text>
         </Card.Content>
       </Card>
     );
@@ -121,9 +117,7 @@ export const PredictionSummaryCard: React.FC<PredictionSummaryCardProps> = ({
 
         {hasPredictions ? (
           <>
-            <View style={styles.predictionsRow}>
-              {predictions.map(renderPredictionItem)}
-            </View>
+            <View style={styles.predictionsRow}>{predictions.map(renderPredictionItem)}</View>
             {latestRecord?.date && (
               <Text
                 variant="labelSmall"

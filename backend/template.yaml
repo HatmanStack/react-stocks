@@ -111,7 +111,7 @@ Globals:
       Variables:
         NODE_ENV: production
         LOG_LEVEL: INFO
-    Tracing: Active  # Enable X-Ray tracing for debugging
+    Tracing: Active # Enable X-Ray tracing for debugging
 
 Resources:
   # ============================================================
@@ -392,7 +392,7 @@ Resources:
   LambdaInvocationsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: "Lambda invocations exceeded expected threshold"
+      AlarmDescription: 'Lambda invocations exceeded expected threshold'
       MetricName: Invocations
       Namespace: AWS/Lambda
       Dimensions:
@@ -410,7 +410,7 @@ Resources:
   DynamoDBReadUnitsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: "DynamoDB read units exceeded expected threshold"
+      AlarmDescription: 'DynamoDB read units exceeded expected threshold'
       MetricName: ConsumedReadCapacityUnits
       Namespace: AWS/DynamoDB
       Dimensions:
@@ -430,7 +430,7 @@ Resources:
   LambdaDurationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: "Lambda average duration exceeded threshold - potential cold starts or performance issues"
+      AlarmDescription: 'Lambda average duration exceeded threshold - potential cold starts or performance issues'
       MetricName: Duration
       Namespace: AWS/Lambda
       Dimensions:
@@ -448,7 +448,7 @@ Resources:
   LambdaErrorsAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: "Lambda errors exceeded threshold"
+      AlarmDescription: 'Lambda errors exceeded threshold'
       MetricName: Errors
       Namespace: AWS/Lambda
       Dimensions:
@@ -466,7 +466,7 @@ Resources:
   LambdaThrottlesAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmDescription: "Lambda throttles detected - consider increasing concurrency"
+      AlarmDescription: 'Lambda throttles detected - consider increasing concurrency'
       MetricName: Throttles
       Namespace: AWS/Lambda
       Dimensions:

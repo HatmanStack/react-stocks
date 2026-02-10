@@ -5,6 +5,13 @@
 
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
 import { APIError } from '../utils/error.util';
+import * as CircuitBreakerRepo from '../repositories/circuitBreaker.repository.js';
+import {
+  FINNHUB_FAILURE_THRESHOLD,
+  FINNHUB_COOLDOWN_MS,
+  CIRCUIT_SERVICE_FINNHUB,
+} from '../constants/ml.constants.js';
+import { logger } from '../utils/logger.util.js';
 
 // Finnhub API configuration
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
@@ -38,10 +45,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise
  * @param retries - Number of retries (default: 3)
  * @returns Promise with result
  */
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  retries: number = 3
-): Promise<T> {
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries: number = 3): Promise<T> {
   let lastError: Error | null = null;
 
   for (let i = 0; i <= retries; i++) {
@@ -65,7 +69,7 @@ async function retryWithBackoff<T>(
 
       // Exponential backoff: 2s, 4s, 8s
       const delay = Math.pow(2, i + 1) * 1000;
-      console.log(`[FinnhubService] Retry ${i + 1}/${retries} after ${delay}ms...`);
+      logger.info(`Retry ${i + 1}/${retries} after ${delay}ms...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
@@ -86,10 +90,20 @@ export async function fetchCompanyNews(
   ticker: string,
   from: string,
   to: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<FinnhubNewsArticle[]> {
+  // Circuit breaker: fail-fast if Finnhub is rate-limited or down
+  const cbState = await CircuitBreakerRepo.getCircuitState(CIRCUIT_SERVICE_FINNHUB);
+  if (
+    cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD &&
+    Date.now() < cbState.circuitOpenUntil
+  ) {
+    logger.warn(`Circuit open for ${CIRCUIT_SERVICE_FINNHUB}, skipping API call`);
+    return [];
+  }
+
   const fetchFn = async () => {
-    console.log(`[FinnhubService] Fetching news for ${ticker} from ${from} to ${to}`);
+    logger.info(`Fetching news for ${ticker} from ${from} to ${to}`);
 
     const params = new URLSearchParams({
       symbol: ticker,
@@ -104,7 +118,7 @@ export async function fetchCompanyNews(
       const status = response.status;
 
       if (status === 404) {
-        console.log(`[FinnhubService] No news found for ${ticker}`);
+        logger.info(`No news found for ${ticker}`);
         return [];
       }
 
@@ -119,10 +133,21 @@ export async function fetchCompanyNews(
       throw new APIError(`Failed to fetch news for ${ticker}`, status);
     }
 
-    const data = await response.json() as FinnhubNewsArticle[];
-    console.log(`[FinnhubService] Fetched ${data.length} news articles for ${ticker}`);
+    const data = (await response.json()) as FinnhubNewsArticle[];
+    logger.info(`Fetched ${data.length} news articles for ${ticker}`);
+    await CircuitBreakerRepo.recordSuccess(CIRCUIT_SERVICE_FINNHUB);
     return data;
   };
 
-  return retryWithBackoff(fetchFn);
+  try {
+    return await retryWithBackoff(fetchFn);
+  } catch (error) {
+    await CircuitBreakerRepo.recordFailure(
+      cbState.consecutiveFailures,
+      FINNHUB_FAILURE_THRESHOLD,
+      FINNHUB_COOLDOWN_MS,
+      CIRCUIT_SERVICE_FINNHUB,
+    );
+    throw error;
+  }
 }

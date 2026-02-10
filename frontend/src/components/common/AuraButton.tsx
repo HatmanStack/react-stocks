@@ -104,10 +104,10 @@ export function AuraButton({
     glowScale.value = withRepeat(
       withSequence(
         withTiming(1.05, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
       ),
       -1,
-      true
+      true,
     );
   };
 
@@ -186,11 +186,7 @@ export function AuraButton({
           {/* Loading spinner placeholder */}
           {loading && (
             <Animated.View style={styles.iconLeft}>
-              <Ionicons
-                name="sync"
-                size={sizeStyles.iconSize}
-                color={colors.text}
-              />
+              <Ionicons name="sync" size={sizeStyles.iconSize} color={colors.text} />
             </Animated.View>
           )}
 

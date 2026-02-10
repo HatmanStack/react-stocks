@@ -22,10 +22,16 @@
       "height": 6,
       "properties": {
         "metrics": [
-          [ "ReactStocks", "CacheHit", "Endpoint", "stocks", { "stat": "Sum", "label": "Stocks Hit" } ],
-          [ ".", "CacheMiss", ".", ".", { "stat": "Sum", "label": "Stocks Miss" } ],
-          [ ".", "CacheHit", ".", "news", { "stat": "Sum", "label": "News Hit" } ],
-          [ ".", "CacheMiss", ".", ".", { "stat": "Sum", "label": "News Miss" } ]
+          [
+            "ReactStocks",
+            "CacheHit",
+            "Endpoint",
+            "stocks",
+            { "stat": "Sum", "label": "Stocks Hit" }
+          ],
+          [".", "CacheMiss", ".", ".", { "stat": "Sum", "label": "Stocks Miss" }],
+          [".", "CacheHit", ".", "news", { "stat": "Sum", "label": "News Hit" }],
+          [".", "CacheMiss", ".", ".", { "stat": "Sum", "label": "News Miss" }]
         ],
         "view": "singleValue",
         "region": "${AWS_REGION}",
@@ -40,7 +46,7 @@
       "height": 6,
       "properties": {
         "metrics": [
-          [ "AWS/Lambda", "Invocations", "FunctionName", "${ReactStocksFunction}", { "stat": "Sum" } ]
+          ["AWS/Lambda", "Invocations", "FunctionName", "${ReactStocksFunction}", { "stat": "Sum" }]
         ],
         "view": "timeSeries",
         "stacked": false,
@@ -56,8 +62,14 @@
       "height": 6,
       "properties": {
         "metrics": [
-          [ "AWS/Lambda", "Duration", "FunctionName", "${ReactStocksFunction}", { "stat": "Average" } ],
-          [ ".", ".", ".", ".", { "stat": "p99", "label": "p99" } ]
+          [
+            "AWS/Lambda",
+            "Duration",
+            "FunctionName",
+            "${ReactStocksFunction}",
+            { "stat": "Average" }
+          ],
+          [".", ".", ".", ".", { "stat": "p99", "label": "p99" }]
         ],
         "view": "timeSeries",
         "stacked": false,
@@ -97,9 +109,15 @@
       "height": 6,
       "properties": {
         "metrics": [
-          [ "AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${StocksCacheTable}", { "stat": "Sum" } ],
-          [ ".", ".", ".", "${NewsCacheTable}", { "stat": "Sum" } ],
-          [ ".", ".", ".", "${SentimentCacheTable}", { "stat": "Sum" } ]
+          [
+            "AWS/DynamoDB",
+            "ConsumedReadCapacityUnits",
+            "TableName",
+            "${StocksCacheTable}",
+            { "stat": "Sum" }
+          ],
+          [".", ".", ".", "${NewsCacheTable}", { "stat": "Sum" }],
+          [".", ".", ".", "${SentimentCacheTable}", { "stat": "Sum" }]
         ],
         "view": "timeSeries",
         "stacked": true,
@@ -115,8 +133,8 @@
       "height": 6,
       "properties": {
         "metrics": [
-          [ "AWS/ApiGateway", "5XXError", "ApiName", "${ApiName}", { "stat": "Sum" } ],
-          [ ".", "4XXError", ".", ".", { "stat": "Sum" } ]
+          ["AWS/ApiGateway", "5XXError", "ApiName", "${ApiName}", { "stat": "Sum" }],
+          [".", "4XXError", ".", ".", { "stat": "Sum" }]
         ],
         "view": "timeSeries",
         "stacked": false,

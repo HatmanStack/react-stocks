@@ -21,13 +21,7 @@
  * 5. GROWTH - Long-term trajectory
  * 6. DEBT - Financial health
  */
-export type AspectType =
-  | 'REVENUE'
-  | 'EARNINGS'
-  | 'GUIDANCE'
-  | 'MARGINS'
-  | 'GROWTH'
-  | 'DEBT';
+export type AspectType = 'REVENUE' | 'EARNINGS' | 'GUIDANCE' | 'MARGINS' | 'GROWTH' | 'DEBT';
 
 /**
  * Materiality-based weights for aspect scoring.
@@ -46,8 +40,8 @@ export type AspectType =
  */
 export const ASPECT_WEIGHTS: Record<AspectType, number> = {
   REVENUE: 0.25,
-  EARNINGS: 0.30,
-  GUIDANCE: 0.20,
+  EARNINGS: 0.3,
+  GUIDANCE: 0.2,
   MARGINS: 0.15,
   GROWTH: 0.05,
   DEBT: 0.05,

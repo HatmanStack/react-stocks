@@ -28,10 +28,10 @@ const MiniChartComponent = ({
     // Sample data if too many points (max 15 for performance)
     if (data.length > 15) {
       const step = Math.ceil(data.length / 15);
-      return data.filter((_, index) => index % step === 0).map(d => d.y);
+      return data.filter((_, index) => index % step === 0).map((d) => d.y);
     }
 
-    return data.map(d => d.y);
+    return data.map((d) => d.y);
   }, [data]);
 
   const chartColor = positive ? theme.colors.positive : theme.colors.negative;

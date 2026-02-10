@@ -69,9 +69,7 @@ export class LogisticRegression {
     }
 
     if (X.length !== y.length) {
-      throw new Error(
-        `LogisticRegression: X and y length mismatch. X=${X.length}, y=${y.length}`
-      );
+      throw new Error(`LogisticRegression: X and y length mismatch. X=${X.length}, y=${y.length}`);
     }
 
     const nSamples = X.length;
@@ -82,7 +80,7 @@ export class LogisticRegression {
 
     // Normalize weights so they sum to nSamples (maintains gradient scale)
     const weightSum = weights.reduce((a, b) => a + b, 0);
-    const normalizedWeights = weights.map(w => w * nSamples / weightSum);
+    const normalizedWeights = weights.map((w) => (w * nSamples) / weightSum);
 
     // Initialize weights and bias to zero (scikit-learn default)
     this.weights = new Array(nFeatures).fill(0);
@@ -144,15 +142,16 @@ export class LogisticRegression {
         this.vBias = beta2 * this.vBias + (1 - beta2) * biasGradient * biasGradient;
         const mBiasHat = this.mBias / (1 - Math.pow(beta1, this.t));
         const vBiasHat = this.vBias / (1 - Math.pow(beta2, this.t));
-        this.bias -= learningRate * mBiasHat / (Math.sqrt(vBiasHat) + epsilon);
+        this.bias -= (learningRate * mBiasHat) / (Math.sqrt(vBiasHat) + epsilon);
 
         // Update weights with Adam
         for (let j = 0; j < nFeatures; j++) {
           this.mWeights[j] = beta1 * this.mWeights[j] + (1 - beta1) * weightGradients[j];
-          this.vWeights[j] = beta2 * this.vWeights[j] + (1 - beta2) * weightGradients[j] * weightGradients[j];
+          this.vWeights[j] =
+            beta2 * this.vWeights[j] + (1 - beta2) * weightGradients[j] * weightGradients[j];
           const mHat = this.mWeights[j] / (1 - Math.pow(beta1, this.t));
           const vHat = this.vWeights[j] / (1 - Math.pow(beta2, this.t));
-          this.weights[j] -= learningRate * mHat / (Math.sqrt(vHat) + epsilon);
+          this.weights[j] -= (learningRate * mHat) / (Math.sqrt(vHat) + epsilon);
         }
       } else {
         // Standard SGD update
@@ -208,7 +207,7 @@ export class LogisticRegression {
   private computeEffectiveWeights(
     y: Labels,
     sampleWeights?: SampleWeights,
-    classWeight?: 'balanced' | { [key: number]: number }
+    classWeight?: 'balanced' | { [key: number]: number },
   ): number[] {
     const nSamples = y.length;
     const weights = new Array(nSamples).fill(1.0);
@@ -216,7 +215,9 @@ export class LogisticRegression {
     // Apply sample weights if provided
     if (sampleWeights) {
       if (sampleWeights.length !== nSamples) {
-        throw new Error(`Sample weights length (${sampleWeights.length}) must match y length (${nSamples})`);
+        throw new Error(
+          `Sample weights length (${sampleWeights.length}) must match y length (${nSamples})`,
+        );
       }
       for (let i = 0; i < nSamples; i++) {
         weights[i] *= sampleWeights[i];
@@ -229,8 +230,8 @@ export class LogisticRegression {
 
       if (classWeight === 'balanced') {
         // Compute balanced weights: n_samples / (n_classes * n_samples_per_class)
-        const class0Count = y.filter(label => label === 0).length;
-        const class1Count = y.filter(label => label === 1).length;
+        const class0Count = y.filter((label) => label === 0).length;
+        const class1Count = y.filter((label) => label === 1).length;
         const nClasses = 2;
 
         classWeightMap = {
@@ -284,7 +285,7 @@ export class LogisticRegression {
     for (let i = 0; i < X.length; i++) {
       if (X[i].length !== nFeatures) {
         throw new Error(
-          `LogisticRegression: Feature count mismatch. Expected ${nFeatures}, got ${X[i].length}`
+          `LogisticRegression: Feature count mismatch. Expected ${nFeatures}, got ${X[i].length}`,
         );
       }
 

@@ -35,8 +35,8 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
       // Transform data and derive both chartData and dates from the same transformed result
       const transformed = transformPriceData(data as StockDetails[]);
       return {
-        chartData: transformed.map(point => point.y),
-        dates: transformed.map(point => {
+        chartData: transformed.map((point) => point.y),
+        dates: transformed.map((point) => {
           // Extract date from the x value (which is a Date object)
           const dateObj = point.x;
           // Convert to ISO string format (YYYY-MM-DD)
@@ -48,8 +48,8 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
     // Already in simple format
     const simpleData = data as { date: string; price: number }[];
     return {
-      chartData: simpleData.map(d => d.price),
-      dates: simpleData.map(d => d.date),
+      chartData: simpleData.map((d) => d.price),
+      dates: simpleData.map((d) => d.date),
     };
   }, [data]);
 
@@ -121,10 +121,7 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
         style={{ flex: 1, minHeight: height, justifyContent: 'center', alignItems: 'center' }}
         onLayout={handleLayout}
       >
-        <PaperText
-          variant="bodyMedium"
-          style={{ color: theme.colors.onSurfaceVariant }}
-        >
+        <PaperText variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
           No data available
         </PaperText>
       </View>
@@ -133,12 +130,7 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
 
   // Don't render chart until we have a valid width measurement
   if (!containerWidth && !customWidth) {
-    return (
-      <View
-        style={{ flex: 1, minHeight: height + 60 }}
-        onLayout={handleLayout}
-      />
-    );
+    return <View style={{ flex: 1, minHeight: height + 60 }} onLayout={handleLayout} />;
   }
 
   return (

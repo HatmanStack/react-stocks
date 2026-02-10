@@ -46,7 +46,7 @@ const StockDetailContext = createContext<StockDetailContextType | undefined>(und
 
 export function StockDetailProvider({
   children,
-  ticker
+  ticker,
 }: {
   children: React.ReactNode;
   ticker: string;
@@ -62,9 +62,21 @@ export function StockDetailProvider({
   }, [startDate, endDate]);
 
   // Fetch all data at the provider level using actual date range
-  const { data: stockData = [], isLoading: stockLoading, error: stockError } = useStockData(ticker, { startDate, endDate, days });
-  const { data: sentimentData = [], isLoading: sentimentLoading, error: sentimentError } = useSentimentData(ticker, { days });
-  const { data: articleSentimentData = [], isLoading: articleSentimentLoading, error: articleSentimentError } = useArticleSentiment(ticker, { days });
+  const {
+    data: stockData = [],
+    isLoading: stockLoading,
+    error: stockError,
+  } = useStockData(ticker, { startDate, endDate, days });
+  const {
+    data: sentimentData = [],
+    isLoading: sentimentLoading,
+    error: sentimentError,
+  } = useSentimentData(ticker, { days });
+  const {
+    data: articleSentimentData = [],
+    isLoading: articleSentimentLoading,
+    error: articleSentimentError,
+  } = useArticleSentiment(ticker, { days });
 
   // Sentiment polling (for async Lambda sentiment analysis)
   // Only enabled when USE_LAMBDA_SENTIMENT flag is true
@@ -76,12 +88,15 @@ export function StockDetailProvider({
     cancelPolling,
   } = useSentimentPolling(ticker, startDate, endDate, {
     enabled: Environment.USE_LAMBDA_SENTIMENT,
-    onComplete: useCallback((data: any[]) => {
-      console.log('[StockDetailContext] Sentiment analysis complete:', data.length, 'days');
-      // Invalidate React Query cache to re-fetch sentiment data
-      queryClient.invalidateQueries({ queryKey: ['sentimentData', ticker] });
-      queryClient.invalidateQueries({ queryKey: ['articleSentiment', ticker] });
-    }, [ticker, queryClient]),
+    onComplete: useCallback(
+      (data: any[]) => {
+        console.log('[StockDetailContext] Sentiment analysis complete:', data.length, 'days');
+        // Invalidate React Query cache to re-fetch sentiment data
+        queryClient.invalidateQueries({ queryKey: ['sentimentData', ticker] });
+        queryClient.invalidateQueries({ queryKey: ['articleSentiment', ticker] });
+      },
+      [ticker, queryClient],
+    ),
     onError: useCallback((error: Error) => {
       console.error('[StockDetailContext] Sentiment analysis failed:', error);
     }, []),
@@ -123,14 +138,10 @@ export function StockDetailProvider({
       sentimentJobStatus,
       triggerAnalysis,
       cancelPolling,
-    ]
+    ],
   );
 
-  return (
-    <StockDetailContext.Provider value={value}>
-      {children}
-    </StockDetailContext.Provider>
-  );
+  return <StockDetailContext.Provider value={value}>{children}</StockDetailContext.Provider>;
 }
 
 export function useStockDetail() {

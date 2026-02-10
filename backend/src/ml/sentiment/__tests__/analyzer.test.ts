@@ -56,8 +56,7 @@ describe('SentimentAnalyzer', () => {
     });
 
     it('should recognize negative financial terms', () => {
-      const text =
-        'Stock crashed on bearish outlook. Losses mounted with declining revenues.';
+      const text = 'Stock crashed on bearish outlook. Losses mounted with declining revenues.';
       const result = analyzer.analyze(text, 'test-hash-4');
 
       const negCount = parseInt(result.negative[0]);
@@ -117,9 +116,7 @@ describe('SentimentAnalyzer', () => {
 
     it('should split text into sentences', () => {
       const text = 'First sentence. Second sentence? Third sentence.';
-      const sentences = analyzer.analyzeSentences(
-        text.split(/(?<=[.?])\s+/)
-      );
+      const sentences = analyzer.analyzeSentences(text.split(/(?<=[.?])\s+/));
 
       expect(sentences.length).toBe(3);
     });
@@ -247,13 +244,7 @@ describe('analyzeSentimentBatch', () => {
 
     const results = await analyzeSentimentBatch(articles);
 
-    expect(results.map((r) => r.articleHash)).toEqual([
-      'a1',
-      'a2',
-      'a3',
-      'a4',
-      'a5',
-    ]);
+    expect(results.map((r) => r.articleHash)).toEqual(['a1', 'a2', 'a3', 'a4', 'a5']);
   });
 
   it('should handle empty array', async () => {
@@ -300,9 +291,7 @@ describe('Consistency with Frontend', () => {
 
     // Should successfully analyze despite punctuation
     const totalSentences =
-      parseInt(result.positive[0]) +
-      parseInt(result.neutral[0]) +
-      parseInt(result.negative[0]);
+      parseInt(result.positive[0]) + parseInt(result.neutral[0]) + parseInt(result.negative[0]);
 
     expect(totalSentences).toBeGreaterThan(0);
   });

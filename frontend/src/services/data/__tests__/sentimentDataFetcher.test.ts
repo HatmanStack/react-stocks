@@ -40,8 +40,12 @@ jest.mock('@/services/data/databaseHydrator', () => ({
 
 const CombinedWordRepo = jest.requireMock('@/database/repositories/combinedWord.repository');
 const WordCountRepo = jest.requireMock('@/database/repositories/wordCount.repository');
-const { validateCombinedData, validateArticleData } = jest.requireMock('@/utils/sentiment/dataValidator');
-const { transformLambdaToLocal, transformArticleToLocal } = jest.requireMock('@/utils/sentiment/dataTransformer');
+const { validateCombinedData, validateArticleData } = jest.requireMock(
+  '@/utils/sentiment/dataValidator',
+);
+const { transformLambdaToLocal, transformArticleToLocal } = jest.requireMock(
+  '@/utils/sentiment/dataTransformer',
+);
 const Environment = jest.requireMock('@/config/environment').Environment;
 const lambdaService = jest.requireMock('@/services/api/lambdaSentiment.service');
 const hydrator = jest.requireMock('@/services/data/databaseHydrator');
@@ -140,7 +144,17 @@ describe('sentimentDataFetcher', () => {
       Environment.USE_LAMBDA_SENTIMENT = true;
 
       const lambdaArticles = {
-        articles: [{ date: '2025-01-10', hash: 'abc', ticker: 'AAPL', positive: 3, negative: 1, sentiment: 'POS', sentimentNumber: 0.5 }],
+        articles: [
+          {
+            date: '2025-01-10',
+            hash: 'abc',
+            ticker: 'AAPL',
+            positive: 3,
+            negative: 1,
+            sentiment: 'POS',
+            sentimentNumber: 0.5,
+          },
+        ],
       };
       lambdaService.getArticleSentiment.mockResolvedValue(lambdaArticles);
       transformArticleToLocal.mockImplementation((a: any, i: number) => ({ ...a, index: i }));

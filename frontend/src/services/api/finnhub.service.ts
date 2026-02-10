@@ -17,9 +17,7 @@ const BACKEND_TIMEOUT = 30000; // 30 seconds (Lambda handles retries)
  */
 function createBackendClient(): AxiosInstance {
   if (!Environment.BACKEND_URL) {
-    throw new Error(
-      'Backend URL not configured. Set EXPO_PUBLIC_BACKEND_URL in .env file.'
-    );
+    throw new Error('Backend URL not configured. Set EXPO_PUBLIC_BACKEND_URL in .env file.');
   }
 
   return axios.create({
@@ -42,7 +40,7 @@ export function generateArticleHash(url: string): string {
   let hash = 0;
   for (let i = 0; i < url.length; i++) {
     const char = url.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
   return Math.abs(hash).toString(36);
@@ -59,7 +57,7 @@ export function generateArticleHash(url: string): string {
 export async function fetchNews(
   ticker: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<FinnhubNewsArticle[]> {
   const client = createBackendClient();
 
@@ -112,7 +110,7 @@ export async function fetchNews(
  */
 export function transformFinnhubToNewsDetails(
   article: FinnhubNewsArticle,
-  ticker: string
+  ticker: string,
 ): NewsDetails {
   // Convert UNIX timestamp to YYYY-MM-DD format
   const date = new Date(article.datetime * 1000).toISOString().split('T')[0];

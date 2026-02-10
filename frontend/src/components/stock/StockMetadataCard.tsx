@@ -14,10 +14,7 @@ interface StockMetadataCardProps {
   isLoading?: boolean;
 }
 
-export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({
-  symbol,
-  isLoading,
-}) => {
+export const StockMetadataCard: React.FC<StockMetadataCardProps> = ({ symbol, isLoading }) => {
   const theme = useTheme();
 
   if (isLoading) {

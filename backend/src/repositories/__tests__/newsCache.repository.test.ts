@@ -38,10 +38,7 @@ describe('NewsCacheRepository', () => {
       const result = await getArticle('AAPL', 'hash123');
 
       expect(result).toBeNull();
-      expect(mockGetItem).toHaveBeenCalledWith(
-        'NEWS#AAPL',
-        'HASH#hash123',
-      );
+      expect(mockGetItem).toHaveBeenCalledWith('NEWS#AAPL', 'HASH#hash123');
     });
 
     it('returns article when found', async () => {

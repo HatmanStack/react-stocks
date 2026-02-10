@@ -12,13 +12,10 @@ import {
   batchPutItemsSingleTable,
   batchGetItemsSingleTable,
 } from '../utils/dynamodb.util.js';
-import {
-  makeNewsPK,
-  makeHashSK,
-  SortKeyPrefix,
-} from '../types/dynamodb.types.js';
+import { makeNewsPK, makeHashSK, SortKeyPrefix } from '../types/dynamodb.types.js';
 import type { NewsCacheItem } from '../types/dynamodb.types.js';
 import { calculateTTLByDataType } from '../utils/cache.util.js';
+import { logger } from '../utils/logger.util.js';
 
 /**
  * News article interface (external format)
@@ -58,7 +55,7 @@ export type { LegacyNewsCacheItem as NewsCacheItem };
  */
 export async function getArticle(
   ticker: string,
-  articleHash: string
+  articleHash: string,
 ): Promise<LegacyNewsCacheItem | null> {
   try {
     const pk = makeNewsPK(ticker);
@@ -73,7 +70,7 @@ export async function getArticle(
     // Transform to legacy format for backward compatibility
     return transformToLegacy(item);
   } catch (error) {
-    console.error('[NewsCacheRepository] Error getting article:', error, { ticker, articleHash });
+    logger.error('Error getting article', error, { ticker, articleHash });
     throw error;
   }
 }
@@ -102,19 +99,16 @@ export async function putArticle(item: Omit<LegacyNewsCacheItem, 'ttl'>): Promis
     const cacheItem = transformFromLegacy(item);
 
     // Use conditional put to prevent duplicates
-    const wasCreated = await putItemConditional(
-      cacheItem,
-      'attribute_not_exists(pk)'
-    );
+    const wasCreated = await putItemConditional(cacheItem, 'attribute_not_exists(pk)');
 
     if (!wasCreated) {
-      console.log('[NewsCacheRepository] Article already exists (duplicate prevented):', {
+      logger.info('Article already exists (duplicate prevented)', {
         ticker: item.ticker,
         articleHash: item.articleHash,
       });
     }
   } catch (error) {
-    console.error('[NewsCacheRepository] Error putting article:', error, {
+    logger.error('Error putting article', error, {
       ticker: item.ticker,
       articleHash: item.articleHash,
     });
@@ -133,9 +127,7 @@ export async function putArticle(item: Omit<LegacyNewsCacheItem, 'ttl'>): Promis
  *
  * @param items - Array of news cache items to store
  */
-export async function batchPutArticles(
-  items: Omit<LegacyNewsCacheItem, 'ttl'>[]
-): Promise<void> {
+export async function batchPutArticles(items: Omit<LegacyNewsCacheItem, 'ttl'>[]): Promise<void> {
   if (items.length === 0) {
     return;
   }
@@ -153,7 +145,7 @@ export async function batchPutArticles(
     });
 
     if (dedupedItems.length < items.length) {
-      console.log(`[NewsCacheRepository] Deduped ${items.length - dedupedItems.length} duplicate articles in batch`);
+      logger.info(`Deduped ${items.length - dedupedItems.length} duplicate articles in batch`);
     }
 
     const cacheItems = dedupedItems.map((item) => transformFromLegacy(item));
@@ -165,15 +157,18 @@ export async function batchPutArticles(
       await batchPutItemsSingleTable(batch);
     }
   } catch (error) {
-    console.error('[NewsCacheRepository] Error batch putting articles:', error, {
+    logger.error('Error batch putting articles', error, {
       itemCount: items.length,
     });
     throw error;
   }
 }
 
+/** Safety cap to prevent unbounded queries for high-volume tickers */
+const MAX_ARTICLES_PER_TICKER = 2000;
+
 /**
- * Query all articles for a specific ticker
+ * Query all articles for a specific ticker (capped at MAX_ARTICLES_PER_TICKER)
  *
  * @param ticker - Stock ticker symbol
  * @returns Array of news cache items for the ticker
@@ -181,9 +176,7 @@ export async function batchPutArticles(
  * @example
  * const articles = await queryArticlesByTicker('AAPL');
  */
-export async function queryArticlesByTicker(
-  ticker: string
-): Promise<LegacyNewsCacheItem[]> {
+export async function queryArticlesByTicker(ticker: string): Promise<LegacyNewsCacheItem[]> {
   try {
     const pk = makeNewsPK(ticker);
 
@@ -191,9 +184,18 @@ export async function queryArticlesByTicker(
       skPrefix: `${SortKeyPrefix.HASH}#`,
     });
 
+    if (items.length > MAX_ARTICLES_PER_TICKER) {
+      logger.warn(
+        `Ticker ${ticker} has ${items.length} articles, capping to ${MAX_ARTICLES_PER_TICKER}`,
+      );
+      // Sort by publishedAt descending and keep most recent
+      items.sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''));
+      items.length = MAX_ARTICLES_PER_TICKER;
+    }
+
     return items.map(transformToLegacy);
   } catch (error) {
-    console.error('[NewsCacheRepository] Error querying articles by ticker:', error, {
+    logger.error('Error querying articles by ticker', error, {
       ticker,
     });
     throw error;
@@ -211,15 +213,12 @@ export async function queryArticlesByTicker(
  * @example
  * const exists = await existsInCache('AAPL', 'hash_12345');
  */
-export async function existsInCache(
-  ticker: string,
-  articleHash: string
-): Promise<boolean> {
+export async function existsInCache(ticker: string, articleHash: string): Promise<boolean> {
   try {
     const article = await getArticle(ticker, articleHash);
     return article !== null;
   } catch (error) {
-    console.error('[NewsCacheRepository] Error checking if article exists:', error, {
+    logger.error('Error checking if article exists', error, {
       ticker,
       articleHash,
     });
@@ -233,14 +232,11 @@ export async function existsInCache(
  *
  * @returns Set of article hashes that exist in cache
  */
-export async function batchCheckExistence(
-  ticker: string,
-  hashes: string[]
-): Promise<Set<string>> {
+export async function batchCheckExistence(ticker: string, hashes: string[]): Promise<Set<string>> {
   if (hashes.length === 0) return new Set();
 
   const normalizedTicker = ticker.toUpperCase();
-  const keys = hashes.map(h => ({
+  const keys = hashes.map((h) => ({
     pk: makeNewsPK(normalizedTicker),
     sk: makeHashSK(h),
   }));
@@ -255,11 +251,13 @@ export async function batchCheckExistence(
       results.push(...batchResults);
     } catch (error) {
       // Log but continue with other batches - partial results are better than total failure
-      console.warn(`[NewsCacheRepository] Batch ${Math.floor(i / batchSize) + 1} failed, continuing:`, error);
+      logger.warn(`Batch ${Math.floor(i / batchSize) + 1} failed, continuing`, {
+        error: String(error),
+      });
     }
   }
 
-  return new Set(results.map(item => item.articleHash));
+  return new Set(results.map((item) => item.articleHash));
 }
 
 // ============================================================

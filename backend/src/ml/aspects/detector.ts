@@ -61,8 +61,8 @@ export function extractSentences(text: string): string[] {
   // Split on sentence terminators
   const sentences = processed
     .split(/[.!?]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 0);
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
   return sentences;
 }
@@ -74,10 +74,7 @@ export function extractSentences(text: string): string[] {
  * @param aspect - The aspect type to search for
  * @returns Array of aspect mentions with their locations
  */
-export function detectAspectMentions(
-  sentences: string[],
-  aspect: AspectType
-): AspectMention[] {
+export function detectAspectMentions(sentences: string[], aspect: AspectType): AspectMention[] {
   const keywords = ASPECT_KEYWORDS[aspect];
   const mentions: AspectMention[] = [];
 
@@ -113,11 +110,7 @@ export function detectAspectMentions(
  * @param windowSize - Number of words on each side (default: 10)
  * @returns Array of surrounding words in lowercase
  */
-function getSurroundingWords(
-  sentence: string,
-  keyword: string,
-  windowSize: number = 10
-): string[] {
+function getSurroundingWords(sentence: string, keyword: string, windowSize: number = 10): string[] {
   const words = sentence.toLowerCase().split(/\s+/);
   const keywordWords = keyword.toLowerCase().split(/\s+/);
 
@@ -155,7 +148,7 @@ function hasNegation(words: string[], signalWord: string): boolean {
   const start = Math.max(0, signalIndex - 3);
   const beforeWords = words.slice(start, signalIndex);
 
-  return beforeWords.some(word => NEGATION_WORDS.includes(word));
+  return beforeWords.some((word) => NEGATION_WORDS.includes(word));
 }
 
 /**
@@ -173,11 +166,11 @@ function getIntensityMultiplier(words: string[], signalWord: string): number {
   const start = Math.max(0, signalIndex - 2);
   const beforeWords = words.slice(start, signalIndex);
 
-  if (beforeWords.some(word => AMPLIFIERS.includes(word))) {
+  if (beforeWords.some((word) => AMPLIFIERS.includes(word))) {
     return 1.5;
   }
 
-  if (beforeWords.some(word => DIMINISHERS.includes(word))) {
+  if (beforeWords.some((word) => DIMINISHERS.includes(word))) {
     return 0.5;
   }
 
@@ -199,11 +192,8 @@ function getIntensityMultiplier(words: string[], signalWord: string): number {
  * 4. Calculate polarity: (positive - negative) / (positive + negative + 1)
  * 5. Calculate confidence based on signal strength
  */
-export function detectPolarity(
-  sentence: string,
-  keywords: AspectKeywords
-): PolarityResult {
-  const matchedKeyword = keywords.base.find(kw => {
+export function detectPolarity(sentence: string, keywords: AspectKeywords): PolarityResult {
+  const matchedKeyword = keywords.base.find((kw) => {
     const pattern = kw.includes(' ')
       ? new RegExp(`\\b${kw.replace(/\s+/g, '\\s+')}\\b`, 'i')
       : new RegExp(`\\b${kw}\\b`, 'i');
@@ -238,7 +228,10 @@ export function detectPolarity(
       if (signal === withoutS || signal === withoutEd || signal === withoutIng) return true;
 
       // Handle double consonant (e.g., "running" vs "run")
-      if (withoutIng.length > 0 && withoutIng[withoutIng.length - 1] === withoutIng[withoutIng.length - 2]) {
+      if (
+        withoutIng.length > 0 &&
+        withoutIng[withoutIng.length - 1] === withoutIng[withoutIng.length - 2]
+      ) {
         const stemmed = withoutIng.slice(0, -1);
         if (signal === stemmed) return true;
       }
@@ -248,8 +241,8 @@ export function detectPolarity(
   };
 
   // Check for positive signals
-  keywords.positive.forEach(signal => {
-    const matchedWord = surroundingWords.find(word => wordMatches(word, signal));
+  keywords.positive.forEach((signal) => {
+    const matchedWord = surroundingWords.find((word) => wordMatches(word, signal));
 
     if (matchedWord) {
       signalCount++;
@@ -270,8 +263,8 @@ export function detectPolarity(
   });
 
   // Check for negative signals
-  keywords.negative.forEach(signal => {
-    const matchedWord = surroundingWords.find(word => wordMatches(word, signal));
+  keywords.negative.forEach((signal) => {
+    const matchedWord = surroundingWords.find((word) => wordMatches(word, signal));
 
     if (matchedWord) {
       signalCount++;
@@ -292,9 +285,7 @@ export function detectPolarity(
   });
 
   // Boost confidence if context words present
-  const hasContext = keywords.context.some(ctx =>
-    surroundingWords.includes(ctx.toLowerCase())
-  );
+  const hasContext = keywords.context.some((ctx) => surroundingWords.includes(ctx.toLowerCase()));
   const contextBoost = hasContext ? 1.2 : 1.0;
 
   // Calculate polarity score (-1 to +1)
@@ -343,7 +334,7 @@ export function detectPolarity(
  */
 export function detectAspect(
   text: string,
-  aspect: AspectType
+  aspect: AspectType,
 ): { aspect: AspectType; score: number; confidence: number; text: string }[] {
   const sentences = extractSentences(text);
   const mentions = detectAspectMentions(sentences, aspect);
@@ -353,7 +344,7 @@ export function detectAspect(
   }
 
   const keywords = ASPECT_KEYWORDS[aspect];
-  const results = mentions.map(mention => {
+  const results = mentions.map((mention) => {
     const polarity = detectPolarity(mention.sentence, keywords);
 
     return {

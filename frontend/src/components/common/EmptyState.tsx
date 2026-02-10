@@ -92,7 +92,7 @@ export function EmptyState({
     pulseValue.value = withRepeat(
       withTiming(1, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
       -1, // infinite
-      true // reverse
+      true, // reverse
     );
   }, [pulseValue, config.animate]);
 
@@ -117,16 +117,10 @@ export function EmptyState({
         <Ionicons
           name={displayIcon}
           size={iconSize}
-          color={
-            variant === 'error'
-              ? theme.colors.error
-              : theme.colors.onSurfaceVariant
-          }
+          color={variant === 'error' ? theme.colors.error : theme.colors.onSurfaceVariant}
         />
       </Animated.View>
-      <Text style={[styles.message, { color: theme.colors.onSurface }]}>
-        {message}
-      </Text>
+      <Text style={[styles.message, { color: theme.colors.onSurface }]}>{message}</Text>
       {description && (
         <Text style={[styles.description, { color: theme.colors.onSurfaceVariant }]}>
           {description}

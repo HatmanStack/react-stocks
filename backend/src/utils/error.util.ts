@@ -31,7 +31,7 @@ export class APIError extends Error {
 export function logError(
   context: string,
   error: unknown,
-  additionalInfo?: Record<string, unknown>
+  additionalInfo?: Record<string, unknown>,
 ): void {
   const correlationId = getCorrelationId();
 
@@ -74,6 +74,23 @@ export function getErrorMessage(error: unknown): string {
  * Replaces unsafe `(error as any).statusCode` casts.
  */
 export function hasStatusCode(e: unknown): e is { statusCode: number } {
-  return typeof e === 'object' && e !== null && 'statusCode' in e &&
-    typeof (e as Record<string, unknown>).statusCode === 'number';
+  return (
+    typeof e === 'object' &&
+    e !== null &&
+    'statusCode' in e &&
+    typeof (e as Record<string, unknown>).statusCode === 'number'
+  );
+}
+
+/**
+ * Return a generic error message for 5xx responses.
+ * Logs the real error internally but never exposes implementation details to clients.
+ */
+export function sanitizeErrorMessage(error: unknown, statusCode: number): string {
+  // For client errors (4xx), the message is intentional and safe to return
+  if (statusCode >= 400 && statusCode < 500) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  // For server errors, return a generic message
+  return 'Internal server error';
 }

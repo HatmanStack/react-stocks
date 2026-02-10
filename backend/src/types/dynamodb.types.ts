@@ -13,17 +13,17 @@
  * Entity type prefixes for partition keys
  */
 export const EntityPrefix = {
-  STOCK: 'STOCK',      // Stock price cache
-  NEWS: 'NEWS',        // News article cache
-  SENTIMENT: 'SENT',   // Sentiment analysis cache
-  JOB: 'JOB',          // Sentiment job status
-  HISTORICAL: 'HIST',  // Historical price data (ML)
-  ARTICLE: 'ARTICLE',  // Article analysis data (ML)
-  DAILY: 'DAILY',      // Daily sentiment aggregate
-  CIRCUIT: 'CIRCUIT',  // Circuit breaker state
+  STOCK: 'STOCK', // Stock price cache
+  NEWS: 'NEWS', // News article cache
+  SENTIMENT: 'SENT', // Sentiment analysis cache
+  JOB: 'JOB', // Sentiment job status
+  HISTORICAL: 'HIST', // Historical price data (ML)
+  ARTICLE: 'ARTICLE', // Article analysis data (ML)
+  DAILY: 'DAILY', // Daily sentiment aggregate
+  CIRCUIT: 'CIRCUIT', // Circuit breaker state
 } as const;
 
-export type EntityPrefixType = typeof EntityPrefix[keyof typeof EntityPrefix];
+export type EntityPrefixType = (typeof EntityPrefix)[keyof typeof EntityPrefix];
 
 /**
  * Sort key prefixes
@@ -195,6 +195,26 @@ export interface DailySentimentItem extends BaseTableItem {
 }
 
 // ============================================================
+// Model Cache Entity Type
+// ============================================================
+
+/**
+ * Cached ML model weights item
+ * PK: MODEL#AAPL, SK: WEIGHTS#latest
+ */
+export interface ModelCacheItem extends BaseTableItem {
+  entityType: 'MODEL';
+  ticker: string;
+  weights: number[];
+  bias: number;
+  scalerMean: number[];
+  scalerStd: number[];
+  sampleCount: number;
+  accuracy: number;
+  trainedAt: string;
+}
+
+// ============================================================
 // Circuit Breaker Entity Type
 // ============================================================
 
@@ -226,7 +246,8 @@ export type TableItem =
   | StockHistoricalItem
   | ArticleAnalysisItem
   | DailySentimentItem
-  | CircuitBreakerItem;
+  | CircuitBreakerItem
+  | ModelCacheItem;
 
 // ============================================================
 // Key Construction Helper Functions
@@ -274,6 +295,14 @@ export function makeArticleSK(hash: string, date: string): string {
 
 export function makeDailyPK(ticker: string): string {
   return `${EntityPrefix.DAILY}#${ticker.toUpperCase()}`;
+}
+
+export function makeModelPK(ticker: string): string {
+  return `MODEL#${ticker.toUpperCase()}`;
+}
+
+export function makeWeightsSK(): string {
+  return 'WEIGHTS#latest';
 }
 
 export function makeCircuitPK(serviceName: string): string {

@@ -26,11 +26,11 @@ Backend (Lambda)                          Frontend (Browser)
 
 Each article produces three independent sentiment signals:
 
-| Signal | Source | Range | Scope |
-|--------|--------|-------|-------|
-| Event Type | Rule-based keyword classifier | 6 categories | All articles |
-| Aspect Score | Keyword detection across 6 financial aspects | -1 to +1 | All articles |
-| ML Score | External DistilRoBERTa model (neutral dampening + temperature) | -1 to +1 | Material events only |
+| Signal       | Source                                                         | Range        | Scope                |
+| ------------ | -------------------------------------------------------------- | ------------ | -------------------- |
+| Event Type   | Rule-based keyword classifier                                  | 6 categories | All articles         |
+| Aspect Score | Keyword detection across 6 financial aspects                   | -1 to +1     | All articles         |
+| ML Score     | External DistilRoBERTa model (neutral dampening + temperature) | -1 to +1     | Material events only |
 
 **Material events**: EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH.
 Non-material (GENERAL) articles get `mlScore = null`.
@@ -39,14 +39,14 @@ Non-material (GENERAL) articles get `mlScore = null`.
 
 Rule-based keyword matching with contextual validation.
 
-| Event Type | Impact Score | Priority |
-|------------|-------------|----------|
-| GENERAL | 0.0 | 1 |
-| PRODUCT_LAUNCH | 0.2 | 2 |
-| ANALYST_RATING | 0.4 | 3 |
-| GUIDANCE | 0.6 | 4 |
-| M&A | 0.8 | 5 |
-| EARNINGS | 1.0 | 6 |
+| Event Type     | Impact Score | Priority |
+| -------------- | ------------ | -------- |
+| GENERAL        | 0.0          | 1        |
+| PRODUCT_LAUNCH | 0.2          | 2        |
+| ANALYST_RATING | 0.4          | 3        |
+| GUIDANCE       | 0.6          | 4        |
+| M&A            | 0.8          | 5        |
+| EARNINGS       | 1.0          | 6        |
 
 File: `backend/src/services/eventClassification.service.ts`
 
@@ -54,14 +54,14 @@ File: `backend/src/services/eventClassification.service.ts`
 
 Detects sentiment across 6 financial aspects with event-dependent weighting.
 
-| Aspect | Weight |
-|--------|--------|
-| EARNINGS | 30% |
-| REVENUE | 25% |
-| GUIDANCE | 20% |
-| MARGINS | 15% |
-| GROWTH | 5% |
-| DEBT | 5% |
+| Aspect   | Weight |
+| -------- | ------ |
+| EARNINGS | 30%    |
+| REVENUE  | 25%    |
+| GUIDANCE | 20%    |
+| MARGINS  | 15%    |
+| GROWTH   | 5%     |
+| DEBT     | 5%     |
 
 Polarity formula: `Math.tanh((positiveScore - negativeScore) / SENSITIVITY)` where SENSITIVITY=2.
 
@@ -72,6 +72,7 @@ File: `backend/src/services/aspectAnalysis.service.ts`
 Calls an ONNX-served DistilRoBERTa model fine-tuned on financial news.
 
 Post-processing applied to raw softmax output:
+
 1. **Neutral dampening**: If `neut_prob >= 0.003`, reduce directional score by `min((neut - 0.003) * 200, 0.9)`
 2. **Temperature scaling**: `tanh(arctanh(dampened) / 3.0)` — spreads compressed scores for better nuance
 
@@ -96,8 +97,8 @@ File: `backend/src/services/signalScore.service.ts`
 Groups articles by date, computes signal-weighted averages:
 
 ```typescript
-avgAspectScore = sum(aspectScore * signalScore) / sum(signalScore)  // excludes 0
-avgMlScore     = sum(mlScore * signalScore) / sum(signalScore)      // material events only
+avgAspectScore = sum(aspectScore * signalScore) / sum(signalScore); // excludes 0
+avgMlScore = sum(mlScore * signalScore) / sum(signalScore); // material events only
 ```
 
 Guards against zero total weight (falls back to `undefined`).
@@ -108,11 +109,11 @@ File: `backend/src/utils/sentiment.util.ts`
 
 ### Ensemble Architecture
 
-| Horizon | Model | Features | Min Data | Strategy |
-|---------|-------|----------|----------|----------|
-| NEXT (1 day) | Full + Price-only ensemble | 8 + 4 | 25 labels | Blend by sentimentAvailability |
-| WEEK (10 days) | Price-only | 4 | 10 independent samples | Subsampled every 10th |
-| MONTH (21 days) | Price-only | 4 | 10 independent samples | Subsampled every 21st |
+| Horizon         | Model                      | Features | Min Data               | Strategy                       |
+| --------------- | -------------------------- | -------- | ---------------------- | ------------------------------ |
+| NEXT (1 day)    | Full + Price-only ensemble | 8 + 4    | 25 labels              | Blend by sentimentAvailability |
+| WEEK (10 days)  | Price-only                 | 4        | 10 independent samples | Subsampled every 10th          |
+| MONTH (21 days) | Price-only                 | 4        | 10 independent samples | Subsampled every 21st          |
 
 WEEK/MONTH use price-only because too few independent samples exist for sentiment features (overfit risk).
 
@@ -120,25 +121,25 @@ WEEK/MONTH use price-only because too few independent samples exist for sentimen
 
 **Full model (8 features):**
 
-| Index | Feature | Source |
-|-------|---------|--------|
-| 0 | price_ratio_5d | close[i] / close[i-5] |
-| 1 | price_ratio_10d | close[i] / close[i-10] |
-| 2 | volume | Normalized volume |
-| 3 | event_impact | Ordinal 0-1 from event type |
-| 4 | aspect_score | Daily avg aspect score |
-| 5 | ml_score | Daily avg ML score (0 if null) |
-| 6 | sentiment_availability | % of days with ML data |
-| 7 | volatility | Rolling 10-day std dev of returns |
+| Index | Feature                | Source                            |
+| ----- | ---------------------- | --------------------------------- |
+| 0     | price_ratio_5d         | close[i] / close[i-5]             |
+| 1     | price_ratio_10d        | close[i] / close[i-10]            |
+| 2     | volume                 | Normalized volume                 |
+| 3     | event_impact           | Ordinal 0-1 from event type       |
+| 4     | aspect_score           | Daily avg aspect score            |
+| 5     | ml_score               | Daily avg ML score (0 if null)    |
+| 6     | sentiment_availability | % of days with ML data            |
+| 7     | volatility             | Rolling 10-day std dev of returns |
 
 **Price-only model (4 features):**
 
-| Index | Feature |
-|-------|---------|
-| 0 | price_ratio_5d |
-| 1 | price_ratio_10d |
-| 2 | volume |
-| 3 | volatility |
+| Index | Feature         |
+| ----- | --------------- |
+| 0     | price_ratio_5d  |
+| 1     | price_ratio_10d |
+| 2     | volume          |
+| 3     | volatility      |
 
 File: `frontend/src/ml/prediction/preprocessing.ts`
 
@@ -160,14 +161,14 @@ For each day i (starting from TREND_WINDOW=20):
 
 Custom implementation matching scikit-learn behavior.
 
-| Parameter | Value |
-|-----------|-------|
-| Max iterations | 2000 |
-| Learning rate | 0.005 |
-| Regularization (C) | 1.0 |
-| Class weight | balanced |
-| Sample weights | Exponential decay (halfLife = max(10, n/4)) |
-| Cross-validation | k-fold, k = min(8, len(y)) |
+| Parameter          | Value                                       |
+| ------------------ | ------------------------------------------- |
+| Max iterations     | 2000                                        |
+| Learning rate      | 0.005                                       |
+| Regularization (C) | 1.0                                         |
+| Class weight       | balanced                                    |
+| Sample weights     | Exponential decay (halfLife = max(10, n/4)) |
+| Cross-validation   | k-fold, k = min(8, len(y))                  |
 
 File: `frontend/src/ml/prediction/model.ts`
 
@@ -189,13 +190,13 @@ File: `frontend/src/ml/prediction/prediction.service.ts`
 
 ## Data Requirements
 
-| Constant | Value | Reason |
-|----------|-------|--------|
-| MIN_STOCK_DATA | 46 days | TREND_WINDOW(20) + horizon(1) + MIN_LABELS(25) |
-| MIN_SENTIMENT_DATA | 25 days | Minimum for model training |
-| MIN_LABELS_NEXT | 25 | Minimum label count for 1-day horizon |
-| MIN_INDEPENDENT_SAMPLES | 10 | For WEEK/MONTH subsampled horizons |
-| TREND_WINDOW | 20 days | Rolling baseline for abnormal return |
+| Constant                | Value   | Reason                                         |
+| ----------------------- | ------- | ---------------------------------------------- |
+| MIN_STOCK_DATA          | 46 days | TREND_WINDOW(20) + horizon(1) + MIN_LABELS(25) |
+| MIN_SENTIMENT_DATA      | 25 days | Minimum for model training                     |
+| MIN_LABELS_NEXT         | 25      | Minimum label count for 1-day horizon          |
+| MIN_INDEPENDENT_SAMPLES | 10      | For WEEK/MONTH subsampled horizons             |
+| TREND_WINDOW            | 20 days | Rolling baseline for abnormal return           |
 
 ## File Map
 

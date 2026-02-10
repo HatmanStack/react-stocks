@@ -50,7 +50,7 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
   const getColorWithIntensity = (
     score: number | null | undefined,
     isPositive: boolean,
-    isNegative: boolean
+    isNegative: boolean,
   ): string | undefined => {
     if (score === null || score === undefined) return undefined;
 
@@ -90,12 +90,12 @@ export const SentimentListItem: React.FC<SentimentListItemProps> = React.memo(({
   const mlColor = getColorWithIntensity(
     item.avgMlScore,
     isScorePositive(item.avgMlScore),
-    isScoreNegative(item.avgMlScore)
+    isScoreNegative(item.avgMlScore),
   );
   const aspectColor = getColorWithIntensity(
     item.avgAspectScore,
     isScorePositive(item.avgAspectScore),
-    isScoreNegative(item.avgAspectScore)
+    isScoreNegative(item.avgAspectScore),
   );
 
   return (

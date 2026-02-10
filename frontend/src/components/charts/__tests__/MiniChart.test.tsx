@@ -17,7 +17,7 @@ describe('MiniChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <MiniChart data={mockData} positive />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -27,7 +27,7 @@ describe('MiniChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <MiniChart data={mockData} positive />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -43,7 +43,7 @@ describe('MiniChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <MiniChart data={negativeData} positive={false} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -53,7 +53,7 @@ describe('MiniChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <MiniChart data={[]} positive />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -63,7 +63,7 @@ describe('MiniChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <MiniChart data={mockData} width={80} height={40} positive />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -73,7 +73,7 @@ describe('MiniChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <MiniChart data={mockData} positive />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     const tree = toJSON();

@@ -106,9 +106,7 @@ export class SentimentAnalyzer {
    */
   private analyzeSentence(sentence: string): SentenceResult {
     // Use financial lexicon if enabled
-    const language = this.config.financialLexiconEnabled
-      ? 'en-financial'
-      : undefined;
+    const language = this.config.financialLexiconEnabled ? 'en-financial' : undefined;
 
     const result = this.sentiment.analyze(sentence, { language });
 
@@ -140,10 +138,7 @@ export class SentimentAnalyzer {
    * @param hash - Article hash identifier
    * @returns Aggregated sentiment result
    */
-  public aggregateResults(
-    results: SentenceResult[],
-    hash: string
-  ): SentimentResult {
+  public aggregateResults(results: SentenceResult[], hash: string): SentimentResult {
     // Initialize statistics for each sentiment category
     const stats: Record<'POS' | 'NEUT' | 'NEG', SentimentStats> = {
       POS: { count: 0, totalScore: 0, scores: [], averageConfidence: 0 },
@@ -170,18 +165,9 @@ export class SentimentAnalyzer {
     // Format as Python service response
     // Arrays of [count, confidence] as strings
     return {
-      positive: [
-        stats.POS.count.toString(),
-        stats.POS.averageConfidence.toFixed(2),
-      ],
-      neutral: [
-        stats.NEUT.count.toString(),
-        stats.NEUT.averageConfidence.toFixed(2),
-      ],
-      negative: [
-        stats.NEG.count.toString(),
-        stats.NEG.averageConfidence.toFixed(2),
-      ],
+      positive: [stats.POS.count.toString(), stats.POS.averageConfidence.toFixed(2)],
+      neutral: [stats.NEUT.count.toString(), stats.NEUT.averageConfidence.toFixed(2)],
+      negative: [stats.NEG.count.toString(), stats.NEG.averageConfidence.toFixed(2)],
       hash,
     };
   }

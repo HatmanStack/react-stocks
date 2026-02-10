@@ -41,16 +41,19 @@ const VISIBLE_SERIES = {
   ml: true,
 } as const;
 
-const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: SentimentChartProps) => {
+const SentimentChartComponent = ({
+  data,
+  width: customWidth,
+  height = 220,
+}: SentimentChartProps) => {
   const theme = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
   const { fontSize } = useLayoutDensity();
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
 
   // Responsive chart width: full on small screens, 66% on larger
-  const defaultWidth = screenWidth < SMALL_SCREEN_BREAKPOINT
-    ? screenWidth - 16
-    : screenWidth * 0.66;
+  const defaultWidth =
+    screenWidth < SMALL_SCREEN_BREAKPOINT ? screenWidth - 16 : screenWidth * 0.66;
   const chartWidth = customWidth || defaultWidth;
 
   // Use subtitle size for axis labels, respects user's fontScale
@@ -69,14 +72,10 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
 
     const isCombinedWordDetails = 'sentimentNumber' in data[0];
     if (isCombinedWordDetails) {
-      return (data as CombinedWordDetails[])
-        .map(d => d.date)
-        .sort();
+      return (data as CombinedWordDetails[]).map((d) => d.date).sort();
     }
 
-    return (data as { date: string; sentimentScore: number }[])
-      .map(d => d.date)
-      .sort();
+    return (data as { date: string; sentimentScore: number }[]).map((d) => d.date).sort();
   }, [data]);
 
   // Prepare multi-series data
@@ -87,7 +86,9 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
 
     if (!isCombinedWordDetails) {
       // Simple format - only legacy sentiment
-      const legacyData = (data as { date: string; sentimentScore: number }[]).map(d => d.sentimentScore);
+      const legacyData = (data as { date: string; sentimentScore: number }[]).map(
+        (d) => d.sentimentScore,
+      );
       return {
         series: [
           {
@@ -107,24 +108,20 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
     const transformed = transformSentimentData(combinedData);
 
     // Extract aspect scores (if available)
-    const aspectData = combinedData.map(d =>
-      d.avgAspectScore !== null && d.avgAspectScore !== undefined
-        ? d.avgAspectScore
-        : null
+    const aspectData = combinedData.map((d) =>
+      d.avgAspectScore !== null && d.avgAspectScore !== undefined ? d.avgAspectScore : null,
     );
-    const hasAspect = aspectData.some(v => v !== null);
+    const hasAspect = aspectData.some((v) => v !== null);
 
     // Extract ML scores (if available)
-    const mlData = combinedData.map(d =>
-      d.avgMlScore !== null && d.avgMlScore !== undefined
-        ? d.avgMlScore
-        : null
+    const mlData = combinedData.map((d) =>
+      d.avgMlScore !== null && d.avgMlScore !== undefined ? d.avgMlScore : null,
     );
-    const hasML = mlData.some(v => v !== null);
+    const hasML = mlData.some((v) => v !== null);
 
     const series: ChartSeries[] = [
       {
-        data: transformed.map(point => point.y),
+        data: transformed.map((point) => point.y),
         color: theme.colors.primary,
         label: 'Legacy',
         visible: VISIBLE_SERIES.legacy,
@@ -133,7 +130,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
 
     if (hasAspect) {
       series.push({
-        data: aspectData.map(v => v ?? NaN), // Use NaN for missing data points
+        data: aspectData.map((v) => v ?? NaN), // Use NaN for missing data points
         color: '#4CAF50', // Green
         label: 'Aspect',
         visible: VISIBLE_SERIES.aspect,
@@ -142,7 +139,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
 
     if (hasML) {
       series.push({
-        data: mlData.map(v => v ?? NaN), // Use NaN for missing data points
+        data: mlData.map((v) => v ?? NaN), // Use NaN for missing data points
         color: '#9C27B0', // Purple
         label: 'ML Model',
         visible: VISIBLE_SERIES.ml,
@@ -151,7 +148,6 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
 
     return { series, hasAspect, hasML };
   }, [data, theme]);
-
 
   // Compute evenly spaced tick indices across the full data range (inclusive of first and last)
   const xTickIndices = useMemo(() => {
@@ -252,10 +248,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
         style={{ flex: 1, minHeight: height, justifyContent: 'center', alignItems: 'center' }}
         onLayout={handleLayout}
       >
-        <PaperText
-          variant="bodyMedium"
-          style={{ color: theme.colors.onSurfaceVariant }}
-        >
+        <PaperText variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
           No sentiment data available
         </PaperText>
       </View>
@@ -334,7 +327,7 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
                   yMin={-1}
                   yMax={1}
                 />
-              ) : null
+              ) : null,
             )}
           </LineChart>
         </View>
@@ -354,7 +347,6 @@ const SentimentChartComponent = ({ data, width: customWidth, height = 220 }: Sen
     </Animated.View>
   );
 };
-
 
 // Memoize component to prevent unnecessary re-renders
 export const SentimentChart = React.memo(SentimentChartComponent);

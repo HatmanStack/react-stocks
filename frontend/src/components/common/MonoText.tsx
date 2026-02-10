@@ -28,8 +28,8 @@ export function MonoText({
   const color = positive
     ? theme.colors.positive
     : negative
-    ? theme.colors.negative
-    : theme.colors.onSurface;
+      ? theme.colors.negative
+      : theme.colors.onSurface;
 
   // Determine font size based on variant
   const fontSize = variant === 'price' ? 16 : variant === 'percentage' ? 14 : 12;

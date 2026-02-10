@@ -133,4 +133,3 @@ export const FINANCIAL_LEXICON: Record<string, number> = {
   sink: -3,
   sinking: -3,
 };
-

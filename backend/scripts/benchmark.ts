@@ -9,14 +9,28 @@ import path from 'path';
 
 // CLI arguments
 const args = process.argv.slice(2);
-const scenario = args.find(arg => arg.startsWith('--scenario'))?.split('=')[1] || 'all';
-const iterations = parseInt(args.find(arg => arg.startsWith('--iterations'))?.split('=')[1] || '10');
-const output = args.find(arg => arg.startsWith('--output'))?.split('=')[1] || 'benchmark-results.md';
+const scenario = args.find((arg) => arg.startsWith('--scenario'))?.split('=')[1] || 'all';
+const iterations = parseInt(
+  args.find((arg) => arg.startsWith('--iterations'))?.split('=')[1] || '10',
+);
+const output =
+  args.find((arg) => arg.startsWith('--output'))?.split('=')[1] || 'benchmark-results.md';
 
 // Config
 const API_URL = process.env.API_URL || 'https://api.example.com'; // Set via env
 const TEST_TICKER = 'AAPL';
-const TEST_TICKERS = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'NVDA', 'META', 'NFLX', 'AMD', 'INTC'];
+const TEST_TICKERS = [
+  'AAPL',
+  'GOOGL',
+  'MSFT',
+  'TSLA',
+  'AMZN',
+  'NVDA',
+  'META',
+  'NFLX',
+  'AMD',
+  'INTC',
+];
 
 interface BenchmarkResult {
   iteration: number;
@@ -37,7 +51,7 @@ function calculateStats(results: BenchmarkResult[]): Stats {
     return { min: 0, max: 0, mean: 0, median: 0, p95: 0, p99: 0 };
   }
 
-  const durations = results.map(r => r.duration).sort((a, b) => a - b);
+  const durations = results.map((r) => r.duration).sort((a, b) => a - b);
   const sum = durations.reduce((a, b) => a + b, 0);
   const n = durations.length;
 
@@ -92,7 +106,7 @@ async function main() {
     scenarios['Batch (10 tickers)'] = await runBenchmark('Batch (10 tickers)', async () => {
       await axios.post(`${API_URL}/batch/stocks`, {
         tickers: TEST_TICKERS,
-        startDate: date
+        startDate: date,
       });
     });
   }
@@ -115,7 +129,7 @@ async function main() {
       await Promise.all([
         axios.post(`${API_URL}/batch/stocks`, { tickers: PORTFOLIO_TICKERS, startDate: date }),
         axios.post(`${API_URL}/batch/news`, { tickers: PORTFOLIO_TICKERS, limit: 10 }),
-        axios.post(`${API_URL}/batch/sentiment`, { tickers: PORTFOLIO_TICKERS, startDate: date })
+        axios.post(`${API_URL}/batch/sentiment`, { tickers: PORTFOLIO_TICKERS, startDate: date }),
       ]);
     });
   }

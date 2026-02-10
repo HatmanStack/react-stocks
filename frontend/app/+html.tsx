@@ -19,10 +19,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
 
         {/* Primary Meta Tags */}
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, viewport-fit=cover"
-        />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
         {/* PWA Configuration */}
         <meta name="mobile-web-app-capable" content="yes" />
@@ -43,8 +40,9 @@ export default function Root({ children }: PropsWithChildren) {
         <ScrollViewStyleReset />
 
         {/* Global Styles */}
-        <style dangerouslySetInnerHTML={{
-          __html: `
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
             * {
               box-sizing: border-box;
             }
@@ -63,8 +61,9 @@ export default function Root({ children }: PropsWithChildren) {
               display: flex;
               flex-direction: column;
             }
-          `
-        }} />
+          `,
+          }}
+        />
       </head>
       <body>{children}</body>
     </html>

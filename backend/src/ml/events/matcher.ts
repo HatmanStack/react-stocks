@@ -64,10 +64,7 @@ export function normalizeText(text: string): string {
  * matchKeywords("company beats estimates with strong revenue", ["beats estimates", "revenue"])
  * // Returns: { matchCount: 2, matched: ["beats estimates", "revenue"] }
  */
-export function matchKeywords(
-  text: string,
-  keywords: string[]
-): KeywordMatchResult {
+export function matchKeywords(text: string, keywords: string[]): KeywordMatchResult {
   const matched: string[] = [];
   let matchCount = 0;
 
@@ -106,7 +103,7 @@ export function validateContext(
   text: string,
   keyword: string,
   contextWords: string[],
-  windowSize: number = 10
+  windowSize: number = 10,
 ): boolean {
   if (contextWords.length === 0) {
     return true; // No context required
@@ -154,10 +151,7 @@ export function validateContext(
  * hasNegativePattern("career guidance counselor program", ["guidance counselor"])
  * // Returns: true (contains negative pattern)
  */
-export function hasNegativePattern(
-  text: string,
-  negativePatterns: string[]
-): boolean {
+export function hasNegativePattern(text: string, negativePatterns: string[]): boolean {
   if (!negativePatterns || negativePatterns.length === 0) {
     return false;
   }
@@ -190,19 +184,13 @@ export function hasNegativePattern(
  * scoreEvent("Apple reported Q1 earnings of $1.25 EPS, beating estimates", EARNINGS_KEYWORDS)
  * // Returns: ~0.85 (high confidence for earnings)
  */
-export function scoreEvent(
-  text: string,
-  eventKeywords: EventKeywordSet
-): number {
+export function scoreEvent(text: string, eventKeywords: EventKeywordSet): number {
   if (!text || text.trim().length === 0) {
     return 0;
   }
 
   // Check for negative patterns first
-  if (
-    eventKeywords.negativePatterns &&
-    hasNegativePattern(text, eventKeywords.negativePatterns)
-  ) {
+  if (eventKeywords.negativePatterns && hasNegativePattern(text, eventKeywords.negativePatterns)) {
     return 0; // Invalid classification
   }
 

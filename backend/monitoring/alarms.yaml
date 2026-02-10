@@ -13,13 +13,13 @@ LambdaErrorCountHigh:
     MetricName: Errors
     Namespace: AWS/Lambda
     Statistic: Sum
-    Period: 300  # 5 minutes
+    Period: 300 # 5 minutes
     EvaluationPeriods: 1
-    Threshold: 5  # 5 errors in 5 minutes
+    Threshold: 5 # 5 errors in 5 minutes
     ComparisonOperator: GreaterThanThreshold
     TreatMissingData: notBreaching
     AlarmActions:
-      - !Ref CriticalAlarmsTopicArn  # Replace with SNS topic ARN
+      - !Ref CriticalAlarmsTopicArn # Replace with SNS topic ARN
     Dimensions:
       - Name: FunctionName
         Value: !Ref ReactStocksFunctionName
@@ -32,9 +32,9 @@ APIGateway5xxRateHigh:
     MetricName: 5XXError
     Namespace: AWS/ApiGateway
     Statistic: Sum
-    Period: 300  # 5 minutes
+    Period: 300 # 5 minutes
     EvaluationPeriods: 1
-    Threshold: 10  # Adjust based on expected traffic
+    Threshold: 10 # Adjust based on expected traffic
     ComparisonOperator: GreaterThanThreshold
     TreatMissingData: notBreaching
     AlarmActions:
@@ -51,9 +51,9 @@ LambdaTimeoutRateHigh:
     MetricName: Duration
     Namespace: AWS/Lambda
     Statistic: Maximum
-    Period: 600  # 10 minutes
+    Period: 600 # 10 minutes
     EvaluationPeriods: 1
-    Threshold: 28000  # 28 seconds (timeout is 30s)
+    Threshold: 28000 # 28 seconds (timeout is 30s)
     ComparisonOperator: GreaterThanThreshold
     TreatMissingData: notBreaching
     AlarmActions:
@@ -74,13 +74,13 @@ LambdaDurationP95High:
     MetricName: Duration
     Namespace: AWS/Lambda
     ExtendedStatistic: p95
-    Period: 900  # 15 minutes
+    Period: 900 # 15 minutes
     EvaluationPeriods: 1
-    Threshold: 1000  # 1 second
+    Threshold: 1000 # 1 second
     ComparisonOperator: GreaterThanThreshold
     TreatMissingData: notBreaching
     AlarmActions:
-      - !Ref WarningAlarmsTopicArn  # Replace with SNS topic ARN
+      - !Ref WarningAlarmsTopicArn # Replace with SNS topic ARN
     Dimensions:
       - Name: FunctionName
         Value: !Ref ReactStocksFunctionName
@@ -93,7 +93,7 @@ LambdaThrottlesDetected:
     MetricName: Throttles
     Namespace: AWS/Lambda
     Statistic: Sum
-    Period: 300  # 5 minutes
+    Period: 300 # 5 minutes
     EvaluationPeriods: 1
     Threshold: 1
     ComparisonOperator: GreaterThanThreshold
@@ -112,9 +112,9 @@ APIGateway4xxRateHigh:
     MetricName: 4XXError
     Namespace: AWS/ApiGateway
     Statistic: Sum
-    Period: 900  # 15 minutes
+    Period: 900 # 15 minutes
     EvaluationPeriods: 1
-    Threshold: 50  # Adjust based on expected traffic
+    Threshold: 50 # Adjust based on expected traffic
     ComparisonOperator: GreaterThanThreshold
     TreatMissingData: notBreaching
     AlarmActions:
@@ -131,9 +131,9 @@ APIGatewayLatencyP95High:
     MetricName: Latency
     Namespace: AWS/ApiGateway
     ExtendedStatistic: p95
-    Period: 900  # 15 minutes
+    Period: 900 # 15 minutes
     EvaluationPeriods: 1
-    Threshold: 2000  # 2 seconds
+    Threshold: 2000 # 2 seconds
     ComparisonOperator: GreaterThanThreshold
     TreatMissingData: notBreaching
     AlarmActions:
@@ -154,13 +154,13 @@ LambdaConcurrentExecutionsHigh:
     MetricName: ConcurrentExecutions
     Namespace: AWS/Lambda
     Statistic: Maximum
-    Period: 300  # 5 minutes
+    Period: 300 # 5 minutes
     EvaluationPeriods: 1
-    Threshold: 800  # Adjust based on account limits (default 1000)
+    Threshold: 800 # Adjust based on account limits (default 1000)
     ComparisonOperator: GreaterThanThreshold
     TreatMissingData: notBreaching
     AlarmActions:
-      - !Ref InformationalAlarmsTopicArn  # Replace with SNS topic ARN
+      - !Ref InformationalAlarmsTopicArn # Replace with SNS topic ARN
     Dimensions:
       - Name: FunctionName
         Value: !Ref ReactStocksFunctionName

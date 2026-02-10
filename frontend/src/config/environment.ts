@@ -23,24 +23,21 @@ export const Environment = {
    * Default: false (safe rollout)
    * Set EXPO_PUBLIC_BROWSER_SENTIMENT=true to enable
    */
-  USE_BROWSER_SENTIMENT:
-    process.env.EXPO_PUBLIC_BROWSER_SENTIMENT === 'true',
+  USE_BROWSER_SENTIMENT: process.env.EXPO_PUBLIC_BROWSER_SENTIMENT === 'true',
 
   /**
    * Use browser-based prediction model instead of Python microservice
    * Default: false (safe rollout)
    * Set EXPO_PUBLIC_BROWSER_PREDICTION=true to enable
    */
-  USE_BROWSER_PREDICTION:
-    process.env.EXPO_PUBLIC_BROWSER_PREDICTION === 'true',
+  USE_BROWSER_PREDICTION: process.env.EXPO_PUBLIC_BROWSER_PREDICTION === 'true',
 
   /**
    * Use Lambda for sentiment analysis instead of local browser analysis
    * Default: true (enabled)
    * Set EXPO_PUBLIC_USE_LAMBDA_SENTIMENT=false to rollback to local analysis
    */
-  USE_LAMBDA_SENTIMENT:
-    process.env.EXPO_PUBLIC_USE_LAMBDA_SENTIMENT !== 'false', // Default to true
+  USE_LAMBDA_SENTIMENT: process.env.EXPO_PUBLIC_USE_LAMBDA_SENTIMENT !== 'false', // Default to true
 } as const;
 
 /**
@@ -51,9 +48,7 @@ export function validateEnvironment(): void {
   const errors: string[] = [];
 
   if (!Environment.BACKEND_URL) {
-    errors.push(
-      'EXPO_PUBLIC_BACKEND_URL is not set. Add it to your .env file.'
-    );
+    errors.push('EXPO_PUBLIC_BACKEND_URL is not set. Add it to your .env file.');
   }
 
   if (errors.length > 0) {

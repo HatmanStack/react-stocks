@@ -20,9 +20,7 @@ jest.mock('@expo/vector-icons', () => ({
 const mockUseLatestStockPrice = useLatestStockPrice as jest.MockedFunction<
   typeof useLatestStockPrice
 >;
-const mockUseStockData = useStockData as jest.MockedFunction<
-  typeof useStockData
->;
+const mockUseStockData = useStockData as jest.MockedFunction<typeof useStockData>;
 
 const mockItem = {
   ticker: 'AAPL',
@@ -78,7 +76,7 @@ describe('PortfolioItem', () => {
 
     const { getByText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
-      { wrapper }
+      { wrapper },
     );
 
     expect(getByText('AAPL')).toBeTruthy();
@@ -94,7 +92,7 @@ describe('PortfolioItem', () => {
 
     const { getByText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
-      { wrapper }
+      { wrapper },
     );
 
     expect(getByText('$186.40')).toBeTruthy();
@@ -111,12 +109,12 @@ describe('PortfolioItem', () => {
 
     const { getByText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
-      { wrapper }
+      { wrapper },
     );
 
     const change = getByText('+3.56%');
     expect(change.props.style).toEqual(
-      expect.arrayContaining([expect.objectContaining({ color: theme.colors.positive })])
+      expect.arrayContaining([expect.objectContaining({ color: theme.colors.positive })]),
     );
   });
 
@@ -130,13 +128,13 @@ describe('PortfolioItem', () => {
 
     const { getByText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
-      { wrapper }
+      { wrapper },
     );
 
     // Change percentage: (175.0 - 180.0) / 180.0 = -0.0277... = -2.78%
     const change = getByText('-2.78%');
     expect(change.props.style).toEqual(
-      expect.arrayContaining([expect.objectContaining({ color: theme.colors.negative })])
+      expect.arrayContaining([expect.objectContaining({ color: theme.colors.negative })]),
     );
   });
 
@@ -149,7 +147,7 @@ describe('PortfolioItem', () => {
 
     const { getAllByText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
-      { wrapper }
+      { wrapper },
     );
 
     // Price and chart placeholder both show '--', possibly prediction too
@@ -167,7 +165,7 @@ describe('PortfolioItem', () => {
     const onPress = jest.fn();
     const { getByText } = render(
       <PortfolioItem item={mockItem} onPress={onPress} onDelete={jest.fn()} />,
-      { wrapper }
+      { wrapper },
     );
 
     fireEvent.press(getByText('AAPL'));
@@ -184,7 +182,7 @@ describe('PortfolioItem', () => {
     const onDelete = jest.fn();
     const { getByLabelText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={onDelete} />,
-      { wrapper }
+      { wrapper },
     );
 
     const deleteButton = getByLabelText('Remove AAPL from portfolio');
@@ -201,7 +199,7 @@ describe('PortfolioItem', () => {
 
     const { toJSON } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
-      { wrapper }
+      { wrapper },
     );
 
     expect(toJSON()).toBeTruthy();
@@ -217,7 +215,7 @@ describe('PortfolioItem', () => {
 
     const { getByText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
-      { wrapper }
+      { wrapper },
     );
 
     expect(getByText('+0.00%')).toBeTruthy();
@@ -232,7 +230,7 @@ describe('PortfolioItem', () => {
 
     const { getAllByText } = render(
       <PortfolioItem item={mockItem} onPress={jest.fn()} onDelete={jest.fn()} />,
-      { wrapper }
+      { wrapper },
     );
 
     // When chartData is empty, component renders '--' as placeholder

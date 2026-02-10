@@ -38,7 +38,7 @@ export class StandardScaler {
     for (let i = 1; i < nSamples; i++) {
       if (X[i].length !== nFeatures) {
         throw new Error(
-          `StandardScaler: Inconsistent feature count at row ${i}. Expected ${nFeatures}, got ${X[i].length}`
+          `StandardScaler: Inconsistent feature count at row ${i}. Expected ${nFeatures}, got ${X[i].length}`,
         );
       }
     }
@@ -53,9 +53,7 @@ export class StandardScaler {
       for (let i = 0; i < nSamples; i++) {
         const value = X[i][j];
         if (!isFinite(value)) {
-          throw new Error(
-            `StandardScaler: Non-finite value at row ${i}, column ${j}: ${value}`
-          );
+          throw new Error(`StandardScaler: Non-finite value at row ${i}, column ${j}: ${value}`);
         }
         sum += value;
       }
@@ -93,7 +91,7 @@ export class StandardScaler {
 
     if (nFeatures !== this.mean.length) {
       throw new Error(
-        `StandardScaler: Feature count mismatch. Expected ${this.mean.length}, got ${nFeatures}`
+        `StandardScaler: Feature count mismatch. Expected ${this.mean.length}, got ${nFeatures}`,
       );
     }
 
@@ -106,9 +104,7 @@ export class StandardScaler {
         const value = X[i][j];
 
         if (!isFinite(value)) {
-          throw new Error(
-            `StandardScaler: Non-finite value at row ${i}, column ${j}: ${value}`
-          );
+          throw new Error(`StandardScaler: Non-finite value at row ${i}, column ${j}: ${value}`);
         }
 
         // Handle constant features (std = 0)
@@ -142,9 +138,7 @@ export class StandardScaler {
    */
   inverseTransform(X: FeatureMatrix): FeatureMatrix {
     if (this.mean === null || this.std === null) {
-      throw new Error(
-        'StandardScaler: Must call fit() before inverseTransform()'
-      );
+      throw new Error('StandardScaler: Must call fit() before inverseTransform()');
     }
 
     if (!X || X.length === 0) {
@@ -156,7 +150,7 @@ export class StandardScaler {
 
     if (nFeatures !== this.mean.length) {
       throw new Error(
-        `StandardScaler: Feature count mismatch. Expected ${this.mean.length}, got ${nFeatures}`
+        `StandardScaler: Feature count mismatch. Expected ${this.mean.length}, got ${nFeatures}`,
       );
     }
 

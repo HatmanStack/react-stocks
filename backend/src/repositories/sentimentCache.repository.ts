@@ -16,14 +16,11 @@ import {
   batchPutItemsSingleTable,
   batchGetItemsSingleTable,
 } from '../utils/dynamodb.util.js';
-import {
-  makeSentimentPK,
-  makeHashSK,
-  SortKeyPrefix,
-} from '../types/dynamodb.types.js';
+import { makeSentimentPK, makeHashSK, SortKeyPrefix } from '../types/dynamodb.types.js';
 import type { SentimentCacheItem as SingleTableSentimentItem } from '../types/dynamodb.types.js';
 import type { SentimentCacheItem } from '../types/sentiment.types.js';
 import { calculateTTLByDataType } from '../utils/cache.util.js';
+import { logger } from '../utils/logger.util.js';
 
 // Re-export types for convenience
 export type { SentimentCacheItem, SentimentData } from '../types/sentiment.types.js';
@@ -40,7 +37,7 @@ export type { SentimentCacheItem, SentimentData } from '../types/sentiment.types
  */
 export async function getSentiment(
   ticker: string,
-  articleHash: string
+  articleHash: string,
 ): Promise<SentimentCacheItem | null> {
   try {
     const pk = makeSentimentPK(ticker);
@@ -54,7 +51,7 @@ export async function getSentiment(
 
     return transformToExternal(item);
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error getting sentiment:', error, {
+    logger.error('Error getting sentiment', error, {
       ticker,
       articleHash,
     });
@@ -81,26 +78,21 @@ export async function getSentiment(
  *   analyzedAt: Date.now()
  * });
  */
-export async function putSentiment(
-  item: Omit<SentimentCacheItem, 'ttl'>
-): Promise<void> {
+export async function putSentiment(item: Omit<SentimentCacheItem, 'ttl'>): Promise<void> {
   try {
     const cacheItem = transformToInternal(item);
 
     // Use conditional put to prevent duplicates
-    const wasCreated = await putItemConditional(
-      cacheItem,
-      'attribute_not_exists(pk)'
-    );
+    const wasCreated = await putItemConditional(cacheItem, 'attribute_not_exists(pk)');
 
     if (!wasCreated) {
-      console.log('[SentimentCacheRepository] Sentiment already exists (duplicate prevented):', {
+      logger.info('Sentiment already exists (duplicate prevented)', {
         ticker: item.ticker,
         articleHash: item.articleHash,
       });
     }
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error putting sentiment:', error, {
+    logger.error('Error putting sentiment', error, {
       ticker: item.ticker,
       articleHash: item.articleHash,
     });
@@ -119,9 +111,7 @@ export async function putSentiment(
  *
  * @param items - Array of sentiment cache items to store
  */
-export async function batchPutSentiments(
-  items: Omit<SentimentCacheItem, 'ttl'>[]
-): Promise<void> {
+export async function batchPutSentiments(items: Omit<SentimentCacheItem, 'ttl'>[]): Promise<void> {
   if (items.length === 0) {
     return;
   }
@@ -136,7 +126,7 @@ export async function batchPutSentiments(
       await batchPutItemsSingleTable(batch);
     }
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error batch putting sentiments:', error, {
+    logger.error('Error batch putting sentiments', error, {
       itemCount: items.length,
     });
     throw error;
@@ -152,9 +142,7 @@ export async function batchPutSentiments(
  * @example
  * const sentiments = await querySentimentsByTicker('AAPL');
  */
-export async function querySentimentsByTicker(
-  ticker: string
-): Promise<SentimentCacheItem[]> {
+export async function querySentimentsByTicker(ticker: string): Promise<SentimentCacheItem[]> {
   try {
     const pk = makeSentimentPK(ticker);
 
@@ -164,7 +152,7 @@ export async function querySentimentsByTicker(
 
     return items.map(transformToExternal);
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error querying sentiments by ticker:', error, {
+    logger.error('Error querying sentiments by ticker', error, {
       ticker,
     });
     throw error;
@@ -182,15 +170,12 @@ export async function querySentimentsByTicker(
  * @example
  * const exists = await existsInCache('AAPL', 'hash_12345');
  */
-export async function existsInCache(
-  ticker: string,
-  articleHash: string
-): Promise<boolean> {
+export async function existsInCache(ticker: string, articleHash: string): Promise<boolean> {
   try {
     const sentiment = await getSentiment(ticker, articleHash);
     return sentiment !== null;
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error checking if sentiment exists:', error, {
+    logger.error('Error checking if sentiment exists', error, {
       ticker,
       articleHash,
     });
@@ -204,14 +189,11 @@ export async function existsInCache(
  *
  * @returns Set of article hashes that exist in cache
  */
-export async function batchCheckExistence(
-  ticker: string,
-  hashes: string[]
-): Promise<Set<string>> {
+export async function batchCheckExistence(ticker: string, hashes: string[]): Promise<Set<string>> {
   if (hashes.length === 0) return new Set();
 
   const normalizedTicker = ticker.toUpperCase();
-  const keys = hashes.map(h => ({
+  const keys = hashes.map((h) => ({
     pk: makeSentimentPK(normalizedTicker),
     sk: makeHashSK(h),
   }));
@@ -226,11 +208,13 @@ export async function batchCheckExistence(
       results.push(...batchResults);
     } catch (error) {
       // Log but continue with other batches - partial results are better than total failure
-      console.warn(`[SentimentCacheRepository] Batch ${Math.floor(i / batchSize) + 1} failed, continuing:`, error);
+      logger.warn(`Batch ${Math.floor(i / batchSize) + 1} failed, continuing`, {
+        error: String(error),
+      });
     }
   }
 
-  return new Set(results.map(item => item.articleHash));
+  return new Set(results.map((item) => item.articleHash));
 }
 
 // ============================================================

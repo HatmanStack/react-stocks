@@ -29,7 +29,7 @@ export function LoadingIndicator({ message, size = 'large' }: LoadingIndicatorPr
           duration: 800,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     pulse.start();
@@ -45,7 +45,9 @@ export function LoadingIndicator({ message, size = 'large' }: LoadingIndicatorPr
         <ActivityIndicator size={size} color={theme.colors.primary} />
       </Animated.View>
       {message && (
-        <Animated.Text style={[styles.message, { opacity: pulseAnim, color: theme.colors.onBackground }]}>
+        <Animated.Text
+          style={[styles.message, { opacity: pulseAnim, color: theme.colors.onBackground }]}
+        >
           {message}
         </Animated.Text>
       )}

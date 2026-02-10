@@ -34,68 +34,65 @@ export const PriceListItem: React.FC<PriceListItemProps> = React.memo(({ item })
     <View style={styles.wrapper}>
       <View style={styles.container}>
         <View style={styles.row}>
-        {/* Date */}
-        <View style={styles.dateColumn}>
-          <Text variant="bodyMedium" style={[styles.text, { color: textColor }]}>
-            {formatShortDate(item.date)}
-          </Text>
-        </View>
+          {/* Date */}
+          <View style={styles.dateColumn}>
+            <Text variant="bodyMedium" style={[styles.text, { color: textColor }]}>
+              {formatShortDate(item.date)}
+            </Text>
+          </View>
 
-        {/* OHLC Prices */}
-        <View style={styles.priceColumn}>
-          <MonoText
-            variant="price"
-            style={styles.text}
-            positive={item.close > item.open}
-            negative={item.close < item.open}
-          >
-            {formatCurrency(item.open)}
-          </MonoText>
-        </View>
+          {/* OHLC Prices */}
+          <View style={styles.priceColumn}>
+            <MonoText
+              variant="price"
+              style={styles.text}
+              positive={item.close > item.open}
+              negative={item.close < item.open}
+            >
+              {formatCurrency(item.open)}
+            </MonoText>
+          </View>
 
-        <View style={styles.priceColumn}>
-          <MonoText
-            variant="price"
-            style={[styles.text, { fontWeight: 'bold' }]}
-            positive={item.close > item.open}
-            negative={item.close < item.open}
-          >
-            {formatCurrency(item.close)}
-          </MonoText>
-        </View>
+          <View style={styles.priceColumn}>
+            <MonoText
+              variant="price"
+              style={[styles.text, { fontWeight: 'bold' }]}
+              positive={item.close > item.open}
+              negative={item.close < item.open}
+            >
+              {formatCurrency(item.close)}
+            </MonoText>
+          </View>
 
-        <View style={styles.priceColumn}>
-          <MonoText
-            variant="price"
-            style={styles.text}
-            positive={item.close > item.open}
-            negative={item.close < item.open}
-          >
-            {formatCurrency(item.high)}
-          </MonoText>
-        </View>
+          <View style={styles.priceColumn}>
+            <MonoText
+              variant="price"
+              style={styles.text}
+              positive={item.close > item.open}
+              negative={item.close < item.open}
+            >
+              {formatCurrency(item.high)}
+            </MonoText>
+          </View>
 
-        <View style={styles.priceColumn}>
-          <MonoText
-            variant="price"
-            style={styles.text}
-            positive={item.close > item.open}
-            negative={item.close < item.open}
-          >
-            {formatCurrency(item.low)}
-          </MonoText>
-        </View>
+          <View style={styles.priceColumn}>
+            <MonoText
+              variant="price"
+              style={styles.text}
+              positive={item.close > item.open}
+              negative={item.close < item.open}
+            >
+              {formatCurrency(item.low)}
+            </MonoText>
+          </View>
 
-        {/* Volume - intentionally neutral (no positive/negative coloring) */}
-        <View style={styles.volumeColumn}>
-          <MonoText
-            variant="volume"
-            style={styles.text}
-          >
-            {formatVolume(item.volume)}
-          </MonoText>
+          {/* Volume - intentionally neutral (no positive/negative coloring) */}
+          <View style={styles.volumeColumn}>
+            <MonoText variant="volume" style={styles.text}>
+              {formatVolume(item.volume)}
+            </MonoText>
+          </View>
         </View>
-      </View>
       </View>
       {/* Inset divider */}
       <View style={[styles.divider, { backgroundColor: theme.colors.outline }]} />

@@ -4,7 +4,9 @@ import { useWindowDimensions } from 'react-native';
 
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions');
 
-const mockUseWindowDimensions = useWindowDimensions as jest.MockedFunction<typeof useWindowDimensions>;
+const mockUseWindowDimensions = useWindowDimensions as jest.MockedFunction<
+  typeof useWindowDimensions
+>;
 
 describe('useLayoutDensity', () => {
   beforeEach(() => {

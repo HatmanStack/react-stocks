@@ -12,7 +12,10 @@ interface SearchBarProps {
   placeholder?: string;
 }
 
-export function SearchBar({ onSearchChange, placeholder = 'Search by ticker or company name' }: SearchBarProps) {
+export function SearchBar({
+  onSearchChange,
+  placeholder = 'Search by ticker or company name',
+}: SearchBarProps) {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
 

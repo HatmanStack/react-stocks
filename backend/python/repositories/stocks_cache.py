@@ -3,7 +3,6 @@ StocksCache Repository.
 DynamoDB operations for caching stock price data.
 """
 
-import logging
 import os
 import time
 from decimal import Decimal
@@ -11,6 +10,8 @@ from typing import Any
 
 import boto3
 from boto3.dynamodb.conditions import Key
+
+from utils.logger import get_structured_logger
 
 
 def _float_to_decimal(obj: Any) -> Any:
@@ -23,11 +24,13 @@ def _float_to_decimal(obj: Any) -> Any:
         return [_float_to_decimal(i) for i in obj]
     return obj
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
-# Configuration
-TABLE_NAME = os.environ.get("STOCKS_CACHE_TABLE", "StocksCache")
+logger = get_structured_logger(__name__)
+
+# Configuration — must match DYNAMODB_TABLE_NAME set in template.yaml
+TABLE_NAME = os.environ.get("DYNAMODB_TABLE_NAME")
+if not TABLE_NAME:
+    raise RuntimeError("DYNAMODB_TABLE_NAME environment variable not set")
 BATCH_SIZE = 25  # DynamoDB batch limit
 
 # TTL configuration (in seconds)
@@ -42,7 +45,9 @@ def _get_dynamodb():
     """Get DynamoDB resource (lazy initialization)."""
     global _dynamodb
     if _dynamodb is None:
-        _dynamodb = boto3.resource("dynamodb")
+        endpoint_url = os.environ.get("DYNAMODB_ENDPOINT")
+        kwargs = {"endpoint_url": endpoint_url} if endpoint_url else {}
+        _dynamodb = boto3.resource("dynamodb", **kwargs)
     return _dynamodb
 
 
@@ -94,9 +99,7 @@ def get_stock(ticker: str, date: str) -> dict[str, Any] | None:
     """
     try:
         table = _get_table()
-        response = table.get_item(
-            Key={"ticker": ticker.upper(), "date": date}
-        )
+        response = table.get_item(Key={"ticker": ticker.upper(), "date": date})
         return response.get("Item")
     except Exception as e:
         logger.error(f"[StocksCache] Error getting stock: {e}", exc_info=True)

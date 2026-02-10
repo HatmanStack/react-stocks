@@ -29,13 +29,15 @@ import { MIN_SENTIMENT_DATA, MIN_STOCK_DATA } from '@/constants/ml.constants';
 export async function generateBrowserPredictions(
   ticker: string,
   sentimentData: CombinedWordDetails[],
-  days: number
+  days: number,
 ): Promise<Predictions | null> {
   console.log(`[Predictions] Starting for ${ticker} (${sentimentData.length} sentiment days)`);
 
   try {
     if (sentimentData.length < MIN_SENTIMENT_DATA) {
-      console.log(`[Predictions] Insufficient sentiment: ${sentimentData.length}/${MIN_SENTIMENT_DATA}`);
+      console.log(
+        `[Predictions] Insufficient sentiment: ${sentimentData.length}/${MIN_SENTIMENT_DATA}`,
+      );
       return null;
     }
 
@@ -53,7 +55,9 @@ export async function generateBrowserPredictions(
     }
 
     const stockData = await StockRepository.findByTickerAndDateRange(
-      ticker, stockStartStr, stockEndStr
+      ticker,
+      stockStartStr,
+      stockEndStr,
     );
 
     if (stockData.length < MIN_STOCK_DATA) {
@@ -65,8 +69,8 @@ export async function generateBrowserPredictions(
     const sortedStocks = [...stockData].sort((a, b) => a.date.localeCompare(b.date));
     const sortedSentiment = [...sentimentData].sort((a, b) => a.date.localeCompare(b.date));
 
-    const stockByDate = new Map(sortedStocks.map(s => [s.date, s]));
-    const sentimentByDate = new Map(sortedSentiment.map(s => [s.date, s]));
+    const stockByDate = new Map(sortedStocks.map((s) => [s.date, s]));
+    const sentimentByDate = new Map(sortedSentiment.map((s) => [s.date, s]));
 
     const tradingDays = [...stockByDate.keys()].sort();
     const sentimentDates = [...sentimentByDate.keys()].sort();
@@ -87,7 +91,7 @@ export async function generateBrowserPredictions(
         } else if (tradingDay > lastSentimentDate) {
           sentiment = sentimentByDate.get(lastSentimentDate);
         } else {
-          const priorDates = sentimentDates.filter(d => d <= tradingDay);
+          const priorDates = sentimentDates.filter((d) => d <= tradingDay);
           if (priorDates.length > 0) {
             sentiment = sentimentByDate.get(priorDates[priorDates.length - 1]);
           }
@@ -106,8 +110,8 @@ export async function generateBrowserPredictions(
     }
 
     // Extract features
-    const closePrices = trimmedStocks.map(s => s.close);
-    const volumes = trimmedStocks.map(s => s.volume);
+    const closePrices = trimmedStocks.map((s) => s.close);
+    const volumes = trimmedStocks.map((s) => s.volume);
 
     const eventTypes: EventType[] = [];
     const aspectScores: number[] = [];
@@ -117,13 +121,17 @@ export async function generateBrowserPredictions(
       let dominantEvent: EventType = 'GENERAL';
       if (day.eventCounts) {
         try {
-          const counts = JSON.parse(day.eventCounts) as Record<string, number>;
+          const parsed: unknown = JSON.parse(day.eventCounts);
+          const counts =
+            typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+              ? (parsed as Record<string, number>)
+              : {};
           // Filter out GENERAL and entries with count <= 0
           const nonGeneral = Object.entries(counts).filter(
-            ([t, count]) => t !== 'GENERAL' && count > 0
+            ([t, count]) => t !== 'GENERAL' && typeof count === 'number' && count > 0,
           );
           if (nonGeneral.length > 0) {
-            const [type] = nonGeneral.reduce((max, curr) => curr[1] > max[1] ? curr : max);
+            const [type] = nonGeneral.reduce((max, curr) => (curr[1] > max[1] ? curr : max));
             dominantEvent = type as EventType;
           }
         } catch {
@@ -135,24 +143,34 @@ export async function generateBrowserPredictions(
       mlScores.push(day.avgMlScore ?? null);
     }
 
-    const sentimentAvailability = mlScores.filter(s => s !== null).length / mlScores.length;
-    console.log(`[Predictions] Features: ${closePrices.length} days, sentiment availability: ${(sentimentAvailability * 100).toFixed(1)}%`);
+    const sentimentAvailability = mlScores.filter((s) => s !== null).length / mlScores.length;
+    console.log(
+      `[Predictions] Features: ${closePrices.length} days, sentiment availability: ${(sentimentAvailability * 100).toFixed(1)}%`,
+    );
 
     // Run logistic regression ensemble
     const response = await getStockPredictions(
-      ticker, closePrices, volumes,
-      [], [], [], // deprecated params
-      eventTypes, aspectScores, mlScores
+      ticker,
+      closePrices,
+      volumes,
+      [],
+      [],
+      [], // deprecated params
+      eventTypes,
+      aspectScores,
+      mlScores,
     );
 
     const parsed = parsePredictionResponse(response);
 
-    const toPrediction = (value: number | null): { direction: 'up' | 'down'; probability: number } | null => {
+    const toPrediction = (
+      value: number | null,
+    ): { direction: 'up' | 'down'; probability: number } | null => {
       if (value == null) return null;
       const isDown = value >= 0.5;
       return {
         direction: isDown ? 'down' : 'up',
-        probability: isDown ? value : (1 - value),
+        probability: isDown ? value : 1 - value,
       };
     };
 

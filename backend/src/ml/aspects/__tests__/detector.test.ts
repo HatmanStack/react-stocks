@@ -3,12 +3,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import {
-  extractSentences,
-  detectAspectMentions,
-  detectPolarity,
-  detectAspect,
-} from '../detector';
+import { extractSentences, detectAspectMentions, detectPolarity, detectAspect } from '../detector';
 import { ASPECT_KEYWORDS } from '../keywords';
 
 describe('Aspect Detection Engine', () => {
@@ -59,7 +54,7 @@ describe('Aspect Detection Engine', () => {
       const sentences = ['Net income rose', 'Top line growth strong'];
       const mentions = detectAspectMentions(sentences, 'REVENUE');
 
-      const topLineMention = mentions.find(m => m.matchedKeyword === 'top line');
+      const topLineMention = mentions.find((m) => m.matchedKeyword === 'top line');
       expect(topLineMention).toBeDefined();
     });
 
@@ -142,7 +137,7 @@ describe('Aspect Detection Engine', () => {
         const result1 = detectPolarity(test1, ASPECT_KEYWORDS.EARNINGS);
         expect(result1.score).toBeLessThan(0.5); // Negated positive should not be strongly positive
 
-        const test2 = "Growth never accelerated";
+        const test2 = 'Growth never accelerated';
         const result2 = detectPolarity(test2, ASPECT_KEYWORDS.GROWTH);
         expect(result2.score).toBeLessThanOrEqual(0); // Should be negative or neutral
 

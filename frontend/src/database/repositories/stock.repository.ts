@@ -40,7 +40,7 @@ export async function findByTicker(ticker: string): Promise<StockDetails[]> {
 export async function findByTickerAndDateRange(
   ticker: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<StockDetails[]> {
   const db = await getDatabase();
   const sql = `

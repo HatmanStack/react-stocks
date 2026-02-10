@@ -509,7 +509,7 @@ export const NEGATION_WORDS = [
   "couldn't",
   "wouldn't",
   "shouldn't",
-  "cannot",
+  'cannot',
   'unable',
   'failed',
   'fails',

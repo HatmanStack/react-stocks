@@ -7,18 +7,11 @@
  * Note: This table has NO TTL (persistent ML training data).
  */
 
-import {
-  getItem,
-  putItem,
-  queryItems,
-} from '../utils/dynamodb.util.js';
-import {
-  makeDailyPK,
-  makeDateSK,
-  SortKeyPrefix,
-} from '../types/dynamodb.types.js';
+import { getItem, putItem, queryItems } from '../utils/dynamodb.util.js';
+import { makeDailyPK, makeDateSK, SortKeyPrefix } from '../types/dynamodb.types.js';
 import type { DailySentimentItem } from '../types/dynamodb.types.js';
 import type { DailySentimentAggregateItem } from '../types/dynamodb.types.js';
+import { logger } from '../utils/logger.util.js';
 
 /**
  * Put daily sentiment aggregate (including predictions)
@@ -28,7 +21,7 @@ export async function putDailyAggregate(item: DailySentimentAggregateItem): Prom
     const cacheItem = transformToInternal(item);
     await putItem(cacheItem);
   } catch (error) {
-    console.error('[DailySentimentAggregateRepository] Error putting item:', error);
+    logger.error('Error putting item', error);
     throw error;
   }
 }
@@ -36,7 +29,10 @@ export async function putDailyAggregate(item: DailySentimentAggregateItem): Prom
 /**
  * Get daily sentiment aggregate for a specific date
  */
-export async function getDailyAggregate(ticker: string, date: string): Promise<DailySentimentAggregateItem | null> {
+export async function getDailyAggregate(
+  ticker: string,
+  date: string,
+): Promise<DailySentimentAggregateItem | null> {
   try {
     const pk = makeDailyPK(ticker);
     const sk = makeDateSK(date);
@@ -49,7 +45,7 @@ export async function getDailyAggregate(ticker: string, date: string): Promise<D
 
     return transformToExternal(item);
   } catch (error) {
-    console.error('[DailySentimentAggregateRepository] Error getting item:', error);
+    logger.error('Error getting item', error);
     throw error;
   }
 }
@@ -58,7 +54,9 @@ export async function getDailyAggregate(ticker: string, date: string): Promise<D
  * Get latest daily sentiment aggregate for a ticker
  * Used to fetch the latest prediction
  */
-export async function getLatestDailyAggregate(ticker: string): Promise<DailySentimentAggregateItem | null> {
+export async function getLatestDailyAggregate(
+  ticker: string,
+): Promise<DailySentimentAggregateItem | null> {
   try {
     const pk = makeDailyPK(ticker);
 
@@ -74,7 +72,7 @@ export async function getLatestDailyAggregate(ticker: string): Promise<DailySent
 
     return transformToExternal(items[0]);
   } catch (error) {
-    console.error('[DailySentimentAggregateRepository] Error getting latest item:', error);
+    logger.error('Error getting latest item', error);
     throw error;
   }
 }
@@ -99,7 +97,7 @@ export async function queryByTickerAndDateRange(
 
     return items.map(transformToExternal);
   } catch (error) {
-    console.error('[DailySentimentAggregateRepository] Error querying by date range:', error);
+    logger.error('Error querying by date range', error);
     throw error;
   }
 }

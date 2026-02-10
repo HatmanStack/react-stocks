@@ -8,6 +8,7 @@
  */
 
 import { detectAspect } from '../ml/aspects/detector';
+import { logger } from '../utils/logger.util.js';
 import {
   AspectType,
   ASPECT_WEIGHTS,
@@ -88,7 +89,7 @@ export function getRelevantAspects(eventType?: EventType): AspectType[] {
  */
 export async function analyzeAspects(
   article: NewsArticle,
-  eventType?: EventType
+  eventType?: EventType,
 ): Promise<AspectAnalysisResult> {
   // Combine headline and summary (weight headline 2x more)
   const headlineText = `${article.headline}. ${article.headline}. `; // Repeat for 2x weight
@@ -122,7 +123,7 @@ export async function analyzeAspects(
 
   // Handle no aspects detected
   if (detectedAspects.length === 0) {
-    console.warn('[AspectAnalysis] No aspects detected in article:', article.headline);
+    logger.warn('No aspects detected in article', { headline: article.headline });
     return {
       overallScore: 0,
       breakdown: {},
@@ -136,7 +137,7 @@ export async function analyzeAspects(
   let weightedSum = 0;
   let totalWeight = 0;
 
-  detectedAspects.forEach(detection => {
+  detectedAspects.forEach((detection) => {
     const weight = ASPECT_WEIGHTS[detection.aspect];
     weightedSum += detection.score * weight;
     totalWeight += weight;

@@ -256,7 +256,7 @@ describe('Text Validation', () => {
 describe('Real-World Article Examples', () => {
   it('should score EARNINGS article correctly', () => {
     const text = normalizeText(
-      'Apple Reports Strong Q1 Earnings: EPS of $1.25 Beats Analyst Estimates'
+      'Apple Reports Strong Q1 Earnings: EPS of $1.25 Beats Analyst Estimates',
     );
     const score = scoreEvent(text, EVENT_KEYWORDS.EARNINGS);
 
@@ -272,7 +272,7 @@ describe('Real-World Article Examples', () => {
 
   it('should score GUIDANCE article correctly', () => {
     const text = normalizeText(
-      'Tesla Raises Full-Year Guidance on Strong Demand and Production Growth'
+      'Tesla Raises Full-Year Guidance on Strong Demand and Production Growth',
     );
     const score = scoreEvent(text, EVENT_KEYWORDS.GUIDANCE);
 

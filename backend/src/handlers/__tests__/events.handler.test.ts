@@ -94,7 +94,7 @@ describe('Event Classification Handler', () => {
       const response = await handleEventClassification(event);
 
       expect(response.statusCode).toBe(400);
-      expect(response.body).toContain('missing required field');
+      expect(response.body).toContain('Required');
     });
 
     it('should return 400 for batch size exceeding limit', async () => {
@@ -141,7 +141,8 @@ describe('Event Classification Handler', () => {
     it('should classify single M&A article', async () => {
       const article: NewsArticle = {
         title: 'Microsoft Acquires AI Startup',
-        description: 'Microsoft announced acquisition of AI company for $2B in cash deal. The acquisition agreement was signed.',
+        description:
+          'Microsoft announced acquisition of AI company for $2B in cash deal. The acquisition agreement was signed.',
         url: 'https://example.com/article2',
         date: '2025-01-15',
       };

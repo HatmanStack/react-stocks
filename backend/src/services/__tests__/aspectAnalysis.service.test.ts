@@ -69,7 +69,7 @@ describe('Aspect Analysis Service', () => {
       let weightedSum = 0;
       let totalWeight = 0;
 
-      result.detectedAspects.forEach(detection => {
+      result.detectedAspects.forEach((detection) => {
         const weight = ASPECT_WEIGHTS[detection.aspect];
         weightedSum += detection.score * weight;
         totalWeight += weight;
@@ -102,7 +102,8 @@ describe('Aspect Analysis Service', () => {
       const article = {
         ticker: 'MSFT',
         headline: 'Microsoft Reports Strong Quarter',
-        summary: 'Revenue grew 15%, earnings beat estimates, margins expanded, and guidance raised.',
+        summary:
+          'Revenue grew 15%, earnings beat estimates, margins expanded, and guidance raised.',
       };
 
       const result = await analyzeAspects(article);
@@ -240,7 +241,7 @@ describe('Aspect Analysis Service', () => {
       const analyzedAspects = Object.keys(result.breakdown);
 
       // Only DEBT and potentially REVENUE should be analyzed
-      analyzedAspects.forEach(aspect => {
+      analyzedAspects.forEach((aspect) => {
         expect(['DEBT', 'REVENUE']).toContain(aspect);
       });
     });
@@ -270,7 +271,8 @@ describe('Aspect Analysis Service', () => {
       const article = {
         ticker: 'NVDA',
         headline: 'Nvidia Crushes Earnings, Raises Guidance',
-        summary: 'Nvidia reported earnings that significantly exceeded estimates and raised full-year guidance on strong AI demand.',
+        summary:
+          'Nvidia reported earnings that significantly exceeded estimates and raised full-year guidance on strong AI demand.',
       };
 
       const result = await analyzeAspects(article);

@@ -30,7 +30,8 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
   const theme = useAppTheme();
 
   // Check if we have scores (only show aspect if non-zero)
-  const hasAspectScore = item.aspectScore !== undefined && item.aspectScore !== null && item.aspectScore !== 0;
+  const hasAspectScore =
+    item.aspectScore !== undefined && item.aspectScore !== null && item.aspectScore !== 0;
   const hasMlScore = item.mlScore !== undefined && item.mlScore !== null;
   const hasSignalScore = item.signalScore !== undefined && item.signalScore !== null;
 
@@ -66,7 +67,8 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
   };
 
   // Should show event type chip? Only for non-GENERAL events
-  const showEventChip = item.eventType && item.eventType !== 'GENERAL' && EVENT_TYPE_LABELS[item.eventType];
+  const showEventChip =
+    item.eventType && item.eventType !== 'GENERAL' && EVENT_TYPE_LABELS[item.eventType];
 
   return (
     <Card style={styles.card} onPress={item.url ? handleOpenArticle : undefined}>
@@ -76,7 +78,10 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
           {/* Column 1: Source/Date - left aligned */}
           <View style={styles.columnLeft}>
             {item.publisher && (
-              <Text variant="labelMedium" style={[styles.publisher, { color: theme.colors.primary }]}>
+              <Text
+                variant="labelMedium"
+                style={[styles.publisher, { color: theme.colors.primary }]}
+              >
                 {item.publisher}
               </Text>
             )}
@@ -89,7 +94,10 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
           <View style={styles.column}>
             {hasMlScore && (
               <>
-                <Text variant="labelSmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+                <Text
+                  variant="labelSmall"
+                  style={[styles.label, { color: theme.colors.onSurfaceVariant }]}
+                >
                   Sentiment
                 </Text>
                 <Text
@@ -120,7 +128,10 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
           <View style={styles.column}>
             {hasAspectScore && (
               <>
-                <Text variant="labelSmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+                <Text
+                  variant="labelSmall"
+                  style={[styles.label, { color: theme.colors.onSurfaceVariant }]}
+                >
                   Aspect
                 </Text>
                 <Text
@@ -137,7 +148,10 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
           <View style={styles.columnRight}>
             {hasSignalScore && (
               <>
-                <Text variant="labelSmall" style={[styles.labelRight, { color: theme.colors.onSurfaceVariant }]}>
+                <Text
+                  variant="labelSmall"
+                  style={[styles.labelRight, { color: theme.colors.onSurfaceVariant }]}
+                >
                   Signal
                 </Text>
                 <Text
@@ -168,7 +182,6 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
         >
           {item.body || 'No description available'}
         </Text>
-
       </Card.Content>
     </Card>
   );

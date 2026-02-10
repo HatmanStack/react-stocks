@@ -1,11 +1,7 @@
 {
   "workspaces": {
     "frontend": {
-      "entry": [
-        "app/**/*.tsx",
-        "src/hooks/*.ts",
-        "src/contexts/*.tsx"
-      ],
+      "entry": ["app/**/*.tsx", "src/hooks/*.ts", "src/contexts/*.tsx"],
       "project": ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
       "ignore": ["**/__tests__/**", "**/*.test.{ts,tsx}"]
     },

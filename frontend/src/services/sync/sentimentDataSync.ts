@@ -13,7 +13,11 @@ import * as PortfolioRepository from '@/database/repositories/portfolio.reposito
 import { analyzeSentiment } from '@/ml/sentiment/sentiment.service';
 import { countSentimentWords } from '@/utils/sentiment/wordCounter';
 import { calculateSentiment, calculateSentimentScore } from '@/utils/sentiment/sentimentCalculator';
-import { generateArticleHash, fetchNews, transformFinnhubToNewsDetails } from '@/services/api/finnhub.service';
+import {
+  generateArticleHash,
+  fetchNews,
+  transformFinnhubToNewsDetails,
+} from '@/services/api/finnhub.service';
 import { FeatureFlags } from '@/config/features';
 import type { WordCountDetails, CombinedWordDetails } from '@/types/database.types';
 
@@ -34,14 +38,11 @@ function hashStringToNumber(hashString: string): number {
  * @param date - Date to analyze (YYYY-MM-DD)
  * @returns Number of articles analyzed
  */
-export async function syncSentimentData(
-  ticker: string,
-  date: string
-): Promise<number> {
+export async function syncSentimentData(ticker: string, date: string): Promise<number> {
   try {
     // Fetch news articles directly from Finnhub API for this date
     const rawArticles = await fetchNews(ticker, date, date);
-    const articles = rawArticles.map(a => transformFinnhubToNewsDetails(a, ticker));
+    const articles = rawArticles.map((a) => transformFinnhubToNewsDetails(a, ticker));
 
     if (articles.length === 0) {
       return 0; // Silent - no articles is normal for many dates
@@ -152,7 +153,7 @@ export async function syncSentimentData(
 async function aggregateSentiment(
   ticker: string,
   date: string,
-  wordCounts: { positive: number; negative: number }[]
+  wordCounts: { positive: number; negative: number }[],
 ): Promise<void> {
   // Sum all positive and negative counts
   const totalPositive = wordCounts.reduce((sum, c) => sum + c.positive, 0);
@@ -182,7 +183,7 @@ async function aggregateSentiment(
   await CombinedWordRepository.upsert(combinedDetails);
 
   console.log(
-    `[SentimentDataSync] Aggregated sentiment for ${ticker} on ${date}: ${dominantSentiment} (score: ${avgScore.toFixed(2)})`
+    `[SentimentDataSync] Aggregated sentiment for ${ticker} on ${date}: ${dominantSentiment} (score: ${avgScore.toFixed(2)})`,
   );
 }
 
@@ -197,7 +198,7 @@ export async function updatePredictions(
     nextDay: { direction: 'up' | 'down'; probability: number } | null;
     twoWeek: { direction: 'up' | 'down'; probability: number } | null;
     oneMonth: { direction: 'up' | 'down'; probability: number } | null;
-  }
+  },
 ): Promise<void> {
   try {
     // Update CombinedWordDetails (Sentiment Tab)
@@ -208,24 +209,24 @@ export async function updatePredictions(
     const latest = await CombinedWordRepository.findByTickerAndDateRange(ticker, today, today);
 
     if (latest && latest.length > 0) {
-       const record = latest[0];
-       const updatedRecord: CombinedWordDetails = {
-           ...record,
-           ...(predictions.nextDay && {
-             nextDayDirection: predictions.nextDay.direction,
-             nextDayProbability: predictions.nextDay.probability,
-           }),
-           ...(predictions.twoWeek && {
-             twoWeekDirection: predictions.twoWeek.direction,
-             twoWeekProbability: predictions.twoWeek.probability,
-           }),
-           ...(predictions.oneMonth && {
-             oneMonthDirection: predictions.oneMonth.direction,
-             oneMonthProbability: predictions.oneMonth.probability,
-           }),
-           updateDate: new Date().toISOString()
-       };
-       await CombinedWordRepository.upsert(updatedRecord);
+      const record = latest[0];
+      const updatedRecord: CombinedWordDetails = {
+        ...record,
+        ...(predictions.nextDay && {
+          nextDayDirection: predictions.nextDay.direction,
+          nextDayProbability: predictions.nextDay.probability,
+        }),
+        ...(predictions.twoWeek && {
+          twoWeekDirection: predictions.twoWeek.direction,
+          twoWeekProbability: predictions.twoWeek.probability,
+        }),
+        ...(predictions.oneMonth && {
+          oneMonthDirection: predictions.oneMonth.direction,
+          oneMonthProbability: predictions.oneMonth.probability,
+        }),
+        updateDate: new Date().toISOString(),
+      };
+      await CombinedWordRepository.upsert(updatedRecord);
     }
 
     // Update PortfolioDetails (Portfolio Tab)
@@ -233,20 +234,20 @@ export async function updatePredictions(
     // Assuming PortfolioRepository has an update method or we can just update by ticker
     const portfolioItem = await PortfolioRepository.findByTicker(ticker);
     if (portfolioItem) {
-        await PortfolioRepository.update(ticker, {
-           ...(predictions.nextDay && {
-             nextDayDirection: predictions.nextDay.direction,
-             nextDayProbability: predictions.nextDay.probability,
-           }),
-           ...(predictions.twoWeek && {
-             twoWeekDirection: predictions.twoWeek.direction,
-             twoWeekProbability: predictions.twoWeek.probability,
-           }),
-           ...(predictions.oneMonth && {
-             oneMonthDirection: predictions.oneMonth.direction,
-             oneMonthProbability: predictions.oneMonth.probability,
-           }),
-        });
+      await PortfolioRepository.update(ticker, {
+        ...(predictions.nextDay && {
+          nextDayDirection: predictions.nextDay.direction,
+          nextDayProbability: predictions.nextDay.probability,
+        }),
+        ...(predictions.twoWeek && {
+          twoWeekDirection: predictions.twoWeek.direction,
+          twoWeekProbability: predictions.twoWeek.probability,
+        }),
+        ...(predictions.oneMonth && {
+          oneMonthDirection: predictions.oneMonth.direction,
+          oneMonthProbability: predictions.oneMonth.probability,
+        }),
+      });
     }
 
     console.log(`[SentimentDataSync] Updated predictions for ${ticker}`);

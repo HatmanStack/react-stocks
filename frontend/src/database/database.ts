@@ -104,7 +104,7 @@ async function checkTablesExist(): Promise<boolean> {
 
   try {
     const result = await database.getAllAsync<{ name: string }>(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name='stock_details'`
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='stock_details'`,
     );
     return result.length > 0;
   } catch (error) {
@@ -125,10 +125,8 @@ async function columnExists(tableName: string, columnName: string): Promise<bool
   }
 
   try {
-    const columns = await database.getAllAsync<{ name: string }>(
-      `PRAGMA table_info(${tableName})`
-    );
-    return columns.some(col => col.name === columnName);
+    const columns = await database.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName})`);
+    return columns.some((col) => col.name === columnName);
   } catch (error) {
     console.error(`[Database] Error checking column ${columnName} in ${tableName}:`, error);
     return false;
@@ -178,7 +176,9 @@ async function runMigrations(fromVersion: number): Promise<void> {
       // Add materialEventCount column if it doesn't exist
       if (!(await columnExists(tableName, 'materialEventCount'))) {
         console.log('[Database] Adding materialEventCount column');
-        await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN materialEventCount INTEGER DEFAULT 0`);
+        await database.execAsync(
+          `ALTER TABLE ${tableName} ADD COLUMN materialEventCount INTEGER DEFAULT 0`,
+        );
       }
 
       console.log('[Database] Migration to version 2 complete');
@@ -195,7 +195,7 @@ async function runMigrations(fromVersion: number): Promise<void> {
         { name: 'twoWeekDirection', type: 'TEXT' },
         { name: 'twoWeekProbability', type: 'REAL' },
         { name: 'oneMonthDirection', type: 'TEXT' },
-        { name: 'oneMonthProbability', type: 'REAL' }
+        { name: 'oneMonthProbability', type: 'REAL' },
       ];
 
       for (const tableName of tables) {
@@ -219,7 +219,7 @@ async function runMigrations(fromVersion: number): Promise<void> {
         { name: 'eventType', type: 'TEXT' },
         { name: 'aspectScore', type: 'REAL' },
         { name: 'mlScore', type: 'REAL' },
-        { name: 'materialityScore', type: 'REAL' }
+        { name: 'materialityScore', type: 'REAL' },
       ];
 
       for (const col of newColumns) {
@@ -248,9 +248,7 @@ async function getDatabaseVersion(): Promise<number> {
   }
 
   try {
-    const result = await database.getFirstAsync<{ user_version: number }>(
-      'PRAGMA user_version'
-    );
+    const result = await database.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
     return result?.user_version || 0;
   } catch (error) {
     console.error('[Database] Error getting version:', error);

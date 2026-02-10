@@ -93,6 +93,35 @@ export const MIN_EVENT_CONFIDENCE = 0.2;
 // News Handler / Predictions
 // ============================================================
 
+// ============================================================
+// External API Circuit Breakers
+// ============================================================
+
+/**
+ * Circuit breaker failure threshold for Finnhub / Alpha Vantage.
+ *
+ * DERIVATION: External news APIs have strict rate limits (60 req/min for
+ * Finnhub free, 25 req/day for Alpha Vantage free). 5 consecutive failures
+ * strongly indicates quota exhaustion or outage.
+ */
+export const FINNHUB_FAILURE_THRESHOLD = 5;
+
+/**
+ * Cooldown period for Finnhub/Alpha Vantage circuit breaker.
+ *
+ * DERIVATION: 60 seconds balances quick recovery for transient issues
+ * against protecting rate-limited quotas.
+ */
+export const FINNHUB_COOLDOWN_MS = 60_000;
+
+/** Service identifiers for circuit breaker DynamoDB keys */
+export const CIRCUIT_SERVICE_FINNHUB = 'finnhub';
+export const CIRCUIT_SERVICE_ALPHAVANTAGE = 'alphavantage';
+
+// ============================================================
+// News Handler / Predictions
+// ============================================================
+
 /**
  * Minimum days of data required for generating predictions.
  *

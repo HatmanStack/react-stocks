@@ -100,8 +100,7 @@ function calculateVolatility(close: number[], window: number = 10): number[] {
 
       // Calculate standard deviation of returns
       const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-      const variance =
-        returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
+      const variance = returns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / returns.length;
       volatility.push(Math.sqrt(variance));
     }
   }
@@ -127,24 +126,24 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   if (volume.length !== n) {
     throw new Error(
       `Preprocessing: Inconsistent input lengths. ` +
-        `close=${close.length}, volume=${volume.length}`
+        `close=${close.length}, volume=${volume.length}`,
     );
   }
 
   // Validate new signal arrays if provided
   if (eventType && eventType.length !== n) {
     throw new Error(
-      `Preprocessing: eventType length (${eventType.length}) does not match close length (${n})`
+      `Preprocessing: eventType length (${eventType.length}) does not match close length (${n})`,
     );
   }
   if (aspectScore && aspectScore.length !== n) {
     throw new Error(
-      `Preprocessing: aspectScore length (${aspectScore.length}) does not match close length (${n})`
+      `Preprocessing: aspectScore length (${aspectScore.length}) does not match close length (${n})`,
     );
   }
   if (mlScore && mlScore.length !== n) {
     throw new Error(
-      `Preprocessing: mlScore length (${mlScore.length}) does not match close length (${n})`
+      `Preprocessing: mlScore length (${mlScore.length}) does not match close length (${n})`,
     );
   }
   if (n === 0) {
@@ -158,9 +157,7 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   const volatility = calculateVolatility(close);
 
   // Encode event types as single impact score (0-1)
-  const eventImpact = eventType
-    ? encodeEventImpact(eventType)
-    : Array(n).fill(0); // Default to GENERAL (0.0)
+  const eventImpact = eventType ? encodeEventImpact(eventType) : Array(n).fill(0); // Default to GENERAL (0.0)
 
   // Use aspect scores or default to 0
   const aspectScores = aspectScore ?? Array(n).fill(0);
@@ -172,9 +169,7 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
     : 0;
 
   // Coalesce null mlScores to 0 for feature matrix values
-  const mlScores = mlScore
-    ? mlScore.map((s) => s ?? 0)
-    : Array(n).fill(0) as number[];
+  const mlScores = mlScore ? mlScore.map((s) => s ?? 0) : (Array(n).fill(0) as number[]);
 
   // Build feature matrix (8 features)
   const features: FeatureMatrix = new Array(n);
@@ -209,7 +204,7 @@ export function buildPriceOnlyFeatureMatrix(input: PredictionInput): FeatureMatr
 
   if (volume.length !== n) {
     throw new Error(
-      `Preprocessing: Inconsistent input lengths. close=${close.length}, volume=${volume.length}`
+      `Preprocessing: Inconsistent input lengths. close=${close.length}, volume=${volume.length}`,
     );
   }
 
@@ -222,12 +217,7 @@ export function buildPriceOnlyFeatureMatrix(input: PredictionInput): FeatureMatr
 
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
-    features[i] = [
-      ratio5d[i],
-      ratio10d[i],
-      volume[i],
-      vol[i],
-    ];
+    features[i] = [ratio5d[i], ratio10d[i], volume[i], vol[i]];
   }
 
   return features;
@@ -339,9 +329,7 @@ export function validateFeatureMatrix(X: FeatureMatrix): void {
 
   const nFeatures = X[0].length;
   if (nFeatures !== FEATURE_COUNT) {
-    throw new Error(
-      `Preprocessing: Expected ${FEATURE_COUNT} features, got ${nFeatures}`
-    );
+    throw new Error(`Preprocessing: Expected ${FEATURE_COUNT} features, got ${nFeatures}`);
   }
 
   // Check all rows have same number of features
@@ -349,7 +337,7 @@ export function validateFeatureMatrix(X: FeatureMatrix): void {
     if (X[i].length !== nFeatures) {
       throw new Error(
         `Preprocessing: Inconsistent feature count at row ${i}. ` +
-          `Expected ${nFeatures}, got ${X[i].length}`
+          `Expected ${nFeatures}, got ${X[i].length}`,
       );
     }
   }
@@ -358,9 +346,7 @@ export function validateFeatureMatrix(X: FeatureMatrix): void {
   for (let i = 0; i < X.length; i++) {
     for (let j = 0; j < nFeatures; j++) {
       if (!isFinite(X[i][j])) {
-        throw new Error(
-          `Preprocessing: Non-finite value at row ${i}, column ${j}: ${X[i][j]}`
-        );
+        throw new Error(`Preprocessing: Non-finite value at row ${i}, column ${j}: ${X[i][j]}`);
       }
     }
   }
@@ -380,8 +366,7 @@ export function validateLabels(y: Labels): void {
   for (let i = 0; i < y.length; i++) {
     if (y[i] !== 0 && y[i] !== 1) {
       throw new Error(
-        `Preprocessing: Invalid label at index ${i}. ` +
-          `Expected 0 or 1, got ${y[i]}`
+        `Preprocessing: Invalid label at index ${i}. ` + `Expected 0 or 1, got ${y[i]}`,
       );
     }
   }

@@ -10,7 +10,10 @@ import * as CombinedWordRepository from '@/database/repositories/combinedWord.re
 import { updatePredictions } from '@/services/sync/sentimentDataSync';
 import { formatDateForDB } from '@/utils/date/dateUtils';
 import { subDays } from 'date-fns';
-import { fetchCombinedSentiment, fetchArticleSentiment } from '@/services/data/sentimentDataFetcher';
+import {
+  fetchCombinedSentiment,
+  fetchArticleSentiment,
+} from '@/services/data/sentimentDataFetcher';
 import { generateBrowserPredictions } from '@/ml/prediction/browserPredictions';
 import type { CombinedWordDetails, WordCountDetails } from '@/types/database.types';
 import { MIN_SENTIMENT_DATA } from '@/constants/ml.constants';
@@ -32,10 +35,7 @@ export interface UseSentimentDataOptions {
  * const { data: sentiment, isLoading } = useSentimentData(ticker, { days: 60 });
  * ```
  */
-export function useSentimentData(
-  ticker: string,
-  options: UseSentimentDataOptions = {}
-) {
+export function useSentimentData(ticker: string, options: UseSentimentDataOptions = {}) {
   const { days = 30, enabled = true, staleTime } = options;
 
   return useQuery({
@@ -59,7 +59,7 @@ export function useSentimentData(
         if (predictions) {
           // Attach predictions to latest record
           const latestRecord = sentimentData.reduce((latest, current) =>
-            current.date > latest.date ? current : latest
+            current.date > latest.date ? current : latest,
           );
 
           latestRecord.nextDayDirection = predictions.nextDay?.direction ?? undefined;
@@ -71,11 +71,16 @@ export function useSentimentData(
           latestRecord.updateDate = formatDateForDB(new Date());
 
           // Persist predictions (async, non-blocking)
-          CombinedWordRepository.upsert(latestRecord)
-            .catch(err => console.warn('[useSentimentData] Failed to store predictions:', err));
-
-          updatePredictions(ticker, predictions)
-            .catch(err => console.warn('[useSentimentData] Failed to update portfolio:', err));
+          void Promise.allSettled([
+            CombinedWordRepository.upsert(latestRecord),
+            updatePredictions(ticker, predictions),
+          ]).then((results) => {
+            for (const r of results) {
+              if (r.status === 'rejected') {
+                console.warn('[useSentimentData] Background write failed:', r.reason);
+              }
+            }
+          });
         }
       }
 
@@ -96,10 +101,7 @@ export function useSentimentData(
  * const { data: articles } = useArticleSentiment(ticker, { days: 7 });
  * ```
  */
-export function useArticleSentiment(
-  ticker: string,
-  options: UseSentimentDataOptions = {}
-) {
+export function useArticleSentiment(ticker: string, options: UseSentimentDataOptions = {}) {
   const { days = 7, enabled = true, staleTime } = options;
 
   return useQuery({

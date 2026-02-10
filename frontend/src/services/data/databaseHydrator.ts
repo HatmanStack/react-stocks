@@ -61,7 +61,9 @@ export function hydrateArticleData(records: WordCountDetails[]): void {
         }
       }
       if (failCount > 0) {
-        console.warn(`[Hydrator] Articles partial: ${insertCount} inserted, ${skipCount} skipped, ${failCount} failed`);
+        console.warn(
+          `[Hydrator] Articles partial: ${insertCount} inserted, ${skipCount} skipped, ${failCount} failed`,
+        );
       } else {
         console.log(`[Hydrator] Articles: ${insertCount} inserted, ${skipCount} skipped`);
       }

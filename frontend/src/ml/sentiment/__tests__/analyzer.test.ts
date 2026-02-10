@@ -19,14 +19,12 @@ describe('SentimentAnalyzer', () => {
 
       // Should identify 3 sentences
       const totalCount =
-        parseInt(result.positive[0]) +
-        parseInt(result.neutral[0]) +
-        parseInt(result.negative[0]);
+        parseInt(result.positive[0]) + parseInt(result.neutral[0]) + parseInt(result.negative[0]);
       expect(totalCount).toBe(3);
     });
 
     it('should remove quotes, commas, and apostrophes', () => {
-      const text = "Apple's earnings beat, \"exceeded\" expectations.";
+      const text = 'Apple\'s earnings beat, "exceeded" expectations.';
       const sentences = (analyzer as any).preprocessAndSplit(text);
 
       expect(sentences[0]).not.toContain("'");
@@ -47,9 +45,7 @@ describe('SentimentAnalyzer', () => {
       const result = analyzer.analyze(text, 'test-hash');
 
       const totalCount =
-        parseInt(result.positive[0]) +
-        parseInt(result.neutral[0]) +
-        parseInt(result.negative[0]);
+        parseInt(result.positive[0]) + parseInt(result.neutral[0]) + parseInt(result.negative[0]);
       expect(totalCount).toBe(1);
     });
 
@@ -208,15 +204,11 @@ describe('SentimentAnalyzer', () => {
 
   describe('Edge Cases', () => {
     it('should handle very long articles', () => {
-      const sentences = Array(50)
-        .fill('This is a neutral sentence.')
-        .join(' ');
+      const sentences = Array(50).fill('This is a neutral sentence.').join(' ');
       const result = analyzer.analyze(sentences, 'test-hash');
 
       const totalCount =
-        parseInt(result.positive[0]) +
-        parseInt(result.neutral[0]) +
-        parseInt(result.negative[0]);
+        parseInt(result.positive[0]) + parseInt(result.neutral[0]) + parseInt(result.negative[0]);
 
       expect(totalCount).toBeGreaterThan(30);
     });
@@ -253,9 +245,7 @@ describe('SentimentAnalyzer', () => {
       const result = analyzer.analyze(text, 'test-hash');
 
       const totalCount =
-        parseInt(result.positive[0]) +
-        parseInt(result.neutral[0]) +
-        parseInt(result.negative[0]);
+        parseInt(result.positive[0]) + parseInt(result.neutral[0]) + parseInt(result.negative[0]);
       expect(totalCount).toBe(3);
     });
   });
@@ -332,9 +322,7 @@ describe('SentimentAnalyzer', () => {
     });
 
     it('should handle 20 sentences in under 200ms', () => {
-      const sentences = Array(20)
-        .fill('The company announced earnings results.')
-        .join(' ');
+      const sentences = Array(20).fill('The company announced earnings results.').join(' ');
 
       const start = performance.now();
       analyzer.analyze(sentences, 'test-hash');

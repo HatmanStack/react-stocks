@@ -94,7 +94,7 @@ export function getCorrelationId(): string | undefined {
  */
 export function runWithContext<T>(
   context: RequestContext,
-  fn: () => T | Promise<T>
+  fn: () => T | Promise<T>,
 ): T | Promise<T> {
   return requestContextStorage.run(context, fn);
 }
@@ -102,11 +102,7 @@ export function runWithContext<T>(
 /**
  * Create a structured log entry and output as JSON
  */
-function logStructured(
-  level: LogLevel,
-  message: string,
-  data?: Record<string, unknown>
-): void {
+function logStructured(level: LogLevel, message: string, data?: Record<string, unknown>): void {
   if (!shouldLog(level)) {
     return;
   }
@@ -203,7 +199,7 @@ export function getXRayTraceId(): string | undefined {
 export function createRequestContext(
   requestId: string,
   path?: string,
-  method?: string
+  method?: string,
 ): RequestContext {
   return {
     correlationId: requestId,

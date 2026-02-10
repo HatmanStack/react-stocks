@@ -6,6 +6,13 @@
 
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
 import { APIError } from '../utils/error.util';
+import * as CircuitBreakerRepo from '../repositories/circuitBreaker.repository.js';
+import {
+  FINNHUB_FAILURE_THRESHOLD,
+  FINNHUB_COOLDOWN_MS,
+  CIRCUIT_SERVICE_ALPHAVANTAGE,
+} from '../constants/ml.constants.js';
+import { logger } from '../utils/logger.util.js';
 
 const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
 const ALPHA_VANTAGE_TIMEOUT = 15000; // 15 seconds (larger response)
@@ -97,9 +104,7 @@ function toAlphaVantageDate(date: string, isEndDate: boolean = false): string {
 /**
  * Transform Alpha Vantage article to Finnhub format for compatibility
  */
-function transformToFinnhubFormat(
-  item: AlphaVantageNewsItem
-): FinnhubNewsArticle {
+function transformToFinnhubFormat(item: AlphaVantageNewsItem): FinnhubNewsArticle {
   return {
     category: item.category_within_source || 'general',
     datetime: parseAlphaVantageTimestamp(item.time_published),
@@ -125,9 +130,19 @@ export async function fetchAlphaVantageNews(
   ticker: string,
   from: string,
   to: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<FinnhubNewsArticle[]> {
-  console.log(`[AlphaVantageService] Fetching news for ${ticker} from ${from} to ${to}`);
+  // Circuit breaker: fail-fast if Alpha Vantage is rate-limited or down
+  const cbState = await CircuitBreakerRepo.getCircuitState(CIRCUIT_SERVICE_ALPHAVANTAGE);
+  if (
+    cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD &&
+    Date.now() < cbState.circuitOpenUntil
+  ) {
+    logger.warn('Circuit open, skipping API call');
+    return [];
+  }
+
+  logger.info(`Fetching news for ${ticker} from ${from} to ${to}`);
 
   const params = new URLSearchParams({
     function: 'NEWS_SENTIMENT',
@@ -152,17 +167,17 @@ export async function fetchAlphaVantageNews(
 
     // Check for API errors
     if (data.Note) {
-      console.warn(`[AlphaVantageService] Rate limit warning: ${data.Note}`);
+      logger.warn(`Rate limit warning: ${data.Note}`);
       throw new APIError('Alpha Vantage rate limit exceeded', 429);
     }
 
     if (data.Information) {
-      console.error(`[AlphaVantageService] API error: ${data.Information}`);
+      logger.error(`API error: ${data.Information}`);
       throw new APIError(data.Information, 401);
     }
 
     if (!data.feed || data.feed.length === 0) {
-      console.log(`[AlphaVantageService] No news found for ${ticker}`);
+      logger.info(`No news found for ${ticker}`);
       return [];
     }
 
@@ -176,20 +191,24 @@ export async function fetchAlphaVantageNews(
       .map((item) => item.article);
 
     // Count unique days
-    const uniqueDays = new Set(
-      data.feed.map((item) => parseAlphaVantageDate(item.time_published))
-    ).size;
+    const uniqueDays = new Set(data.feed.map((item) => parseAlphaVantageDate(item.time_published)))
+      .size;
 
-    console.log(
-      `[AlphaVantageService] Fetched ${articles.length} articles for ${ticker} spanning ${uniqueDays} days`
-    );
+    logger.info(`Fetched ${articles.length} articles for ${ticker} spanning ${uniqueDays} days`);
 
+    await CircuitBreakerRepo.recordSuccess(CIRCUIT_SERVICE_ALPHAVANTAGE);
     return articles;
   } catch (error) {
+    await CircuitBreakerRepo.recordFailure(
+      cbState.consecutiveFailures,
+      FINNHUB_FAILURE_THRESHOLD,
+      FINNHUB_COOLDOWN_MS,
+      CIRCUIT_SERVICE_ALPHAVANTAGE,
+    );
     if (error instanceof APIError) {
       throw error;
     }
-    console.error(`[AlphaVantageService] Error fetching news:`, error);
+    logger.error('Error fetching news', error);
     throw new APIError('Failed to fetch news from Alpha Vantage', 500);
   }
 }

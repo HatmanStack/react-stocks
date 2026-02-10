@@ -11,9 +11,8 @@ export function useContentWidth() {
   const { width: screenWidth } = useWindowDimensions();
 
   // Nearly full width on small screens, 66% centered on larger
-  const contentWidth = screenWidth < SMALL_SCREEN_BREAKPOINT
-    ? screenWidth - 16
-    : screenWidth * 0.66;
+  const contentWidth =
+    screenWidth < SMALL_SCREEN_BREAKPOINT ? screenWidth - 16 : screenWidth * 0.66;
 
   const isSmallScreen = screenWidth < SMALL_SCREEN_BREAKPOINT;
 
@@ -22,7 +21,5 @@ export function useContentWidth() {
 
 /** Calculate content width from screen width (for use outside hooks) */
 export function getContentWidth(screenWidth: number): number {
-  return screenWidth < SMALL_SCREEN_BREAKPOINT
-    ? screenWidth - 16
-    : screenWidth * 0.66;
+  return screenWidth < SMALL_SCREEN_BREAKPOINT ? screenWidth - 16 : screenWidth * 0.66;
 }

@@ -15,7 +15,7 @@ import type { EventType } from '../types/event.types.js';
  * These must stay in sync with article-level classification in analyzer.ts
  */
 export const SENTIMENT_THRESHOLDS = {
-  POSITIVE: 0.1,  // Scores > 0.1 are positive
+  POSITIVE: 0.1, // Scores > 0.1 are positive
   NEGATIVE: -0.1, // Scores < -0.1 are negative
   // Scores between -0.1 and 0.1 are neutral
 } as const;
@@ -66,7 +66,7 @@ export function classifySentiment(sentimentScore: number): 'POS' | 'NEG' | 'NEUT
  */
 export function aggregateDailySentiment(
   sentiments: SentimentCacheItem[],
-  articles: NewsCacheItem[]
+  articles: NewsCacheItem[],
 ): DailySentiment[] {
   // Create map of articleHash -> article date
   const articleDateMap = new Map<string, string>();

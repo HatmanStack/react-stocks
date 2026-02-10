@@ -6,18 +6,12 @@
  */
 
 import type { NewsArticle } from '../repositories/newsCache.repository.js';
-import type {
-  EventType,
-  EventClassificationResult,
-} from '../types/event.types.js';
+import type { EventType, EventClassificationResult } from '../types/event.types.js';
 import { EVENT_PRIORITIES } from '../types/event.types.js';
 import { EVENT_KEYWORDS } from '../ml/events/keywords.js';
-import {
-  normalizeText,
-  scoreEvent,
-  isValidText,
-} from '../ml/events/matcher.js';
+import { normalizeText, scoreEvent, isValidText } from '../ml/events/matcher.js';
 import { logMetric, logMetrics, MetricUnit } from '../utils/metrics.util.js';
+import { logger } from '../utils/logger.util.js';
 import {
   HEADLINE_WEIGHT,
   SUMMARY_WEIGHT,
@@ -94,7 +88,7 @@ function logMetricsSummary(): void {
       { name: 'MultiEventConflicts', value: metrics.multiEventConflicts, unit: MetricUnit.Count },
       { name: 'LowConfidenceCount', value: metrics.lowConfidenceCount, unit: MetricUnit.Count },
     ],
-    { Service: 'EventClassification' }
+    { Service: 'EventClassification' },
   );
 
   // Log event type distribution
@@ -107,13 +101,13 @@ function logMetricsSummary(): void {
     }
   });
 
-  console.log('[EventClassificationService] Metrics summary:', {
+  logger.info('Metrics summary', {
     totalProcessed: metrics.totalProcessed,
     avgConfidence: avgConfidence.toFixed(3),
     avgDuration: `${avgDuration.toFixed(2)}ms`,
     multiEventConflicts: metrics.multiEventConflicts,
     lowConfidenceCount: metrics.lowConfidenceCount,
-    eventTypeCounts: metrics.eventTypeCounts,
+    eventTypeCounts: metrics.eventTypeCounts as unknown as Record<string, unknown>,
   });
 }
 
@@ -140,19 +134,16 @@ function logMetricsSummary(): void {
  * const result = await classifyEvent(article);
  * // { eventType: 'EARNINGS', confidence: 0.92, matchedKeywords: ['earnings', 'eps'] }
  */
-export async function classifyEvent(
-  article: NewsArticle
-): Promise<EventClassificationResult> {
+export async function classifyEvent(article: NewsArticle): Promise<EventClassificationResult> {
   const startTime = Date.now();
 
   try {
     // Preprocess article text
-    const { combinedText, headlineText, summaryText } =
-      preprocessArticle(article);
+    const { combinedText, headlineText, summaryText } = preprocessArticle(article);
 
     // Validate text
     if (!isValidText(combinedText)) {
-      console.warn('[EventClassificationService] Invalid article text:', {
+      logger.warn('Invalid article text', {
         title: article.title?.substring(0, 50),
       });
 
@@ -174,7 +165,7 @@ export async function classifyEvent(
     trackClassificationMetrics(result, scores, duration);
 
     // Log classification for monitoring
-    console.log('[EventClassificationService] Classified article:', {
+    logger.info('Classified article', {
       title: article.title?.substring(0, 50),
       eventType: result.eventType,
       confidence: result.confidence.toFixed(2),
@@ -188,7 +179,7 @@ export async function classifyEvent(
 
     return result;
   } catch (error) {
-    console.error('[EventClassificationService] Error classifying event:', error, {
+    logger.error('Error classifying event', error, {
       title: article.title,
     });
 
@@ -207,7 +198,7 @@ export async function classifyEvent(
 function trackClassificationMetrics(
   result: EventClassificationResult,
   scores: Record<EventType, { score: number; matchedKeywords: Set<string> }>,
-  duration: number
+  duration: number,
 ): void {
   // Update metrics
   metrics.totalProcessed++;
@@ -221,9 +212,7 @@ function trackClassificationMetrics(
   }
 
   // Track multi-event conflicts
-  const candidateEvents = Object.values(scores).filter(
-    (s) => s.score >= MIN_EVENT_CONFIDENCE
-  );
+  const candidateEvents = Object.values(scores).filter((s) => s.score >= MIN_EVENT_CONFIDENCE);
   if (candidateEvents.length > 1) {
     metrics.multiEventConflicts++;
   }
@@ -242,7 +231,7 @@ function trackClassificationMetrics(
     {
       Service: 'EventClassification',
       EventType: result.eventType,
-    }
+    },
   );
 }
 
@@ -280,11 +269,8 @@ function preprocessArticle(article: NewsArticle): {
  */
 function scoreAllEventTypes(
   headlineText: string,
-  summaryText: string
-): Record<
-  EventType,
-  { score: number; matchedKeywords: Set<string> }
-> {
+  summaryText: string,
+): Record<EventType, { score: number; matchedKeywords: Set<string> }> {
   const scores: Record<EventType, { score: number; matchedKeywords: Set<string> }> = {
     EARNINGS: { score: 0, matchedKeywords: new Set() },
     'M&A': { score: 0, matchedKeywords: new Set() },
@@ -305,8 +291,7 @@ function scoreAllEventTypes(
     const summaryScore = scoreEvent(summaryText, keywords);
 
     // Apply weighting
-    const weightedScore =
-      headlineScore * HEADLINE_WEIGHT + summaryScore * SUMMARY_WEIGHT;
+    const weightedScore = headlineScore * HEADLINE_WEIGHT + summaryScore * SUMMARY_WEIGHT;
 
     // Normalize by total weight
     const normalizedScore = weightedScore / (HEADLINE_WEIGHT + SUMMARY_WEIGHT);
@@ -335,14 +320,17 @@ function scoreAllEventTypes(
  * @returns Classification result
  */
 function resolveEventType(
-  scores: Record<EventType, { score: number; matchedKeywords: Set<string> }>
+  scores: Record<EventType, { score: number; matchedKeywords: Set<string> }>,
 ): EventClassificationResult {
   // Find event type with highest score
   let maxScore = 0;
   let maxEventType: EventType = 'GENERAL';
   const candidateEvents: { eventType: EventType; score: number }[] = [];
 
-  for (const [eventType, { score }] of Object.entries(scores) as [EventType, { score: number; matchedKeywords: Set<string> }][]) {
+  for (const [eventType, { score }] of Object.entries(scores) as [
+    EventType,
+    { score: number; matchedKeywords: Set<string> },
+  ][]) {
     if (score > maxScore) {
       maxScore = score;
       maxEventType = eventType;
@@ -384,9 +372,7 @@ function resolveEventType(
       return {
         eventType: sortedCandidates[0].eventType,
         confidence: topScore,
-        matchedKeywords: Array.from(
-          scores[sortedCandidates[0].eventType].matchedKeywords
-        ),
+        matchedKeywords: Array.from(scores[sortedCandidates[0].eventType].matchedKeywords),
       };
     }
 
@@ -398,7 +384,7 @@ function resolveEventType(
       return currentPriority > highestPriority ? current : highest;
     });
 
-    console.log('[EventClassificationService] Multi-event conflict resolved by priority:', {
+    logger.info('Multi-event conflict resolved by priority', {
       candidates: sortedCandidates.map((c) => `${c.eventType}:${c.score.toFixed(2)}`).join(', '),
       selected: highestPriorityEvent.eventType,
     });
@@ -406,9 +392,7 @@ function resolveEventType(
     return {
       eventType: highestPriorityEvent.eventType,
       confidence: highestPriorityEvent.score,
-      matchedKeywords: Array.from(
-        scores[highestPriorityEvent.eventType].matchedKeywords
-      ),
+      matchedKeywords: Array.from(scores[highestPriorityEvent.eventType].matchedKeywords),
     };
   }
 

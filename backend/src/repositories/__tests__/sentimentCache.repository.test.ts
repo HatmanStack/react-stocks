@@ -38,10 +38,7 @@ describe('SentimentCacheRepository', () => {
       const result = await getSentiment('AAPL', 'hash123');
 
       expect(result).toBeNull();
-      expect(mockGetItem).toHaveBeenCalledWith(
-        'SENT#AAPL',
-        'HASH#hash123',
-      );
+      expect(mockGetItem).toHaveBeenCalledWith('SENT#AAPL', 'HASH#hash123');
     });
 
     it('returns sentiment when found', async () => {

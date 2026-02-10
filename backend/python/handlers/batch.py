@@ -4,8 +4,6 @@ Handles POST /batch/stocks requests for multiple tickers.
 """
 
 import json
-import logging
-import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from typing import Any
@@ -13,14 +11,13 @@ from typing import Any
 from handlers.stocks import handle_prices_request
 from utils.response import error_response, get_cors_headers as base_get_cors_headers
 from utils.error import APIError
+from utils.validation import TICKER_PATTERN, DATE_PATTERN
+from utils.logger import get_structured_logger
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_structured_logger(__name__)
 
 # Configuration
 MAX_TICKERS = 10
-TICKER_PATTERN = re.compile(r"^[A-Z0-9.\-]+$")
-DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def get_cors_headers() -> dict[str, str]:
@@ -117,7 +114,7 @@ def handle_batch_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
         )
 
         # Process tickers in parallel
-        results: dict[str, list] = {}
+        results: dict[str, list[Any]] = {}
         errors: dict[str, str] = {}
         cached: dict[str, bool] = {}
 

@@ -6,18 +6,12 @@
  * Uses composite keys: PK = JOB#jobId, SK = META
  */
 
-import {
-  getItem,
-  putItem,
-  updateItem,
-} from '../utils/dynamodb.util.js';
-import {
-  makeJobPK,
-  makeMetaSK,
-} from '../types/dynamodb.types.js';
+import { getItem, putItem, updateItem } from '../utils/dynamodb.util.js';
+import { makeJobPK, makeMetaSK } from '../types/dynamodb.types.js';
 import type { SentimentJobItem } from '../types/dynamodb.types.js';
 import { calculateTTL } from '../utils/cache.util.js';
 import type { JobStatus } from '../utils/job.util.js';
+import { logger } from '../utils/logger.util.js';
 
 /**
  * Sentiment job interface (external format)
@@ -57,7 +51,7 @@ export async function getJob(jobId: string): Promise<SentimentJob | null> {
 
     return transformToExternal(item);
   } catch (error) {
-    console.error('[SentimentJobsRepository] Error getting job:', error, { jobId });
+    logger.error('Error getting job', error, { jobId });
     throw error;
   }
 }
@@ -86,14 +80,14 @@ export async function createJob(job: Omit<SentimentJob, 'ttl'>): Promise<void> {
     if (existingJob) {
       // If job is already COMPLETED, return without error (idempotent)
       if (existingJob.status === 'COMPLETED') {
-        console.log('[SentimentJobsRepository] Job already completed (idempotent):', {
+        logger.info('Job already completed (idempotent)', {
           jobId: job.jobId,
         });
         return;
       }
 
       // If job exists but not completed, log and return
-      console.log('[SentimentJobsRepository] Job already exists:', {
+      logger.info('Job already exists', {
         jobId: job.jobId,
         status: existingJob.status,
       });
@@ -103,7 +97,7 @@ export async function createJob(job: Omit<SentimentJob, 'ttl'>): Promise<void> {
     const cacheItem = transformToInternal(job);
     await putItem(cacheItem);
   } catch (error) {
-    console.error('[SentimentJobsRepository] Error creating job:', error, {
+    logger.error('Error creating job', error, {
       jobId: job.jobId,
     });
     throw error;
@@ -126,7 +120,7 @@ export async function createJob(job: Omit<SentimentJob, 'ttl'>): Promise<void> {
 export async function updateJobStatus(
   jobId: string,
   status: JobStatus,
-  updates: Partial<SentimentJob> = {}
+  updates: Partial<SentimentJob> = {},
 ): Promise<void> {
   try {
     const pk = makeJobPK(jobId);
@@ -138,7 +132,7 @@ export async function updateJobStatus(
     };
 
     // Remove undefined values
-    Object.keys(updateData).forEach(key => {
+    Object.keys(updateData).forEach((key) => {
       if (updateData[key] === undefined) {
         delete updateData[key];
       }
@@ -146,7 +140,7 @@ export async function updateJobStatus(
 
     await updateItem(pk, sk, updateData);
   } catch (error) {
-    console.error('[SentimentJobsRepository] Error updating job status:', error, {
+    logger.error('Error updating job status', error, {
       jobId,
       status,
     });
@@ -164,10 +158,7 @@ export async function updateJobStatus(
  * @example
  * await markJobCompleted('AAPL_2025-01-01_2025-01-30', 50);
  */
-export async function markJobCompleted(
-  jobId: string,
-  articlesProcessed: number
-): Promise<void> {
+export async function markJobCompleted(jobId: string, articlesProcessed: number): Promise<void> {
   await updateJobStatus(jobId, 'COMPLETED', {
     completedAt: Date.now(),
     articlesProcessed,

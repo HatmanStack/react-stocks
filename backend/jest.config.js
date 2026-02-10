@@ -4,11 +4,7 @@ export default {
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts', '**/*.test.js'],
   modulePaths: ['<rootDir>/node_modules'],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/types/**',
-  ],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/types/**'],
   coverageThreshold: {
     global: {
       branches: 60,

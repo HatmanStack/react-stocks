@@ -45,7 +45,7 @@ async function performLocalSentimentAnalysis(
   startDate: string,
   endDate: string,
   result: SyncResult,
-  onProgress?: SyncProgressCallback
+  onProgress?: SyncProgressCallback,
 ): Promise<void> {
   try {
     const dates = getDatesInRange(startDate, endDate);
@@ -61,14 +61,14 @@ async function performLocalSentimentAnalysis(
         // Update progress for each date
         onProgress?.({
           step: 'sentiment',
-          progress: 2 + (i / dates.length),
+          progress: 2 + i / dates.length,
           total: 3,
           message: `Analyzing sentiment locally: ${i + 1}/${dates.length} days...`,
         });
       } catch (error) {
         console.error(
           `[SyncOrchestrator] Local sentiment sync failed for ${ticker} on ${date}:`,
-          error
+          error,
         );
         result.errors.push(`Sentiment analysis failed for ${date}: ${error}`);
         // Continue with next date
@@ -79,7 +79,7 @@ async function performLocalSentimentAnalysis(
     result.daysProcessed = dates.length;
 
     console.log(
-      `[SyncOrchestrator] Local sentiment sync complete: ${result.sentimentAnalyses} analyses across ${result.daysProcessed} days`
+      `[SyncOrchestrator] Local sentiment sync complete: ${result.sentimentAnalyses} analyses across ${result.daysProcessed} days`,
     );
   } catch (error) {
     const errorMsg = `Local sentiment sync failed: ${error}`;
@@ -98,7 +98,7 @@ async function performLocalSentimentAnalysis(
 export async function syncAllData(
   ticker: string,
   days: number = 30,
-  onProgress?: SyncProgressCallback
+  onProgress?: SyncProgressCallback,
 ): Promise<SyncResult> {
   const result: SyncResult = {
     ticker,
@@ -168,10 +168,12 @@ export async function syncAllData(
         try {
           const newsResult = await fetchLambdaNews(ticker, startDate, endDate);
           console.log(
-            `[SyncOrchestrator] News fetch complete: ${newsResult.newArticles} new, ${newsResult.cachedArticles} cached`
+            `[SyncOrchestrator] News fetch complete: ${newsResult.newArticles} new, ${newsResult.cachedArticles} cached`,
           );
         } catch (newsError) {
-          console.warn(`[SyncOrchestrator] News fetch failed (sentiment may be empty): ${newsError}`);
+          console.warn(
+            `[SyncOrchestrator] News fetch failed (sentiment may be empty): ${newsError}`,
+          );
           result.errors.push(`News fetch failed: ${newsError}`);
           // Continue anyway - sentiment will just return empty results
         }
@@ -193,7 +195,7 @@ export async function syncAllData(
         });
 
         console.log(
-          `[SyncOrchestrator] Lambda sentiment analysis triggered: Job ID ${response.jobId}, Status: ${response.status}`
+          `[SyncOrchestrator] Lambda sentiment analysis triggered: Job ID ${response.jobId}, Status: ${response.status}`,
         );
       } catch (error) {
         const errorMsg = `Lambda sentiment trigger failed: ${error}`;
@@ -201,24 +203,12 @@ export async function syncAllData(
         result.errors.push(errorMsg);
 
         // Fallback to local sentiment analysis
-        await performLocalSentimentAnalysis(
-          ticker,
-          startDate,
-          endDate,
-          result,
-          onProgress
-        );
+        await performLocalSentimentAnalysis(ticker, startDate, endDate, result, onProgress);
       }
     } else {
       // Use local sentiment analysis
       console.log('[SyncOrchestrator] Using local sentiment analysis');
-      await performLocalSentimentAnalysis(
-        ticker,
-        startDate,
-        endDate,
-        result,
-        onProgress
-      );
+      await performLocalSentimentAnalysis(ticker, startDate, endDate, result, onProgress);
     }
 
     // Complete
@@ -231,7 +221,7 @@ export async function syncAllData(
 
     console.log(
       `[SyncOrchestrator] Full sync complete for ${ticker}:`,
-      JSON.stringify(result, null, 2)
+      JSON.stringify(result, null, 2),
     );
 
     return result;
@@ -252,7 +242,7 @@ export async function syncAllData(
 export async function syncMultipleTickers(
   tickers: string[],
   days: number = 30,
-  onProgress?: SyncProgressCallback
+  onProgress?: SyncProgressCallback,
 ): Promise<Map<string, SyncResult>> {
   const results = new Map<string, SyncResult>();
 

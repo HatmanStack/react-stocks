@@ -45,7 +45,7 @@ export function Skeleton({
     shimmerPosition.value = withRepeat(
       withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
       -1, // infinite
-      false // don't reverse
+      false, // don't reverse
     );
 
     // Cleanup: cancel animation on unmount

@@ -109,12 +109,7 @@ export function DisclosureCard({
   });
 
   const chevronStyle = useAnimatedStyle(() => {
-    const rotate = interpolate(
-      expandProgress.value,
-      [0, 1],
-      [0, 180],
-      Extrapolation.CLAMP
-    );
+    const rotate = interpolate(expandProgress.value, [0, 1], [0, 180], Extrapolation.CLAMP);
     return {
       transform: [{ rotate: `${rotate}deg` }],
     };
@@ -125,14 +120,9 @@ export function DisclosureCard({
       expandProgress.value,
       [0, 1],
       [0, contentHeight],
-      Extrapolation.CLAMP
+      Extrapolation.CLAMP,
     );
-    const opacity = interpolate(
-      expandProgress.value,
-      [0, 0.5, 1],
-      [0, 0, 1],
-      Extrapolation.CLAMP
-    );
+    const opacity = interpolate(expandProgress.value, [0, 0.5, 1], [0, 0, 1], Extrapolation.CLAMP);
     return {
       height: contentHeight > 0 ? height : undefined,
       opacity,
@@ -141,18 +131,8 @@ export function DisclosureCard({
   });
 
   const summaryStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      expandProgress.value,
-      [0, 0.3],
-      [1, 0],
-      Extrapolation.CLAMP
-    );
-    const height = interpolate(
-      expandProgress.value,
-      [0, 0.3],
-      [1, 0],
-      Extrapolation.CLAMP
-    );
+    const opacity = interpolate(expandProgress.value, [0, 0.3], [1, 0], Extrapolation.CLAMP);
+    const height = interpolate(expandProgress.value, [0, 0.3], [1, 0], Extrapolation.CLAMP);
     return {
       opacity,
       transform: [{ scaleY: height }],
@@ -226,9 +206,7 @@ export function DisclosureCard({
 
       {/* Summary - shown when collapsed */}
       {summary && !isExpanded && (
-        <Animated.View style={[styles.summary, summaryStyle]}>
-          {summary}
-        </Animated.View>
+        <Animated.View style={[styles.summary, summaryStyle]}>{summary}</Animated.View>
       )}
 
       {/* Expandable content */}

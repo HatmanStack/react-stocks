@@ -17,16 +17,14 @@ export const FeatureFlags = {
    * Default: true (new implementation)
    * Set EXPO_PUBLIC_BROWSER_SENTIMENT=false to use old word counting
    */
-  USE_BROWSER_SENTIMENT:
-    process.env.EXPO_PUBLIC_BROWSER_SENTIMENT !== 'false', // Default to true
+  USE_BROWSER_SENTIMENT: process.env.EXPO_PUBLIC_BROWSER_SENTIMENT !== 'false', // Default to true
 
   /**
    * Use browser-based logistic regression for predictions (Phase 3)
    * Default: false (not implemented yet)
    * Set EXPO_PUBLIC_BROWSER_PREDICTION=true to enable when ready
    */
-  USE_BROWSER_PREDICTION:
-    process.env.EXPO_PUBLIC_BROWSER_PREDICTION === 'true', // Default to false
+  USE_BROWSER_PREDICTION: process.env.EXPO_PUBLIC_BROWSER_PREDICTION === 'true', // Default to false
 };
 
 /**

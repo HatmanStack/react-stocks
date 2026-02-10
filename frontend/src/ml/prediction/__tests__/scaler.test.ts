@@ -8,7 +8,11 @@ describe('StandardScaler', () => {
   describe('fit', () => {
     it('computes mean and std for each feature', () => {
       const scaler = new StandardScaler();
-      const X = [[1, 2], [3, 4], [5, 6]];
+      const X = [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ];
       scaler.fit(X);
 
       const params = scaler.getParams();
@@ -38,7 +42,11 @@ describe('StandardScaler', () => {
   describe('transform', () => {
     it('standardizes features to zero mean and unit variance', () => {
       const scaler = new StandardScaler();
-      const X = [[1, 10], [2, 20], [3, 30]];
+      const X = [
+        [1, 10],
+        [2, 20],
+        [3, 30],
+      ];
       scaler.fit(X);
       const scaled = scaler.transform(X);
 
@@ -53,7 +61,11 @@ describe('StandardScaler', () => {
 
     it('handles constant features (std=0) by returning 0', () => {
       const scaler = new StandardScaler();
-      const X = [[5, 1], [5, 2], [5, 3]]; // First feature is constant
+      const X = [
+        [5, 1],
+        [5, 2],
+        [5, 3],
+      ]; // First feature is constant
       scaler.fit(X);
       const scaled = scaler.transform(X);
 
@@ -82,14 +94,21 @@ describe('StandardScaler', () => {
 
     it('throws on non-finite values in transform', () => {
       const scaler = new StandardScaler();
-      scaler.fit([[1, 2], [3, 4]]);
+      scaler.fit([
+        [1, 2],
+        [3, 4],
+      ]);
       expect(() => scaler.transform([[NaN, 1]])).toThrow('Non-finite value');
     });
   });
 
   describe('fitTransform', () => {
     it('produces same result as fit then transform', () => {
-      const X = [[1, 4], [2, 5], [3, 6]];
+      const X = [
+        [1, 4],
+        [2, 5],
+        [3, 6],
+      ];
 
       const scaler1 = new StandardScaler();
       scaler1.fit(X);
@@ -109,7 +128,11 @@ describe('StandardScaler', () => {
   describe('inverseTransform', () => {
     it('recovers original values', () => {
       const scaler = new StandardScaler();
-      const X = [[10, 100], [20, 200], [30, 300]];
+      const X = [
+        [10, 100],
+        [20, 200],
+        [30, 300],
+      ];
       scaler.fit(X);
       const scaled = scaler.transform(X);
       const recovered = scaler.inverseTransform(scaled);
@@ -162,12 +185,35 @@ describe('StandardScaler', () => {
 
 describe('calculateMean', () => {
   it('calculates mean of specific feature', () => {
-    expect(calculateMean([[1, 10], [3, 20], [5, 30]], 0)).toBe(3);
-    expect(calculateMean([[1, 10], [3, 20], [5, 30]], 1)).toBe(20);
+    expect(
+      calculateMean(
+        [
+          [1, 10],
+          [3, 20],
+          [5, 30],
+        ],
+        0,
+      ),
+    ).toBe(3);
+    expect(
+      calculateMean(
+        [
+          [1, 10],
+          [3, 20],
+          [5, 30],
+        ],
+        1,
+      ),
+    ).toBe(20);
   });
 
   it('calculates mean of all values', () => {
-    expect(calculateMean([[1, 2], [3, 4]])).toBe(2.5);
+    expect(
+      calculateMean([
+        [1, 2],
+        [3, 4],
+      ]),
+    ).toBe(2.5);
   });
 
   it('returns 0 for empty data', () => {

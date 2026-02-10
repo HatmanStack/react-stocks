@@ -25,7 +25,7 @@ interface CostBreakdown {
 // AWS Pricing (Approximate, us-east-1)
 const PRICING = {
   LAMBDA: {
-    REQUEST: 0.20 / 1000000, // $0.20 per 1M requests
+    REQUEST: 0.2 / 1000000, // $0.20 per 1M requests
     GB_SECOND: 0.0000166667, // $0.0000166667 per GB-second
   },
   DYNAMODB: {
@@ -33,9 +33,9 @@ const PRICING = {
     WRITE_UNIT: 1.25 / 1000000, // $1.25 per 1M write units
   },
   API_GATEWAY: {
-    REQUEST: 1.00 / 1000000, // $1.00 per 1M requests
+    REQUEST: 1.0 / 1000000, // $1.00 per 1M requests
     CACHE_GB_HOUR: 0.02, // $0.02 per GB-hour
-  }
+  },
 };
 
 function calculateCosts(
@@ -45,10 +45,10 @@ function calculateCosts(
   readUnits: number,
   writeUnits: number,
   apiRequests: number,
-  cacheSizeGB: number
+  cacheSizeGB: number,
 ): CostBreakdown {
   // Lambda Cost
-  const gbSeconds = (invocations * avgDurationMs / 1000) * (memoryMB / 1024);
+  const gbSeconds = ((invocations * avgDurationMs) / 1000) * (memoryMB / 1024);
   const lambdaComputeCost = gbSeconds * PRICING.LAMBDA.GB_SECOND;
   const lambdaRequestCost = invocations * PRICING.LAMBDA.REQUEST;
   const lambdaCost = lambdaComputeCost + lambdaRequestCost;
@@ -67,19 +67,19 @@ function calculateCosts(
     lambda: {
       invocations,
       gbSeconds,
-      cost: lambdaCost
+      cost: lambdaCost,
     },
     dynamodb: {
       readUnits,
       writeUnits,
-      cost: dynamoCost
+      cost: dynamoCost,
     },
     apiGateway: {
       requests: apiRequests,
       cacheHours: 720,
-      cost: apiCost
+      cost: apiCost,
     },
-    total: lambdaCost + dynamoCost + apiCost
+    total: lambdaCost + dynamoCost + apiCost,
   };
 }
 
@@ -92,7 +92,7 @@ async function main() {
     500000, // read units
     50000, // write units
     120000, // api requests (includes cache hits)
-    0.5 // cache size
+    0.5, // cache size
   );
 
   const optimized = calculateCosts(
@@ -102,7 +102,7 @@ async function main() {
     400000, // read units (-20%)
     50000, // write units
     120000, // api requests
-    0.5 // cache size
+    0.5, // cache size
   );
 
   console.log('=== Cost Analysis (Monthly Estimate) ===');

@@ -37,4 +37,3 @@ export function generateArticleHash(url: string): string {
   // Return first 16 characters (sufficient for uniqueness in our use case)
   return hash.substring(0, 16);
 }
-

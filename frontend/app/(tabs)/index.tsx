@@ -61,68 +61,79 @@ export default function SearchScreen() {
     setSearchQuery(query);
   }, []);
 
-  const handleDateRangeChange = useCallback((start: string, end: string) => {
-    setDateRange(start, end);
-  }, [setDateRange]);
+  const handleDateRangeChange = useCallback(
+    (start: string, end: string) => {
+      setDateRange(start, end);
+    },
+    [setDateRange],
+  );
 
-  const handleSelectStock = useCallback(async (symbol: SymbolDetails) => {
-    try {
-      // Update selected ticker in context
-      setSelectedTicker(symbol.ticker);
+  const handleSelectStock = useCallback(
+    async (symbol: SymbolDetails) => {
+      try {
+        // Update selected ticker in context
+        setSelectedTicker(symbol.ticker);
 
-      // Calculate number of days to sync
-      const days = Math.abs(differenceInDays(new Date(endDate), new Date(startDate))) + 1;
+        // Calculate number of days to sync
+        const days = Math.abs(differenceInDays(new Date(endDate), new Date(startDate))) + 1;
 
-      // Navigate to Stock Detail screen
-      router.push(`/(tabs)/stock/${symbol.ticker}`);
+        // Navigate to Stock Detail screen
+        router.push(`/(tabs)/stock/${symbol.ticker}`);
 
-      // Trigger data sync in background
-      setIsSyncing(true);
-      setSyncMessage(`Syncing data for ${symbol.ticker}...`);
+        // Trigger data sync in background
+        setIsSyncing(true);
+        setSyncMessage(`Syncing data for ${symbol.ticker}...`);
 
-      console.log(`[SearchScreen] Starting sync for ${symbol.ticker} (${days} days)`);
+        console.log(`[SearchScreen] Starting sync for ${symbol.ticker} (${days} days)`);
 
-      const syncResult = await syncAllData(symbol.ticker, days, (progress) => {
-        setSyncMessage(`${progress.message} (${progress.progress}/${progress.total})`);
-      });
+        const syncResult = await syncAllData(symbol.ticker, days, (progress) => {
+          setSyncMessage(`${progress.message} (${progress.progress}/${progress.total})`);
+        });
 
-      console.log(`[SearchScreen] Sync complete for ${symbol.ticker}`);
+        console.log(`[SearchScreen] Sync complete for ${symbol.ticker}`);
 
-      // Show message if sentiment is processing asynchronously
-      if (syncResult.sentimentJobId) {
-        console.log(`[SearchScreen] Sentiment analysis in progress: Job ${syncResult.sentimentJobId}`);
-        setSyncMessage(`Stock data synced. Sentiment analysis in progress...`);
+        // Show message if sentiment is processing asynchronously
+        if (syncResult.sentimentJobId) {
+          console.log(
+            `[SearchScreen] Sentiment analysis in progress: Job ${syncResult.sentimentJobId}`,
+          );
+          setSyncMessage(`Stock data synced. Sentiment analysis in progress...`);
 
-        // Clear any existing timeout to prevent race conditions
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
+          // Clear any existing timeout to prevent race conditions
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+
+          // Clear message after 3 seconds
+          timeoutRef.current = setTimeout(() => {
+            setSyncMessage('');
+            setIsSyncing(false);
+            timeoutRef.current = null;
+          }, 3000);
+        } else {
+          setIsSyncing(false);
+          setSyncMessage('');
         }
 
-        // Clear message after 3 seconds
-        timeoutRef.current = setTimeout(() => {
-          setSyncMessage('');
-          setIsSyncing(false);
-          timeoutRef.current = null;
-        }, 3000);
-      } else {
+        // Invalidate all queries for this ticker to force refetch
+        // Use exact: false to match all query variations (with different days params)
+        queryClient.invalidateQueries({ queryKey: ['sentimentData', symbol.ticker], exact: false });
+        queryClient.invalidateQueries({
+          queryKey: ['articleSentiment', symbol.ticker],
+          exact: false,
+        });
+        queryClient.invalidateQueries({ queryKey: ['stockData', symbol.ticker], exact: false });
+
+        console.log(`[SearchScreen] Invalidated queries for ${symbol.ticker}`);
+      } catch (error) {
+        console.error('[SearchScreen] Error syncing data:', error);
         setIsSyncing(false);
         setSyncMessage('');
+        // Don't show error - sync failures are handled in individual screens
       }
-
-      // Invalidate all queries for this ticker to force refetch
-      // Use exact: false to match all query variations (with different days params)
-      queryClient.invalidateQueries({ queryKey: ['sentimentData', symbol.ticker], exact: false });
-      queryClient.invalidateQueries({ queryKey: ['articleSentiment', symbol.ticker], exact: false });
-      queryClient.invalidateQueries({ queryKey: ['stockData', symbol.ticker], exact: false });
-
-      console.log(`[SearchScreen] Invalidated queries for ${symbol.ticker}`);
-    } catch (error) {
-      console.error('[SearchScreen] Error syncing data:', error);
-      setIsSyncing(false);
-      setSyncMessage('');
-      // Don't show error - sync failures are handled in individual screens
-    }
-  }, [setSelectedTicker, startDate, endDate, queryClient]);
+    },
+    [setSelectedTicker, startDate, endDate, queryClient],
+  );
 
   const renderSearchResult = useCallback(
     ({ item }: { item: SymbolDetails }) => (
@@ -130,12 +141,12 @@ export default function SearchScreen() {
         <SearchResultItem symbol={item} onPress={() => handleSelectStock(item)} />
       </Animated.View>
     ),
-    [handleSelectStock]
+    [handleSelectStock],
   );
 
   const renderSkeletonItem = useCallback(
     ({ index }: { index: number }) => <SearchResultSkeleton key={`skeleton-${index}`} />,
-    []
+    [],
   );
 
   const renderListHeader = () => (
@@ -161,13 +172,7 @@ export default function SearchScreen() {
     }
 
     if (error) {
-      return (
-        <ErrorDisplay
-          error={error as Error}
-          onRetry={refetch}
-          title="Search failed"
-        />
-      );
+      return <ErrorDisplay error={error as Error} onRetry={refetch} title="Search failed" />;
     }
 
     return (
@@ -180,7 +185,10 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={['top']}
+    >
       <OfflineIndicator />
       <View style={[styles.centeredContent, { width: contentWidth }]}>
         <SearchBar onSearchChange={handleSearchChange} />

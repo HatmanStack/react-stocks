@@ -46,8 +46,4 @@ export {
 } from './dailySentimentAggregate.repository.js';
 
 // Circuit Breaker Repository
-export {
-  getCircuitState,
-  recordSuccess,
-  recordFailure,
-} from './circuitBreaker.repository.js';
+export { getCircuitState, recordSuccess, recordFailure } from './circuitBreaker.repository.js';

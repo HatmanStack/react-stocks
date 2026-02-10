@@ -35,7 +35,7 @@ describe('dataValidator', () => {
     it('returns acceptable for data meeting all criteria', () => {
       // 15 records with Phase 5 fields, fresh, good coverage for 30 days
       const data = Array.from({ length: 15 }, (_, i) =>
-        makeRecord({ date: `2025-01-${String(i + 1).padStart(2, '0')}` })
+        makeRecord({ date: `2025-01-${String(i + 1).padStart(2, '0')}` }),
       );
       const result = validateCombinedData(data, 30);
 
@@ -58,7 +58,7 @@ describe('dataValidator', () => {
           date: `2025-01-${String(i + 1).padStart(2, '0')}`,
           avgSignalScore: null,
           avgMlScore: null,
-        })
+        }),
       );
       const result = validateCombinedData(data, 30);
 
@@ -68,10 +68,12 @@ describe('dataValidator', () => {
 
     it('rejects stale data (latest date before yesterday)', () => {
       const data = Array.from({ length: 15 }, (_, i) =>
-        makeRecord({ date: `2025-01-${String(i + 1).padStart(2, '0')}` })
+        makeRecord({ date: `2025-01-${String(i + 1).padStart(2, '0')}` }),
       );
       // Set all dates to old dates
-      data.forEach((d, i) => { d.date = `2024-12-${String(i + 1).padStart(2, '0')}`; });
+      data.forEach((d, i) => {
+        d.date = `2024-12-${String(i + 1).padStart(2, '0')}`;
+      });
 
       const result = validateCombinedData(data, 30);
 
@@ -82,7 +84,7 @@ describe('dataValidator', () => {
     it('rejects low coverage', () => {
       // 10 records for 60 days = 10/(60*0.7) = 23.8% coverage, below 50%
       const data = Array.from({ length: 10 }, (_, i) =>
-        makeRecord({ date: `2025-01-${String(i + 1).padStart(2, '0')}` })
+        makeRecord({ date: `2025-01-${String(i + 1).padStart(2, '0')}` }),
       );
       const result = validateCombinedData(data, 60);
 
@@ -92,7 +94,7 @@ describe('dataValidator', () => {
 
     it('respects custom thresholds', () => {
       const data = Array.from({ length: 3 }, (_, i) =>
-        makeRecord({ date: `2025-01-${String(13 + i).padStart(2, '0')}` })
+        makeRecord({ date: `2025-01-${String(13 + i).padStart(2, '0')}` }),
       );
       // With minRecords=2 and coverageThreshold=0.1, this should pass
       const result = validateCombinedData(data, 30, { minRecords: 2, coverageThreshold: 0.1 });
@@ -102,7 +104,7 @@ describe('dataValidator', () => {
 
     it('returns coverageRatio correctly', () => {
       const data = Array.from({ length: 21 }, (_, i) =>
-        makeRecord({ date: `2025-01-${String(i + 1).padStart(2, '0')}` })
+        makeRecord({ date: `2025-01-${String(i + 1).padStart(2, '0')}` }),
       );
       const result = validateCombinedData(data, 30);
 
@@ -138,7 +140,7 @@ describe('dataValidator', () => {
 
     it('returns acceptable for valid article data', () => {
       const data = Array.from({ length: 15 }, (_, i) =>
-        makeArticle({ date: `2025-01-${String(i + 1).padStart(2, '0')}`, hash: 1000 + i })
+        makeArticle({ date: `2025-01-${String(i + 1).padStart(2, '0')}`, hash: 1000 + i }),
       );
       const result = validateArticleData(data, 7);
 
@@ -156,7 +158,12 @@ describe('dataValidator', () => {
 
     it('rejects data without publisher info', () => {
       const data = Array.from({ length: 10 }, (_, i) =>
-        makeArticle({ publisher: undefined, url: undefined, hash: 1000 + i, date: `2025-01-${String(i + 1).padStart(2, '0')}` })
+        makeArticle({
+          publisher: undefined,
+          url: undefined,
+          hash: 1000 + i,
+          date: `2025-01-${String(i + 1).padStart(2, '0')}`,
+        }),
       );
       const result = validateArticleData(data, 7);
 
@@ -166,7 +173,12 @@ describe('dataValidator', () => {
 
     it('rejects data without Phase 5 fields', () => {
       const data = Array.from({ length: 10 }, (_, i) =>
-        makeArticle({ signalScore: undefined, mlScore: undefined, hash: 1000 + i, date: `2025-01-${String(i + 1).padStart(2, '0')}` })
+        makeArticle({
+          signalScore: undefined,
+          mlScore: undefined,
+          hash: 1000 + i,
+          date: `2025-01-${String(i + 1).padStart(2, '0')}`,
+        }),
       );
       const result = validateArticleData(data, 7);
 
@@ -177,7 +189,7 @@ describe('dataValidator', () => {
     it('uses lower coverage threshold (0.3) by default', () => {
       // 5 articles for 7 days: 5/(7*2) = 0.36, above 0.3 threshold
       const data = Array.from({ length: 5 }, (_, i) =>
-        makeArticle({ hash: 1000 + i, date: `2025-01-${String(11 + i).padStart(2, '0')}` })
+        makeArticle({ hash: 1000 + i, date: `2025-01-${String(11 + i).padStart(2, '0')}` }),
       );
       const result = validateArticleData(data, 7);
 

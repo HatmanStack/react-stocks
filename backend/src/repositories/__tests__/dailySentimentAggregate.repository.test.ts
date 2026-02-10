@@ -34,10 +34,7 @@ describe('DailySentimentAggregateRepository', () => {
       const result = await getDailyAggregate('AAPL', '2025-01-15');
 
       expect(result).toBeNull();
-      expect(mockGetItem).toHaveBeenCalledWith(
-        'DAILY#AAPL',
-        'DATE#2025-01-15',
-      );
+      expect(mockGetItem).toHaveBeenCalledWith('DAILY#AAPL', 'DATE#2025-01-15');
     });
 
     it('returns aggregate when found', async () => {

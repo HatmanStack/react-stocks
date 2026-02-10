@@ -34,10 +34,7 @@ describe('SentimentJobsRepository', () => {
       const result = await getJob('AAPL_2025-01-01_2025-01-31');
 
       expect(result).toBeNull();
-      expect(mockGetItem).toHaveBeenCalledWith(
-        'JOB#AAPL_2025-01-01_2025-01-31',
-        'META',
-      );
+      expect(mockGetItem).toHaveBeenCalledWith('JOB#AAPL_2025-01-01_2025-01-31', 'META');
     });
 
     it('returns job when found', async () => {

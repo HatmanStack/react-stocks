@@ -30,6 +30,13 @@ npm run test:integration         # Integration tests
 npm run deploy                   # Deploy via SAM
 npm run logs                     # View Lambda logs
 npm run warm-cache               # Pre-populate DynamoDB cache
+
+# Local development (Docker required)
+make localstack                  # Start LocalStack DynamoDB
+make localstack-stop             # Stop LocalStack
+make test-e2e                    # Run E2E tests against LocalStack
+make setup                       # npm install --legacy-peer-deps
+make test                        # Full check (lint + tests)
 ```
 
 ### Running Single Tests
@@ -70,6 +77,7 @@ frontend/
 ```
 
 **Key Patterns**:
+
 - **Platform Abstraction**: `database.ts` vs `database.web.ts` - bundler resolves `.web.ts` for web builds
 - **Repository Pattern**: All data access through `src/database/repositories/`
 - **TanStack Query**: Used for API caching and data synchronization
@@ -92,6 +100,7 @@ backend/
 ```
 
 **API Endpoints** (defined in `template.yaml`):
+
 - `GET /stocks` - Stock price data (Python/yfinance)
 - `GET /search` - Symbol search (Python)
 - `GET /news` - Financial news (Node.js/Finnhub)
@@ -101,6 +110,7 @@ backend/
 - `POST /batch/*` - Batch endpoints for bulk operations
 
 **DynamoDB Tables** (7 tables, all PAY_PER_REQUEST):
+
 - `*-StocksCache`, `*-NewsCache`, `*-SentimentCache` - TTL-based caching
 - `*-SentimentJobs` - Async job tracking
 - `*-StockHistoricalData`, `*-ArticleAnalysisData`, `*-DailySentimentAggregate` - ML training data
@@ -108,6 +118,7 @@ backend/
 ### Multi-Language Lambda Setup
 
 The backend uses two Lambda functions:
+
 1. **Node.js** (`ReactStocksFunction`): News, sentiment, prediction - built via esbuild
 2. **Python** (`PythonStocksFunction`): Stock data, search - uses yfinance
 
@@ -117,17 +128,22 @@ Both share API Gateway and some DynamoDB tables.
 
 - **Frontend tests**: Jest + React Native Testing Library, mocks in `frontend/__mocks__/`
 - **Backend tests**: Jest with ESM support (`--experimental-vm-modules`)
+- **Backend E2E tests**: Real DynamoDB via LocalStack (`make localstack && make test-e2e`)
 - **Python tests**: pytest in `backend/python_tests/`
 - **Coverage thresholds**: Frontend 30%, Backend 70%
+- **Pre-commit hooks**: Husky runs Prettier (TS/JSON/MD) and ruff (Python) via lint-staged
+- **Commit messages**: Enforced conventional commits via commitlint
 
 ## Environment Variables
 
 Frontend `.env` (auto-updated by backend deploy):
+
 ```dotenv
 EXPO_PUBLIC_API_URL=https://xxx.execute-api.region.amazonaws.com
 ```
 
 Backend `.env.deploy`:
+
 ```dotenv
 FINNHUB_API_KEY=your_key
 ALLOWED_ORIGINS=*

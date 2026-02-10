@@ -38,7 +38,7 @@ export const dateSchema = z
         date.getDate() === day
       );
     },
-    { message: 'Invalid calendar date' }
+    { message: 'Invalid calendar date' },
   );
 
 /**
@@ -105,8 +105,55 @@ export const batchSentimentRequestSchema = z
     {
       message: 'startDate must be before or equal to endDate',
       path: ['startDate'],
-    }
+    },
   );
+
+/**
+ * News request schema (query parameters)
+ * - ticker: Required stock symbol (strict: alphanumeric only for Finnhub)
+ * - from: Required start date
+ * - to: Required end date
+ * - Validates that from <= to
+ */
+export const newsRequestSchema = z
+  .object({
+    ticker: z
+      .string()
+      .min(1, 'Ticker is required')
+      .regex(/^[A-Za-z0-9]+$/, 'Ticker must be alphanumeric')
+      .transform((s) => s.toUpperCase()),
+    from: dateSchema,
+    to: dateSchema,
+  })
+  .refine((data) => data.from <= data.to, {
+    message: 'from date must be before or equal to to date',
+    path: ['from'],
+  });
+
+/**
+ * Event classification article schema
+ */
+const eventArticleSchema = z
+  .object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    url: z.string().min(1, 'url is required'),
+    date: z.string().min(1, 'date is required'),
+  })
+  .refine((a) => a.title || a.description, {
+    message: 'Article must have at least a title or description',
+  });
+
+/**
+ * Event classification request schema
+ * - articles: Array of 1-100 news articles
+ */
+export const eventClassificationRequestSchema = z.object({
+  articles: z
+    .array(eventArticleSchema)
+    .min(1, 'Articles array cannot be empty')
+    .max(100, 'Batch size exceeds maximum of 100 articles'),
+});
 
 /**
  * Type inference helpers
@@ -115,6 +162,8 @@ export type SentimentRequest = z.infer<typeof sentimentRequestSchema>;
 export type PredictionRequest = z.infer<typeof predictionRequestSchema>;
 export type BatchNewsRequest = z.infer<typeof batchNewsRequestSchema>;
 export type BatchSentimentRequest = z.infer<typeof batchSentimentRequestSchema>;
+export type NewsRequest = z.infer<typeof newsRequestSchema>;
+export type EventClassificationRequest = z.infer<typeof eventClassificationRequestSchema>;
 
 /**
  * Parse JSON body with Zod schema
@@ -132,7 +181,7 @@ export type BatchSentimentRequest = z.infer<typeof batchSentimentRequestSchema>;
  */
 export function parseBody<T extends z.ZodTypeAny>(
   body: string | null | undefined,
-  schema: T
+  schema: T,
 ): { success: true; data: z.infer<T> } | { success: false; error: string } {
   if (!body) {
     return { success: false, error: 'Request body is required' };
@@ -167,7 +216,7 @@ export function parseBody<T extends z.ZodTypeAny>(
  */
 export function parseQueryParams<T extends z.ZodTypeAny>(
   params: Record<string, string | undefined> | undefined,
-  schema: T
+  schema: T,
 ): { success: true; data: z.infer<T> } | { success: false; error: string } {
   const result = schema.safeParse(params || {});
   if (!result.success) {
@@ -186,8 +235,10 @@ export function parseQueryParams<T extends z.ZodTypeAny>(
  * Utility for direct safeParse usage
  */
 export function formatZodError(error: z.ZodError): string {
-  return error.issues.map((issue: z.ZodIssue) => {
-    const path = issue.path.join('.');
-    return path ? `${path}: ${issue.message}` : issue.message;
-  }).join('; ');
+  return error.issues
+    .map((issue: z.ZodIssue) => {
+      const path = issue.path.join('.');
+      return path ? `${path}: ${issue.message}` : issue.message;
+    })
+    .join('; ');
 }
