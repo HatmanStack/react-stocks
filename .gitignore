@@ -15,3 +15,4 @@ backend/bin/sam
 **/__pycache__/
 .serena/
 localstack-data/
+dist-e2e/

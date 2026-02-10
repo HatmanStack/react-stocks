@@ -16,6 +16,7 @@ export default {
       'ts-jest',
       {
         useESM: true,
+        tsconfig: '<rootDir>/e2e/tsconfig.e2e.json',
       },
     ],
   },
