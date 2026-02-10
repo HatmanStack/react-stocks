@@ -157,6 +157,65 @@ export async function trainModel(
 }
 
 /**
+ * Walk-forward cross-validation for time-series data.
+ *
+ * Uses expanding-window splits: trains on [0..t], tests on [t..t+step].
+ * Avoids look-ahead bias that K-fold introduces with temporal data.
+ * Matches the frontend's walkForwardCV pattern.
+ *
+ * @returns Mean accuracy across temporal splits, or null if insufficient data
+ */
+export async function walkForwardValidate(
+    X: number[][],
+    y: number[],
+    config: ModelTrainingConfig,
+    options?: { minTrainSize?: number; stepSize?: number }
+): Promise<{ meanAccuracy: number; foldScores: number[] } | null> {
+    const minTrainSize = options?.minTrainSize ?? 30;
+    const stepSize = options?.stepSize ?? 5;
+
+    if (X.length < minTrainSize + stepSize) {
+        return null; // Not enough data for validation
+    }
+
+    const foldScores: number[] = [];
+
+    for (let splitPoint = minTrainSize; splitPoint + stepSize <= X.length; splitPoint += stepSize) {
+        const X_train = X.slice(0, splitPoint);
+        const y_train = y.slice(0, splitPoint);
+        const X_test = X.slice(splitPoint, splitPoint + stepSize);
+        const y_test = y.slice(splitPoint, splitPoint + stepSize);
+
+        try {
+            const result = await trainModel(X_train, y_train, {
+                ...config,
+                epochs: Math.min(config.epochs, 50), // Fewer epochs for validation speed
+            });
+
+            // Evaluate on test set
+            let correct = 0;
+            for (let i = 0; i < X_test.length; i++) {
+                let z = result.model.bias;
+                for (let j = 0; j < result.model.weights.length; j++) {
+                    z += X_test[i][j] * result.model.weights[j];
+                }
+                const pred = sigmoid(z) >= 0.5 ? 1 : 0;
+                if (pred === y_test[i]) correct++;
+            }
+            foldScores.push(correct / X_test.length);
+        } catch {
+            // Skip folds that fail (e.g. insufficient data)
+            continue;
+        }
+    }
+
+    if (foldScores.length === 0) return null;
+
+    const meanAccuracy = foldScores.reduce((a, b) => a + b, 0) / foldScores.length;
+    return { meanAccuracy, foldScores };
+}
+
+/**
  * Generates predictions for 3 time horizons (1, 14, 30 days).
  * @param model Trained logistic regression model.
  * @param scaler Fitted scaler.

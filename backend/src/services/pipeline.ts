@@ -1,7 +1,7 @@
 import { fetchHistoricalData } from './dataFetcher';
 import { aggregate_daily_features } from './featureEngineering';
 import { prepare_training_data, create_scaler, normalize_features, Scaler } from './preprocessing';
-import { trainModel, generate_predictions, LogisticRegressionModel } from './mlModel';
+import { trainModel, generate_predictions, walkForwardValidate, LogisticRegressionModel } from './mlModel';
 import { PredictionResult, MODEL_CONFIG } from '../types/prediction.types';
 import { getItem, putItem } from '../utils/dynamodb.util.js';
 import { makeModelPK, makeWeightsSK } from '../types/dynamodb.types.js';
@@ -134,14 +134,27 @@ export async function runPredictionPipeline(ticker: string, days: number = 90): 
     const model = trainingResult.model;
     console.log(`[Pipeline] Model trained. Accuracy: ${trainingResult.metrics.accuracy.toFixed(4)}, Loss: ${trainingResult.metrics.loss.toFixed(4)}`);
 
-    // 7. Cache trained model for future requests (skip if accuracy is too low)
-    if (trainingResult.metrics.accuracy >= 0.45) {
-        await cacheModel(ticker, model, scaler, X.length, trainingResult.metrics.accuracy);
-    } else {
-        console.warn(`[Pipeline] Accuracy ${trainingResult.metrics.accuracy.toFixed(4)} too low to cache for ${ticker}`);
+    // 7. Walk-forward cross-validation to assess generalization
+    const cvResult = await walkForwardValidate(X_norm, y, {
+        inputDim: MODEL_CONFIG.inputDim,
+        learningRate: MODEL_CONFIG.learningRate,
+        epochs: MODEL_CONFIG.epochs,
+        batchSize: MODEL_CONFIG.batchSize,
+        validationSplit: MODEL_CONFIG.validationSplit,
+    });
+    if (cvResult) {
+        console.log(`[Pipeline] Walk-forward CV: mean accuracy ${cvResult.meanAccuracy.toFixed(4)} across ${cvResult.foldScores.length} folds`);
     }
 
-    // 8. Prediction Generation
+    // 8. Cache trained model for future requests (skip if accuracy is too low)
+    const effectiveAccuracy = cvResult?.meanAccuracy ?? trainingResult.metrics.accuracy;
+    if (effectiveAccuracy >= 0.45) {
+        await cacheModel(ticker, model, scaler, X.length, trainingResult.metrics.accuracy);
+    } else {
+        console.warn(`[Pipeline] CV accuracy ${effectiveAccuracy.toFixed(4)} too low to cache for ${ticker}`);
+    }
+
+    // 9. Prediction Generation
     const latestFeatures = dailyFeatures[dailyFeatures.length - 1];
     const predictions = generate_predictions(model, scaler, latestFeatures);
     console.log(`[Pipeline] Generated ${predictions.length} predictions.`);
