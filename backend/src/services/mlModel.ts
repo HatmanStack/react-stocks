@@ -71,7 +71,12 @@ export async function trainModel(
   config: ModelTrainingConfig,
 ): Promise<{ model: LogisticRegressionModel; metrics: TrainingMetrics }> {
   const numSamples = X.length;
-  const numFeatures = X[0]?.length || 0;
+
+  if (numSamples === 0 || !X[0]) {
+    throw new Error('Empty feature matrix provided');
+  }
+
+  const numFeatures = X[0].length;
 
   if (numSamples < 10) {
     throw new Error('Insufficient training data: At least 10 samples required.');

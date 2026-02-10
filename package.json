@@ -20,7 +20,7 @@
     "hygiene": "./scripts/code-hygiene.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "dependencies": {
     "react-native-worklets": "^0.6.1"
