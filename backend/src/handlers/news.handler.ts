@@ -17,7 +17,7 @@ export { fetchNewsWithCache as handleNewsWithCache } from '../services/newsCache
  * Handle news requests (proxy to Finnhub API with DynamoDB caching)
  */
 export async function handleNewsRequest(
-  event: APIGatewayProxyEventV2
+  event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayResponse> {
   const requestId = event.requestContext.requestId;
   const startTime = Date.now();
@@ -44,31 +44,27 @@ export async function handleNewsRequest(
 
     const duration = Date.now() - startTime;
 
-    logMetrics(
-      [{ name: 'RequestDuration', value: duration, unit: MetricUnit.Milliseconds }],
-      { Endpoint: 'news', Cached: String(result.cached) }
-    );
+    logMetrics([{ name: 'RequestDuration', value: duration, unit: MetricUnit.Milliseconds }], {
+      Endpoint: 'news',
+      Cached: String(result.cached),
+    });
 
-    return successResponse(
-      result.data,
-      200,
-      {
-        _meta: {
-          cached: result.cached,
-          source: result.source,
-          newArticles: result.newArticlesCount,
-          cachedArticles: result.cachedArticlesCount,
-          timestamp: new Date().toISOString(),
-        },
-      }
-    );
+    return successResponse(result.data, 200, {
+      _meta: {
+        cached: result.cached,
+        source: result.source,
+        newArticles: result.newArticlesCount,
+        cachedArticles: result.cachedArticlesCount,
+        timestamp: new Date().toISOString(),
+      },
+    });
   } catch (error) {
     const duration = Date.now() - startTime;
 
-    logMetrics(
-      [{ name: 'RequestDuration', value: duration, unit: MetricUnit.Milliseconds }],
-      { Endpoint: 'news', Error: 'true' }
-    );
+    logMetrics([{ name: 'RequestDuration', value: duration, unit: MetricUnit.Milliseconds }], {
+      Endpoint: 'news',
+      Error: 'true',
+    });
 
     logError('NewsHandler', error, { requestId });
 

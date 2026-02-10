@@ -37,7 +37,7 @@ function getCorsHeadersInternal(): Record<string, string> {
 export function successResponse<T>(
   data: T,
   statusCode: number = 200,
-  meta?: Record<string, unknown>
+  meta?: Record<string, unknown>,
 ): APIGatewayResponse {
   return {
     statusCode,
@@ -52,10 +52,7 @@ export function successResponse<T>(
  * @param statusCode - HTTP status code (default: 500)
  * @returns API Gateway response object
  */
-export function errorResponse(
-  message: string,
-  statusCode: number = 500
-): APIGatewayResponse {
+export function errorResponse(message: string, statusCode: number = 500): APIGatewayResponse {
   return {
     statusCode,
     headers: getCorsHeadersInternal(),

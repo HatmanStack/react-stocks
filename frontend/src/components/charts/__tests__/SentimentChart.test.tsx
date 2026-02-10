@@ -15,7 +15,7 @@ describe('SentimentChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <SentimentChart data={mockSentimentData} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -30,7 +30,7 @@ describe('SentimentChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <SentimentChart data={positiveData} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -45,7 +45,7 @@ describe('SentimentChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <SentimentChart data={negativeData} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -60,7 +60,7 @@ describe('SentimentChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <SentimentChart data={neutralData} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -70,7 +70,7 @@ describe('SentimentChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <SentimentChart data={[]} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -80,7 +80,7 @@ describe('SentimentChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <SentimentChart data={mockSentimentData} width={300} height={150} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();

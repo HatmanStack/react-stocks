@@ -33,9 +33,7 @@ export function transformPriceData(stocks: StockDetails[]): ChartDataPoint[] {
  * Transform sentiment data to Victory Native chart format
  * Filters out null/undefined sentiment scores and sorts by date ascending
  */
-export function transformSentimentData(
-  sentiment: CombinedWordDetails[]
-): ChartDataPoint[] {
+export function transformSentimentData(sentiment: CombinedWordDetails[]): ChartDataPoint[] {
   if (!sentiment || sentiment.length === 0) {
     return [];
   }
@@ -77,16 +75,10 @@ export function calculatePriceChange(data: ChartDataPoint[]): PriceChange {
  * Hook to transform and memoize chart data
  * Prevents unnecessary recalculations when data hasn't changed
  */
-export function useChartData(
-  stocks: StockDetails[] = [],
-  sentiment: CombinedWordDetails[] = []
-) {
+export function useChartData(stocks: StockDetails[] = [], sentiment: CombinedWordDetails[] = []) {
   const priceData = useMemo(() => transformPriceData(stocks), [stocks]);
 
-  const sentimentData = useMemo(
-    () => transformSentimentData(sentiment),
-    [sentiment]
-  );
+  const sentimentData = useMemo(() => transformSentimentData(sentiment), [sentiment]);
 
   const priceChange = useMemo(() => calculatePriceChange(priceData), [priceData]);
 

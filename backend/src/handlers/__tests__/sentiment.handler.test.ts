@@ -69,7 +69,9 @@ const {
 /**
  * Helper to create mock API Gateway event
  */
-function createAPIGatewayEvent(overrides: Partial<APIGatewayProxyEventV2> = {}): APIGatewayProxyEventV2 {
+function createAPIGatewayEvent(
+  overrides: Partial<APIGatewayProxyEventV2> = {},
+): APIGatewayProxyEventV2 {
   return {
     body: null,
     headers: {},
@@ -81,7 +83,13 @@ function createAPIGatewayEvent(overrides: Partial<APIGatewayProxyEventV2> = {}):
       apiId: 'test-api',
       domainName: 'test.execute-api.us-east-1.amazonaws.com',
       domainPrefix: 'test',
-      http: { method: 'GET', path: '/test', protocol: 'HTTP/1.1', sourceIp: '127.0.0.1', userAgent: 'test' },
+      http: {
+        method: 'GET',
+        path: '/test',
+        protocol: 'HTTP/1.1',
+        sourceIp: '127.0.0.1',
+        userAgent: 'test',
+      },
       requestId: 'test-request-id',
       routeKey: 'GET /test',
       stage: '$default',
@@ -264,6 +272,46 @@ describe('Sentiment Handler', () => {
       expect(body.data.jobId).toBe('AAPL_2025-01-01_2025-01-31');
       expect(body.data.status).toBe('IN_PROGRESS');
       expect(body.data.ticker).toBe('AAPL');
+    });
+  });
+
+  describe('handleSentimentRequest — additional error paths', () => {
+    it('should return 400 for malformed JSON body', async () => {
+      const event = createAPIGatewayEvent({
+        body: '{invalid json',
+      });
+
+      const response = await handleSentimentRequest(event);
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('should return 400 for missing required date fields', async () => {
+      const event = createAPIGatewayEvent({
+        body: JSON.stringify({ ticker: 'AAPL' }),
+      });
+
+      const response = await handleSentimentRequest(event);
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('should handle DynamoDB failure during job creation gracefully', async () => {
+      mockGetJob.mockRejectedValue(new Error('DynamoDB ProvisionedThroughputExceededException'));
+
+      const event = createAPIGatewayEvent({
+        body: JSON.stringify({
+          ticker: 'AAPL',
+          startDate: '2025-01-01',
+          endDate: '2025-01-31',
+        }),
+      });
+
+      const response = await handleSentimentRequest(event);
+
+      expect(response.statusCode).toBe(500);
+      const body = JSON.parse(response.body);
+      expect(body.error).toBe('Internal server error');
     });
   });
 

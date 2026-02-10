@@ -57,15 +57,7 @@ export const EVENT_KEYWORDS: EventKeywords = {
       'bottom line',
       'top line',
     ],
-    context: [
-      'reports',
-      'announces',
-      'posted',
-      'released',
-      'delivers',
-      'reported',
-      'announced',
-    ],
+    context: ['reports', 'announces', 'posted', 'released', 'delivers', 'reported', 'announced'],
     negativePatterns: [
       'guidance counselor', // Not financial
       'earnings potential', // Future-looking, not a report
@@ -151,13 +143,7 @@ export const EVENT_KEYWORDS: EventKeywords = {
       'platform',
       'technology',
     ],
-    context: [
-      'available',
-      'coming',
-      'revealed',
-      'presented',
-      'showcased',
-    ],
+    context: ['available', 'coming', 'revealed', 'presented', 'showcased'],
     negativePatterns: [
       'product placement', // Not a product launch
     ],
@@ -243,15 +229,7 @@ export const EVENT_KEYWORDS: EventKeywords = {
       'anticipates',
       'targets',
     ],
-    context: [
-      'revenue',
-      'earnings',
-      'growth',
-      'sales',
-      'profit',
-      'margin',
-      'projected',
-    ],
+    context: ['revenue', 'earnings', 'growth', 'sales', 'profit', 'margin', 'projected'],
     negativePatterns: [
       'guidance counselor', // Not financial
       'career guidance',
@@ -262,19 +240,8 @@ export const EVENT_KEYWORDS: EventKeywords = {
    * GENERAL: Catch-all for news that doesn't fit other categories
    */
   GENERAL: {
-    primary: [
-      'company',
-      'stock',
-      'shares',
-      'market',
-      'trading',
-    ],
-    secondary: [
-      'news',
-      'update',
-      'announcement',
-      'statement',
-    ],
+    primary: ['company', 'stock', 'shares', 'market', 'trading'],
+    secondary: ['news', 'update', 'announcement', 'statement'],
     context: [],
     negativePatterns: [],
   },

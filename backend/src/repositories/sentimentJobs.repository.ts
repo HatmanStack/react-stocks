@@ -6,15 +6,8 @@
  * Uses composite keys: PK = JOB#jobId, SK = META
  */
 
-import {
-  getItem,
-  putItem,
-  updateItem,
-} from '../utils/dynamodb.util.js';
-import {
-  makeJobPK,
-  makeMetaSK,
-} from '../types/dynamodb.types.js';
+import { getItem, putItem, updateItem } from '../utils/dynamodb.util.js';
+import { makeJobPK, makeMetaSK } from '../types/dynamodb.types.js';
 import type { SentimentJobItem } from '../types/dynamodb.types.js';
 import { calculateTTL } from '../utils/cache.util.js';
 import type { JobStatus } from '../utils/job.util.js';
@@ -127,7 +120,7 @@ export async function createJob(job: Omit<SentimentJob, 'ttl'>): Promise<void> {
 export async function updateJobStatus(
   jobId: string,
   status: JobStatus,
-  updates: Partial<SentimentJob> = {}
+  updates: Partial<SentimentJob> = {},
 ): Promise<void> {
   try {
     const pk = makeJobPK(jobId);
@@ -139,7 +132,7 @@ export async function updateJobStatus(
     };
 
     // Remove undefined values
-    Object.keys(updateData).forEach(key => {
+    Object.keys(updateData).forEach((key) => {
       if (updateData[key] === undefined) {
         delete updateData[key];
       }
@@ -165,10 +158,7 @@ export async function updateJobStatus(
  * @example
  * await markJobCompleted('AAPL_2025-01-01_2025-01-30', 50);
  */
-export async function markJobCompleted(
-  jobId: string,
-  articlesProcessed: number
-): Promise<void> {
+export async function markJobCompleted(jobId: string, articlesProcessed: number): Promise<void> {
   await updateJobStatus(jobId, 'COMPLETED', {
     completedAt: Date.now(),
     articlesProcessed,

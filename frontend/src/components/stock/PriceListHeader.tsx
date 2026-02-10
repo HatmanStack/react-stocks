@@ -54,35 +54,36 @@ export const PriceListHeader: React.FC = () => {
   );
 };
 
-const createStyles = (theme: any) => StyleSheet.create({
-  container: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: theme.colors.outlineVariant,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  dateColumn: {
-    flex: 1.5,
-    minWidth: 55,
-  },
-  priceColumn: {
-    flex: 1,
-    alignItems: 'flex-end',
-    minWidth: 55,
-  },
-  volumeColumn: {
-    flex: 1,
-    alignItems: 'flex-end',
-    minWidth: 50,
-  },
-  headerText: {
-    fontWeight: 'bold',
-    fontSize: 11,
-    textTransform: 'uppercase',
-  },
-});
+const createStyles = (theme: any) =>
+  StyleSheet.create({
+    container: {
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderBottomWidth: 2,
+      borderBottomColor: theme.colors.outlineVariant,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    dateColumn: {
+      flex: 1.5,
+      minWidth: 55,
+    },
+    priceColumn: {
+      flex: 1,
+      alignItems: 'flex-end',
+      minWidth: 55,
+    },
+    volumeColumn: {
+      flex: 1,
+      alignItems: 'flex-end',
+      minWidth: 50,
+    },
+    headerText: {
+      fontWeight: 'bold',
+      fontSize: 11,
+      textTransform: 'uppercase',
+    },
+  });

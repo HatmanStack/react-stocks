@@ -35,7 +35,10 @@ export function usePortfolio() {
           companyName = symbol.name;
         }
       } catch (err) {
-        logger.error(`[usePortfolio] Failed to look up symbol for ${ticker}, using ticker as name`, err);
+        logger.error(
+          `[usePortfolio] Failed to look up symbol for ${ticker}, using ticker as name`,
+          err,
+        );
       }
       const entry: Omit<PortfolioDetails, 'id'> = {
         ticker,
@@ -91,4 +94,3 @@ export function usePortfolio() {
     updatePortfolio: updateMutation,
   };
 }
-

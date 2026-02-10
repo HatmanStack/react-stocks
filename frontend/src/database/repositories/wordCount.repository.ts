@@ -31,7 +31,10 @@ export async function findByTicker(ticker: string): Promise<WordCountDetails[]> 
  * @param date - Date string
  * @returns Array of word count details for that date
  */
-export async function findByTickerAndDate(ticker: string, date: string): Promise<WordCountDetails[]> {
+export async function findByTickerAndDate(
+  ticker: string,
+  date: string,
+): Promise<WordCountDetails[]> {
   const db = await getDatabase();
   const sql = `SELECT * FROM ${TABLE_NAMES.WORD_COUNT_DETAILS} WHERE ticker = ? AND date = ?`;
 

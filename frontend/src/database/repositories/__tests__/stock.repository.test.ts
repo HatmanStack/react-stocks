@@ -60,10 +60,9 @@ describe('StockRepository', () => {
       const result = await StockRepository.findByTicker('AAPL');
 
       expect(getDatabase).toHaveBeenCalled();
-      expect(mockDb.getAllAsync).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE ticker = ?'),
-        ['AAPL']
-      );
+      expect(mockDb.getAllAsync).toHaveBeenCalledWith(expect.stringContaining('WHERE ticker = ?'), [
+        'AAPL',
+      ]);
       expect(result).toEqual(records);
     });
 
@@ -71,7 +70,7 @@ describe('StockRepository', () => {
       mockDb.getAllAsync.mockRejectedValue(new Error('Query failed'));
 
       await expect(StockRepository.findByTicker('AAPL')).rejects.toThrow(
-        'Failed to find stocks for ticker AAPL'
+        'Failed to find stocks for ticker AAPL',
       );
     });
   });
@@ -84,12 +83,12 @@ describe('StockRepository', () => {
       const result = await StockRepository.findByTickerAndDateRange(
         'AAPL',
         '2025-01-10',
-        '2025-01-20'
+        '2025-01-20',
       );
 
       expect(mockDb.getAllAsync).toHaveBeenCalledWith(
         expect.stringContaining('WHERE ticker = ? AND date >= ? AND date <= ?'),
-        ['AAPL', '2025-01-10', '2025-01-20']
+        ['AAPL', '2025-01-10', '2025-01-20'],
       );
       expect(result).toEqual(records);
     });
@@ -98,7 +97,7 @@ describe('StockRepository', () => {
       mockDb.getAllAsync.mockRejectedValue(new Error('Range query failed'));
 
       await expect(
-        StockRepository.findByTickerAndDateRange('AAPL', '2025-01-01', '2025-01-31')
+        StockRepository.findByTickerAndDateRange('AAPL', '2025-01-01', '2025-01-31'),
       ).rejects.toThrow('Failed to find stocks for ticker AAPL in date range');
     });
   });
@@ -132,7 +131,7 @@ describe('StockRepository', () => {
           sampleStock.peRatio,
           sampleStock.pbRatio,
           sampleStock.trailingPEG1Y,
-        ]
+        ],
       );
       expect(result).toBe(42);
     });
@@ -140,9 +139,7 @@ describe('StockRepository', () => {
     it('throws on db error', async () => {
       mockDb.runAsync.mockRejectedValue(new Error('Insert failed'));
 
-      await expect(StockRepository.insert(sampleStock)).rejects.toThrow(
-        'Failed to insert stock'
-      );
+      await expect(StockRepository.insert(sampleStock)).rejects.toThrow('Failed to insert stock');
     });
   });
 
@@ -165,7 +162,7 @@ describe('StockRepository', () => {
       mockDb.withTransactionAsync.mockRejectedValue(new Error('Transaction failed'));
 
       await expect(StockRepository.insertMany([sampleStock])).rejects.toThrow(
-        'Failed to insert stocks'
+        'Failed to insert stocks',
       );
     });
   });
@@ -178,7 +175,7 @@ describe('StockRepository', () => {
 
       expect(mockDb.runAsync).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM stock_details WHERE ticker = ?'),
-        ['AAPL']
+        ['AAPL'],
       );
     });
 
@@ -186,7 +183,7 @@ describe('StockRepository', () => {
       mockDb.runAsync.mockRejectedValue(new Error('Delete failed'));
 
       await expect(StockRepository.deleteByTicker('AAPL')).rejects.toThrow(
-        'Failed to delete stocks for ticker AAPL'
+        'Failed to delete stocks for ticker AAPL',
       );
     });
   });
@@ -197,10 +194,9 @@ describe('StockRepository', () => {
 
       const result = await StockRepository.countByTicker('AAPL');
 
-      expect(mockDb.getAllAsync).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT COUNT(*)'),
-        ['AAPL']
-      );
+      expect(mockDb.getAllAsync).toHaveBeenCalledWith(expect.stringContaining('SELECT COUNT(*)'), [
+        'AAPL',
+      ]);
       expect(result).toBe(15);
     });
 
@@ -229,7 +225,7 @@ describe('StockRepository', () => {
 
       expect(mockDb.getAllAsync).toHaveBeenCalledWith(
         expect.stringContaining('ORDER BY date DESC'),
-        ['AAPL']
+        ['AAPL'],
       );
       expect(result).toEqual(sampleStockWithId);
     });

@@ -24,6 +24,7 @@ def _float_to_decimal(obj: Any) -> Any:
         return [_float_to_decimal(i) for i in obj]
     return obj
 
+
 logger = get_structured_logger(__name__)
 
 # Configuration — must match DYNAMODB_TABLE_NAME set in template.yaml
@@ -44,7 +45,9 @@ def _get_dynamodb():
     """Get DynamoDB resource (lazy initialization)."""
     global _dynamodb
     if _dynamodb is None:
-        _dynamodb = boto3.resource("dynamodb")
+        endpoint_url = os.environ.get("DYNAMODB_ENDPOINT")
+        kwargs = {"endpoint_url": endpoint_url} if endpoint_url else {}
+        _dynamodb = boto3.resource("dynamodb", **kwargs)
     return _dynamodb
 
 
@@ -96,9 +99,7 @@ def get_stock(ticker: str, date: str) -> dict[str, Any] | None:
     """
     try:
         table = _get_table()
-        response = table.get_item(
-            Key={"ticker": ticker.upper(), "date": date}
-        )
+        response = table.get_item(Key={"ticker": ticker.upper(), "date": date})
         return response.get("Item")
     except Exception as e:
         logger.error(f"[StocksCache] Error getting stock: {e}", exc_info=True)

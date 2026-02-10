@@ -48,23 +48,19 @@ export default function StockDetailLayout() {
 
     try {
       if (inPortfolio) {
-        Alert.alert(
-          'Remove Stock',
-          `Remove ${ticker} from your portfolio?`,
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
+        Alert.alert('Remove Stock', `Remove ${ticker} from your portfolio?`, [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: async () => {
+              await removeFromPortfolio(ticker);
             },
-            {
-              text: 'Remove',
-              style: 'destructive',
-              onPress: async () => {
-                await removeFromPortfolio(ticker);
-              },
-            },
-          ]
-        );
+          },
+        ]);
       } else {
         // Add to portfolio with basic info
         await addToPortfolio(ticker);

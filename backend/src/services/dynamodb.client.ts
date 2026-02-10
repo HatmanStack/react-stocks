@@ -84,7 +84,7 @@ export class DynamoDBClientWrapper {
   async queryStockDataByDateRange(
     ticker: string,
     startDate: string,
-    endDate: string
+    endDate: string,
   ): Promise<StockHistoricalDataItem[]> {
     const pk = makeHistoricalPK(ticker);
     const items = await queryItems<StockHistoricalItem>(pk, {
@@ -144,7 +144,7 @@ export class DynamoDBClientWrapper {
   async queryArticlesByTicker(
     ticker: string,
     startDate: string,
-    endDate: string
+    endDate: string,
   ): Promise<ArticleAnalysisDataItem[]> {
     const pk = makeArticlePK(ticker);
 
@@ -196,7 +196,7 @@ export class DynamoDBClientWrapper {
    */
   async getDailySentiment(
     ticker: string,
-    date: string
+    date: string,
   ): Promise<DailySentimentAggregateItem | undefined> {
     const pk = makeDailyPK(ticker);
     const sk = makeDateSK(date);

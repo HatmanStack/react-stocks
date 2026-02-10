@@ -85,36 +85,43 @@ export async function upsert(portfolio: PortfolioDetails): Promise<void> {
  * @param updates - Partial PortfolioDetails object
  */
 export async function update(ticker: string, updates: Partial<PortfolioDetails>): Promise<void> {
-    const db = await getDatabase();
+  const db = await getDatabase();
 
-    // Whitelist of allowed updateable columns (exclude primary key 'ticker')
-    const ALLOWED_COLUMNS = [
-        'next', 'name', 'wks', 'mnth',
-        'nextDayDirection', 'nextDayProbability',
-        'twoWeekDirection', 'twoWeekProbability',
-        'oneMonthDirection', 'oneMonthProbability'
-    ];
+  // Whitelist of allowed updateable columns (exclude primary key 'ticker')
+  const ALLOWED_COLUMNS = [
+    'next',
+    'name',
+    'wks',
+    'mnth',
+    'nextDayDirection',
+    'nextDayProbability',
+    'twoWeekDirection',
+    'twoWeekProbability',
+    'oneMonthDirection',
+    'oneMonthProbability',
+  ];
 
-    // Filter out undefined fields and non-whitelisted columns
-    const fields = Object.keys(updates).filter(key =>
-        key !== 'ticker' && // Explicitly exclude primary key
-        ALLOWED_COLUMNS.includes(key) &&
-        updates[key as keyof PortfolioDetails] !== undefined
-    );
+  // Filter out undefined fields and non-whitelisted columns
+  const fields = Object.keys(updates).filter(
+    (key) =>
+      key !== 'ticker' && // Explicitly exclude primary key
+      ALLOWED_COLUMNS.includes(key) &&
+      updates[key as keyof PortfolioDetails] !== undefined,
+  );
 
-    if (fields.length === 0) return;
+  if (fields.length === 0) return;
 
-    const setClause = fields.map(key => `${key} = ?`).join(', ');
-    const values = fields.map(key => updates[key as keyof PortfolioDetails]);
+  const setClause = fields.map((key) => `${key} = ?`).join(', ');
+  const values = fields.map((key) => updates[key as keyof PortfolioDetails]);
 
-    const sql = `UPDATE ${TABLE_NAMES.PORTFOLIO_DETAILS} SET ${setClause} WHERE ticker = ?`;
+  const sql = `UPDATE ${TABLE_NAMES.PORTFOLIO_DETAILS} SET ${setClause} WHERE ticker = ?`;
 
-    try {
-        await db.runAsync(sql, [...values, ticker]);
-    } catch (error) {
-        console.error('[PortfolioRepository] Error updating portfolio entry:', error);
-        throw new Error(`Failed to update portfolio entry for ticker ${ticker}: ${error}`);
-    }
+  try {
+    await db.runAsync(sql, [...values, ticker]);
+  } catch (error) {
+    console.error('[PortfolioRepository] Error updating portfolio entry:', error);
+    throw new Error(`Failed to update portfolio entry for ticker ${ticker}: ${error}`);
+  }
 }
 
 /**

@@ -21,10 +21,7 @@ import { calculateSignalScoresBatch, type ArticleMetadata } from './signalScore.
 import { isMaterialEvent } from '../types/event.types.js';
 import type { EventType } from '../types/event.types.js';
 import type { AspectBreakdown } from '../types/aspect.types.js';
-import type {
-  NewsCacheItem,
-  SentimentCacheItem,
-} from '../repositories/index.js';
+import type { NewsCacheItem, SentimentCacheItem } from '../repositories/index.js';
 
 /**
  * Result of sentiment processing operation
@@ -41,11 +38,7 @@ export interface SentimentProcessingResult {
 /**
  * Progress callback for monitoring processing steps
  */
-export type ProgressCallback = (progress: {
-  step: string;
-  current: number;
-  total: number;
-}) => void;
+export type ProgressCallback = (progress: { step: string; current: number; total: number }) => void;
 
 /**
  * Process sentiment analysis for a ticker within a date range
@@ -71,7 +64,7 @@ export async function processSentimentForTicker(
   ticker: string,
   startDate: string,
   endDate: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
 ): Promise<SentimentProcessingResult> {
   const startTime = Date.now();
 
@@ -109,13 +102,13 @@ export async function processSentimentForTicker(
     onProgress?.({
       step: 'Checking existing sentiment',
       current: 20,
-      total: 100
+      total: 100,
     });
 
     // Step 3: Check which articles need analysis
     const { articlesToAnalyze, articlesCached } = await partitionArticlesByCache(
       ticker,
-      articlesInRange
+      articlesInRange,
     );
 
     onProgress?.({
@@ -150,7 +143,7 @@ export async function processSentimentForTicker(
       allSentiments,
       articlesInRange,
       startDate,
-      endDate
+      endDate,
     );
 
     const dailySentiment = aggregateDailySentiment(sentimentsInRange, articlesInRange);
@@ -185,7 +178,7 @@ export async function processSentimentForTicker(
 function filterArticlesByDateRange(
   articles: NewsCacheItem[],
   startDate: string,
-  endDate: string
+  endDate: string,
 ): NewsCacheItem[] {
   return articles.filter((article) => {
     const articleDate = article.article.date;
@@ -198,17 +191,17 @@ function filterArticlesByDateRange(
  */
 async function partitionArticlesByCache(
   ticker: string,
-  articles: NewsCacheItem[]
+  articles: NewsCacheItem[],
 ): Promise<{
   articlesToAnalyze: NewsCacheItem[];
   articlesCached: NewsCacheItem[];
 }> {
   // Batch check existence (single BatchGetItem call per 100 articles)
-  const hashes = articles.map(a => a.articleHash);
+  const hashes = articles.map((a) => a.articleHash);
   const existingHashes = await SentimentCacheRepository.batchCheckExistence(ticker, hashes);
 
-  const articlesToAnalyze = articles.filter(a => !existingHashes.has(a.articleHash));
-  const articlesCached = articles.filter(a => existingHashes.has(a.articleHash));
+  const articlesToAnalyze = articles.filter((a) => !existingHashes.has(a.articleHash));
+  const articlesCached = articles.filter((a) => existingHashes.has(a.articleHash));
 
   return { articlesToAnalyze, articlesCached };
 }
@@ -228,7 +221,7 @@ async function partitionArticlesByCache(
  */
 async function analyzeArticles(
   ticker: string,
-  articles: NewsCacheItem[]
+  articles: NewsCacheItem[],
 ): Promise<Omit<SentimentCacheItem, 'ttl'>[]> {
   if (articles.length === 0) {
     return [];
@@ -254,7 +247,7 @@ async function analyzeArticles(
           eventType: 'GENERAL' as EventType,
         };
       }
-    })
+    }),
   );
 
   // Create map of articleHash -> eventType
@@ -296,9 +289,12 @@ async function analyzeArticles(
   logger.info('Signal scores calculated', {
     ticker,
     totalArticles: articles.length,
-    avgSignalScore: signalScoreMap.size > 0
-      ? (Array.from(signalScoreMap.values()).reduce((a, b) => a + b, 0) / signalScoreMap.size).toFixed(2)
-      : 'N/A',
+    avgSignalScore:
+      signalScoreMap.size > 0
+        ? (
+            Array.from(signalScoreMap.values()).reduce((a, b) => a + b, 0) / signalScoreMap.size
+          ).toFixed(2)
+        : 'N/A',
   });
 
   // NEW (Phase 2): Analyze aspects for all articles
@@ -313,7 +309,7 @@ async function analyzeArticles(
             headline: item.article.title || '',
             summary: item.article.description || '',
           },
-          eventType
+          eventType,
         );
 
         return {
@@ -333,7 +329,7 @@ async function analyzeArticles(
           aspectBreakdown: {},
         };
       }
-    })
+    }),
   );
 
   // Create map of articleHash -> aspect scores
@@ -400,7 +396,7 @@ async function analyzeArticles(
         articleHash: item.articleHash,
         mlScore: null,
       };
-    })
+    }),
   );
 
   // Create map of articleHash -> MlSentiment scores
@@ -412,8 +408,8 @@ async function analyzeArticles(
   });
 
   const mlSentimentDuration = Date.now() - mlSentimentStartTime;
-  const materialEventCount = Array.from(eventTypeMap.values()).filter(
-    (eventType) => isMaterialEvent(eventType as EventType)
+  const materialEventCount = Array.from(eventTypeMap.values()).filter((eventType) =>
+    isMaterialEvent(eventType as EventType),
   ).length;
 
   // Log MlSentiment performance metrics
@@ -429,7 +425,7 @@ async function analyzeArticles(
 
   // Log MlSentiment success/failure rates
   const mlSentimentSuccessCount = Array.from(mlScoreMap.values()).filter(
-    (score) => score !== null
+    (score) => score !== null,
   ).length;
   const mlSentimentFailureCount = materialEventCount - mlSentimentSuccessCount;
   if (mlSentimentFailureCount > 0) {
@@ -454,34 +450,32 @@ async function analyzeArticles(
       const sentimentResults = await analyzeSentimentBatch(articlesForAnalysis);
 
       // Convert to cache format (with event types, aspect scores, MlSentiment scores, and signal scores)
-      const cacheItems: Omit<SentimentCacheItem, 'ttl'>[] = sentimentResults.map(
-        (result) => {
-          const aspectData = aspectScoreMap.get(result.articleHash);
-          const mlScore = mlScoreMap.get(result.articleHash);
-          const signalScore = signalScoreMap.get(result.articleHash);
+      const cacheItems: Omit<SentimentCacheItem, 'ttl'>[] = sentimentResults.map((result) => {
+        const aspectData = aspectScoreMap.get(result.articleHash);
+        const mlScore = mlScoreMap.get(result.articleHash);
+        const signalScore = signalScoreMap.get(result.articleHash);
 
-          return {
-            ticker,
-            articleHash: result.articleHash,
-            sentiment: {
-              positive: parseInt(result.sentiment.positive[0]),
-              negative: parseInt(result.sentiment.negative[0]),
-              sentimentScore: result.sentimentScore,
-              classification: result.classification,
-            },
-            analyzedAt: Date.now(),
-            // NEW (Phase 1): Include event type
-            eventType: eventTypeMap.get(result.articleHash) || 'GENERAL',
-            // NEW (Phase 2): Include aspect scores
-            aspectScore: aspectData?.score ?? 0,
-            aspectBreakdown: aspectData?.breakdown,
-            // NEW (Phase 3): Include MlSentiment score (undefined if not material event or failed)
-            mlScore: mlScore ?? undefined,
-            // Signal score from metadata analysis
-            signalScore: signalScore,
-          };
-        }
-      );
+        return {
+          ticker,
+          articleHash: result.articleHash,
+          sentiment: {
+            positive: parseInt(result.sentiment.positive[0]),
+            negative: parseInt(result.sentiment.negative[0]),
+            sentimentScore: result.sentimentScore,
+            classification: result.classification,
+          },
+          analyzedAt: Date.now(),
+          // NEW (Phase 1): Include event type
+          eventType: eventTypeMap.get(result.articleHash) || 'GENERAL',
+          // NEW (Phase 2): Include aspect scores
+          aspectScore: aspectData?.score ?? 0,
+          aspectBreakdown: aspectData?.breakdown,
+          // NEW (Phase 3): Include MlSentiment score (undefined if not material event or failed)
+          mlScore: mlScore ?? undefined,
+          // Signal score from metadata analysis
+          signalScore: signalScore,
+        };
+      });
 
       return cacheItems;
     } catch (error) {
@@ -493,10 +487,14 @@ async function analyzeArticles(
         });
         // Will retry
       } else {
-        logger.error('Batch analysis failed after retry, switching to per-article analysis', error, {
-          ticker,
-          articleCount: articles.length,
-        });
+        logger.error(
+          'Batch analysis failed after retry, switching to per-article analysis',
+          error,
+          {
+            ticker,
+            articleCount: articles.length,
+          },
+        );
         // Fall through to per-article analysis
       }
     }
@@ -530,7 +528,7 @@ async function analyzeArticles(
         // Signal score from metadata analysis
         signalScore: signalScore,
       } as Omit<SentimentCacheItem, 'ttl'>;
-    })
+    }),
   );
 
   // Collect successful results and log failures
@@ -569,13 +567,13 @@ function filterSentimentsByDateRange(
   sentiments: SentimentCacheItem[],
   articles: NewsCacheItem[],
   startDate: string,
-  endDate: string
+  endDate: string,
 ): SentimentCacheItem[] {
   // Create set of article hashes in date range
   const articleHashesInRange = new Set(
     articles
       .filter((a) => a.article.date >= startDate && a.article.date <= endDate)
-      .map((a) => a.articleHash)
+      .map((a) => a.articleHash),
   );
 
   // Filter sentiments to only those matching articles in range

@@ -3,19 +3,14 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import {
-  ASPECT_KEYWORDS,
-  NEGATION_WORDS,
-  AMPLIFIERS,
-  DIMINISHERS,
-} from '../keywords';
+import { ASPECT_KEYWORDS, NEGATION_WORDS, AMPLIFIERS, DIMINISHERS } from '../keywords';
 import { AspectType } from '../../../types/aspect.types';
 
 describe('Aspect Keywords', () => {
   const aspects: AspectType[] = ['REVENUE', 'EARNINGS', 'GUIDANCE', 'MARGINS', 'GROWTH', 'DEBT'];
 
   describe('Structure Validation', () => {
-    aspects.forEach(aspect => {
+    aspects.forEach((aspect) => {
       describe(`${aspect} keywords`, () => {
         it('should have all required fields', () => {
           const keywords = ASPECT_KEYWORDS[aspect];
@@ -35,22 +30,26 @@ describe('Aspect Keywords', () => {
 
         it('should have all lowercase keywords', () => {
           const keywords = ASPECT_KEYWORDS[aspect];
-          [...keywords.base, ...keywords.positive, ...keywords.negative, ...keywords.context]
-            .forEach(keyword => {
-              expect(keyword).toBe(keyword.toLowerCase());
-            });
+          [
+            ...keywords.base,
+            ...keywords.positive,
+            ...keywords.negative,
+            ...keywords.context,
+          ].forEach((keyword) => {
+            expect(keyword).toBe(keyword.toLowerCase());
+          });
         });
       });
     });
   });
 
   describe('Contradiction Detection', () => {
-    aspects.forEach(aspect => {
+    aspects.forEach((aspect) => {
       it(`should not have overlapping positive and negative keywords for ${aspect}`, () => {
         const keywords = ASPECT_KEYWORDS[aspect];
         const negativeSet = new Set(keywords.negative);
 
-        const overlap = keywords.positive.filter(word => negativeSet.has(word));
+        const overlap = keywords.positive.filter((word) => negativeSet.has(word));
         expect(overlap).toEqual([]);
       });
     });
@@ -127,14 +126,14 @@ describe('Aspect Keywords', () => {
     it('should not have overlapping amplifiers and diminishers', () => {
       const dimSet = new Set(DIMINISHERS);
 
-      const overlap = AMPLIFIERS.filter(word => dimSet.has(word));
+      const overlap = AMPLIFIERS.filter((word) => dimSet.has(word));
       expect(overlap).toEqual([]);
     });
   });
 
   describe('Context Words', () => {
     it('should have financial context words to prevent false positives', () => {
-      aspects.forEach(aspect => {
+      aspects.forEach((aspect) => {
         const keywords = ASPECT_KEYWORDS[aspect];
         expect(keywords.context.length).toBeGreaterThan(3); // At least some context
       });

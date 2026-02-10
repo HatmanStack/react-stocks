@@ -31,7 +31,7 @@ interface EventClassificationResponse {
  * @returns API Gateway response
  */
 export async function handleEventClassification(
-  event: APIGatewayProxyEventV2
+  event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayResponse> {
   const startTime = Date.now();
 
@@ -75,10 +75,13 @@ export async function handleEventClassification(
     logger.info('Batch classification complete', {
       articleCount: articles.length,
       processingTimeMs,
-      eventTypeDistribution: classifications.reduce((acc, c) => {
-        acc[c.eventType] = (acc[c.eventType] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
+      eventTypeDistribution: classifications.reduce(
+        (acc, c) => {
+          acc[c.eventType] = (acc[c.eventType] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
     });
 
     const response: EventClassificationResponse = {

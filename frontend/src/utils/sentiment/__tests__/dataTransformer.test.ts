@@ -2,7 +2,11 @@
  * dataTransformer unit tests
  */
 
-import { classifySentiment, transformLambdaToLocal, transformArticleToLocal } from '../dataTransformer';
+import {
+  classifySentiment,
+  transformLambdaToLocal,
+  transformArticleToLocal,
+} from '../dataTransformer';
 import type { DailySentiment } from '@/services/api/lambdaSentiment.service';
 
 jest.mock('@/utils/date/dateUtils', () => ({
@@ -37,7 +41,16 @@ describe('dataTransformer', () => {
       positiveCount: 5,
       negativeCount: 2,
       sentimentScore: 0.4,
-      eventCounts: { EARNINGS: 1, 'M&A': 0, GUIDANCE: 0, PRODUCT: 0, REGULATORY: 0, ANALYST: 0, LEGAL: 0, GENERAL: 3 },
+      eventCounts: {
+        EARNINGS: 1,
+        'M&A': 0,
+        GUIDANCE: 0,
+        PRODUCT: 0,
+        REGULATORY: 0,
+        ANALYST: 0,
+        LEGAL: 0,
+        GENERAL: 3,
+      },
       avgAspectScore: 0.3,
       avgMlScore: 0.5,
       materialEventCount: 1,
@@ -104,13 +117,15 @@ describe('dataTransformer', () => {
     });
 
     it('handles missing optional fields with null/defaults', () => {
-      const input = [makeDailySentiment({
-        eventCounts: undefined as any,
-        avgAspectScore: undefined,
-        avgMlScore: undefined,
-        materialEventCount: undefined,
-        avgSignalScore: undefined,
-      })];
+      const input = [
+        makeDailySentiment({
+          eventCounts: undefined as any,
+          avgAspectScore: undefined,
+          avgMlScore: undefined,
+          materialEventCount: undefined,
+          avgSignalScore: undefined,
+        }),
+      ];
       const result = transformLambdaToLocal(input, 'AAPL');
 
       expect(result[0].eventCounts).toBeUndefined();

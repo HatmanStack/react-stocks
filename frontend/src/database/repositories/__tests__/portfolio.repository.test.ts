@@ -49,7 +49,7 @@ describe('PortfolioRepository', () => {
 
       expect(getDatabase).toHaveBeenCalled();
       expect(mockDb.getAllAsync).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM portfolio_details')
+        expect.stringContaining('SELECT * FROM portfolio_details'),
       );
       expect(result).toEqual(entries);
     });
@@ -73,7 +73,7 @@ describe('PortfolioRepository', () => {
 
       expect(mockDb.getFirstAsync).toHaveBeenCalledWith(
         expect.stringContaining('WHERE ticker = ?'),
-        ['AAPL']
+        ['AAPL'],
       );
       expect(result).toEqual(samplePortfolio);
     });
@@ -107,7 +107,7 @@ describe('PortfolioRepository', () => {
           samplePortfolio.twoWeekProbability,
           samplePortfolio.oneMonthDirection,
           samplePortfolio.oneMonthProbability,
-        ]
+        ],
       );
     });
 
@@ -115,7 +115,7 @@ describe('PortfolioRepository', () => {
       mockDb.runAsync.mockRejectedValue(new Error('Write error'));
 
       await expect(PortfolioRepository.upsert(samplePortfolio)).rejects.toThrow(
-        'Failed to upsert portfolio entry'
+        'Failed to upsert portfolio entry',
       );
     });
   });
@@ -128,7 +128,7 @@ describe('PortfolioRepository', () => {
 
       expect(mockDb.runAsync).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM portfolio_details WHERE ticker = ?'),
-        ['AAPL']
+        ['AAPL'],
       );
     });
 
@@ -136,7 +136,7 @@ describe('PortfolioRepository', () => {
       mockDb.runAsync.mockRejectedValue(new Error('Delete error'));
 
       await expect(PortfolioRepository.deleteByTicker('AAPL')).rejects.toThrow(
-        'Failed to delete portfolio entry for ticker AAPL'
+        'Failed to delete portfolio entry for ticker AAPL',
       );
     });
   });
@@ -149,7 +149,7 @@ describe('PortfolioRepository', () => {
 
       expect(mockDb.getFirstAsync).toHaveBeenCalledWith(
         expect.stringContaining('SELECT COUNT(*)'),
-        ['AAPL']
+        ['AAPL'],
       );
       expect(result).toBe(true);
     });
@@ -191,7 +191,7 @@ describe('PortfolioRepository', () => {
 
       expect(mockDb.runAsync).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE portfolio_details SET'),
-        expect.arrayContaining(['Apple Inc. Updated', 'AAPL'])
+        expect.arrayContaining(['Apple Inc. Updated', 'AAPL']),
       );
     });
 
@@ -209,16 +209,14 @@ describe('PortfolioRepository', () => {
       await PortfolioRepository.deleteAll();
 
       expect(mockDb.runAsync).toHaveBeenCalledWith(
-        expect.stringContaining('DELETE FROM portfolio_details')
+        expect.stringContaining('DELETE FROM portfolio_details'),
       );
     });
 
     it('throws on error', async () => {
       mockDb.runAsync.mockRejectedValue(new Error('Clear error'));
 
-      await expect(PortfolioRepository.deleteAll()).rejects.toThrow(
-        'Failed to clear portfolio'
-      );
+      await expect(PortfolioRepository.deleteAll()).rejects.toThrow('Failed to clear portfolio');
     });
   });
 });

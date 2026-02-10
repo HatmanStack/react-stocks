@@ -5,11 +5,7 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|d3-.*|react-native-svg-charts|react-native-reanimated|react-native-worklets)',
   ],
-  collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/**/*.test.{ts,tsx}',
-  ],
+  collectCoverageFrom: ['src/**/*.{ts,tsx}', '!src/**/*.d.ts', '!src/**/*.test.{ts,tsx}'],
   coverageThreshold: {
     global: {
       branches: 50,

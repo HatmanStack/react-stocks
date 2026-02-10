@@ -12,10 +12,7 @@ interface SentimentToggleProps {
   onValueChange: (value: 'aggregate' | 'individual') => void;
 }
 
-export const SentimentToggle: React.FC<SentimentToggleProps> = ({
-  value,
-  onValueChange,
-}) => {
+export const SentimentToggle: React.FC<SentimentToggleProps> = ({ value, onValueChange }) => {
   const theme = useTheme();
 
   return (

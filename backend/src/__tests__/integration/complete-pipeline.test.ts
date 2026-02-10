@@ -261,9 +261,14 @@ describe('Complete Sentiment Pipeline Integration', () => {
       expect(validItem.mlScore).toBeLessThanOrEqual(1);
 
       // Validate event type
-      expect(['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING', 'PRODUCT_LAUNCH', 'GENERAL']).toContain(
-        validItem.eventType
-      );
+      expect([
+        'EARNINGS',
+        'M&A',
+        'GUIDANCE',
+        'ANALYST_RATING',
+        'PRODUCT_LAUNCH',
+        'GENERAL',
+      ]).toContain(validItem.eventType);
     });
 
     it('should accept minimal sentiment cache item (backward compatible)', () => {

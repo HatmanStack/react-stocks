@@ -85,7 +85,10 @@ export function isValidDateString(dateString: string): boolean {
  * @param formatString - Optional format string (defaults to 'MMM dd, yyyy')
  * @returns Formatted date string (e.g., "Jan 15, 2025")
  */
-export function formatDisplayDate(date: Date | string, formatString: string = 'MMM dd, yyyy'): string {
+export function formatDisplayDate(
+  date: Date | string,
+  formatString: string = 'MMM dd, yyyy',
+): string {
   const dateObj = typeof date === 'string' ? parseISO(date) : date;
   return format(dateObj, formatString);
 }

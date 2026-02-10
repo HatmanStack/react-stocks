@@ -70,6 +70,7 @@ frontend/
 ```
 
 **Key Patterns**:
+
 - **Platform Abstraction**: `database.ts` vs `database.web.ts` - bundler resolves `.web.ts` for web builds
 - **Repository Pattern**: All data access through `src/database/repositories/`
 - **TanStack Query**: Used for API caching and data synchronization
@@ -92,6 +93,7 @@ backend/
 ```
 
 **API Endpoints** (defined in `template.yaml`):
+
 - `GET /stocks` - Stock price data (Python/yfinance)
 - `GET /search` - Symbol search (Python)
 - `GET /news` - Financial news (Node.js/Finnhub)
@@ -101,6 +103,7 @@ backend/
 - `POST /batch/*` - Batch endpoints for bulk operations
 
 **DynamoDB Tables** (7 tables, all PAY_PER_REQUEST):
+
 - `*-StocksCache`, `*-NewsCache`, `*-SentimentCache` - TTL-based caching
 - `*-SentimentJobs` - Async job tracking
 - `*-StockHistoricalData`, `*-ArticleAnalysisData`, `*-DailySentimentAggregate` - ML training data
@@ -108,6 +111,7 @@ backend/
 ### Multi-Language Lambda Setup
 
 The backend uses two Lambda functions:
+
 1. **Node.js** (`ReactStocksFunction`): News, sentiment, prediction - built via esbuild
 2. **Python** (`PythonStocksFunction`): Stock data, search - uses yfinance
 
@@ -123,11 +127,13 @@ Both share API Gateway and some DynamoDB tables.
 ## Environment Variables
 
 Frontend `.env` (auto-updated by backend deploy):
+
 ```dotenv
 EXPO_PUBLIC_API_URL=https://xxx.execute-api.region.amazonaws.com
 ```
 
 Backend `.env.deploy`:
+
 ```dotenv
 FINNHUB_API_KEY=your_key
 ALLOWED_ORIGINS=*

@@ -10,7 +10,13 @@
 import { StandardScaler } from './scaler';
 import { LogisticRegressionCV, walkForwardCV } from './cross-validation';
 import { LogisticRegression } from './model';
-import { buildFeatureMatrix, buildPriceOnlyFeatureMatrix, createLabels, FEATURE_NAMES, PRICE_ONLY_FEATURE_NAMES } from './preprocessing';
+import {
+  buildFeatureMatrix,
+  buildPriceOnlyFeatureMatrix,
+  createLabels,
+  FEATURE_NAMES,
+  PRICE_ONLY_FEATURE_NAMES,
+} from './preprocessing';
 import type { PredictionInput, PredictionOutput } from './types';
 import type { EventType } from '../../types/database.types';
 import {
@@ -42,7 +48,7 @@ import {
 function computeFeatureFStats(
   X: number[][],
   y: number[],
-  featureNames: readonly string[]
+  featureNames: readonly string[],
 ): { name: string; F: number; pValue: number }[] {
   const n = y.length;
   const nFeatures = X[0].length;
@@ -122,7 +128,9 @@ function betaIncomplete(a: number, b: number, x: number): number {
   const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lnBeta) / a;
 
   // Lentz's continued fraction method
-  let f = 1, c = 1, d = 1 - (a + b) * x / (a + 1);
+  let f = 1,
+    c = 1,
+    d = 1 - ((a + b) * x) / (a + 1);
   if (Math.abs(d) < eps) d = eps;
   d = 1 / d;
   f = d;
@@ -130,14 +138,20 @@ function betaIncomplete(a: number, b: number, x: number): number {
   for (let i = 1; i <= maxIter; i++) {
     const m = i;
     // Even step
-    let num = m * (b - m) * x / ((a + 2 * m - 1) * (a + 2 * m));
-    d = 1 + num * d; if (Math.abs(d) < eps) d = eps; d = 1 / d;
-    c = 1 + num / c; if (Math.abs(c) < eps) c = eps;
+    let num = (m * (b - m) * x) / ((a + 2 * m - 1) * (a + 2 * m));
+    d = 1 + num * d;
+    if (Math.abs(d) < eps) d = eps;
+    d = 1 / d;
+    c = 1 + num / c;
+    if (Math.abs(c) < eps) c = eps;
     f *= d * c;
     // Odd step
-    num = -(a + m) * (a + b + m) * x / ((a + 2 * m) * (a + 2 * m + 1));
-    d = 1 + num * d; if (Math.abs(d) < eps) d = eps; d = 1 / d;
-    c = 1 + num / c; if (Math.abs(c) < eps) c = eps;
+    num = (-(a + m) * (a + b + m) * x) / ((a + 2 * m) * (a + 2 * m + 1));
+    d = 1 + num * d;
+    if (Math.abs(d) < eps) d = eps;
+    d = 1 / d;
+    c = 1 + num / c;
+    if (Math.abs(c) < eps) c = eps;
     f *= d * c;
     if (Math.abs(d * c - 1) < eps) break;
   }
@@ -148,9 +162,11 @@ function betaIncomplete(a: number, b: number, x: number): number {
 /** Log gamma function (Lanczos approximation) */
 function lnGamma(z: number): number {
   const g = 7;
-  const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
-    771.32342877765313, -176.61502916214059, 12.507343278686905,
-    -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  const c = [
+    0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+    -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
+    1.5056327351493116e-7,
+  ];
   if (z < 0.5) {
     return Math.log(Math.PI / Math.sin(Math.PI * z)) - lnGamma(1 - z);
   }
@@ -160,7 +176,6 @@ function lnGamma(z: number): number {
   const t = z + g + 0.5;
   return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
 }
-
 
 /**
  * Get stock price predictions using logistic regression model
@@ -219,7 +234,7 @@ export async function getStockPredictions(
 
     if (closePrices.length < MIN_DATA_POINTS) {
       throw new Error(
-        `Insufficient data: need at least ${MIN_DATA_POINTS} data points, got ${closePrices.length}`
+        `Insufficient data: need at least ${MIN_DATA_POINTS} data points, got ${closePrices.length}`,
       );
     }
 
@@ -235,24 +250,34 @@ export async function getStockPredictions(
 
     console.log(
       `[PredictionService] Generating predictions for ${ticker} (${closePrices.length} data points)` +
-        (eventTypes ? ` with three-signal sentiment` : ` without sentiment signals`)
+        (eventTypes ? ` with three-signal sentiment` : ` without sentiment signals`),
     );
     console.log(`[PredictionService] Input validation:`);
-    console.log(`  - closePrices: ${closePrices.length} (first: ${closePrices[0]?.toFixed(2)}, last: ${closePrices[closePrices.length-1]?.toFixed(2)})`);
+    console.log(
+      `  - closePrices: ${closePrices.length} (first: ${closePrices[0]?.toFixed(2)}, last: ${closePrices[closePrices.length - 1]?.toFixed(2)})`,
+    );
     console.log(`  - volumes: ${volumes.length}`);
     console.log(`  - eventTypes: ${eventTypes?.length || 0}`);
-    console.log(`  - aspectScores: ${aspectScores?.length || 0} (non-zero: ${aspectScores?.filter(s => s !== 0).length || 0})`);
-    console.log(`  - mlScores: ${mlScores?.length || 0} (with data: ${mlScores?.filter(s => s !== null).length || 0})`);
+    console.log(
+      `  - aspectScores: ${aspectScores?.length || 0} (non-zero: ${aspectScores?.filter((s) => s !== 0).length || 0})`,
+    );
+    console.log(
+      `  - mlScores: ${mlScores?.length || 0} (with data: ${mlScores?.filter((s) => s !== null).length || 0})`,
+    );
 
     // Build both feature matrices for ensemble
     console.log(`[PredictionService] Building feature matrices (ensemble)...`);
     const fullFeatures = buildFeatureMatrix(input);
     const priceFeatures = buildPriceOnlyFeatureMatrix(input);
-    console.log(`[PredictionService] Full matrix: ${fullFeatures.length}x${fullFeatures[0]?.length || 0}, Price matrix: ${priceFeatures.length}x${priceFeatures[0]?.length || 0}`);
+    console.log(
+      `[PredictionService] Full matrix: ${fullFeatures.length}x${fullFeatures[0]?.length || 0}, Price matrix: ${priceFeatures.length}x${priceFeatures[0]?.length || 0}`,
+    );
 
     // Sentiment availability is feature index 6 in full matrix (same for all rows)
     const sentimentAvailability = fullFeatures.length > 0 ? fullFeatures[0][6] : 0;
-    console.log(`[PredictionService] Ensemble weights: full=${sentimentAvailability.toFixed(3)}, price=${(1 - sentimentAvailability).toFixed(3)}`);
+    console.log(
+      `[PredictionService] Ensemble weights: full=${sentimentAvailability.toFixed(3)}, price=${(1 - sentimentAvailability).toFixed(3)}`,
+    );
 
     // Make predictions for each horizon using ensemble
     const predictions: { [key: string]: number | null } = {};
@@ -284,7 +309,7 @@ export async function getStockPredictions(
         if (y.length < MIN_INDEPENDENT_SAMPLES) {
           console.warn(
             `[PredictionService] ${ticker} ${name}: Insufficient independent samples (${y.length}/${MIN_INDEPENDENT_SAMPLES}), ` +
-              `need ~${MIN_INDEPENDENT_SAMPLES * horizon + horizon + TREND_WINDOW} trading days`
+              `need ~${MIN_INDEPENDENT_SAMPLES * horizon + horizon + TREND_WINDOW} trading days`,
           );
           predictions[name] = null;
           continue;
@@ -296,7 +321,7 @@ export async function getStockPredictions(
 
         if (y.length < MIN_LABELS_NEXT) {
           console.warn(
-            `[PredictionService] ${ticker} ${name}: Insufficient labels (${y.length}/${MIN_LABELS_NEXT})`
+            `[PredictionService] ${ticker} ${name}: Insufficient labels (${y.length}/${MIN_LABELS_NEXT})`,
           );
           predictions[name] = null;
           continue;
@@ -326,22 +351,28 @@ export async function getStockPredictions(
         // F-test diagnostics help identify which features are most predictive
         // during model development. NOT shown to end users.
         const fStats = computeFeatureFStats(X_full, y, FEATURE_NAMES);
-        console.log(`[F-Test] ${ticker} NEXT (${y.length} samples, class split: ${y.filter(v=>v===0).length}/${y.filter(v=>v===1).length}):`);
-        console.table(fStats.map(f => ({
-          feature: f.name,
-          F: f.F.toFixed(3),
-          pValue: f.pValue < 0.001 ? '<0.001' : f.pValue.toFixed(3),
-          sig: f.pValue < 0.05 ? '***' : f.pValue < 0.1 ? '*' : '',
-        })));
+        console.log(
+          `[F-Test] ${ticker} NEXT (${y.length} samples, class split: ${y.filter((v) => v === 0).length}/${y.filter((v) => v === 1).length}):`,
+        );
+        console.table(
+          fStats.map((f) => ({
+            feature: f.name,
+            F: f.F.toFixed(3),
+            pValue: f.pValue < 0.001 ? '<0.001' : f.pValue.toFixed(3),
+            sig: f.pValue < 0.05 ? '***' : f.pValue < 0.1 ? '*' : '',
+          })),
+        );
 
         const priceFStats = computeFeatureFStats(X_price, y, PRICE_ONLY_FEATURE_NAMES);
         console.log(`[F-Test] ${ticker} NEXT price-only model:`);
-        console.table(priceFStats.map(f => ({
-          feature: f.name,
-          F: f.F.toFixed(3),
-          pValue: f.pValue < 0.001 ? '<0.001' : f.pValue.toFixed(3),
-          sig: f.pValue < 0.05 ? '***' : f.pValue < 0.1 ? '*' : '',
-        })));
+        console.table(
+          priceFStats.map((f) => ({
+            feature: f.name,
+            F: f.F.toFixed(3),
+            pValue: f.pValue < 0.001 ? '<0.001' : f.pValue.toFixed(3),
+            sig: f.pValue < 0.05 ? '***' : f.pValue < 0.1 ? '*' : '',
+          })),
+        );
 
         // --- NEXT: Full ensemble with walk-forward CV + holdout validation ---
         // Walk-forward CV for temporal evaluation (no look-ahead bias)
@@ -349,14 +380,21 @@ export async function getStockPredictions(
         const X_full_scaled = fullScaler.fitTransform(X_full);
 
         let cvScore: number | null = null;
-        if (y.length >= 35) { // minTrainSize(30) + stepSize(5)
+        if (y.length >= 35) {
+          // minTrainSize(30) + stepSize(5)
           try {
             const wfResults = walkForwardCV(X_full_scaled, y, {
-              minTrainSize: 30, stepSize: 5, ...trainOptions,
+              minTrainSize: 30,
+              stepSize: 5,
+              ...trainOptions,
             });
             cvScore = wfResults.meanScore;
-            console.log(`[WalkForward] ${ticker} NEXT: CV=${wfResults.meanScore.toFixed(3)} +/- ${wfResults.stdScore.toFixed(3)} (${wfResults.scores.length} folds)`);
-          } catch { /* insufficient data for walk-forward, proceed without */ }
+            console.log(
+              `[WalkForward] ${ticker} NEXT: CV=${wfResults.meanScore.toFixed(3)} +/- ${wfResults.stdScore.toFixed(3)} (${wfResults.scores.length} folds)`,
+            );
+          } catch {
+            /* insufficient data for walk-forward, proceed without */
+          }
         }
 
         // Holdout validation: reserve last 20% for out-of-sample test
@@ -371,13 +409,24 @@ export async function getStockPredictions(
             ...trainOptions,
             sampleWeights: sampleWeights.slice(0, holdoutSplit),
           };
-          holdoutModel.fit(X_full_scaled.slice(0, holdoutSplit), y.slice(0, holdoutSplit), holdoutTrainOptions);
-          holdoutScore = holdoutModel.score(X_full_scaled.slice(holdoutSplit), y.slice(holdoutSplit));
-          console.log(`[Holdout] ${ticker} NEXT: holdout=${holdoutScore.toFixed(3)} (${y.length - holdoutSplit} samples)`);
+          holdoutModel.fit(
+            X_full_scaled.slice(0, holdoutSplit),
+            y.slice(0, holdoutSplit),
+            holdoutTrainOptions,
+          );
+          holdoutScore = holdoutModel.score(
+            X_full_scaled.slice(holdoutSplit),
+            y.slice(holdoutSplit),
+          );
+          console.log(
+            `[Holdout] ${ticker} NEXT: holdout=${holdoutScore.toFixed(3)} (${y.length - holdoutSplit} samples)`,
+          );
 
           // Reject ensemble if clearly worse than random with sufficient samples
-          if (holdoutScore < 0.45 && (y.length - holdoutSplit) >= 20) {
-            console.warn(`[Holdout] ${ticker} NEXT: Rejecting ensemble (holdout=${holdoutScore.toFixed(3)} < 0.45), using price-only`);
+          if (holdoutScore < 0.45 && y.length - holdoutSplit >= 20) {
+            console.warn(
+              `[Holdout] ${ticker} NEXT: Rejecting ensemble (holdout=${holdoutScore.toFixed(3)} < 0.45), using price-only`,
+            );
             useEnsemble = false;
           }
         }
@@ -413,7 +462,7 @@ export async function getStockPredictions(
           `[Ensemble] ${ticker} ${name}: full=${fullPred.toFixed(4)}, price=${pricePred.toFixed(4)}, ` +
             `weight=${useEnsemble ? sentimentAvailability.toFixed(2) : '0 (rejected)'}, merged=${mergedPred.toFixed(4)}` +
             (cvScore != null ? `, wfCV=${cvScore.toFixed(3)}` : '') +
-            (holdoutScore != null ? `, holdout=${holdoutScore.toFixed(3)}` : '')
+            (holdoutScore != null ? `, holdout=${holdoutScore.toFixed(3)}` : ''),
         );
       } else {
         // --- WEEK/MONTH: Price-only model (5 features) to avoid overfit with few samples ---
@@ -430,7 +479,7 @@ export async function getStockPredictions(
         predictions[name] = pricePred;
 
         console.log(
-          `[Ensemble] ${ticker} ${name}: price-only=${pricePred.toFixed(4)} (${y.length} samples, 5 features)`
+          `[Ensemble] ${ticker} ${name}: price-only=${pricePred.toFixed(4)} (${y.length} samples, 5 features)`,
         );
       }
     }
@@ -441,7 +490,7 @@ export async function getStockPredictions(
     console.log(
       `[PredictionService] Predictions for ${ticker}: ` +
         `next=${predictions.NEXT}, week=${predictions.WEEK}, month=${predictions.MONTH} ` +
-        `(${duration}ms)`
+        `(${duration}ms)`,
     );
 
     // Format response - null for insufficient data, 4 decimal places otherwise
@@ -485,9 +534,7 @@ export function parsePredictionResponse(response: PredictionOutput): {
  * @returns Default prediction response (all 0.0)
  */
 export function getDefaultPredictions(ticker: string): PredictionOutput {
-  console.warn(
-    `[PredictionService] Using default predictions for ${ticker} (insufficient data)`
-  );
+  console.warn(`[PredictionService] Using default predictions for ${ticker} (insufficient data)`);
 
   return {
     next: '0.0',

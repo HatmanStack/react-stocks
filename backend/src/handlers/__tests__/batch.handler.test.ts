@@ -12,13 +12,15 @@ import type { NewsCacheResult } from '../../services/newsCache.service';
 
 // Declare mock functions
 const mockHandleNewsWithCache = jest.fn<() => Promise<NewsCacheResult>>();
-const mockGetSentimentResults = jest.fn<() => Promise<{
-  ticker: string;
-  startDate: string | null;
-  endDate: string | null;
-  dailySentiment: unknown[];
-  cached: boolean;
-}>>();
+const mockGetSentimentResults = jest.fn<
+  () => Promise<{
+    ticker: string;
+    startDate: string | null;
+    endDate: string | null;
+    dailySentiment: unknown[];
+    cached: boolean;
+  }>
+>();
 const mockLogError = jest.fn();
 const mockLogMetrics = jest.fn();
 
@@ -43,7 +45,9 @@ const { handleBatchNewsRequest, handleBatchSentimentRequest } = await import('..
 /**
  * Helper to create mock API Gateway event
  */
-function createAPIGatewayEvent(overrides: Partial<APIGatewayProxyEventV2> = {}): APIGatewayProxyEventV2 {
+function createAPIGatewayEvent(
+  overrides: Partial<APIGatewayProxyEventV2> = {},
+): APIGatewayProxyEventV2 {
   return {
     body: null,
     headers: {},
@@ -55,7 +59,13 @@ function createAPIGatewayEvent(overrides: Partial<APIGatewayProxyEventV2> = {}):
       apiId: 'test-api',
       domainName: 'test.execute-api.us-east-1.amazonaws.com',
       domainPrefix: 'test',
-      http: { method: 'GET', path: '/test', protocol: 'HTTP/1.1', sourceIp: '127.0.0.1', userAgent: 'test' },
+      http: {
+        method: 'GET',
+        path: '/test',
+        protocol: 'HTTP/1.1',
+        sourceIp: '127.0.0.1',
+        userAgent: 'test',
+      },
       requestId: 'test-request-id',
       routeKey: 'GET /test',
       stage: '$default',
@@ -131,9 +141,7 @@ describe('Batch Handler', () => {
     });
 
     it('should return 200 with aggregated results for multiple tickers', async () => {
-      mockHandleNewsWithCache.mockResolvedValue(
-        createMockNewsCacheResult({ newArticlesCount: 1 })
-      );
+      mockHandleNewsWithCache.mockResolvedValue(createMockNewsCacheResult({ newArticlesCount: 1 }));
 
       const event = createAPIGatewayEvent({
         body: JSON.stringify({ tickers: ['AAPL', 'MSFT'] }),
@@ -235,6 +243,36 @@ describe('Batch Handler', () => {
       expect(body.errors.BAD).toBeDefined();
       expect(body._meta.successCount).toBe(1);
       expect(body._meta.errorCount).toBe(1);
+    });
+
+    it('should return 400 for empty tickers array', async () => {
+      const event = createAPIGatewayEvent({
+        body: JSON.stringify({ tickers: [] }),
+      });
+
+      const response = await handleBatchSentimentRequest(event);
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('should handle all tickers failing', async () => {
+      mockGetSentimentResults
+        .mockRejectedValueOnce(new Error('Fail 1'))
+        .mockRejectedValueOnce(new Error('Fail 2'));
+
+      const event = createAPIGatewayEvent({
+        body: JSON.stringify({
+          tickers: ['FAIL1', 'FAIL2'],
+          startDate: '2025-01-01',
+        }),
+      });
+
+      const response = await handleBatchSentimentRequest(event);
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body._meta.successCount).toBe(0);
+      expect(body._meta.errorCount).toBe(2);
     });
   });
 });

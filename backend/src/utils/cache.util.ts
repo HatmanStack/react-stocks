@@ -49,13 +49,13 @@ function normalizeDateToUTC(dateString: string): Date {
  */
 export function calculateTTLByDataType(
   dataType: 'stock' | 'news' | 'sentiment' | 'metadata' | 'job',
-  date?: string
+  date?: string,
 ): number {
   if (dataType === 'stock' && date) {
     try {
       const itemDate = normalizeDateToUTC(date);
       if (isNaN(itemDate.getTime())) {
-         throw new Error('Invalid Date');
+        throw new Error('Invalid Date');
       }
 
       // Use Date.now() instead of new Date() to properly work with jest.useFakeTimers()
@@ -73,11 +73,15 @@ export function calculateTTLByDataType(
   }
 
   switch (dataType) {
-    case 'news': return calculateTTL(TTL_NEWS_DAYS);
-    case 'sentiment': return calculateTTL(TTL_SENTIMENT_DAYS);
-    case 'metadata': return calculateTTL(TTL_METADATA_DAYS);
-    case 'job': return calculateTTL(TTL_JOB_DAYS);
-    default: return calculateTTL(TTL_DEFAULT_DAYS);
+    case 'news':
+      return calculateTTL(TTL_NEWS_DAYS);
+    case 'sentiment':
+      return calculateTTL(TTL_SENTIMENT_DAYS);
+    case 'metadata':
+      return calculateTTL(TTL_METADATA_DAYS);
+    case 'job':
+      return calculateTTL(TTL_JOB_DAYS);
+    default:
+      return calculateTTL(TTL_DEFAULT_DAYS);
   }
 }
-

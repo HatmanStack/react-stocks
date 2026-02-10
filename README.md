@@ -17,23 +17,24 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 
 ## ✨ Features
 
-* 📈 **Real-Time Stock Data** - Historical OHLCV price data with customizable date ranges
-* 🧠 **Market Sentiment Analysis** - Browser-based sentiment with financial lexicon (instant, offline)
-* 📰 **Latest News** - Real-time news articles from major financial sources
-* 💼 **Portfolio Management** - Track your favorite stocks with personalized watchlist
-* 🌐 **Cross-Platform** - Single codebase runs on iOS, Android, and Web seamlessly
-* 📴 **Offline-First** - Local database caching + browser-based ML works without network
-* 🎨 **Material Design** - Beautiful, responsive UI with React Native Paper components
-* 🔄 **Smart Sync** - Automatic data synchronization with progress tracking
-* 🗄️ **Dual Database** - SQLite for native, localStorage for web - transparent abstraction
-* 🎯 **ML Predictions** - Browser-based ensemble predictions (next day, 2-week, 1-month) using logistic regression
-* 🔒 **Secure Backend** - AWS Lambda backend protects API keys, no client-side exposure
+- 📈 **Real-Time Stock Data** - Historical OHLCV price data with customizable date ranges
+- 🧠 **Market Sentiment Analysis** - Browser-based sentiment with financial lexicon (instant, offline)
+- 📰 **Latest News** - Real-time news articles from major financial sources
+- 💼 **Portfolio Management** - Track your favorite stocks with personalized watchlist
+- 🌐 **Cross-Platform** - Single codebase runs on iOS, Android, and Web seamlessly
+- 📴 **Offline-First** - Local database caching + browser-based ML works without network
+- 🎨 **Material Design** - Beautiful, responsive UI with React Native Paper components
+- 🔄 **Smart Sync** - Automatic data synchronization with progress tracking
+- 🗄️ **Dual Database** - SQLite for native, localStorage for web - transparent abstraction
+- 🎯 **ML Predictions** - Browser-based ensemble predictions (next day, 2-week, 1-month) using logistic regression
+- 🔒 **Secure Backend** - AWS Lambda backend protects API keys, no client-side exposure
 
 ---
 
 ## 🔧 Recent Improvements
 
 ### v2.0.0 - Multi-Signal Sentiment & Ensemble Predictions
+
 - **Three-Signal Sentiment Analysis**: Event classification, aspect-based scoring, ML contextual sentiment
   - Backend orchestrates analysis per article, aggregates daily with signal-weighted averages
   - Neutral dampening + temperature scaling for nuanced ML scores
@@ -48,15 +49,15 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 
 ## 💻 Tech Stack
 
-* **Core:** React Native 0.81.5, Expo ~54.0.23, TypeScript 5.9.2
-* **Navigation:** Expo Router ~6.0.14 (file-based routing)
-* **UI:** React Native Paper 5.14.5 (Material Design 3)
-* **State Management:** React Context + TanStack Query 5.90.7
-* **Database:** Expo SQLite 16.0.9 (native) / localStorage (web)
-* **Backend:** AWS Lambda (Node.js 24.x, Python 3.13) + API Gateway + DynamoDB
-* **APIs:** yfinance (stock data) & Finnhub (news) via Lambda
-* **ML:** Browser-based sentiment analysis + ensemble logistic regression predictions
-* **Testing:** Jest 30.2.0 + React Native Testing Library + pytest
+- **Core:** React Native 0.81.5, Expo ~54.0.23, TypeScript 5.9.2
+- **Navigation:** Expo Router ~6.0.14 (file-based routing)
+- **UI:** React Native Paper 5.14.5 (Material Design 3)
+- **State Management:** React Context + TanStack Query 5.90.7
+- **Database:** Expo SQLite 16.0.9 (native) / localStorage (web)
+- **Backend:** AWS Lambda (Node.js 24.x, Python 3.13) + API Gateway + DynamoDB
+- **APIs:** yfinance (stock data) & Finnhub (news) via Lambda
+- **ML:** Browser-based sentiment analysis + ensemble logistic regression predictions
+- **Testing:** Jest 30.2.0 + React Native Testing Library + pytest
 
 ---
 
@@ -64,32 +65,56 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 
 ### Prerequisites
 
-* [Node.js](https://nodejs.org/) v24 LTS
-* npm (included with Node.js)
-* [Expo Go](https://expo.dev/go) app (for mobile testing)
-* AWS CLI v2+ and SAM CLI v1.70.0+ (for backend deployment)
+- [Node.js](https://nodejs.org/) v24 LTS (see `.nvmrc`)
+- npm (included with Node.js)
+- [Python 3.13](https://www.python.org/) (for backend Python Lambda + linting)
+- [Docker](https://www.docker.com/) (for local development with LocalStack)
+- [Expo Go](https://expo.dev/go) app (for mobile testing)
+- AWS CLI v2+ and SAM CLI v1.70.0+ (for backend deployment only)
 
-### Installation & Running
+### Quick Start (Local Development — No AWS Required)
+
+```bash
+git clone https://github.com/yourusername/react-stocks.git
+cd react-stocks
+make setup                 # Install all dependencies
+make localstack            # Start LocalStack (DynamoDB)
+make test-e2e              # Run E2E tests against LocalStack
+npm start                  # Start the frontend
+```
+
+### Full Installation & Running
 
 1.  **Clone the repository:**
+
     ```bash
     git clone https://github.com/yourusername/react-stocks.git
     cd react-stocks
     ```
 
 2.  **Install dependencies:**
+
     ```bash
     npm install --legacy-peer-deps
     ```
 
-3.  **Deploy backend (auto-configures .env):**
+3.  **Local development (no AWS needed):**
+
+    ```bash
+    make localstack            # Starts DynamoDB via LocalStack
+    make test-e2e              # Verify everything works
+    ```
+
+4.  **Deploy backend (optional — for production use):**
+
     ```bash
     cd backend
     npm install
     npm run deploy  # Enter API keys when prompted
     ```
 
-4.  **Start the app:**
+5.  **Start the app:**
+
     ```bash
     npm start              # Expo dev server
     npm run android        # Android emulator/device
@@ -97,9 +122,9 @@ A cross-platform application that lets you monitor real-time stock prices, analy
     npm run web            # Web browser
     ```
 
-5.  **Open the app:**
-    * Scan QR code with **Expo Go** app
-    * Or press `a` (Android) / `i` (iOS) / `w` (Web) in terminal
+6.  **Open the app:**
+    - Scan QR code with **Expo Go** app
+    - Or press `a` (Android) / `i` (iOS) / `w` (Web) in terminal
 
 ---
 
@@ -113,19 +138,28 @@ npm run ios                # Run on iOS
 npm run web                # Run on Web
 
 # Testing
-npm test                   # Run all tests
-npm run test:watch         # Watch mode for TDD
-npm run test:coverage      # Generate coverage report
+npm test                   # Run frontend tests
+npm run test:backend       # Backend unit tests (Jest + ESM)
+npm run test:e2e           # E2E tests (requires LocalStack)
+npm run check              # Full CI: all lint + all tests
 
 # Code Quality
 npm run lint               # Frontend lint (strict, 0 warnings)
 npm run lint:backend       # Backend lint + type-check
 npm run lint:ml            # Python lint (ruff)
-npm run check              # Full CI: all lint + all tests
+npm run format             # Format all files (Prettier)
+npm run format:check       # Check formatting
 npm run hygiene            # Dead code detection (knip + vulture)
 
+# Makefile (shortcuts)
+make setup                 # npm install --legacy-peer-deps
+make localstack            # Start LocalStack DynamoDB
+make localstack-stop       # Stop LocalStack
+make test-e2e              # Run E2E tests
+make lint                  # Run all linters
+make test                  # Full check (npm run check)
+
 # Backend
-npm run test:backend       # Backend tests (Jest + ESM)
 cd backend
 npm run deploy             # SAM deployment
 npm run logs               # View Lambda logs
@@ -137,6 +171,7 @@ npm run warm-cache         # Pre-populate DynamoDB cache
 ## 🏗 Architecture
 
 **Layered architecture** with clear separation of concerns:
+
 - **Presentation:** Expo Router screens + React Native Paper components
 - **State Management:** React Context + TanStack Query cache
 - **Business Logic:** Custom hooks + service layer

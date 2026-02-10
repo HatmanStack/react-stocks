@@ -608,10 +608,7 @@
       "goddess",
       "gorgeous"
     ],
-    "h": [
-      "happy",
-      "happiness"
-    ],
+    "h": ["happy", "happiness"],
     "i": [],
     "j": [],
     "k": [],
@@ -992,16 +989,8 @@
       "touched",
       "tickled"
     ],
-    "u": [
-      "ubuntu"
-    ],
-    "v": [
-      "vulnerability",
-      "virtuoso",
-      "vulnerable",
-      "veneration",
-      "versatility"
-    ],
+    "u": ["ubuntu"],
+    "v": ["vulnerability", "virtuoso", "vulnerable", "veneration", "versatility"],
     "w": [
       "worth",
       "worthy",
@@ -1031,15 +1020,7 @@
       "world-builder",
       "worthiness"
     ],
-    "x": [
-      "xo",
-      "xray",
-      "vision",
-      "xenodochial",
-      "xfactor",
-      "xenophile",
-      "xenial"
-    ],
+    "x": ["xo", "xray", "vision", "xenodochial", "xfactor", "xenophile", "xenial"],
     "y": [
       "yes",
       "youth",
@@ -1057,18 +1038,7 @@
       "yaraana",
       "yesable"
     ],
-    "z": [
-      "zealous",
-      "zeal",
-      "zest",
-      "zesty",
-      "zestful",
-      "zippy",
-      "zing",
-      "zappy",
-      "zany",
-      "zest"
-    ]
+    "z": ["zealous", "zeal", "zest", "zesty", "zestful", "zippy", "zing", "zappy", "zany", "zest"]
   },
   "negative": {
     "a": [
@@ -1083,16 +1053,7 @@
       "atrocious",
       "awful"
     ],
-    "b": [
-      "bad",
-      "banal",
-      "barbed",
-      "belligerent",
-      "bemoan",
-      "beneath",
-      "boring",
-      "broken"
-    ],
+    "b": ["bad", "banal", "barbed", "belligerent", "bemoan", "beneath", "boring", "broken"],
     "c": [
       "callous",
       "cant",
@@ -1138,22 +1099,8 @@
       "dreadful",
       "dreary"
     ],
-    "e": [
-      "enraged",
-      "eroding",
-      "evil"
-    ],
-    "f": [
-      "fail",
-      "faulty",
-      "fear",
-      "feeble",
-      "fight",
-      "filthy",
-      "foul",
-      "frighten",
-      "frightful"
-    ],
+    "e": ["enraged", "eroding", "evil"],
+    "f": ["fail", "faulty", "fear", "feeble", "fight", "filthy", "foul", "frighten", "frightful"],
     "g": [
       "gawky",
       "ghastly",
@@ -1197,16 +1144,9 @@
       "insidious",
       "insipid"
     ],
-    "j": [
-      "jealous",
-      "junky"
-    ],
+    "j": ["jealous", "junky"],
     "k": [],
-    "l": [
-      "lose",
-      "lousy",
-      "lumpy"
-    ],
+    "l": ["lose", "lousy", "lumpy"],
     "m": [
       "malicious",
       "mean",
@@ -1233,28 +1173,9 @@
       "not",
       "noxious"
     ],
-    "o": [
-      "objectionable",
-      "odious",
-      "offensive",
-      "old",
-      "oppressive"
-    ],
-    "p": [
-      "pain",
-      "perturb",
-      "pessimistic",
-      "petty",
-      "plain",
-      "poisonous",
-      "poor",
-      "prejudice"
-    ],
-    "q": [
-      "questionable",
-      "quirky",
-      "quit"
-    ],
+    "o": ["objectionable", "odious", "offensive", "old", "oppressive"],
+    "p": ["pain", "perturb", "pessimistic", "petty", "plain", "poisonous", "poor", "prejudice"],
+    "q": ["questionable", "quirky", "quit"],
     "r": [
       "reject",
       "renege",
@@ -1296,12 +1217,7 @@
       "suspect",
       "suspicious"
     ],
-    "t": [
-      "tense",
-      "terrible",
-      "terrifying",
-      "threatening"
-    ],
+    "t": ["tense", "terrible", "terrifying", "threatening"],
     "u": [
       "ugly",
       "undermine",
@@ -1323,26 +1239,10 @@
       "unwise",
       "upset"
     ],
-    "v": [
-      "vice",
-      "vicious",
-      "vile",
-      "villainous",
-      "vindictive"
-    ],
-    "w": [
-      "wary",
-      "weary",
-      "wicked",
-      "woeful",
-      "worthless",
-      "wound"
-    ],
+    "v": ["vice", "vicious", "vile", "villainous", "vindictive"],
+    "w": ["wary", "weary", "wicked", "woeful", "worthless", "wound"],
     "x": [],
-    "y": [
-      "yell",
-      "yucky"
-    ],
+    "y": ["yell", "yucky"],
     "z": []
   }
 }

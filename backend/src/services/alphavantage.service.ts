@@ -104,9 +104,7 @@ function toAlphaVantageDate(date: string, isEndDate: boolean = false): string {
 /**
  * Transform Alpha Vantage article to Finnhub format for compatibility
  */
-function transformToFinnhubFormat(
-  item: AlphaVantageNewsItem
-): FinnhubNewsArticle {
+function transformToFinnhubFormat(item: AlphaVantageNewsItem): FinnhubNewsArticle {
   return {
     category: item.category_within_source || 'general',
     datetime: parseAlphaVantageTimestamp(item.time_published),
@@ -132,11 +130,14 @@ export async function fetchAlphaVantageNews(
   ticker: string,
   from: string,
   to: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<FinnhubNewsArticle[]> {
   // Circuit breaker: fail-fast if Alpha Vantage is rate-limited or down
   const cbState = await CircuitBreakerRepo.getCircuitState(CIRCUIT_SERVICE_ALPHAVANTAGE);
-  if (cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD && Date.now() < cbState.circuitOpenUntil) {
+  if (
+    cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD &&
+    Date.now() < cbState.circuitOpenUntil
+  ) {
     logger.warn('Circuit open, skipping API call');
     return [];
   }
@@ -190,13 +191,10 @@ export async function fetchAlphaVantageNews(
       .map((item) => item.article);
 
     // Count unique days
-    const uniqueDays = new Set(
-      data.feed.map((item) => parseAlphaVantageDate(item.time_published))
-    ).size;
+    const uniqueDays = new Set(data.feed.map((item) => parseAlphaVantageDate(item.time_published)))
+      .size;
 
-    logger.info(
-      `Fetched ${articles.length} articles for ${ticker} spanning ${uniqueDays} days`
-    );
+    logger.info(`Fetched ${articles.length} articles for ${ticker} spanning ${uniqueDays} days`);
 
     await CircuitBreakerRepo.recordSuccess(CIRCUIT_SERVICE_ALPHAVANTAGE);
     return articles;

@@ -13,28 +13,48 @@ export const SentimentListHeader: React.FC = () => {
   return (
     <View style={styles.wrapper}>
       {/* Column headers */}
-      <View style={[styles.container, { backgroundColor: theme.colors.elevation.level2, borderBottomColor: theme.colors.outlineVariant }]}>
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor: theme.colors.elevation.level2,
+            borderBottomColor: theme.colors.outlineVariant,
+          },
+        ]}
+      >
         <View style={styles.row}>
           <View style={styles.dateColumn}>
-            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+            <Text
+              variant="labelSmall"
+              style={[styles.headerText, { color: theme.colors.onSurface }]}
+            >
               Date
             </Text>
           </View>
 
           <View style={styles.centerColumn}>
-            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+            <Text
+              variant="labelSmall"
+              style={[styles.headerText, { color: theme.colors.onSurface }]}
+            >
               Signal
             </Text>
           </View>
 
           <View style={styles.centerColumn}>
-            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+            <Text
+              variant="labelSmall"
+              style={[styles.headerText, { color: theme.colors.onSurface }]}
+            >
               Sentiment
             </Text>
           </View>
 
           <View style={styles.centerColumn}>
-            <Text variant="labelSmall" style={[styles.headerText, { color: theme.colors.onSurface }]}>
+            <Text
+              variant="labelSmall"
+              style={[styles.headerText, { color: theme.colors.onSurface }]}
+            >
               Aspect
             </Text>
           </View>

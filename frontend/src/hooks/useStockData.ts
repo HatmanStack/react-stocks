@@ -60,11 +60,14 @@ export interface UseStockDataOptions {
  * }
  * ```
  */
-export function useStockData(
-  ticker: string,
-  options: UseStockDataOptions = {}
-) {
-  const { days = 30, startDate: optStartDate, endDate: optEndDate, enabled = true, staleTime } = options;
+export function useStockData(ticker: string, options: UseStockDataOptions = {}) {
+  const {
+    days = 30,
+    startDate: optStartDate,
+    endDate: optEndDate,
+    enabled = true,
+    staleTime,
+  } = options;
 
   // Use provided dates or calculate from days
   const endDate = optEndDate || formatDateForDB(new Date());
@@ -73,30 +76,25 @@ export function useStockData(
   return useQuery({
     queryKey: ['stockData', ticker, startDate, endDate],
     queryFn: async (): Promise<StockDetails[]> => {
-
-      console.log(`[useStockData] Fetching stock data for ${ticker} from ${startDate} to ${endDate}`);
-
-      // Try to get from database first
-      let data = await StockRepository.findByTickerAndDateRange(
-        ticker,
-        startDate,
-        endDate
+      console.log(
+        `[useStockData] Fetching stock data for ${ticker} from ${startDate} to ${endDate}`,
       );
 
+      // Try to get from database first
+      let data = await StockRepository.findByTickerAndDateRange(ticker, startDate, endDate);
+
       // Check if we have enough data - expect roughly 5 trading days per week
-      const expectedMinRecords = Math.floor(days * 5 / 7 * 0.5); // 50% of expected trading days
+      const expectedMinRecords = Math.floor(((days * 5) / 7) * 0.5); // 50% of expected trading days
       const needsSync = data.length === 0 || data.length < expectedMinRecords;
 
       if (needsSync) {
-        console.log(`[useStockData] Insufficient data (${data.length}/${expectedMinRecords} min), triggering sync for ${ticker}`);
+        console.log(
+          `[useStockData] Insufficient data (${data.length}/${expectedMinRecords} min), triggering sync for ${ticker}`,
+        );
         await syncStockData(ticker, startDate, endDate);
 
         // Fetch again after sync
-        data = await StockRepository.findByTickerAndDateRange(
-          ticker,
-          startDate,
-          endDate
-        );
+        data = await StockRepository.findByTickerAndDateRange(ticker, startDate, endDate);
       }
 
       console.log(`[useStockData] Retrieved ${data.length} stock records for ${ticker}`);

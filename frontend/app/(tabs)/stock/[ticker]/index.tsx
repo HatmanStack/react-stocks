@@ -32,7 +32,13 @@ interface ChartSectionProps {
   chartHeight?: number;
 }
 
-function ChartSection({ data, isLoading, selectedRange, onRangeChange, chartHeight = 250 }: ChartSectionProps) {
+function ChartSection({
+  data,
+  isLoading,
+  selectedRange,
+  onRangeChange,
+  chartHeight = 250,
+}: ChartSectionProps) {
   return (
     <>
       <View style={styles.chartContainer}>
@@ -50,16 +56,24 @@ function ChartSection({ data, isLoading, selectedRange, onRangeChange, chartHeig
 }
 
 export default function PriceScreen() {
-  const { ticker, stockData, stockLoading: isPriceLoading, stockError: priceError } = useStockDetail();
+  const {
+    ticker,
+    stockData,
+    stockLoading: isPriceLoading,
+    stockError: priceError,
+  } = useStockDetail();
   const { selectedTimeRange, setTimeRange } = useStock();
   const theme = useTheme();
   const { isDesktop, isTablet } = useResponsive();
   const { contentWidth } = useContentWidth();
 
   // Time range is now shared via context - changing it updates both Price and Sentiment tabs
-  const handleRangeChange = useCallback((range: TimeRange) => {
-    setTimeRange(range);
-  }, [setTimeRange]);
+  const handleRangeChange = useCallback(
+    (range: TimeRange) => {
+      setTimeRange(range);
+    },
+    [setTimeRange],
+  );
 
   // Fetch symbol details for metadata card
   const {
@@ -75,72 +89,75 @@ export default function PriceScreen() {
   }, [stockData]);
 
   // DataTable columns for price history
-  const priceColumns: DataTableColumn<StockDetails>[] = useMemo(() => [
-    {
-      key: 'date',
-      title: 'Date',
-      width: 'flex',
-      sortable: true,
-      getValue: (item) => item.date,
-      render: (item) => (
-        <MonoText variant="price" style={{ fontSize: 12 }}>
-          {item.date}
-        </MonoText>
-      ),
-    },
-    {
-      key: 'open',
-      title: 'Open',
-      width: 70,
-      align: 'right',
-      sortable: true,
-      getValue: (item) => item.open,
-      render: (item) => (
-        <MonoText variant="price" style={{ fontSize: 12 }}>
-          ${item.open.toFixed(2)}
-        </MonoText>
-      ),
-    },
-    {
-      key: 'high',
-      title: 'High',
-      width: 70,
-      align: 'right',
-      sortable: true,
-      getValue: (item) => item.high,
-      render: (item) => (
-        <MonoText variant="price" style={{ fontSize: 12 }} positive>
-          ${item.high.toFixed(2)}
-        </MonoText>
-      ),
-    },
-    {
-      key: 'low',
-      title: 'Low',
-      width: 70,
-      align: 'right',
-      sortable: true,
-      getValue: (item) => item.low,
-      render: (item) => (
-        <MonoText variant="price" style={{ fontSize: 12 }} negative>
-          ${item.low.toFixed(2)}
-        </MonoText>
-      ),
-    },
-    {
-      key: 'close',
-      title: 'Close',
-      width: 70,
-      align: 'right',
-      sortable: true,
-      getValue: (item) => item.close,
-      render: (item) => (
-        <MonoText variant="price" style={{ fontSize: 12 }}>
-          ${item.close.toFixed(2)}
-        </MonoText>
-      ),
-    },
-  ], []);
+  const priceColumns: DataTableColumn<StockDetails>[] = useMemo(
+    () => [
+      {
+        key: 'date',
+        title: 'Date',
+        width: 'flex',
+        sortable: true,
+        getValue: (item) => item.date,
+        render: (item) => (
+          <MonoText variant="price" style={{ fontSize: 12 }}>
+            {item.date}
+          </MonoText>
+        ),
+      },
+      {
+        key: 'open',
+        title: 'Open',
+        width: 70,
+        align: 'right',
+        sortable: true,
+        getValue: (item) => item.open,
+        render: (item) => (
+          <MonoText variant="price" style={{ fontSize: 12 }}>
+            ${item.open.toFixed(2)}
+          </MonoText>
+        ),
+      },
+      {
+        key: 'high',
+        title: 'High',
+        width: 70,
+        align: 'right',
+        sortable: true,
+        getValue: (item) => item.high,
+        render: (item) => (
+          <MonoText variant="price" style={{ fontSize: 12 }} positive>
+            ${item.high.toFixed(2)}
+          </MonoText>
+        ),
+      },
+      {
+        key: 'low',
+        title: 'Low',
+        width: 70,
+        align: 'right',
+        sortable: true,
+        getValue: (item) => item.low,
+        render: (item) => (
+          <MonoText variant="price" style={{ fontSize: 12 }} negative>
+            ${item.low.toFixed(2)}
+          </MonoText>
+        ),
+      },
+      {
+        key: 'close',
+        title: 'Close',
+        width: 70,
+        align: 'right',
+        sortable: true,
+        getValue: (item) => item.close,
+        render: (item) => (
+          <MonoText variant="price" style={{ fontSize: 12 }}>
+            ${item.close.toFixed(2)}
+          </MonoText>
+        ),
+      },
+    ],
+    [],
+  );
 
   // Render loading state
   if (isSymbolLoading || isPriceLoading) {
@@ -158,9 +175,7 @@ export default function PriceScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={[styles.centeredContent, { width: contentWidth }]}>
-          <ErrorDisplay
-            error={priceError || symbolError || 'Failed to load price data'}
-          />
+          <ErrorDisplay error={priceError || symbolError || 'Failed to load price data'} />
         </View>
       </SafeAreaView>
     );
@@ -183,15 +198,16 @@ export default function PriceScreen() {
     );
   }
 
-  const renderItem = ({ item }: { item: StockDetails }) => (
-    <PriceListItem item={item} />
-  );
+  const renderItem = ({ item }: { item: StockDetails }) => <PriceListItem item={item} />;
 
   const keyExtractor = (item: StockDetails) => `${item.ticker}-${item.date}`;
 
   if (isDesktop) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['bottom']}
+      >
         <View style={[styles.centeredContent, { width: contentWidth }]}>
           <ScrollView showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
             <ChartSection
@@ -223,7 +239,10 @@ export default function PriceScreen() {
 
   if (isTablet) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['bottom']}
+      >
         <View style={[styles.centeredContent, { width: contentWidth }]}>
           <FlatList
             data={sortedStockData}
@@ -256,9 +275,16 @@ export default function PriceScreen() {
 
   // Mobile layout
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={['bottom']}
+    >
       <View style={[styles.centeredContent, { width: contentWidth }]}>
-        <ScrollView style={styles.mobileLayout} showsVerticalScrollIndicator={false} showsHorizontalScrollIndicator={false}>
+        <ScrollView
+          style={styles.mobileLayout}
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+        >
           <ChartSection
             data={sortedStockData}
             isLoading={isPriceLoading}

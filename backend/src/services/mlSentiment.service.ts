@@ -146,9 +146,7 @@ async function recordFailure(): Promise<void> {
  * @param text - Financial news text to analyze
  * @returns Sentiment score -1 to +1, or null on error
  */
-export async function getMlSentiment(
-  text: string
-): Promise<number | null> {
+export async function getMlSentiment(text: string): Promise<number | null> {
   // Validate configuration (read at runtime for testability)
   const apiUrl = getApiUrl();
   if (!apiUrl) {
@@ -223,11 +221,13 @@ export async function getMlSentiment(
 
       logMlSentimentCall('UNKNOWN', duration, true, false); // Success, no cache hit here
 
-      const data = await response.json() as MlSentimentResponse;
+      const data = (await response.json()) as MlSentimentResponse;
 
       // Validate response structure
       if (!data || typeof data.sentiment !== 'number') {
-        logger.error('Invalid response format', undefined, { data: data as unknown as Record<string, unknown> });
+        logger.error('Invalid response format', undefined, {
+          data: data as unknown as Record<string, unknown>,
+        });
         throw new Error('Invalid response format from MlSentiment API');
       }
 
@@ -263,7 +263,12 @@ export async function getMlSentiment(
       if (isLastAttempt || !canRetry) {
         logger.warn('All retries exhausted or non-retryable error, using fallback');
         await recordFailure();
-        logMlSentimentFallback('UNKNOWN', 1, 1, error instanceof Error ? error.message : 'Unknown error');
+        logMlSentimentFallback(
+          'UNKNOWN',
+          1,
+          1,
+          error instanceof Error ? error.message : 'Unknown error',
+        );
         return null;
       }
 
@@ -306,7 +311,7 @@ export async function getMlSentimentHealth(): Promise<{
       return null;
     }
 
-    return await response.json() as { status: string; model_loaded: boolean };
+    return (await response.json()) as { status: string; model_loaded: boolean };
   } catch (error) {
     logger.error('Health check failed', error);
     return null;

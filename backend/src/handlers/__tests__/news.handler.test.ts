@@ -36,7 +36,9 @@ const { handleNewsRequest } = await import('../news.handler.js');
 /**
  * Helper to create mock API Gateway event
  */
-function createAPIGatewayEvent(overrides: Partial<APIGatewayProxyEventV2> = {}): APIGatewayProxyEventV2 {
+function createAPIGatewayEvent(
+  overrides: Partial<APIGatewayProxyEventV2> = {},
+): APIGatewayProxyEventV2 {
   return {
     body: null,
     headers: {},
@@ -48,7 +50,13 @@ function createAPIGatewayEvent(overrides: Partial<APIGatewayProxyEventV2> = {}):
       apiId: 'test-api',
       domainName: 'test.execute-api.us-east-1.amazonaws.com',
       domainPrefix: 'test',
-      http: { method: 'GET', path: '/test', protocol: 'HTTP/1.1', sourceIp: '127.0.0.1', userAgent: 'test' },
+      http: {
+        method: 'GET',
+        path: '/test',
+        protocol: 'HTTP/1.1',
+        sourceIp: '127.0.0.1',
+        userAgent: 'test',
+      },
       requestId: 'test-request-id',
       routeKey: 'GET /test',
       stage: '$default',
@@ -171,6 +179,44 @@ describe('News Handler', () => {
       expect(response.statusCode).toBe(500);
       const body = JSON.parse(response.body);
       expect(body.error).toBe('Internal server error');
+    });
+
+    it('should return 500 when service throws a network timeout', async () => {
+      mockFetchNewsWithCache.mockRejectedValue(new Error('ETIMEDOUT: connect timeout'));
+
+      const event = createAPIGatewayEvent({
+        queryStringParameters: {
+          ticker: 'AAPL',
+          from: '2025-01-01',
+          to: '2025-01-31',
+        },
+      });
+
+      const response = await handleNewsRequest(event);
+
+      expect(response.statusCode).toBe(500);
+      const body = JSON.parse(response.body);
+      // Error should be sanitized — no internal details leaked
+      expect(body.error).not.toContain('ETIMEDOUT');
+    });
+
+    it('should propagate status code from errors with statusCode property', async () => {
+      const rateLimitError = Object.assign(new Error('Rate limited'), { statusCode: 429 });
+      mockFetchNewsWithCache.mockRejectedValue(rateLimitError);
+      mockHasStatusCode.mockReturnValue(true);
+      mockSanitizeErrorMessage.mockReturnValue('Rate limited');
+
+      const event = createAPIGatewayEvent({
+        queryStringParameters: {
+          ticker: 'AAPL',
+          from: '2025-01-01',
+          to: '2025-01-31',
+        },
+      });
+
+      const response = await handleNewsRequest(event);
+
+      expect(response.statusCode).toBe(429);
     });
   });
 });

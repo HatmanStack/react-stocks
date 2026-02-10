@@ -98,8 +98,7 @@ describe('Feature Flags', () => {
   describe('Flag Semantics', () => {
     it('USE_BROWSER_SENTIMENT controls sentiment analysis implementation', () => {
       // Documentation test - explains what this flag does
-      const flagPurpose =
-        'Controls whether to use browser-based ML sentiment or old word counting';
+      const flagPurpose = 'Controls whether to use browser-based ML sentiment or old word counting';
 
       expect(flagPurpose).toBeDefined();
       expect(FeatureFlags.USE_BROWSER_SENTIMENT).toBeDefined();
@@ -107,8 +106,7 @@ describe('Feature Flags', () => {
 
     it('USE_BROWSER_PREDICTION controls prediction model implementation', () => {
       // Documentation test - explains what this flag does
-      const flagPurpose =
-        'Controls whether to use browser-based logistic regression (Phase 3)';
+      const flagPurpose = 'Controls whether to use browser-based logistic regression (Phase 3)';
 
       expect(flagPurpose).toBeDefined();
       expect(FeatureFlags.USE_BROWSER_PREDICTION).toBeDefined();

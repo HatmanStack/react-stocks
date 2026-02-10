@@ -20,11 +20,11 @@ import Animated, {
 // Color stops for sentiment gradient
 const COLORS = {
   strongNegative: '#D32F2F', // Deep red
-  negative: '#F44336',       // Red
+  negative: '#F44336', // Red
   slightNegative: '#FF8A80', // Light red
-  neutral: '#9E9E9E',        // Gray
+  neutral: '#9E9E9E', // Gray
   slightPositive: '#A5D6A7', // Light green
-  positive: '#4CAF50',       // Green
+  positive: '#4CAF50', // Green
   strongPositive: '#388E3C', // Deep green
 };
 
@@ -77,13 +77,7 @@ function getSentimentColor(value: number): string {
 /**
  * Animated pill showing sentiment color
  */
-function SentimentPill({
-  value,
-  label,
-  showValue,
-  animated,
-  style,
-}: SentimentGradientProps) {
+function SentimentPill({ value, label, showValue, animated, style }: SentimentGradientProps) {
   const animatedValue = useDerivedValue(() => {
     return animated ? withSpring(value, { damping: 15 }) : value;
   }, [value, animated]);
@@ -92,7 +86,13 @@ function SentimentPill({
     const color = interpolateColor(
       animatedValue.value,
       [-1, -0.3, 0, 0.3, 1],
-      [COLORS.strongNegative, COLORS.negative, COLORS.neutral, COLORS.positive, COLORS.strongPositive]
+      [
+        COLORS.strongNegative,
+        COLORS.negative,
+        COLORS.neutral,
+        COLORS.positive,
+        COLORS.strongPositive,
+      ],
     );
     return {
       backgroundColor: color,
@@ -103,9 +103,7 @@ function SentimentPill({
 
   return (
     <Animated.View style={[styles.pill, pillStyle, style]}>
-      {displayText ? (
-        <Text style={styles.pillText}>{displayText}</Text>
-      ) : null}
+      {displayText ? <Text style={styles.pillText}>{displayText}</Text> : null}
     </Animated.View>
   );
 }
@@ -113,13 +111,7 @@ function SentimentPill({
 /**
  * Horizontal bar with gradient fill based on sentiment
  */
-function SentimentBar({
-  value,
-  width = 100,
-  height = 8,
-  animated,
-  style,
-}: SentimentGradientProps) {
+function SentimentBar({ value, width = 100, height = 8, animated, style }: SentimentGradientProps) {
   const animatedValue = useDerivedValue(() => {
     return animated ? withSpring(value, { damping: 15 }) : value;
   }, [value, animated]);
@@ -132,7 +124,13 @@ function SentimentBar({
     const color = interpolateColor(
       animatedValue.value,
       [-1, -0.3, 0, 0.3, 1],
-      [COLORS.strongNegative, COLORS.negative, COLORS.neutral, COLORS.positive, COLORS.strongPositive]
+      [
+        COLORS.strongNegative,
+        COLORS.negative,
+        COLORS.neutral,
+        COLORS.positive,
+        COLORS.strongPositive,
+      ],
     );
 
     return {
@@ -156,11 +154,7 @@ function SentimentBar({
 /**
  * Small dot indicator
  */
-function SentimentDot({
-  value,
-  animated,
-  style,
-}: SentimentGradientProps) {
+function SentimentDot({ value, animated, style }: SentimentGradientProps) {
   const animatedValue = useDerivedValue(() => {
     return animated ? withSpring(value, { damping: 15 }) : value;
   }, [value, animated]);
@@ -169,7 +163,13 @@ function SentimentDot({
     const color = interpolateColor(
       animatedValue.value,
       [-1, -0.3, 0, 0.3, 1],
-      [COLORS.strongNegative, COLORS.negative, COLORS.neutral, COLORS.positive, COLORS.strongPositive]
+      [
+        COLORS.strongNegative,
+        COLORS.negative,
+        COLORS.neutral,
+        COLORS.positive,
+        COLORS.strongPositive,
+      ],
     );
     return {
       backgroundColor: color,
@@ -182,13 +182,7 @@ function SentimentDot({
 /**
  * Text colored by sentiment
  */
-function SentimentText({
-  value,
-  label,
-  showValue,
-  animated,
-  style,
-}: SentimentGradientProps) {
+function SentimentText({ value, label, showValue, animated, style }: SentimentGradientProps) {
   const animatedValue = useDerivedValue(() => {
     return animated ? withSpring(value, { damping: 15 }) : value;
   }, [value, animated]);
@@ -197,7 +191,13 @@ function SentimentText({
     const color = interpolateColor(
       animatedValue.value,
       [-1, -0.3, 0, 0.3, 1],
-      [COLORS.strongNegative, COLORS.negative, COLORS.neutral, COLORS.positive, COLORS.strongPositive]
+      [
+        COLORS.strongNegative,
+        COLORS.negative,
+        COLORS.neutral,
+        COLORS.positive,
+        COLORS.strongPositive,
+      ],
     );
     return {
       color,
@@ -206,11 +206,7 @@ function SentimentText({
 
   const displayText = label ?? (showValue ? `${(value * 100).toFixed(0)}%` : '');
 
-  return (
-    <Animated.Text style={[styles.text, textStyle, style]}>
-      {displayText}
-    </Animated.Text>
-  );
+  return <Animated.Text style={[styles.text, textStyle, style]}>{displayText}</Animated.Text>;
 }
 
 /**
@@ -231,18 +227,14 @@ function SentimentBackground({
     const color = interpolateColor(
       animatedValue.value,
       [-1, 0, 1],
-      ['rgba(244, 67, 54, 0.1)', 'rgba(158, 158, 158, 0.05)', 'rgba(76, 175, 80, 0.1)']
+      ['rgba(244, 67, 54, 0.1)', 'rgba(158, 158, 158, 0.05)', 'rgba(76, 175, 80, 0.1)'],
     );
     return {
       backgroundColor: color,
     };
   });
 
-  return (
-    <Animated.View style={[styles.background, bgStyle, style]}>
-      {children}
-    </Animated.View>
-  );
+  return <Animated.View style={[styles.background, bgStyle, style]}>{children}</Animated.View>;
 }
 
 /**

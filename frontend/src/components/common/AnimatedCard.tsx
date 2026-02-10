@@ -93,16 +93,22 @@ export function AnimatedCard({
   };
 
   // Web-specific hover styles
-  const hoverStyle = Platform.OS === 'web' && isHovered && onPress ? {
-    opacity: 0.92,
-    cursor: 'pointer' as const,
-  } : {};
+  const hoverStyle =
+    Platform.OS === 'web' && isHovered && onPress
+      ? {
+          opacity: 0.92,
+          cursor: 'pointer' as const,
+        }
+      : {};
 
   // Web-specific focus styles
-  const focusStyle = Platform.OS === 'web' && isFocused && onPress ? {
-    outline: `2px solid ${theme.colors.primary}`,
-    outlineOffset: 2,
-  } : {};
+  const focusStyle =
+    Platform.OS === 'web' && isFocused && onPress
+      ? {
+          outline: `2px solid ${theme.colors.primary}`,
+          outlineOffset: 2,
+        }
+      : {};
 
   return (
     <Pressable
@@ -122,9 +128,7 @@ export function AnimatedCard({
       {/* @ts-ignore - Reanimated style types conflict with RN style types */}
       <Animated.View style={[animatedStyle, hoverStyle, focusStyle, style]}>
         {/* @ts-ignore - react-native-paper Card mode types are overly restrictive */}
-        <Card {...cardProps}>
-          {children}
-        </Card>
+        <Card {...cardProps}>{children}</Card>
       </Animated.View>
     </Pressable>
   );

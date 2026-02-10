@@ -63,10 +63,7 @@ export interface UseSymbolSearchOptions {
  * }
  * ```
  */
-export function useSymbolSearch(
-  query: string,
-  options: UseSymbolSearchOptions = {}
-) {
+export function useSymbolSearch(query: string, options: UseSymbolSearchOptions = {}) {
   const { minLength = 1, enabled = true, staleTime = 1000 * 60 * 60 } = options;
 
   const normalizedQuery = query.trim().toUpperCase();
@@ -81,7 +78,7 @@ export function useSymbolSearch(
       const localResults = allSymbols.filter(
         (symbol) =>
           symbol.ticker.toUpperCase().includes(normalizedQuery) ||
-          symbol.name.toUpperCase().includes(normalizedQuery)
+          symbol.name.toUpperCase().includes(normalizedQuery),
       );
 
       if (localResults.length > 0) {
@@ -114,9 +111,9 @@ export function useSymbolSearch(
         }));
 
         // Cache results in local DB (async, don't block)
-        void Promise.all(
-          symbolDetailsList.map((symbol) => SymbolRepository.insert(symbol))
-        ).catch((err) => console.warn('[useSymbolSearch] Failed to cache results:', err));
+        void Promise.all(symbolDetailsList.map((symbol) => SymbolRepository.insert(symbol))).catch(
+          (err) => console.warn('[useSymbolSearch] Failed to cache results:', err),
+        );
 
         return symbolDetailsList;
       } catch (error) {

@@ -73,11 +73,7 @@ function selectLabelsByIndices(y: Labels, indices: number[]): Labels {
  * @param k - Number of folds
  * @returns Cross-validation results with scores for each fold
  */
-export function crossValidate(
-  X: FeatureMatrix,
-  y: Labels,
-  k: number
-): CVResults {
+export function crossValidate(X: FeatureMatrix, y: Labels, k: number): CVResults {
   if (X.length !== y.length) {
     throw new Error(`CV: X and y length mismatch. X=${X.length}, y=${y.length}`);
   }
@@ -112,8 +108,7 @@ export function crossValidate(
   const meanScore = scores.reduce((a, b) => a + b, 0) / scores.length;
 
   const variance =
-    scores.reduce((sum, score) => sum + Math.pow(score - meanScore, 2), 0) /
-    scores.length;
+    scores.reduce((sum, score) => sum + Math.pow(score - meanScore, 2), 0) / scores.length;
   const stdScore = Math.sqrt(variance);
 
   return {
@@ -145,7 +140,7 @@ export function walkForwardCV(
     regularization?: number;
     sampleWeights?: number[];
     classWeight?: 'balanced';
-  }
+  },
 ): CVResults {
   const minTrainSize = options?.minTrainSize ?? 30;
   const stepSize = options?.stepSize ?? 5;
@@ -155,7 +150,9 @@ export function walkForwardCV(
   }
 
   if (X.length < minTrainSize + stepSize) {
-    throw new Error(`walkForwardCV: Not enough data (${X.length}) for minTrain=${minTrainSize} + step=${stepSize}`);
+    throw new Error(
+      `walkForwardCV: Not enough data (${X.length}) for minTrain=${minTrainSize} + step=${stepSize}`,
+    );
   }
 
   const scores: number[] = [];
@@ -214,7 +211,7 @@ export class LogisticRegressionCV extends LogisticRegression {
 
     if (X.length !== y.length) {
       throw new Error(
-        `LogisticRegressionCV: X and y length mismatch. X=${X.length}, y=${y.length}`
+        `LogisticRegressionCV: X and y length mismatch. X=${X.length}, y=${y.length}`,
       );
     }
 

@@ -24,18 +24,24 @@ function calculateStartDate(days: number): string {
  * @param endDate End date in ISO 8601 format (YYYY-MM-DD).
  * @returns List of StockPrice objects.
  */
-export async function fetchPriceData(ticker: string, startDate: string, endDate: string): Promise<StockPrice[]> {
+export async function fetchPriceData(
+  ticker: string,
+  startDate: string,
+  endDate: string,
+): Promise<StockPrice[]> {
   try {
     const items = await dynamoDB.queryStockDataByDateRange(ticker, startDate, endDate);
 
-    return items.map((item: StockHistoricalDataItem) => ({
-      date: item.date,
-      open: item.open,
-      high: item.high,
-      low: item.low,
-      close: item.close,
-      volume: item.volume,
-    })).sort((a, b) => a.date.localeCompare(b.date));
+    return items
+      .map((item: StockHistoricalDataItem) => ({
+        date: item.date,
+        open: item.open,
+        high: item.high,
+        low: item.low,
+        close: item.close,
+        volume: item.volume,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   } catch (error) {
     logger.error(`Error fetching price data for ${ticker}`, error);
     throw error;
@@ -49,7 +55,11 @@ export async function fetchPriceData(ticker: string, startDate: string, endDate:
  * @param endDate End date in ISO 8601 format (YYYY-MM-DD).
  * @returns List of ArticleSentiment objects.
  */
-export async function fetchSentimentData(ticker: string, startDate: string, endDate: string): Promise<ArticleSentiment[]> {
+export async function fetchSentimentData(
+  ticker: string,
+  startDate: string,
+  endDate: string,
+): Promise<ArticleSentiment[]> {
   try {
     const items = await dynamoDB.queryArticlesByTicker(ticker, startDate, endDate);
 
@@ -76,7 +86,7 @@ export async function fetchSentimentData(ticker: string, startDate: string, endD
  */
 export async function fetchHistoricalData(ticker: string, days: number): Promise<HistoricalData> {
   if (days < 30) {
-      throw new Error('Insufficient data requested: Minimum 30 days required.');
+    throw new Error('Insufficient data requested: Minimum 30 days required.');
   }
 
   const endDate = new Date().toISOString().split('T')[0];
@@ -85,17 +95,19 @@ export async function fetchHistoricalData(ticker: string, days: number): Promise
   try {
     const [prices, sentiment] = await Promise.all([
       fetchPriceData(ticker, startDate, endDate),
-      fetchSentimentData(ticker, startDate, endDate)
+      fetchSentimentData(ticker, startDate, endDate),
     ]);
 
     if (prices.length < 30) {
-         throw new Error(`Insufficient price data for ${ticker}: Found ${prices.length} days, required 30.`);
+      throw new Error(
+        `Insufficient price data for ${ticker}: Found ${prices.length} days, required 30.`,
+      );
     }
 
     return {
       ticker,
       prices,
-      sentiment
+      sentiment,
     };
   } catch (error) {
     logger.error(`Error fetching historical data for ${ticker}`, error);

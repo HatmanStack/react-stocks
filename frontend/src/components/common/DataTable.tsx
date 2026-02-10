@@ -113,9 +113,7 @@ export function DataTable<T>({
 
       const aStr = String(aVal);
       const bStr = String(bVal);
-      return sortState.direction === 'asc'
-        ? aStr.localeCompare(bStr)
-        : bStr.localeCompare(aStr);
+      return sortState.direction === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
     });
   }, [data, columns, sortState]);
 
@@ -262,9 +260,7 @@ function DataTableRow<T>({
   };
 
   const AnimatedWrapper = animate ? Animated.View : View;
-  const animationProps = animate
-    ? { entering: FadeInDown.delay(index * 30).springify() }
-    : {};
+  const animationProps = animate ? { entering: FadeInDown.delay(index * 30).springify() } : {};
 
   return (
     <Pressable
@@ -299,10 +295,7 @@ function DataTableRow<T>({
             {column.render ? (
               column.render(item, index)
             ) : (
-              <Text
-                style={[styles.cellText, { color: theme.colors.onSurface }]}
-                numberOfLines={1}
-              >
+              <Text style={[styles.cellText, { color: theme.colors.onSurface }]} numberOfLines={1}>
                 {String((item as Record<string, unknown>)[column.key] ?? '—')}
               </Text>
             )}

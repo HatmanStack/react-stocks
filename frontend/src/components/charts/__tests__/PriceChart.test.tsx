@@ -15,7 +15,7 @@ describe('PriceChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <PriceChart data={mockData} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -30,7 +30,7 @@ describe('PriceChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <PriceChart data={positiveData} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -45,7 +45,7 @@ describe('PriceChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <PriceChart data={negativeData} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -55,7 +55,7 @@ describe('PriceChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <PriceChart data={[]} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();
@@ -65,7 +65,7 @@ describe('PriceChart', () => {
     const { toJSON } = render(
       <PaperProvider theme={theme}>
         <PriceChart data={mockData} width={300} height={150} />
-      </PaperProvider>
+      </PaperProvider>,
     );
 
     expect(toJSON()).toBeTruthy();

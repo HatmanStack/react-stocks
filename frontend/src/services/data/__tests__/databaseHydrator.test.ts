@@ -18,7 +18,7 @@ const WordCountRepo = jest.requireMock('@/database/repositories/wordCount.reposi
 
 // Helper to flush fire-and-forget async
 function flushAsync(): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, 50));
+  return new Promise((resolve) => setTimeout(resolve, 50));
 }
 
 describe('databaseHydrator', () => {

@@ -31,7 +31,7 @@ export class APIError extends Error {
 export function logError(
   context: string,
   error: unknown,
-  additionalInfo?: Record<string, unknown>
+  additionalInfo?: Record<string, unknown>,
 ): void {
   const correlationId = getCorrelationId();
 
@@ -74,8 +74,12 @@ export function getErrorMessage(error: unknown): string {
  * Replaces unsafe `(error as any).statusCode` casts.
  */
 export function hasStatusCode(e: unknown): e is { statusCode: number } {
-  return typeof e === 'object' && e !== null && 'statusCode' in e &&
-    typeof (e as Record<string, unknown>).statusCode === 'number';
+  return (
+    typeof e === 'object' &&
+    e !== null &&
+    'statusCode' in e &&
+    typeof (e as Record<string, unknown>).statusCode === 'number'
+  );
 }
 
 /**

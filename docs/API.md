@@ -6,11 +6,11 @@ All endpoints served via API Gateway v2 (HTTP API). Base URL stored in `frontend
 
 ### Python Lambda (yfinance)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/stocks` | Historical OHLCV price data |
-| GET | `/search` | Symbol search |
-| POST | `/batch/stocks` | Bulk price data for multiple tickers |
+| Method | Path            | Description                          |
+| ------ | --------------- | ------------------------------------ |
+| GET    | `/stocks`       | Historical OHLCV price data          |
+| GET    | `/search`       | Symbol search                        |
+| POST   | `/batch/stocks` | Bulk price data for multiple tickers |
 
 **GET /stocks** query params: `ticker`, `startDate`, `endDate`
 
@@ -18,16 +18,16 @@ All endpoints served via API Gateway v2 (HTTP API). Base URL stored in `frontend
 
 ### Node.js Lambda (Finnhub + Sentiment)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/news` | Financial news articles |
-| POST | `/sentiment` | Trigger sentiment analysis job |
-| GET | `/sentiment` | Get cached sentiment results |
-| GET | `/sentiment/job/{jobId}` | Poll job status |
-| GET | `/sentiment/articles` | Get analyzed articles |
-| POST | `/predict` | Server-side prediction (legacy) |
-| POST | `/batch/news` | Bulk news for multiple tickers |
-| POST | `/batch/sentiment` | Bulk sentiment for multiple tickers |
+| Method | Path                     | Description                         |
+| ------ | ------------------------ | ----------------------------------- |
+| GET    | `/news`                  | Financial news articles             |
+| POST   | `/sentiment`             | Trigger sentiment analysis job      |
+| GET    | `/sentiment`             | Get cached sentiment results        |
+| GET    | `/sentiment/job/{jobId}` | Poll job status                     |
+| GET    | `/sentiment/articles`    | Get analyzed articles               |
+| POST   | `/predict`               | Server-side prediction (legacy)     |
+| POST   | `/batch/news`            | Bulk news for multiple tickers      |
+| POST   | `/batch/sentiment`       | Bulk sentiment for multiple tickers |
 
 ### Sentiment Job Flow
 
@@ -48,16 +48,16 @@ Single-table design with composite keys. PAY_PER_REQUEST billing.
 
 Table name: `${StackName}-Table`
 
-| Entity | PK | SK | TTL | Purpose |
-|--------|----|----|-----|---------|
-| Stock Cache | `STOCK#ticker` | `DATE#YYYY-MM-DD` | 7-90 days | Price data cache |
-| News Cache | `NEWS#ticker` | `HASH#articleHash` | 7 days | News article cache |
-| Sentiment Cache | `SENT#ticker` | `HASH#articleHash` | 30 days | Per-article sentiment |
-| Sentiment Job | `JOB#jobId` | `META` | 1 day | Async job tracking |
-| Historical Data | `HIST#ticker` | `DATE#YYYY-MM-DD` | None | ML training data |
-| Article Analysis | `ARTICLE#ticker` | `HASH#hash#DATE#date` | None | Article analysis |
-| Daily Aggregate | `DAILY#ticker` | `DATE#YYYY-MM-DD` | None | Aggregated signals |
-| Circuit Breaker | `CIRCUIT#service` | `STATE` | None | ML service health |
+| Entity           | PK                | SK                    | TTL       | Purpose               |
+| ---------------- | ----------------- | --------------------- | --------- | --------------------- |
+| Stock Cache      | `STOCK#ticker`    | `DATE#YYYY-MM-DD`     | 7-90 days | Price data cache      |
+| News Cache       | `NEWS#ticker`     | `HASH#articleHash`    | 7 days    | News article cache    |
+| Sentiment Cache  | `SENT#ticker`     | `HASH#articleHash`    | 30 days   | Per-article sentiment |
+| Sentiment Job    | `JOB#jobId`       | `META`                | 1 day     | Async job tracking    |
+| Historical Data  | `HIST#ticker`     | `DATE#YYYY-MM-DD`     | None      | ML training data      |
+| Article Analysis | `ARTICLE#ticker`  | `HASH#hash#DATE#date` | None      | Article analysis      |
+| Daily Aggregate  | `DAILY#ticker`    | `DATE#YYYY-MM-DD`     | None      | Aggregated signals    |
+| Circuit Breaker  | `CIRCUIT#service` | `STATE`               | None      | ML service health     |
 
 ### Sentiment Cache Item Schema
 
@@ -86,35 +86,36 @@ Table name: `${StackName}-Table`
 
 ### Backend (Lambda)
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| FINNHUB_API_KEY | Yes | Finnhub API |
-| ALPHA_VANTAGE_API_KEY | No | Alpha Vantage API |
-| DISTILFINBERT_API_URL | No | ML sentiment endpoint |
-| ALLOWED_ORIGINS | No | CORS origins (default: *) |
+| Variable              | Required | Source                     |
+| --------------------- | -------- | -------------------------- |
+| FINNHUB_API_KEY       | Yes      | Finnhub API                |
+| ALPHA_VANTAGE_API_KEY | No       | Alpha Vantage API          |
+| DISTILFINBERT_API_URL | No       | ML sentiment endpoint      |
+| ALLOWED_ORIGINS       | No       | CORS origins (default: \*) |
 
 ### Frontend
 
-| Variable | Required | Source |
-|----------|----------|--------|
-| EXPO_PUBLIC_BACKEND_URL | Yes | API Gateway URL (set by deploy) |
-| EXPO_PUBLIC_BROWSER_SENTIMENT | No | Enable browser sentiment |
-| EXPO_PUBLIC_BROWSER_PREDICTION | No | Enable browser predictions |
-| EXPO_PUBLIC_USE_LAMBDA_SENTIMENT | No | Use Lambda for sentiment |
+| Variable                         | Required | Source                          |
+| -------------------------------- | -------- | ------------------------------- |
+| EXPO_PUBLIC_BACKEND_URL          | Yes      | API Gateway URL (set by deploy) |
+| EXPO_PUBLIC_BROWSER_SENTIMENT    | No       | Enable browser sentiment        |
+| EXPO_PUBLIC_BROWSER_PREDICTION   | No       | Enable browser predictions      |
+| EXPO_PUBLIC_USE_LAMBDA_SENTIMENT | No       | Use Lambda for sentiment        |
 
 ## Monitoring
 
 CloudWatch metrics under `ReactStocks` namespace:
 
-| Metric | Dimensions | Unit |
-|--------|------------|------|
-| LambdaColdStart | Endpoint | Count |
-| LambdaWarmStart | Endpoint | Count |
-| DynamoDBCacheHit | Endpoint, Ticker | Count |
-| DynamoDBCacheMiss | Endpoint, Ticker | Count |
-| RequestDuration | Endpoint | Milliseconds |
+| Metric            | Dimensions       | Unit         |
+| ----------------- | ---------------- | ------------ |
+| LambdaColdStart   | Endpoint         | Count        |
+| LambdaWarmStart   | Endpoint         | Count        |
+| DynamoDBCacheHit  | Endpoint, Ticker | Count        |
+| DynamoDBCacheMiss | Endpoint, Ticker | Count        |
+| RequestDuration   | Endpoint         | Milliseconds |
 
 CloudWatch Logs Insights query for cache hit rate:
+
 ```
 fields @timestamp, @message
 | filter @message like /CacheHit|CacheMiss/

@@ -17,7 +17,8 @@ jest.unstable_mockModule('../../utils/dynamodb.util.js', () => ({
 }));
 
 // Import after mocking
-const { getCircuitState, recordSuccess, recordFailure } = await import('../circuitBreaker.repository.js');
+const { getCircuitState, recordSuccess, recordFailure } =
+  await import('../circuitBreaker.repository.js');
 
 describe('CircuitBreakerRepository', () => {
   beforeEach(() => {
@@ -34,10 +35,7 @@ describe('CircuitBreakerRepository', () => {
         consecutiveFailures: 0,
         circuitOpenUntil: 0,
       });
-      expect(mockGetItem).toHaveBeenCalledWith(
-        'CIRCUIT#mlsentiment',
-        'STATE',
-      );
+      expect(mockGetItem).toHaveBeenCalledWith('CIRCUIT#mlsentiment', 'STATE');
     });
 
     it('returns stored state when record exists', async () => {

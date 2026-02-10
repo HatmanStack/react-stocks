@@ -16,11 +16,7 @@ interface DateRangePickerProps {
   onDateRangeChange: (startDate: string, endDate: string) => void;
 }
 
-export function DateRangePicker({
-  startDate,
-  endDate,
-  onDateRangeChange,
-}: DateRangePickerProps) {
+export function DateRangePicker({ startDate, endDate, onDateRangeChange }: DateRangePickerProps) {
   const theme = useTheme();
   const [visible, setVisible] = useState(false);
 
@@ -52,7 +48,10 @@ export function DateRangePicker({
     <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <View style={styles.row}>
         <View style={styles.dateSection}>
-          <Text variant="labelMedium" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+          <Text
+            variant="labelMedium"
+            style={[styles.label, { color: theme.colors.onSurfaceVariant }]}
+          >
             Start Date
           </Text>
           <Text variant="bodyMedium" style={[styles.dateText, { color: theme.colors.onSurface }]}>
@@ -65,7 +64,10 @@ export function DateRangePicker({
         </Text>
 
         <View style={styles.dateSection}>
-          <Text variant="labelMedium" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+          <Text
+            variant="labelMedium"
+            style={[styles.label, { color: theme.colors.onSurfaceVariant }]}
+          >
             End Date
           </Text>
           <Text variant="bodyMedium" style={[styles.dateText, { color: theme.colors.onSurface }]}>

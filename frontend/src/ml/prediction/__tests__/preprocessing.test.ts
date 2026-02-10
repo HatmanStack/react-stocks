@@ -22,8 +22,23 @@ describe('Preprocessing', () => {
       const input: PredictionInput = {
         ticker: 'TEST',
         close: [150.0, 152.0, 151.0, 153.0, 154.0, 155.0, 156.0, 157.0, 158.0, 159.0, 160.0],
-        volume: [100000000, 95000000, 98000000, 97000000, 96000000, 99000000, 100000000, 101000000, 102000000, 103000000, 104000000],
-        eventType: ['EARNINGS', 'M&A', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL'],
+        volume: [
+          100000000, 95000000, 98000000, 97000000, 96000000, 99000000, 100000000, 101000000,
+          102000000, 103000000, 104000000,
+        ],
+        eventType: [
+          'EARNINGS',
+          'M&A',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+        ],
         aspectScore: [0.5, -0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         mlScore: [0.7, -0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       };
@@ -178,8 +193,8 @@ describe('Preprocessing', () => {
       const labels = createLabels(close, 1);
 
       // Count ups and downs - should be roughly balanced (not all 0s or all 1s)
-      const ones = labels.filter(l => l === 1).length;
-      const zeros = labels.filter(l => l === 0).length;
+      const ones = labels.filter((l) => l === 1).length;
+      const zeros = labels.filter((l) => l === 0).length;
       // Both classes must be present (which was the bug with raw labels on trending data)
       expect(ones).toBeGreaterThan(0);
       expect(zeros).toBeGreaterThan(0);
@@ -225,7 +240,7 @@ describe('Preprocessing', () => {
       const close = new Array(50).fill(100);
       const labels = createLabels(close, 1);
       // Flat prices: actual return = 0, expected return = 0 → actual >= expected → all 0
-      expect(labels.every(l => l === 0)).toBe(true);
+      expect(labels.every((l) => l === 0)).toBe(true);
     });
 
     it('TREND_WINDOW should be 20', () => {
@@ -263,9 +278,7 @@ describe('Preprocessing', () => {
     });
 
     it('should throw error for non-finite values', () => {
-      const X = [
-        [1, 2, 3, NaN, 5, 6, 7, 8],
-      ];
+      const X = [[1, 2, 3, NaN, 5, 6, 7, 8]];
 
       expect(() => validateFeatureMatrix(X)).toThrow('Non-finite value');
     });
@@ -300,8 +313,23 @@ describe('Preprocessing', () => {
       const input: PredictionInput = {
         ticker: 'TEST',
         close: [150.0, 152.0, 151.0, 153.0, 154.0, 155.0, 156.0, 157.0, 158.0, 159.0, 160.0],
-        volume: [100000000, 95000000, 98000000, 97000000, 96000000, 99000000, 100000000, 101000000, 102000000, 103000000, 104000000],
-        eventType: ['EARNINGS', 'M&A', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL', 'GENERAL'],
+        volume: [
+          100000000, 95000000, 98000000, 97000000, 96000000, 99000000, 100000000, 101000000,
+          102000000, 103000000, 104000000,
+        ],
+        eventType: [
+          'EARNINGS',
+          'M&A',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+          'GENERAL',
+        ],
         aspectScore: [0.5, -0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         mlScore: [0.7, -0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
       };

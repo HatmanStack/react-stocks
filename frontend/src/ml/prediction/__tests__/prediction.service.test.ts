@@ -2,7 +2,11 @@
  * Prediction Service unit tests
  */
 
-import { getStockPredictions, parsePredictionResponse, getDefaultPredictions } from '../prediction.service';
+import {
+  getStockPredictions,
+  parsePredictionResponse,
+  getDefaultPredictions,
+} from '../prediction.service';
 import type { EventType } from '../../../types/database.types';
 
 describe('prediction.service', () => {
@@ -48,16 +52,16 @@ describe('prediction.service', () => {
 
   describe('getStockPredictions', () => {
     it('throws on empty ticker', async () => {
-      await expect(
-        getStockPredictions('', [1, 2, 3], [100])
-      ).rejects.toThrow('Ticker symbol is required');
+      await expect(getStockPredictions('', [1, 2, 3], [100])).rejects.toThrow(
+        'Ticker symbol is required',
+      );
     });
 
     it('throws on insufficient data', async () => {
       const prices = Array.from({ length: 30 }, (_, i) => 100 + i);
-      await expect(
-        getStockPredictions('AAPL', prices, prices)
-      ).rejects.toThrow('Insufficient data');
+      await expect(getStockPredictions('AAPL', prices, prices)).rejects.toThrow(
+        'Insufficient data',
+      );
     });
 
     it('generates predictions with sufficient data', async () => {
@@ -87,7 +91,15 @@ describe('prediction.service', () => {
       const mlScores: (number | null)[] = Array.from({ length: n }, () => 0.3);
 
       const result = await getStockPredictions(
-        'SENT', closePrices, volumes, [], [], [], eventTypes, aspectScores, mlScores
+        'SENT',
+        closePrices,
+        volumes,
+        [],
+        [],
+        [],
+        eventTypes,
+        aspectScores,
+        mlScores,
       );
 
       expect(result.ticker).toBe('SENT');

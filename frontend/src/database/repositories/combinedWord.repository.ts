@@ -35,7 +35,7 @@ export async function findByTicker(ticker: string): Promise<CombinedWordDetails[
 export async function findByTickerAndDateRange(
   ticker: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<CombinedWordDetails[]> {
   const db = await getDatabase();
   const sql = `

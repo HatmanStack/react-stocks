@@ -32,7 +32,10 @@ import { logger } from './logger.util.js';
 const DYNAMODB_TIMEOUT_MS = 5000;
 
 // Initialize DynamoDB client (reused across Lambda invocations)
-const client = new DynamoDBClient({ region: process.env.AWS_REGION || 'us-east-1' });
+const client = new DynamoDBClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+  ...(process.env.DYNAMODB_ENDPOINT && { endpoint: process.env.DYNAMODB_ENDPOINT }),
+});
 
 // Create document client with marshalling options
 export const dynamoDb = DynamoDBDocumentClient.from(client, {
@@ -68,10 +71,7 @@ export function getTableName(): string {
 /**
  * Get a single item by PK and SK
  */
-export async function getItem<T>(
-  pk: string,
-  sk: string,
-): Promise<T | null> {
+export async function getItem<T>(pk: string, sk: string): Promise<T | null> {
   const params: GetCommandInput = {
     TableName: getTableName(),
     Key: { pk, sk },
@@ -250,7 +250,9 @@ export async function batchGetItemsSingleTable<T>(
       // If ALL keys are unprocessed and we got no results, log more details
       const gotResults = result.Responses?.[tableName]?.length ?? 0;
       if (gotResults === 0 && unprocessedKeys.length === remainingKeys.length) {
-        logger.warn(`batchGetItemsSingleTable: ALL ${remainingKeys.length} keys unprocessed (attempt ${attempt + 1}), possible throttling or cold partition`);
+        logger.warn(
+          `batchGetItemsSingleTable: ALL ${remainingKeys.length} keys unprocessed (attempt ${attempt + 1}), possible throttling or cold partition`,
+        );
       }
 
       remainingKeys = unprocessedKeys as Array<{ pk: string; sk: string }>;
@@ -258,21 +260,24 @@ export async function batchGetItemsSingleTable<T>(
       if (attempt < maxAttempts - 1) {
         // More aggressive backoff: 150, 300, 600, 1200, 2400, 4800ms
         const delayMs = baseDelayMs * Math.pow(2, attempt);
-        logger.warn(`batchGetItemsSingleTable: ${remainingKeys.length} unprocessed keys, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxAttempts})`);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        logger.warn(
+          `batchGetItemsSingleTable: ${remainingKeys.length} unprocessed keys, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxAttempts})`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     } catch (error) {
       const errorName = (error as { name?: string }).name || 'Unknown';
       logger.error(`batchGetItemsSingleTable error (attempt ${attempt + 1})`, error, { errorName });
 
       // Retry on transient errors
-      if (attempt < maxAttempts - 1 && (
-        errorName === 'ProvisionedThroughputExceededException' ||
-        errorName === 'ThrottlingException' ||
-        errorName === 'InternalServerError'
-      )) {
+      if (
+        attempt < maxAttempts - 1 &&
+        (errorName === 'ProvisionedThroughputExceededException' ||
+          errorName === 'ThrottlingException' ||
+          errorName === 'InternalServerError')
+      ) {
         const delayMs = baseDelayMs * Math.pow(2, attempt);
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
         continue;
       }
       throw error;
@@ -281,7 +286,9 @@ export async function batchGetItemsSingleTable<T>(
 
   if (remainingKeys.length > 0) {
     // Return partial results instead of throwing - caller can handle gracefully
-    logger.error(`batchGetItemsSingleTable: ${remainingKeys.length} keys still unprocessed after ${maxAttempts} attempts, returning partial results (${allResults.length} found)`);
+    logger.error(
+      `batchGetItemsSingleTable: ${remainingKeys.length} keys still unprocessed after ${maxAttempts} attempts, returning partial results (${allResults.length} found)`,
+    );
   }
 
   return allResults;
@@ -291,9 +298,9 @@ export async function batchGetItemsSingleTable<T>(
  * Batch put items for single-table design (max 25 per call).
  * Automatically retries UnprocessedItems with exponential backoff.
  */
-export async function batchPutItemsSingleTable<T extends { pk: string; sk: string; createdAt?: string }>(
-  items: T[],
-): Promise<void> {
+export async function batchPutItemsSingleTable<
+  T extends { pk: string; sk: string; createdAt?: string },
+>(items: T[]): Promise<void> {
   if (items.length === 0) return;
   if (items.length > 25) {
     throw new Error('batchPutItemsSingleTable supports max 25 items');
@@ -336,13 +343,17 @@ export async function batchPutItemsSingleTable<T extends { pk: string; sk: strin
 
     if (attempt < maxAttempts - 1) {
       const delayMs = baseDelayMs * Math.pow(2, attempt);
-      logger.warn(`batchPutItemsSingleTable: ${writeRequests.length} unprocessed items, retrying in ${delayMs}ms`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      logger.warn(
+        `batchPutItemsSingleTable: ${writeRequests.length} unprocessed items, retrying in ${delayMs}ms`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
   if (writeRequests.length > 0) {
-    throw new Error(`batchPutItemsSingleTable: ${writeRequests.length} items still unprocessed after ${maxAttempts} attempts`);
+    throw new Error(
+      `batchPutItemsSingleTable: ${writeRequests.length} items still unprocessed after ${maxAttempts} attempts`,
+    );
   }
 }
 
@@ -403,7 +414,7 @@ export async function updateItem(
 export async function withTimeout<T>(
   operation: () => Promise<T>,
   timeoutMs: number = DYNAMODB_TIMEOUT_MS,
-  operationName: string = 'DynamoDB'
+  operationName: string = 'DynamoDB',
 ): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
 
@@ -441,7 +452,7 @@ export async function withTimeout<T>(
 export async function withRetry<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
-  baseDelayMs: number = 100
+  baseDelayMs: number = 100,
 ): Promise<T> {
   let lastError: Error | undefined;
 
@@ -465,7 +476,9 @@ export async function withRetry<T>(
 
       // Exponential backoff: 100ms, 200ms, 400ms, 800ms...
       const delayMs = baseDelayMs * Math.pow(2, attempt);
-      logger.warn(`Retry attempt ${attempt + 1}/${maxRetries} after ${delayMs}ms due to ${errorName}`);
+      logger.warn(
+        `Retry attempt ${attempt + 1}/${maxRetries} after ${delayMs}ms due to ${errorName}`,
+      );
 
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
@@ -494,13 +507,9 @@ export async function withRetry<T>(
 export async function withProtection<T>(
   operation: () => Promise<T>,
   operationName: string = 'DynamoDB',
-  options?: { timeoutMs?: number; maxRetries?: number; baseDelayMs?: number }
+  options?: { timeoutMs?: number; maxRetries?: number; baseDelayMs?: number },
 ): Promise<T> {
   const { timeoutMs = DYNAMODB_TIMEOUT_MS, maxRetries = 3, baseDelayMs = 100 } = options || {};
 
-  return withRetry(
-    () => withTimeout(operation, timeoutMs, operationName),
-    maxRetries,
-    baseDelayMs
-  );
+  return withRetry(() => withTimeout(operation, timeoutMs, operationName), maxRetries, baseDelayMs);
 }

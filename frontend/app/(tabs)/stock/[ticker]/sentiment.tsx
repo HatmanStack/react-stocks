@@ -39,9 +39,12 @@ export default function SentimentScreen() {
   const [viewMode, setViewMode] = useState<'aggregate' | 'individual'>('aggregate');
 
   // Time range is now shared via context - changing it updates both Price and Sentiment tabs
-  const handleRangeChange = useCallback((range: TimeRange) => {
-    setTimeRange(range);
-  }, [setTimeRange]);
+  const handleRangeChange = useCallback(
+    (range: TimeRange) => {
+      setTimeRange(range);
+    },
+    [setTimeRange],
+  );
 
   // Sort data by date descending
   const sortedAggregateData = useMemo(() => {
@@ -56,18 +59,19 @@ export default function SentimentScreen() {
 
   const renderAggregateItem = useCallback(
     ({ item }: { item: CombinedWordDetails }) => <SentimentListItem item={item} />,
-    []
+    [],
   );
 
   const renderArticleItem = useCallback(
     ({ item }: { item: WordCountDetails }) => <SingleWordItem item={item} />,
-    []
+    [],
   );
 
   const keyExtractorAggregate = (item: CombinedWordDetails) => `${item.ticker}-${item.date}`;
   const keyExtractorArticle = useCallback(
-    (item: WordCountDetails, index: number) => `article-${index}-${item.ticker}-${item.date}-${item.body?.slice(0, 20) || index}`,
-    []
+    (item: WordCountDetails, index: number) =>
+      `article-${index}-${item.ticker}-${item.date}-${item.body?.slice(0, 20) || index}`,
+    [],
   );
 
   // Render content based on view mode
@@ -172,7 +176,10 @@ export default function SentimentScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={['bottom']}
+    >
       <View style={[styles.centeredContent, { width: contentWidth }]}>
         <SentimentToggle value={viewMode} onValueChange={setViewMode} />
         {renderContent()}

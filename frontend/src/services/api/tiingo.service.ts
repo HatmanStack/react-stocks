@@ -26,9 +26,7 @@ function handleApiError(error: unknown, context: string, ticker?: string): never
 
 function createBackendClient(): AxiosInstance {
   if (!Environment.BACKEND_URL) {
-    throw new Error(
-      'Backend URL not configured. Set EXPO_PUBLIC_BACKEND_URL in .env file.'
-    );
+    throw new Error('Backend URL not configured. Set EXPO_PUBLIC_BACKEND_URL in .env file.');
   }
 
   return axios.create({
@@ -42,7 +40,7 @@ function createBackendClient(): AxiosInstance {
 
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
-  retries: number = process.env.NODE_ENV === 'test' ? 0 : 3
+  retries: number = process.env.NODE_ENV === 'test' ? 0 : 3,
 ): Promise<T> {
   let lastError: Error | null = null;
 
@@ -67,7 +65,7 @@ async function retryWithBackoff<T>(
 export async function fetchStockPrices(
   ticker: string,
   startDate: string,
-  endDate?: string
+  endDate?: string,
 ): Promise<TiingoStockPrice[]> {
   const client = createBackendClient();
 
@@ -106,7 +104,10 @@ export async function fetchSymbolMetadata(ticker: string): Promise<TiingoSymbolM
   return retryWithBackoff(fetchFn);
 }
 
-export function transformTiingoToStockDetails(price: TiingoStockPrice, ticker: string): StockDetails {
+export function transformTiingoToStockDetails(
+  price: TiingoStockPrice,
+  ticker: string,
+): StockDetails {
   const round = (num: number) => Math.round(num * 100) / 100;
   return {
     ticker,
@@ -151,12 +152,16 @@ export async function searchTickers(query: string): Promise<TiingoSearchResult[]
   const fetchFn = async () => {
     try {
       logger.debug(`[TiingoService] Searching for: ${trimmedQuery}`);
-      logger.debug(`[TiingoService] Backend URL: ${Environment.BACKEND_URL}/search?query=${trimmedQuery}`);
+      logger.debug(
+        `[TiingoService] Backend URL: ${Environment.BACKEND_URL}/search?query=${trimmedQuery}`,
+      );
       const startTime = Date.now();
       const response = await client.get<{ data: TiingoSearchResult[] }>('/search', {
         params: { query: trimmedQuery },
       });
-      logger.debug(`[TiingoService] Search completed in ${Date.now() - startTime}ms, found ${response.data.data?.length || 0} results`);
+      logger.debug(
+        `[TiingoService] Search completed in ${Date.now() - startTime}ms, found ${response.data.data?.length || 0} results`,
+      );
       return response.data.data;
     } catch (error) {
       logger.error(`[TiingoService] Search error for "${trimmedQuery}":`, error);

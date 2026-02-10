@@ -13,15 +13,22 @@ describe('Aspect Type Definitions', () => {
     });
 
     it('should have all six aspects defined', () => {
-      const aspects: AspectType[] = ['REVENUE', 'EARNINGS', 'GUIDANCE', 'MARGINS', 'GROWTH', 'DEBT'];
-      aspects.forEach(aspect => {
+      const aspects: AspectType[] = [
+        'REVENUE',
+        'EARNINGS',
+        'GUIDANCE',
+        'MARGINS',
+        'GROWTH',
+        'DEBT',
+      ];
+      aspects.forEach((aspect) => {
         expect(ASPECT_WEIGHTS[aspect]).toBeDefined();
         expect(typeof ASPECT_WEIGHTS[aspect]).toBe('number');
       });
     });
 
     it('should have weights between 0 and 1', () => {
-      Object.values(ASPECT_WEIGHTS).forEach(weight => {
+      Object.values(ASPECT_WEIGHTS).forEach((weight) => {
         expect(weight).toBeGreaterThan(0);
         expect(weight).toBeLessThanOrEqual(1);
       });
@@ -29,7 +36,7 @@ describe('Aspect Type Definitions', () => {
 
     it('should prioritize earnings and revenue', () => {
       // Earnings should have highest weight
-      expect(ASPECT_WEIGHTS.EARNINGS).toBe(0.30);
+      expect(ASPECT_WEIGHTS.EARNINGS).toBe(0.3);
 
       // Revenue should have second highest weight
       expect(ASPECT_WEIGHTS.REVENUE).toBe(0.25);
@@ -40,8 +47,8 @@ describe('Aspect Type Definitions', () => {
 
     it('should have correct weight configuration', () => {
       expect(ASPECT_WEIGHTS.REVENUE).toBe(0.25);
-      expect(ASPECT_WEIGHTS.EARNINGS).toBe(0.30);
-      expect(ASPECT_WEIGHTS.GUIDANCE).toBe(0.20);
+      expect(ASPECT_WEIGHTS.EARNINGS).toBe(0.3);
+      expect(ASPECT_WEIGHTS.GUIDANCE).toBe(0.2);
       expect(ASPECT_WEIGHTS.MARGINS).toBe(0.15);
       expect(ASPECT_WEIGHTS.GROWTH).toBe(0.05);
       expect(ASPECT_WEIGHTS.DEBT).toBe(0.05);

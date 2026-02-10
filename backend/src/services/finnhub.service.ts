@@ -45,10 +45,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise
  * @param retries - Number of retries (default: 3)
  * @returns Promise with result
  */
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  retries: number = 3
-): Promise<T> {
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries: number = 3): Promise<T> {
   let lastError: Error | null = null;
 
   for (let i = 0; i <= retries; i++) {
@@ -93,11 +90,14 @@ export async function fetchCompanyNews(
   ticker: string,
   from: string,
   to: string,
-  apiKey: string
+  apiKey: string,
 ): Promise<FinnhubNewsArticle[]> {
   // Circuit breaker: fail-fast if Finnhub is rate-limited or down
   const cbState = await CircuitBreakerRepo.getCircuitState(CIRCUIT_SERVICE_FINNHUB);
-  if (cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD && Date.now() < cbState.circuitOpenUntil) {
+  if (
+    cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD &&
+    Date.now() < cbState.circuitOpenUntil
+  ) {
     logger.warn(`Circuit open for ${CIRCUIT_SERVICE_FINNHUB}, skipping API call`);
     return [];
   }
@@ -133,7 +133,7 @@ export async function fetchCompanyNews(
       throw new APIError(`Failed to fetch news for ${ticker}`, status);
     }
 
-    const data = await response.json() as FinnhubNewsArticle[];
+    const data = (await response.json()) as FinnhubNewsArticle[];
     logger.info(`Fetched ${data.length} news articles for ${ticker}`);
     await CircuitBreakerRepo.recordSuccess(CIRCUIT_SERVICE_FINNHUB);
     return data;

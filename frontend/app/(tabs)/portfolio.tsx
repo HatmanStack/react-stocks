@@ -34,16 +34,17 @@ export default function PortfolioScreen() {
   const { portfolio, isLoading, error, refetch, removeFromPortfolio } = usePortfolio();
   const { setSelectedTicker, startDate, endDate } = useStock();
 
-  const handleStockPress = useCallback((item: PortfolioDetails) => {
-    setSelectedTicker(item.ticker);
-    router.push(`/(tabs)/stock/${item.ticker}`);
-  }, [setSelectedTicker]);
+  const handleStockPress = useCallback(
+    (item: PortfolioDetails) => {
+      setSelectedTicker(item.ticker);
+      router.push(`/(tabs)/stock/${item.ticker}`);
+    },
+    [setSelectedTicker],
+  );
 
-  const handleDeleteStock = useCallback((item: PortfolioDetails) => {
-    Alert.alert(
-      'Remove Stock',
-      `Remove ${item.ticker} from your portfolio?`,
-      [
+  const handleDeleteStock = useCallback(
+    (item: PortfolioDetails) => {
+      Alert.alert('Remove Stock', `Remove ${item.ticker} from your portfolio?`, [
         {
           text: 'Cancel',
           style: 'cancel',
@@ -60,9 +61,10 @@ export default function PortfolioScreen() {
             }
           },
         },
-      ]
-    );
-  }, [removeFromPortfolio]);
+      ]);
+    },
+    [removeFromPortfolio],
+  );
 
   const handleAddStock = useCallback(() => {
     setModalVisible(true);
@@ -74,11 +76,20 @@ export default function PortfolioScreen() {
       id: item.ticker,
       title: item.ticker,
       subtitle: item.name || undefined,
-      value: item.nextDayProbability !== null && item.nextDayProbability !== undefined
-        ? `${item.nextDayDirection === 'up' ? '↑' : '↓'} ${(item.nextDayProbability * 100).toFixed(0)}%`
-        : undefined,
-      valueColor: item.nextDayDirection === 'up' ? 'positive' as const : item.nextDayDirection === 'down' ? 'negative' as const : 'neutral' as const,
-      badge: item.nextDayDirection === 'up' && item.nextDayProbability && item.nextDayProbability > 0.7 ? 'BULLISH' : undefined,
+      value:
+        item.nextDayProbability !== null && item.nextDayProbability !== undefined
+          ? `${item.nextDayDirection === 'up' ? '↑' : '↓'} ${(item.nextDayProbability * 100).toFixed(0)}%`
+          : undefined,
+      valueColor:
+        item.nextDayDirection === 'up'
+          ? ('positive' as const)
+          : item.nextDayDirection === 'down'
+            ? ('negative' as const)
+            : ('neutral' as const),
+      badge:
+        item.nextDayDirection === 'up' && item.nextDayProbability && item.nextDayProbability > 0.7
+          ? 'BULLISH'
+          : undefined,
     }));
   }, [portfolio]);
 
@@ -126,12 +137,12 @@ export default function PortfolioScreen() {
         />
       </Animated.View>
     ),
-    [handleStockPress, handleDeleteStock]
+    [handleStockPress, handleDeleteStock],
   );
 
   const renderSkeletonItem = useCallback(
     ({ index }: { index: number }) => <PortfolioItemSkeleton key={`skeleton-${index}`} />,
-    []
+    [],
   );
 
   const renderEmptyState = () => (
@@ -148,12 +159,15 @@ export default function PortfolioScreen() {
     />
   );
 
-  const handleCarouselItemPress = useCallback((item: CarouselItem) => {
-    const portfolioItem = portfolio.find(p => p.ticker === item.id);
-    if (portfolioItem) {
-      handleStockPress(portfolioItem);
-    }
-  }, [portfolio, handleStockPress]);
+  const handleCarouselItemPress = useCallback(
+    (item: CarouselItem) => {
+      const portfolioItem = portfolio.find((p) => p.ticker === item.id);
+      if (portfolioItem) {
+        handleStockPress(portfolioItem);
+      }
+    },
+    [portfolio, handleStockPress],
+  );
 
   const renderListHeader = useCallback(() => {
     if (carouselItems.length < 2) return null;
@@ -168,18 +182,17 @@ export default function PortfolioScreen() {
 
   if (error) {
     return (
-      <ErrorDisplay
-        error={error as Error}
-        onRetry={refetch}
-        title="Failed to load portfolio"
-      />
+      <ErrorDisplay error={error as Error} onRetry={refetch} title="Failed to load portfolio" />
     );
   }
 
   // Show skeleton loaders during initial load
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['top']}
+      >
         <OfflineIndicator />
         <View style={[styles.centeredContent, { width: contentWidth }]}>
           <FlatList
@@ -196,7 +209,10 @@ export default function PortfolioScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={['top']}
+    >
       <OfflineIndicator />
       <View style={[styles.centeredContent, { width: contentWidth }]}>
         <FlatList

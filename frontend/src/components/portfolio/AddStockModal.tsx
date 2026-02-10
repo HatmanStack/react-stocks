@@ -40,20 +40,23 @@ export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
     setSearchQuery(query);
   }, []);
 
-  const handleSelectStock = useCallback(async (symbol: SymbolDetails) => {
-    try {
-      if (isInPortfolio(symbol.ticker)) {
+  const handleSelectStock = useCallback(
+    async (symbol: SymbolDetails) => {
+      try {
+        if (isInPortfolio(symbol.ticker)) {
+          setSearchQuery('');
+          onDismiss();
+          return;
+        }
+        await addToPortfolio(symbol.ticker);
         setSearchQuery('');
         onDismiss();
-        return;
+      } catch (error) {
+        logger.error('[AddStockModal] Error adding stock:', error);
       }
-      await addToPortfolio(symbol.ticker);
-      setSearchQuery('');
-      onDismiss();
-    } catch (error) {
-      logger.error('[AddStockModal] Error adding stock:', error);
-    }
-  }, [addToPortfolio, isInPortfolio, onDismiss]);
+    },
+    [addToPortfolio, isInPortfolio, onDismiss],
+  );
 
   const handleClose = useCallback(() => {
     setSearchQuery('');
@@ -72,7 +75,7 @@ export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
         />
       );
     },
-    [handleSelectStock, isInPortfolio]
+    [handleSelectStock, isInPortfolio],
   );
 
   const renderEmptyState = () => {
@@ -91,13 +94,7 @@ export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
     }
 
     if (error) {
-      return (
-        <ErrorDisplay
-          error={error as Error}
-          onRetry={refetch}
-          title="Search failed"
-        />
-      );
+      return <ErrorDisplay error={error as Error} onRetry={refetch} title="Search failed" />;
     }
 
     return (

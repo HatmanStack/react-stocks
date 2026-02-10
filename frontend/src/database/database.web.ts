@@ -189,15 +189,18 @@ class WebDatabase {
 
       // Use requestIdleCallback if available, otherwise fallback to immediate save
       if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => {
-          try {
-            localStorage.setItem(this.storageKey, dataString);
-            console.log(`[WebDB] Saved ${sizeKB} KB (idle callback)`);
-          } catch (cbError) {
-            this.handleSaveError(cbError);
-          }
-          this.pendingSave = false;
-        }, { timeout: 1000 }); // Force save after 1s if browser is busy
+        requestIdleCallback(
+          () => {
+            try {
+              localStorage.setItem(this.storageKey, dataString);
+              console.log(`[WebDB] Saved ${sizeKB} KB (idle callback)`);
+            } catch (cbError) {
+              this.handleSaveError(cbError);
+            }
+            this.pendingSave = false;
+          },
+          { timeout: 1000 },
+        ); // Force save after 1s if browser is busy
       } else {
         localStorage.setItem(this.storageKey, dataString);
         console.log(`[WebDB] Saved ${sizeKB} KB`);
@@ -417,10 +420,26 @@ class WebDatabase {
   // Stock operations
   private insertStock(params: any[]): any {
     const [
-      hash, date, ticker, close, high, low, open, volume,
-      adjClose, adjHigh, adjLow, adjOpen, adjVolume,
-      divCash, splitFactor, marketCap, enterpriseVal,
-      peRatio, pbRatio, trailingPEG1Y
+      hash,
+      date,
+      ticker,
+      close,
+      high,
+      low,
+      open,
+      volume,
+      adjClose,
+      adjHigh,
+      adjLow,
+      adjOpen,
+      adjVolume,
+      divCash,
+      splitFactor,
+      marketCap,
+      enterpriseVal,
+      peRatio,
+      pbRatio,
+      trailingPEG1Y,
     ] = params;
 
     if (!this.data.stocks[ticker]) {
@@ -428,9 +447,7 @@ class WebDatabase {
     }
 
     // Check if already exists
-    const exists = this.data.stocks[ticker].some(
-      (s) => s.date === date
-    );
+    const exists = this.data.stocks[ticker].some((s) => s.date === date);
 
     if (!exists) {
       this.data.stocks[ticker].push({
@@ -469,9 +486,7 @@ class WebDatabase {
     if (params.length === 3) {
       const startDate = params[1];
       const endDate = params[2];
-      stocks = stocks.filter(
-        (stock) => stock.date >= startDate && stock.date <= endDate
-      );
+      stocks = stocks.filter((stock) => stock.date >= startDate && stock.date <= endDate);
     }
 
     return stocks;
@@ -479,7 +494,17 @@ class WebDatabase {
 
   // News operations
   private insertNews(params: any[]): any {
-    const [date, ticker, articleTickers, title, articleDate, articleUrl, publisher, ampUrl, articleDescription] = params;
+    const [
+      date,
+      ticker,
+      articleTickers,
+      title,
+      articleDate,
+      articleUrl,
+      publisher,
+      ampUrl,
+      articleDescription,
+    ] = params;
 
     if (!this.data.news[ticker]) {
       this.data.news[ticker] = [];
@@ -519,16 +544,24 @@ class WebDatabase {
       const startDate = params[1];
       const endDate = params[2];
       news = news.filter(
-        (article) =>
-          article.articleDate >= startDate && article.articleDate <= endDate
+        (article) => article.articleDate >= startDate && article.articleDate <= endDate,
       );
-      console.log(`[WebDB] Getting news for ${ticker} from ${startDate} to ${endDate}: ${news.length} articles`);
+      console.log(
+        `[WebDB] Getting news for ${ticker} from ${startDate} to ${endDate}: ${news.length} articles`,
+      );
     } else {
       console.log(`[WebDB] Getting all news for ${ticker}: ${news.length} articles`);
     }
 
     if (news.length > 0) {
-      console.log(`[WebDB] Sample articles:`, news.slice(0, 2).map(a => ({ ticker: a.ticker, date: a.articleDate, title: a.title?.substring(0, 40) })));
+      console.log(
+        `[WebDB] Sample articles:`,
+        news.slice(0, 2).map((a) => ({
+          ticker: a.ticker,
+          date: a.articleDate,
+          title: a.title?.substring(0, 40),
+        })),
+      );
     }
 
     return news;
@@ -551,10 +584,24 @@ class WebDatabase {
     // This implementation relies on knowing the param order which is fragile if SQL changes.
     // For now, we assume the repository passes basic params first.
 
-    const [ticker, date, positive, negative, sentimentNumber, sentiment, nextDay, twoWks, oneMnth, updateDate,
-           nextDayDirection, nextDayProbability,
-           twoWeekDirection, twoWeekProbability,
-           oneMonthDirection, oneMonthProbability] = params;
+    const [
+      ticker,
+      date,
+      positive,
+      negative,
+      sentimentNumber,
+      sentiment,
+      nextDay,
+      twoWks,
+      oneMnth,
+      updateDate,
+      nextDayDirection,
+      nextDayProbability,
+      twoWeekDirection,
+      twoWeekProbability,
+      oneMonthDirection,
+      oneMonthProbability,
+    ] = params;
 
     if (!this.data.sentiment[ticker]) {
       this.data.sentiment[ticker] = [];
@@ -605,12 +652,12 @@ class WebDatabase {
     if (params.length === 3) {
       const startDate = params[1];
       const endDate = params[2];
-      sentiment = sentiment.filter(
-        (record) => record.date >= startDate && record.date <= endDate
-      );
+      sentiment = sentiment.filter((record) => record.date >= startDate && record.date <= endDate);
     }
 
-    console.log(`[WebDB] Getting daily aggregate sentiment for ${ticker}: ${sentiment.length} records`);
+    console.log(
+      `[WebDB] Getting daily aggregate sentiment for ${ticker}: ${sentiment.length} records`,
+    );
 
     return sentiment;
   }
@@ -618,7 +665,19 @@ class WebDatabase {
   // Article sentiment operations
   private insertArticleSentiment(params: unknown[]): { changes: number } {
     // Parameters: date, hash, ticker, positive, negative, nextDay, twoWks, oneMnth, body, sentiment, sentimentNumber
-    const [date, hash, ticker, positive, negative, nextDay, twoWks, oneMnth, body, sentiment, sentimentNumber] = params;
+    const [
+      date,
+      hash,
+      ticker,
+      positive,
+      negative,
+      nextDay,
+      twoWks,
+      oneMnth,
+      body,
+      sentiment,
+      sentimentNumber,
+    ] = params;
 
     const tickerStr = String(ticker);
     if (!this.data.articleSentiment[tickerStr]) {
@@ -653,7 +712,9 @@ class WebDatabase {
     const articles = this.data.articleSentiment[ticker] || [];
 
     // Filter to only return records with hash field (article-level data)
-    const validArticles = articles.filter((record) => record.hasOwnProperty('hash') && typeof record.hash === 'number');
+    const validArticles = articles.filter(
+      (record) => record.hasOwnProperty('hash') && typeof record.hash === 'number',
+    );
 
     // Debug log disabled - too noisy
     // console.log(`[WebDB] Getting article sentiment for ${ticker}: ${validArticles.length} records`);
@@ -665,10 +726,19 @@ class WebDatabase {
   private insertPortfolio(params: any[]): any {
     // Parameters: ticker, next, name, wks, mnth (from repository upsert)
     // Extended params: ..., nextDayDirection, nextDayProbability, etc.
-    const [ticker, next, name, wks, mnth,
-           nextDayDirection, nextDayProbability,
-           twoWeekDirection, twoWeekProbability,
-           oneMonthDirection, oneMonthProbability] = params;
+    const [
+      ticker,
+      next,
+      name,
+      wks,
+      mnth,
+      nextDayDirection,
+      nextDayProbability,
+      twoWeekDirection,
+      twoWeekProbability,
+      oneMonthDirection,
+      oneMonthProbability,
+    ] = params;
 
     console.log(`[WebDB] Inserting portfolio: ${ticker}, name: ${name}`);
 

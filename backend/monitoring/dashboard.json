@@ -5,9 +5,7 @@
       "properties": {
         "title": "Lambda Invocations",
         "region": "us-east-1",
-        "metrics": [
-          ["AWS/Lambda", "Invocations", { "stat": "Sum", "label": "Total Invocations" }]
-        ],
+        "metrics": [["AWS/Lambda", "Invocations", { "stat": "Sum", "label": "Total Invocations" }]],
         "period": 300,
         "stat": "Average",
         "yAxis": {
@@ -73,9 +71,7 @@
       "properties": {
         "title": "API Gateway Requests",
         "region": "us-east-1",
-        "metrics": [
-          ["AWS/ApiGateway", "Count", { "stat": "Sum", "label": "Total Requests" }]
-        ],
+        "metrics": [["AWS/ApiGateway", "Count", { "stat": "Sum", "label": "Total Requests" }]],
         "period": 300,
         "yAxis": {
           "left": {
@@ -108,7 +104,11 @@
         "title": "API Gateway 4xx Errors (Client Errors)",
         "region": "us-east-1",
         "metrics": [
-          ["AWS/ApiGateway", "4XXError", { "stat": "Sum", "label": "Client Errors", "color": "#ff7f0e" }]
+          [
+            "AWS/ApiGateway",
+            "4XXError",
+            { "stat": "Sum", "label": "Client Errors", "color": "#ff7f0e" }
+          ]
         ],
         "period": 300,
         "yAxis": {
@@ -124,7 +124,11 @@
         "title": "API Gateway 5xx Errors (Server Errors)",
         "region": "us-east-1",
         "metrics": [
-          ["AWS/ApiGateway", "5XXError", { "stat": "Sum", "label": "Server Errors", "color": "#d62728" }]
+          [
+            "AWS/ApiGateway",
+            "5XXError",
+            { "stat": "Sum", "label": "Server Errors", "color": "#d62728" }
+          ]
         ],
         "period": 300,
         "yAxis": {

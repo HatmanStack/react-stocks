@@ -11,10 +11,7 @@ export type SentimentLabel = 'POS' | 'NEUT' | 'NEG';
  * @param negative - Count of negative words
  * @returns Sentiment label: 'POS', 'NEUT', or 'NEG'
  */
-export function calculateSentiment(
-  positive: number,
-  negative: number
-): SentimentLabel {
+export function calculateSentiment(positive: number, negative: number): SentimentLabel {
   if (positive > negative) {
     return 'POS';
   } else if (negative > positive) {
@@ -31,10 +28,7 @@ export function calculateSentiment(
  * @returns Sentiment score in range [-1, 1]
  *          +1 = all positive, -1 = all negative, 0 = neutral
  */
-export function calculateSentimentScore(
-  positive: number,
-  negative: number
-): number {
+export function calculateSentimentScore(positive: number, negative: number): number {
   const total = positive + negative;
 
   if (total === 0) {
@@ -52,7 +46,10 @@ export function calculateSentimentScore(
  * @param negative - Count of negative words
  * @returns Object with label, score, and description
  */
-export function getSentimentInfo(positive: number, negative: number): {
+export function getSentimentInfo(
+  positive: number,
+  negative: number,
+): {
   label: SentimentLabel;
   score: number;
   description: string;

@@ -33,7 +33,7 @@ import type { DailySentiment } from '../types/sentiment.types.js';
  * @returns API Gateway response
  */
 export async function handleSentimentRequest(
-  event: APIGatewayProxyEventV2
+  event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayResponse> {
   try {
     // Parse and validate request body using Zod
@@ -126,7 +126,7 @@ export async function handleSentimentRequest(
  * @returns API Gateway response
  */
 export async function handleSentimentJobStatusRequest(
-  event: APIGatewayProxyEventV2
+  event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayResponse> {
   try {
     // Extract job ID from path parameters
@@ -172,7 +172,7 @@ export async function handleSentimentJobStatusRequest(
 export async function getSentimentResults(
   ticker: string,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
 ): Promise<{
   ticker: string;
   startDate: string | null;
@@ -224,32 +224,42 @@ export async function getSentimentResults(
   // Fetch latest prediction (if available)
   let predictions = undefined;
   try {
-      const latestAggregate = await DailySentimentAggregateRepository.getLatestDailyAggregate(ticker.toUpperCase());
-      if (latestAggregate && latestAggregate.nextDayDirection && latestAggregate.nextDayProbability !== undefined) {
-          predictions = {
-              nextDay: {
-                  direction: latestAggregate.nextDayDirection,
-                  probability: latestAggregate.nextDayProbability
+    const latestAggregate = await DailySentimentAggregateRepository.getLatestDailyAggregate(
+      ticker.toUpperCase(),
+    );
+    if (
+      latestAggregate &&
+      latestAggregate.nextDayDirection &&
+      latestAggregate.nextDayProbability !== undefined
+    ) {
+      predictions = {
+        nextDay: {
+          direction: latestAggregate.nextDayDirection,
+          probability: latestAggregate.nextDayProbability,
+        },
+        // Only include twoWeek if both direction and probability are defined
+        ...(latestAggregate.twoWeekDirection && latestAggregate.twoWeekProbability !== undefined
+          ? {
+              twoWeek: {
+                direction: latestAggregate.twoWeekDirection,
+                probability: latestAggregate.twoWeekProbability,
               },
-              // Only include twoWeek if both direction and probability are defined
-              ...(latestAggregate.twoWeekDirection && latestAggregate.twoWeekProbability !== undefined ? {
-                  twoWeek: {
-                      direction: latestAggregate.twoWeekDirection,
-                      probability: latestAggregate.twoWeekProbability
-                  }
-              } : {}),
-              // Only include oneMonth if both direction and probability are defined
-              ...(latestAggregate.oneMonthDirection && latestAggregate.oneMonthProbability !== undefined ? {
-                  oneMonth: {
-                      direction: latestAggregate.oneMonthDirection,
-                      probability: latestAggregate.oneMonthProbability
-                  }
-              } : {})
-          };
-      }
+            }
+          : {}),
+        // Only include oneMonth if both direction and probability are defined
+        ...(latestAggregate.oneMonthDirection && latestAggregate.oneMonthProbability !== undefined
+          ? {
+              oneMonth: {
+                direction: latestAggregate.oneMonthDirection,
+                probability: latestAggregate.oneMonthProbability,
+              },
+            }
+          : {}),
+      };
+    }
   } catch (predError) {
-      logger.error('Error fetching predictions', predError);
-      // Continue without predictions
+    logger.error('Error fetching predictions', predError);
+    // Continue without predictions
   }
 
   return {
@@ -258,7 +268,7 @@ export async function getSentimentResults(
     endDate: endDate || null,
     dailySentiment,
     cached: true,
-    predictions
+    predictions,
   };
 }
 
@@ -275,15 +285,15 @@ interface ArticleSentimentItem {
   url: string;
   publisher?: string;
   // Bag-of-words sentiment (legacy)
-  positive: number;  // Count of positive words found
-  negative: number;  // Count of negative words found
-  sentiment: 'POS' | 'NEG' | 'NEUT';  // Classification based on word counts
-  sentimentNumber: number;  // Normalized score from -1 to +1
+  positive: number; // Count of positive words found
+  negative: number; // Count of negative words found
+  sentiment: 'POS' | 'NEG' | 'NEUT'; // Classification based on word counts
+  sentimentNumber: number; // Normalized score from -1 to +1
   // ML-based sentiment (Phase 5)
-  eventType?: string;  // Article category: EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
-  aspectScore?: number;  // Aspect-based sentiment score (-1 to +1)
-  mlScore?: number;  // MlSentiment ML model score (-1 to +1) for material events
-  signalScore?: number;  // Signal score (0 to 1) from publisher authority, headline quality, etc.
+  eventType?: string; // Article category: EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
+  aspectScore?: number; // Aspect-based sentiment score (-1 to +1)
+  mlScore?: number; // MlSentiment ML model score (-1 to +1) for material events
+  signalScore?: number; // Signal score (0 to 1) from publisher authority, headline quality, etc.
 }
 
 /**
@@ -296,7 +306,7 @@ interface ArticleSentimentItem {
  * @returns API Gateway response
  */
 export async function handleArticleSentimentRequest(
-  event: APIGatewayProxyEventV2
+  event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayResponse> {
   try {
     // Parse query parameters
@@ -313,7 +323,10 @@ export async function handleArticleSentimentRequest(
     // Validate ticker format using centralized validation
     const ticker = validateTicker(rawTicker);
     if (!ticker) {
-      return errorResponse('Invalid ticker format. Must contain only letters, numbers, dots, and hyphens.', 400);
+      return errorResponse(
+        'Invalid ticker format. Must contain only letters, numbers, dots, and hyphens.',
+        400,
+      );
     }
 
     // Validate date format if provided
@@ -332,10 +345,13 @@ export async function handleArticleSentimentRequest(
       NewsCacheRepository.queryArticlesByTicker(ticker),
     ]);
 
-    logger.info('Fetched sentiments and articles', { sentiments: allSentiments.length, articles: allArticles.length });
+    logger.info('Fetched sentiments and articles', {
+      sentiments: allSentiments.length,
+      articles: allArticles.length,
+    });
 
     // Create a map of articleHash -> article for quick lookup
-    const articleMap = new Map(allArticles.map(a => [a.articleHash, a]));
+    const articleMap = new Map(allArticles.map((a) => [a.articleHash, a]));
 
     // Transform and filter sentiment data, deduplicating by hash
     const seenHashes = new Set<string>();
@@ -403,7 +419,7 @@ export async function handleArticleSentimentRequest(
  * @returns API Gateway response
  */
 export async function handleSentimentResultsRequest(
-  event: APIGatewayProxyEventV2
+  event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayResponse> {
   try {
     // Parse query parameters
@@ -420,7 +436,10 @@ export async function handleSentimentResultsRequest(
     // Validate ticker format using centralized validation
     const ticker = validateTicker(rawTicker);
     if (!ticker) {
-      return errorResponse('Invalid ticker format. Must contain only letters, numbers, dots, and hyphens.', 400);
+      return errorResponse(
+        'Invalid ticker format. Must contain only letters, numbers, dots, and hyphens.',
+        400,
+      );
     }
 
     // Validate date format if provided

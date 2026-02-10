@@ -112,11 +112,7 @@ function ToastItem({ config, onDismiss }: ToastItemProps) {
           <View style={styles.toastContent}>
             {/* Icon */}
             <View style={[styles.iconContainer, variantStyles.iconBg]}>
-              <Ionicons
-                name={IconComponent}
-                size={20}
-                color={variantStyles.iconColor}
-              />
+              <Ionicons name={IconComponent} size={20} color={variantStyles.iconColor} />
             </View>
 
             {/* Text */}
@@ -126,10 +122,7 @@ function ToastItem({ config, onDismiss }: ToastItemProps) {
                   {config.title}
                 </Text>
               )}
-              <Text
-                style={[styles.message, { color: variantStyles.textColor }]}
-                numberOfLines={2}
-              >
+              <Text style={[styles.message, { color: variantStyles.textColor }]} numberOfLines={2}>
                 {config.message}
               </Text>
             </View>
@@ -257,22 +250,25 @@ export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
   const [toasts, setToasts] = useState<ToastConfig[]>([]);
   const idCounter = useRef(0);
 
-  const show = useCallback((config: Omit<ToastConfig, 'id'>) => {
-    const id = `toast-${++idCounter.current}`;
-    const newToast: ToastConfig = {
-      ...config,
-      id,
-      duration: config.duration ?? 4000, // Default 4 seconds
-    };
+  const show = useCallback(
+    (config: Omit<ToastConfig, 'id'>) => {
+      const id = `toast-${++idCounter.current}`;
+      const newToast: ToastConfig = {
+        ...config,
+        id,
+        duration: config.duration ?? 4000, // Default 4 seconds
+      };
 
-    setToasts((prev) => {
-      const updated = [newToast, ...prev];
-      // Limit max visible toasts
-      return updated.slice(0, maxToasts);
-    });
+      setToasts((prev) => {
+        const updated = [newToast, ...prev];
+        // Limit max visible toasts
+        return updated.slice(0, maxToasts);
+      });
 
-    return id;
-  }, [maxToasts]);
+      return id;
+    },
+    [maxToasts],
+  );
 
   const hide = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -294,10 +290,7 @@ export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
             exiting={FadeOut}
             style={{ zIndex: toasts.length - index }}
           >
-            <ToastItem
-              config={toast}
-              onDismiss={() => hide(toast.id)}
-            />
+            <ToastItem config={toast} onDismiss={() => hide(toast.id)} />
           </Animated.View>
         ))}
       </View>

@@ -13,17 +13,17 @@
  * Entity type prefixes for partition keys
  */
 export const EntityPrefix = {
-  STOCK: 'STOCK',      // Stock price cache
-  NEWS: 'NEWS',        // News article cache
-  SENTIMENT: 'SENT',   // Sentiment analysis cache
-  JOB: 'JOB',          // Sentiment job status
-  HISTORICAL: 'HIST',  // Historical price data (ML)
-  ARTICLE: 'ARTICLE',  // Article analysis data (ML)
-  DAILY: 'DAILY',      // Daily sentiment aggregate
-  CIRCUIT: 'CIRCUIT',  // Circuit breaker state
+  STOCK: 'STOCK', // Stock price cache
+  NEWS: 'NEWS', // News article cache
+  SENTIMENT: 'SENT', // Sentiment analysis cache
+  JOB: 'JOB', // Sentiment job status
+  HISTORICAL: 'HIST', // Historical price data (ML)
+  ARTICLE: 'ARTICLE', // Article analysis data (ML)
+  DAILY: 'DAILY', // Daily sentiment aggregate
+  CIRCUIT: 'CIRCUIT', // Circuit breaker state
 } as const;
 
-export type EntityPrefixType = typeof EntityPrefix[keyof typeof EntityPrefix];
+export type EntityPrefixType = (typeof EntityPrefix)[keyof typeof EntityPrefix];
 
 /**
  * Sort key prefixes

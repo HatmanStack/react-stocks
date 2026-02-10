@@ -14,3 +14,4 @@ docs-data/
 backend/bin/sam
 **/__pycache__/
 .serena/
+localstack-data/

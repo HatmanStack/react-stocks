@@ -6,7 +6,12 @@ import { renderHook, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { useSentimentData, useArticleSentiment, useCurrentSentiment, useSentimentByDate } from '../useSentimentData';
+import {
+  useSentimentData,
+  useArticleSentiment,
+  useCurrentSentiment,
+  useSentimentByDate,
+} from '../useSentimentData';
 
 // Mock dependencies
 jest.mock('@/services/data/sentimentDataFetcher', () => ({
@@ -36,7 +41,9 @@ jest.mock('date-fns', () => ({
   subDays: () => new Date('2024-12-16'),
 }));
 
-const { fetchCombinedSentiment, fetchArticleSentiment } = jest.requireMock('@/services/data/sentimentDataFetcher');
+const { fetchCombinedSentiment, fetchArticleSentiment } = jest.requireMock(
+  '@/services/data/sentimentDataFetcher',
+);
 const { generateBrowserPredictions } = jest.requireMock('@/ml/prediction/browserPredictions');
 const CombinedWordRepository = jest.requireMock('@/database/repositories/combinedWord.repository');
 
@@ -101,9 +108,7 @@ describe('useSentimentData', () => {
 
     expect(generateBrowserPredictions).toHaveBeenCalled();
     // Latest record should have predictions attached
-    const latest = result.current.data!.reduce(
-      (a: any, b: any) => (a.date > b.date ? a : b)
-    );
+    const latest = result.current.data!.reduce((a: any, b: any) => (a.date > b.date ? a : b));
     expect(latest.nextDayDirection).toBe('up');
     expect(latest.nextDayProbability).toBe(0.7);
   });
@@ -130,10 +135,9 @@ describe('useSentimentData', () => {
   });
 
   it('respects enabled option', () => {
-    const { result } = renderHook(
-      () => useSentimentData('AAPL', { enabled: false }),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSentimentData('AAPL', { enabled: false }), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.fetchStatus).toBe('idle');
   });
 });
@@ -159,7 +163,9 @@ describe('useArticleSentiment', () => {
   it('uses custom days parameter', async () => {
     fetchArticleSentiment.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useArticleSentiment('AAPL', { days: 14 }), { wrapper: createWrapper() });
+    const { result } = renderHook(() => useArticleSentiment('AAPL', { days: 14 }), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(fetchArticleSentiment).toHaveBeenCalledWith('AAPL', '2025-01-15', '2025-01-15', 14);
@@ -203,10 +209,9 @@ describe('useSentimentByDate', () => {
     const mockData = [{ date: '2025-01-10', ticker: 'AAPL', sentimentNumber: 0.4 }];
     CombinedWordRepository.findByTickerAndDateRange.mockResolvedValue(mockData);
 
-    const { result } = renderHook(
-      () => useSentimentByDate('AAPL', '2025-01-10'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSentimentByDate('AAPL', '2025-01-10'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual(mockData[0]);
@@ -215,20 +220,18 @@ describe('useSentimentByDate', () => {
   it('returns null when no match', async () => {
     CombinedWordRepository.findByTickerAndDateRange.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => useSentimentByDate('AAPL', '2020-01-01'),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSentimentByDate('AAPL', '2020-01-01'), {
+      wrapper: createWrapper(),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBeNull();
   });
 
   it('is disabled without date', () => {
-    const { result } = renderHook(
-      () => useSentimentByDate('AAPL', ''),
-      { wrapper: createWrapper() }
-    );
+    const { result } = renderHook(() => useSentimentByDate('AAPL', ''), {
+      wrapper: createWrapper(),
+    });
     expect(result.current.fetchStatus).toBe('idle');
   });
 });

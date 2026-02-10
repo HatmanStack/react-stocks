@@ -23,7 +23,9 @@ interface DirectInvocationEvent {
 
 /** Type guard for direct invocation events */
 function isDirectInvocation(event: unknown): event is DirectInvocationEvent {
-  return typeof event === 'object' && event !== null && 'ticker' in event && !('requestContext' in event);
+  return (
+    typeof event === 'object' && event !== null && 'ticker' in event && !('requestContext' in event)
+  );
 }
 
 /**
@@ -33,11 +35,13 @@ function isDirectInvocation(event: unknown): event is DirectInvocationEvent {
  * @returns API Gateway response
  */
 export async function handler(
-  event: APIGatewayProxyEventV2 | DirectInvocationEvent
+  event: APIGatewayProxyEventV2 | DirectInvocationEvent,
 ): Promise<APIGatewayResponse> {
   // Handle direct Lambda invocation (e.g., prediction trigger from sentiment handler)
   if (isDirectInvocation(event)) {
-    logger.info('Direct invocation detected, routing to prediction handler', { ticker: event.ticker });
+    logger.info('Direct invocation detected, routing to prediction handler', {
+      ticker: event.ticker,
+    });
     const { predictionHandler } = await import('./handlers/prediction.handler');
     return predictionHandler(event);
   }
@@ -142,10 +146,14 @@ export async function handler(
           // Check if it's a job status request (/sentiment/job/:jobId)
           if (path.startsWith('/sentiment/job/')) {
             if (method !== 'GET') {
-              response = errorResponse(`Method ${method} not allowed for /sentiment/job/:jobId`, 405);
+              response = errorResponse(
+                `Method ${method} not allowed for /sentiment/job/:jobId`,
+                405,
+              );
               break;
             }
-            const { handleSentimentJobStatusRequest } = await import('./handlers/sentiment.handler');
+            const { handleSentimentJobStatusRequest } =
+              await import('./handlers/sentiment.handler');
             response = await handleSentimentJobStatusRequest(event);
             break;
           }

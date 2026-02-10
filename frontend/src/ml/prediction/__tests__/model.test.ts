@@ -159,7 +159,10 @@ describe('LogisticRegression', () => {
     it('should initialize weights to zero', () => {
       const model = new LogisticRegression();
 
-      const X = [[1, 2], [3, 4]];
+      const X = [
+        [1, 2],
+        [3, 4],
+      ];
       const y = [0, 1];
 
       // Before fitting, weights should be null
@@ -268,7 +271,11 @@ describe('LogisticRegression', () => {
     it('should accept regularization parameter', () => {
       const model = new LogisticRegression();
 
-      const X = [[1, 2], [2, 3], [3, 4]];
+      const X = [
+        [1, 2],
+        [2, 3],
+        [3, 4],
+      ];
       const y = [0, 1, 1];
 
       // Should not throw with regularization
@@ -276,12 +283,17 @@ describe('LogisticRegression', () => {
         model.fit(X, y, {
           regularization: 0.5,
           maxIterations: 100,
-        })
+        }),
       ).not.toThrow();
     });
 
     it('should train with different regularization strengths', () => {
-      const X = [[1, 2], [2, 3], [3, 4], [4, 5]];
+      const X = [
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [4, 5],
+      ];
       const y = [0, 0, 1, 1];
 
       const model1 = new LogisticRegression();
@@ -379,7 +391,12 @@ describe('LogisticRegression', () => {
     it('should train successfully with Adam optimizer', () => {
       const model = new LogisticRegression();
 
-      const X = [[1, 2], [2, 3], [3, 4], [4, 5]];
+      const X = [
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [4, 5],
+      ];
       const y = [0, 0, 1, 1];
 
       model.fit(X, y, {
@@ -422,8 +439,14 @@ describe('LogisticRegression', () => {
     it('should converge on typical problems with both optimizers', () => {
       // Create a slightly more complex dataset
       const X = [
-        [0.1, 0.2], [0.2, 0.3], [0.3, 0.4], [0.4, 0.5],
-        [0.6, 0.5], [0.7, 0.6], [0.8, 0.7], [0.9, 0.8],
+        [0.1, 0.2],
+        [0.2, 0.3],
+        [0.3, 0.4],
+        [0.4, 0.5],
+        [0.6, 0.5],
+        [0.7, 0.6],
+        [0.8, 0.7],
+        [0.9, 0.8],
       ];
       const y = [0, 0, 0, 0, 1, 1, 1, 1];
 

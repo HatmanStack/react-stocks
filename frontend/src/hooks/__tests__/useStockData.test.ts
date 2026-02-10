@@ -58,15 +58,35 @@ describe('useStockData', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(StockRepository.findByTickerAndDateRange).toHaveBeenCalledWith('AAPL', '2025-01-15', '2025-01-15');
+    expect(StockRepository.findByTickerAndDateRange).toHaveBeenCalledWith(
+      'AAPL',
+      '2025-01-15',
+      '2025-01-15',
+    );
     expect(result.current.data).toEqual(sufficientData);
     expect(syncStockData).not.toHaveBeenCalled();
   });
 
   it('triggers sync when insufficient data', async () => {
     const dataAfterSync = [
-      { ticker: 'AAPL', date: '2025-01-10', open: 150, high: 155, low: 149, close: 153, volume: 1000000 },
-      { ticker: 'AAPL', date: '2025-01-11', open: 153, high: 157, low: 152, close: 156, volume: 1100000 },
+      {
+        ticker: 'AAPL',
+        date: '2025-01-10',
+        open: 150,
+        high: 155,
+        low: 149,
+        close: 153,
+        volume: 1000000,
+      },
+      {
+        ticker: 'AAPL',
+        date: '2025-01-11',
+        open: 153,
+        high: 157,
+        low: 152,
+        close: 156,
+        volume: 1100000,
+      },
     ];
     // First call returns empty (triggers sync), second call returns data
     StockRepository.findByTickerAndDateRange
@@ -94,7 +114,15 @@ describe('useLatestStockPrice', () => {
   });
 
   it('returns latest record', async () => {
-    const mockLatest = { ticker: 'AAPL', date: '2025-01-15', open: 150, high: 155, low: 149, close: 153, volume: 1000000 };
+    const mockLatest = {
+      ticker: 'AAPL',
+      date: '2025-01-15',
+      open: 150,
+      high: 155,
+      low: 149,
+      close: 153,
+      volume: 1000000,
+    };
     StockRepository.findLatestByTicker.mockResolvedValue(mockLatest);
 
     const { result } = renderHook(() => useLatestStockPrice('AAPL'), { wrapper: createWrapper() });
@@ -107,7 +135,15 @@ describe('useLatestStockPrice', () => {
   });
 
   it('triggers sync when no data exists', async () => {
-    const mockLatestAfterSync = { ticker: 'AAPL', date: '2025-01-15', open: 150, high: 155, low: 149, close: 153, volume: 1000000 };
+    const mockLatestAfterSync = {
+      ticker: 'AAPL',
+      date: '2025-01-15',
+      open: 150,
+      high: 155,
+      low: 149,
+      close: 153,
+      volume: 1000000,
+    };
     // First call returns null (triggers sync), second call returns data
     StockRepository.findLatestByTicker
       .mockResolvedValueOnce(null)

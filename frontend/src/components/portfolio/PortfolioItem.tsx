@@ -40,7 +40,7 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
       return { value: 0, percentage: 0 };
     }
     const value = latestPrice.close - latestPrice.open;
-    const percentage = latestPrice.open !== 0 ? (value / latestPrice.open) : 0;
+    const percentage = latestPrice.open !== 0 ? value / latestPrice.open : 0;
     return { value, percentage };
   }, [latestPrice]);
 
@@ -51,7 +51,7 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
     // Create a copy before sorting to avoid mutating the original array
     return [...stockHistory]
       .sort((a, b) => a.date.localeCompare(b.date))
-      .map(item => ({
+      .map((item) => ({
         x: new Date(item.date),
         y: item.close,
       }));
@@ -62,9 +62,18 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
 
   // Get prediction display based on Phase 2 format
   const renderPrediction = () => {
-    if (!item.nextDayDirection || item.nextDayProbability === undefined || item.nextDayProbability === null) {
+    if (
+      !item.nextDayDirection ||
+      item.nextDayProbability === undefined ||
+      item.nextDayProbability === null
+    ) {
       return (
-        <Text style={[styles.predictionText, { color: theme.colors.onSurfaceVariant, fontSize: fontSize.caption }]}>
+        <Text
+          style={[
+            styles.predictionText,
+            { color: theme.colors.onSurfaceVariant, fontSize: fontSize.caption },
+          ]}
+        >
           —
         </Text>
       );
@@ -75,10 +84,12 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
     const probability = formatPercentage(item.nextDayProbability);
 
     return (
-        <View style={styles.predictionContainer}>
-            <Text style={[styles.predictionArrow, { color, fontSize: fontSize.caption }]}>{arrow}</Text>
-            <Text style={[styles.predictionText, { color, fontSize: fontSize.caption }]}>{probability}</Text>
-        </View>
+      <View style={styles.predictionContainer}>
+        <Text style={[styles.predictionArrow, { color, fontSize: fontSize.caption }]}>{arrow}</Text>
+        <Text style={[styles.predictionText, { color, fontSize: fontSize.caption }]}>
+          {probability}
+        </Text>
+      </View>
     );
   };
 
@@ -123,122 +134,132 @@ export function PortfolioItem({ item, onPress, onDelete }: PortfolioItemProps) {
           accessibilityHint="Double tap to view stock details. Swipe left to delete"
           accessibilityRole="button"
         >
-      <View style={{ padding: cardPadding }}>
-          {/* Line 1: Ticker + Company Name + Delete Button */}
-          <View style={styles.headerRow}>
-            <View style={styles.headerLeft}>
-              <Text
-                style={[
-                  styles.ticker,
-                  {
-                    color: theme.colors.primary,
-                    fontSize: fontSize.title + 2,
-                    fontFamily: theme.custom.displayFonts?.display?.fontFamily,
-                  },
-                ]}
-                allowFontScaling={true}
-              >
-                {item.ticker}
-              </Text>
-              {item.name && (
+          <View style={{ padding: cardPadding }}>
+            {/* Line 1: Ticker + Company Name + Delete Button */}
+            <View style={styles.headerRow}>
+              <View style={styles.headerLeft}>
                 <Text
                   style={[
-                    styles.name,
-                    { color: theme.colors.onSurfaceVariant, fontSize: fontSize.subtitle },
+                    styles.ticker,
+                    {
+                      color: theme.colors.primary,
+                      fontSize: fontSize.title + 2,
+                      fontFamily: theme.custom.displayFonts?.display?.fontFamily,
+                    },
                   ]}
-                  numberOfLines={1}
                   allowFontScaling={true}
                 >
-                  {item.name}
+                  {item.ticker}
                 </Text>
-              )}
+                {item.name && (
+                  <Text
+                    style={[
+                      styles.name,
+                      { color: theme.colors.onSurfaceVariant, fontSize: fontSize.subtitle },
+                    ]}
+                    numberOfLines={1}
+                    allowFontScaling={true}
+                  >
+                    {item.name}
+                  </Text>
+                )}
+              </View>
+              <IconButton
+                icon="close-circle"
+                size={18}
+                iconColor={theme.colors.onSurfaceVariant}
+                onPress={onDelete}
+                style={styles.deleteButton}
+                accessibilityLabel={`Remove ${item.ticker} from portfolio`}
+                accessibilityHint="Double tap to remove this stock from your portfolio"
+                accessibilityRole="button"
+              />
             </View>
-            <IconButton
-              icon="close-circle"
-              size={18}
-              iconColor={theme.colors.onSurfaceVariant}
-              onPress={onDelete}
-              style={styles.deleteButton}
-              accessibilityLabel={`Remove ${item.ticker} from portfolio`}
-              accessibilityHint="Double tap to remove this stock from your portfolio"
-              accessibilityRole="button"
-            />
-          </View>
 
-          {/* Line 2: Current Price + Change% + Mini Chart Placeholder */}
-          <View style={styles.priceRow}>
-            <View style={styles.priceInfo}>
-              {isLoading ? (
-                <MonoText
-                  variant="price"
-                  style={[
-                    styles.price,
-                    { color: theme.colors.onSurface, fontSize: fontSize.title },
-                  ]}
-                  allowFontScaling={true}
-                >
-                  --
-                </MonoText>
-              ) : (
-                <AnimatedNumber
-                  value={latestPrice?.close || 0}
-                  formatter={(val) => formatPrice(val)}
-                  variant="price"
-                  style={[
-                    styles.price,
-                    { color: theme.colors.onSurface, fontSize: fontSize.title },
-                  ]}
-                  allowFontScaling={true}
-                />
-              )}
-
-              {!isLoading && (
-                <View style={styles.changeContainer}>
-                  <Ionicons
-                    name={isPositive ? 'arrow-up' : isNegative ? 'arrow-down' : 'remove'}
-                    size={12}
-                    color={
-                      isPositive
-                        ? theme.colors.positive
-                        : isNegative
-                        ? theme.colors.negative
-                        : theme.colors.onSurfaceVariant
-                    }
-                    style={styles.changeIcon}
-                  />
+            {/* Line 2: Current Price + Change% + Mini Chart Placeholder */}
+            <View style={styles.priceRow}>
+              <View style={styles.priceInfo}>
+                {isLoading ? (
+                  <MonoText
+                    variant="price"
+                    style={[
+                      styles.price,
+                      { color: theme.colors.onSurface, fontSize: fontSize.title },
+                    ]}
+                    allowFontScaling={true}
+                  >
+                    --
+                  </MonoText>
+                ) : (
                   <AnimatedNumber
-                    value={priceChange.percentage}
-                    formatter={(val) => formatPercentage(val)}
-                    variant="percentage"
-                    positive={isPositive}
-                    negative={isNegative}
-                    style={[styles.change, { fontSize: fontSize.subtitle }]}
+                    value={latestPrice?.close || 0}
+                    formatter={(val) => formatPrice(val)}
+                    variant="price"
+                    style={[
+                      styles.price,
+                      { color: theme.colors.onSurface, fontSize: fontSize.title },
+                    ]}
                     allowFontScaling={true}
                   />
+                )}
+
+                {!isLoading && (
+                  <View style={styles.changeContainer}>
+                    <Ionicons
+                      name={isPositive ? 'arrow-up' : isNegative ? 'arrow-down' : 'remove'}
+                      size={12}
+                      color={
+                        isPositive
+                          ? theme.colors.positive
+                          : isNegative
+                            ? theme.colors.negative
+                            : theme.colors.onSurfaceVariant
+                      }
+                      style={styles.changeIcon}
+                    />
+                    <AnimatedNumber
+                      value={priceChange.percentage}
+                      formatter={(val) => formatPercentage(val)}
+                      variant="percentage"
+                      positive={isPositive}
+                      negative={isNegative}
+                      style={[styles.change, { fontSize: fontSize.subtitle }]}
+                      allowFontScaling={true}
+                    />
+                  </View>
+                )}
+              </View>
+
+              {/* Mini chart - larger for better visibility */}
+              {chartData.length > 0 ? (
+                <MiniChart data={chartData} width={80} height={36} positive={isPositive} />
+              ) : (
+                <View
+                  style={[
+                    styles.chartPlaceholder,
+                    { backgroundColor: `${theme.colors.surfaceVariant}19` },
+                  ]}
+                >
+                  <Text style={[styles.chartText, { color: theme.colors.onSurfaceVariant }]}>
+                    --
+                  </Text>
                 </View>
               )}
             </View>
 
-            {/* Mini chart - larger for better visibility */}
-            {chartData.length > 0 ? (
-              <MiniChart data={chartData} width={80} height={36} positive={isPositive} />
-            ) : (
-              <View style={[styles.chartPlaceholder, { backgroundColor: `${theme.colors.surfaceVariant}19` }]}>
-                <Text style={[styles.chartText, { color: theme.colors.onSurfaceVariant }]}>
-                  --
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Line 3: Prediction Display (Phase 2) */}
-          <View style={styles.predictionRow}>
-             <Text style={[styles.predictionLabel, { color: theme.colors.onSurfaceVariant, fontSize: fontSize.caption }]}>
+            {/* Line 3: Prediction Display (Phase 2) */}
+            <View style={styles.predictionRow}>
+              <Text
+                style={[
+                  styles.predictionLabel,
+                  { color: theme.colors.onSurfaceVariant, fontSize: fontSize.caption },
+                ]}
+              >
                 Pred (1D):
-             </Text>
-             {renderPrediction()}
+              </Text>
+              {renderPrediction()}
+            </View>
           </View>
-        </View>
         </AnimatedCard>
       </Swipeable>
     </Animated.View>
@@ -324,7 +345,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
-    gap: 4
+    gap: 4,
   },
   predictionLabel: {
     fontWeight: '400',
@@ -332,12 +353,12 @@ const styles = StyleSheet.create({
   predictionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2
+    gap: 2,
   },
   predictionArrow: {
     fontWeight: '700',
   },
   predictionText: {
     fontWeight: '600',
-  }
+  },
 });

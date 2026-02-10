@@ -100,16 +100,7 @@ describe('Cross-Validation', () => {
 
   describe('crossValidate', () => {
     it('should return scores for each fold', () => {
-      const X = [
-        [-2],
-        [-1],
-        [1],
-        [2],
-        [-2.1],
-        [-1.1],
-        [1.1],
-        [2.1],
-      ];
+      const X = [[-2], [-1], [1], [2], [-2.1], [-1.1], [1.1], [2.1]];
       const y = [0, 0, 1, 1, 0, 0, 1, 1];
 
       const results = crossValidate(X, y, 4);
@@ -124,8 +115,7 @@ describe('Cross-Validation', () => {
 
       const results = crossValidate(X, y, 2);
 
-      const expectedMean =
-        results.scores.reduce((a, b) => a + b, 0) / results.scores.length;
+      const expectedMean = results.scores.reduce((a, b) => a + b, 0) / results.scores.length;
       expect(results.meanScore).toBeCloseTo(expectedMean, 6);
     });
 
@@ -137,24 +127,14 @@ describe('Cross-Validation', () => {
 
       const mean = results.meanScore;
       const variance =
-        results.scores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) /
-        results.scores.length;
+        results.scores.reduce((sum, s) => sum + Math.pow(s - mean, 2), 0) / results.scores.length;
       const expectedStd = Math.sqrt(variance);
 
       expect(results.stdScore).toBeCloseTo(expectedStd, 6);
     });
 
     it('should work with linearly separable data', () => {
-      const X = [
-        [-2],
-        [-1],
-        [1],
-        [2],
-        [-2.5],
-        [-1.5],
-        [1.5],
-        [2.5],
-      ];
+      const X = [[-2], [-1], [1], [2], [-2.5], [-1.5], [1.5], [2.5]];
       const y = [0, 0, 1, 1, 0, 0, 1, 1];
 
       const results = crossValidate(X, y, 4);
@@ -184,16 +164,7 @@ describe('Cross-Validation', () => {
     it('should perform CV and train final model', () => {
       const model = new LogisticRegressionCV();
 
-      const X = [
-        [-2],
-        [-1],
-        [1],
-        [2],
-        [-2.1],
-        [-1.1],
-        [1.1],
-        [2.1],
-      ];
+      const X = [[-2], [-1], [1], [2], [-2.1], [-1.1], [1.1], [2.1]];
       const y = [0, 0, 1, 1, 0, 0, 1, 1];
 
       model.fitCV(X, y, 4);
@@ -252,16 +223,7 @@ describe('Cross-Validation', () => {
     it('should train final model on all data', () => {
       const model = new LogisticRegressionCV();
 
-      const X = [
-        [-2],
-        [-1],
-        [1],
-        [2],
-        [-2.5],
-        [-1.5],
-        [1.5],
-        [2.5],
-      ];
+      const X = [[-2], [-1], [1], [2], [-2.5], [-1.5], [1.5], [2.5]];
       const y = [0, 0, 1, 1, 0, 0, 1, 1];
 
       model.fitCV(X, y, 4);

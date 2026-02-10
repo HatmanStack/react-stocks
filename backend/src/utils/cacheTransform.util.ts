@@ -18,7 +18,7 @@ import { generateArticleHash } from './hash.util';
 export function transformFinnhubToCache(
   ticker: string,
   finnhubArticle: FinnhubNewsArticle,
-  precomputedHash?: string
+  precomputedHash?: string,
 ): Omit<NewsCacheItem, 'ttl'> {
   // Convert Unix timestamp to ISO date string
   const date = new Date(finnhubArticle.datetime * 1000).toISOString().split('T')[0];

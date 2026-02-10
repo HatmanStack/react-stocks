@@ -44,12 +44,9 @@ export const createTestWrapper = () => {
   // Return wrapper component
   const TestWrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={theme}>
-        {children}
-      </PaperProvider>
+      <PaperProvider theme={theme}>{children}</PaperProvider>
     </QueryClientProvider>
   );
   TestWrapper.displayName = 'TestWrapper';
   return TestWrapper;
 };
-

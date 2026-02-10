@@ -24,42 +24,42 @@
  */
 const PUBLISHER_SCORES: Record<string, number> = {
   // Tier 1: Major financial news (1.0 - 0.9)
-  'Reuters': 1.0,
-  'Bloomberg': 1.0,
+  Reuters: 1.0,
+  Bloomberg: 1.0,
   'Wall Street Journal': 0.95,
-  'WSJ': 0.95,
+  WSJ: 0.95,
   'Financial Times': 0.95,
   'The Economist': 0.9,
   'Associated Press': 0.9,
-  'AP': 0.9,
+  AP: 0.9,
 
   // Tier 2: Established business news (0.85 - 0.75)
-  'CNBC': 0.85,
-  'MarketWatch': 0.8,
+  CNBC: 0.85,
+  MarketWatch: 0.8,
   "Barron's": 0.8,
   "Investor's Business Daily": 0.8,
-  'IBD': 0.8,
-  'Forbes': 0.75,
-  'Fortune': 0.75,
+  IBD: 0.8,
+  Forbes: 0.75,
+  Fortune: 0.75,
 
   // Tier 3: General financial coverage (0.7 - 0.6)
   'Yahoo Finance': 0.7,
-  'Yahoo': 0.7,
+  Yahoo: 0.7,
   'Business Insider': 0.65,
-  'TheStreet': 0.65,
+  TheStreet: 0.65,
   'Motley Fool': 0.6,
   'The Motley Fool': 0.6,
-  'Kiplinger': 0.6,
+  Kiplinger: 0.6,
 
   // Tier 4: Aggregators/User content (0.5 - 0.4)
   'Seeking Alpha': 0.5,
-  'Benzinga': 0.5,
-  'Zacks': 0.5,
+  Benzinga: 0.5,
+  Zacks: 0.5,
   'Zacks Investment Research': 0.5,
   'PR Newswire': 0.45,
   'Business Wire': 0.45,
-  'GlobeNewswire': 0.45,
-  'Accesswire': 0.4,
+  GlobeNewswire: 0.45,
+  Accesswire: 0.4,
 };
 
 /**
@@ -194,11 +194,11 @@ export function getDepthScore(body?: string): number {
 
   const length = body.length;
 
-  if (length < 50) return 0.2;    // Bare minimum
-  if (length < 100) return 0.4;   // One-liner
-  if (length < 200) return 0.6;   // Brief summary
-  if (length < 500) return 0.8;   // Decent summary
-  return 1.0;                     // Full article
+  if (length < 50) return 0.2; // Bare minimum
+  if (length < 100) return 0.4; // One-liner
+  if (length < 200) return 0.6; // Brief summary
+  if (length < 500) return 0.8; // Decent summary
+  return 1.0; // Full article
 }
 
 /**
@@ -207,9 +207,10 @@ export function getDepthScore(body?: string): number {
  * @param article - Article metadata (publisher, title, body)
  * @returns Signal score (0-1) and breakdown
  */
-export function calculateSignalScore(
-  article: ArticleMetadata,
-): { score: number; breakdown: SignalBreakdown } {
+export function calculateSignalScore(article: ArticleMetadata): {
+  score: number;
+  breakdown: SignalBreakdown;
+} {
   const publisherScore = getPublisherScore(article.publisher);
   const headlineScore = getHeadlineScore(article.title);
   const depthScore = getDepthScore(article.body);

@@ -100,11 +100,11 @@ export function getWordsByLetter(letter: string, sentimentType: SentimentType): 
 export function getVocabularyStats() {
   const positiveCount = Object.values(vocabularyData.positive).reduce(
     (sum, words) => sum + words.length,
-    0
+    0,
   );
   const negativeCount = Object.values(vocabularyData.negative).reduce(
     (sum, words) => sum + words.length,
-    0
+    0,
   );
 
   return {

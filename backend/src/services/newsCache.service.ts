@@ -40,7 +40,7 @@ export interface NewsCacheResult {
 async function filterNewArticles(
   ticker: string,
   apiArticles: FinnhubNewsArticle[],
-  skipCacheCheck = false
+  skipCacheCheck = false,
 ): Promise<{
   newArticles: { article: FinnhubNewsArticle; hash: string }[];
   duplicateCount: number;
@@ -55,16 +55,16 @@ async function filterNewArticles(
   }));
 
   if (skipCacheCheck) {
-    logger.info(`Skipping cache check for fresh stock ${ticker}`, { articleCount: articlesWithHashes.length });
+    logger.info(`Skipping cache check for fresh stock ${ticker}`, {
+      articleCount: articlesWithHashes.length,
+    });
     return { newArticles: articlesWithHashes, duplicateCount: 0 };
   }
 
   const hashes = articlesWithHashes.map((a) => a.hash);
   const existingHashes = await batchCheckExistence(ticker, hashes);
 
-  const newArticles = articlesWithHashes.filter(
-    ({ hash }) => !existingHashes.has(hash)
-  );
+  const newArticles = articlesWithHashes.filter(({ hash }) => !existingHashes.has(hash));
   const duplicateCount = articlesWithHashes.length - newArticles.length;
 
   return { newArticles, duplicateCount };
@@ -79,7 +79,7 @@ export async function fetchNewsWithCache(
   from: string,
   to: string,
   apiKey: string,
-  alphaVantageKey?: string
+  alphaVantageKey?: string,
 ): Promise<NewsCacheResult> {
   try {
     // Tier 1: Check DynamoDB cache
@@ -94,12 +94,15 @@ export async function fetchNewsWithCache(
     // Calculate date range coverage
     const fromDate = new Date(from);
     const toDate = new Date(to);
-    const totalDays = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const totalDays =
+      Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-    const daysWithArticles = new Set(cachedInRange.map(item => item.article.date)).size;
+    const daysWithArticles = new Set(cachedInRange.map((item) => item.article.date)).size;
     const coverageRatio = daysWithArticles / totalDays;
 
-    logger.info(`Coverage: ${daysWithArticles}/${totalDays} days`, { coveragePercent: (coverageRatio * 100).toFixed(1) });
+    logger.info(`Coverage: ${daysWithArticles}/${totalDays} days`, {
+      coveragePercent: (coverageRatio * 100).toFixed(1),
+    });
 
     // Tier 2: Adaptive coverage threshold
     let hasGoodCoverage: boolean;
@@ -118,18 +121,21 @@ export async function fetchNewsWithCache(
     }
 
     if (hasGoodCoverage) {
-      logger.info(`Cache hit for ${ticker}`, { articleCount: cachedInRange.length, coveragePercent: (coverageRatio * 100).toFixed(1) });
+      logger.info(`Cache hit for ${ticker}`, {
+        articleCount: cachedInRange.length,
+        coveragePercent: (coverageRatio * 100).toFixed(1),
+      });
 
       logMetrics(
         [
           { name: 'CachedArticleCount', value: cachedInRange.length, unit: MetricUnit.Count },
           { name: 'ApiCallCount', value: 0, unit: MetricUnit.Count },
         ],
-        { Endpoint: 'news', Ticker: ticker, CacheHit: 'true' }
+        { Endpoint: 'news', Ticker: ticker, CacheHit: 'true' },
       );
 
       const sortedCached = cachedInRange.sort((a, b) =>
-        b.article.date.localeCompare(a.article.date)
+        b.article.date.localeCompare(a.article.date),
       );
 
       return {
@@ -151,16 +157,22 @@ export async function fetchNewsWithCache(
       apiArticles.map((a) => {
         const date = new Date(a.datetime * 1000);
         return date.toISOString().split('T')[0];
-      })
+      }),
     ).size;
 
-    logger.info(`Finnhub returned ${apiArticles.length} articles`, { uniqueDays: finnhubUniqueDays });
+    logger.info(`Finnhub returned ${apiArticles.length} articles`, {
+      uniqueDays: finnhubUniqueDays,
+    });
 
-    const totalCachedDays = new Set(cachedItems.map(item => item.article.date)).size;
-    const needsHistoricalData = totalCachedDays < MIN_DAYS_FOR_PREDICTIONS && finnhubUniqueDays < MIN_DAYS_FOR_PREDICTIONS;
+    const totalCachedDays = new Set(cachedItems.map((item) => item.article.date)).size;
+    const needsHistoricalData =
+      totalCachedDays < MIN_DAYS_FOR_PREDICTIONS && finnhubUniqueDays < MIN_DAYS_FOR_PREDICTIONS;
 
     if (needsHistoricalData && alphaVantageKey) {
-      logger.info('Insufficient historical data', { cacheDays: totalCachedDays, finnhubDays: finnhubUniqueDays });
+      logger.info('Insufficient historical data', {
+        cacheDays: totalCachedDays,
+        finnhubDays: finnhubUniqueDays,
+      });
 
       try {
         const today = new Date();
@@ -170,20 +182,27 @@ export async function fetchNewsWithCache(
         const alphaTo = today.toISOString().split('T')[0];
 
         apiCallCount++;
-        const alphaArticles = await fetchAlphaVantageNews(ticker, alphaFrom, alphaTo, alphaVantageKey);
+        const alphaArticles = await fetchAlphaVantageNews(
+          ticker,
+          alphaFrom,
+          alphaTo,
+          alphaVantageKey,
+        );
         const alphaUniqueDays = new Set(
           alphaArticles.map((a) => {
             const date = new Date(a.datetime * 1000);
             return date.toISOString().split('T')[0];
-          })
+          }),
         ).size;
 
-        logger.info(`Alpha Vantage returned ${alphaArticles.length} articles`, { uniqueDays: alphaUniqueDays });
+        logger.info(`Alpha Vantage returned ${alphaArticles.length} articles`, {
+          uniqueDays: alphaUniqueDays,
+        });
 
         if (alphaArticles.length > 0) {
           try {
             const cacheItems = alphaArticles.map((article) =>
-              transformFinnhubToCache(ticker, article)
+              transformFinnhubToCache(ticker, article),
             );
             await batchPutArticles(cacheItems);
           } catch (cacheError) {
@@ -196,7 +215,7 @@ export async function fetchNewsWithCache(
           });
 
           const alphaInRangeDays = new Set(
-            alphaInRange.map((a) => new Date(a.datetime * 1000).toISOString().split('T')[0])
+            alphaInRange.map((a) => new Date(a.datetime * 1000).toISOString().split('T')[0]),
           ).size;
 
           if (alphaInRangeDays > finnhubUniqueDays) {
@@ -205,15 +224,23 @@ export async function fetchNewsWithCache(
           }
         }
       } catch (alphaError) {
-        logger.warn('Alpha Vantage fallback failed', { error: alphaError instanceof Error ? alphaError.message : String(alphaError) });
+        logger.warn('Alpha Vantage fallback failed', {
+          error: alphaError instanceof Error ? alphaError.message : String(alphaError),
+        });
       }
     } else if (alphaVantageKey && totalCachedDays >= MIN_DAYS_FOR_PREDICTIONS) {
-      logger.info('Sufficient historical data in cache, skipping Alpha Vantage', { cacheDays: totalCachedDays });
+      logger.info('Sufficient historical data in cache, skipping Alpha Vantage', {
+        cacheDays: totalCachedDays,
+      });
     }
 
     // Filter and cache new articles
     const isFreshStock = cachedItems.length === 0;
-    const { newArticles, duplicateCount } = await filterNewArticles(ticker, apiArticles, isFreshStock);
+    const { newArticles, duplicateCount } = await filterNewArticles(
+      ticker,
+      apiArticles,
+      isFreshStock,
+    );
 
     logMetrics(
       [
@@ -221,13 +248,13 @@ export async function fetchNewsWithCache(
         { name: 'DuplicateArticleCount', value: duplicateCount, unit: MetricUnit.Count },
         { name: 'ApiCallCount', value: apiCallCount, unit: MetricUnit.Count },
       ],
-      { Endpoint: 'news', Ticker: ticker, CacheHit: 'false' }
+      { Endpoint: 'news', Ticker: ticker, CacheHit: 'false' },
     );
 
     if (newArticles.length > 0) {
       try {
         const cacheItems = newArticles.map(({ article, hash }) =>
-          transformFinnhubToCache(ticker, article, hash)
+          transformFinnhubToCache(ticker, article, hash),
         );
         await batchPutArticles(cacheItems);
       } catch (cacheError) {
@@ -243,7 +270,9 @@ export async function fetchNewsWithCache(
       source: newsSource,
     };
   } catch (error) {
-    logger.warn('Cache check failed, falling back to API', { error: error instanceof Error ? error.message : String(error) });
+    logger.warn('Cache check failed, falling back to API', {
+      error: error instanceof Error ? error.message : String(error),
+    });
 
     const apiArticles = await fetchCompanyNews(ticker, from, to, apiKey);
 

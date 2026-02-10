@@ -125,7 +125,7 @@ export function GlowingCard({
   const composedGesture = Gesture.Simultaneous(
     panGesture,
     tapGesture,
-    Platform.OS === 'web' ? hoverGesture : Gesture.Manual()
+    Platform.OS === 'web' ? hoverGesture : Gesture.Manual(),
   );
 
   // Card scale and shadow animation
@@ -145,7 +145,7 @@ export function GlowingCard({
       isHovering.value,
       [0, 1],
       [0, GLOW_OPACITY_MAX * glowIntensity],
-      Extrapolation.CLAMP
+      Extrapolation.CLAMP,
     );
 
     return {
@@ -197,10 +197,7 @@ export function GlowingCard({
 
         {/* Card content */}
         {/* @ts-expect-error - react-native-paper Card types overly restrictive */}
-        <Card
-          {...cardProps}
-          style={[styles.card, { overflow: 'hidden' }]}
-        >
+        <Card {...cardProps} style={[styles.card, { overflow: 'hidden' }]}>
           {children}
         </Card>
       </Animated.View>

@@ -107,9 +107,7 @@ export class SentimentAnalyzer {
    */
   private analyzeSentence(sentence: string): SentenceResult {
     // Use financial lexicon if enabled
-    const language = this.config.financialLexiconEnabled
-      ? 'en-financial'
-      : undefined;
+    const language = this.config.financialLexiconEnabled ? 'en-financial' : undefined;
 
     const result = this.sentiment.analyze(sentence, { language });
 
@@ -141,10 +139,7 @@ export class SentimentAnalyzer {
    * @param hash - Article hash identifier
    * @returns Aggregated sentiment result
    */
-  public aggregateResults(
-    results: SentenceResult[],
-    hash: string
-  ): SentimentResult {
+  public aggregateResults(results: SentenceResult[], hash: string): SentimentResult {
     // Initialize statistics for each sentiment category
     const stats: Record<'POS' | 'NEUT' | 'NEG', SentimentStats> = {
       POS: { count: 0, totalConfidence: 0, confidences: [], averageConfidence: 0 },
@@ -171,18 +166,9 @@ export class SentimentAnalyzer {
     // Format as Python service response
     // Arrays of [count, confidence] as strings
     return {
-      positive: [
-        stats.POS.count.toString(),
-        stats.POS.averageConfidence.toFixed(2),
-      ],
-      neutral: [
-        stats.NEUT.count.toString(),
-        stats.NEUT.averageConfidence.toFixed(2),
-      ],
-      negative: [
-        stats.NEG.count.toString(),
-        stats.NEG.averageConfidence.toFixed(2),
-      ],
+      positive: [stats.POS.count.toString(), stats.POS.averageConfidence.toFixed(2)],
+      neutral: [stats.NEUT.count.toString(), stats.NEUT.averageConfidence.toFixed(2)],
+      negative: [stats.NEG.count.toString(), stats.NEG.averageConfidence.toFixed(2)],
       hash,
     };
   }
@@ -245,7 +231,7 @@ export function resetSentimentAnalyzer(): void {
  */
 export async function analyzeSentiment(
   text: string,
-  articleHash: string
+  articleHash: string,
 ): Promise<ArticleSentiment> {
   const analyzer = getSentimentAnalyzer();
   const sentiment = analyzer.analyze(text, articleHash);
@@ -256,8 +242,7 @@ export async function analyzeSentiment(
   const totalCount = posCount + parseInt(sentiment.neutral[0]) + negCount;
 
   // Normalize to -1 to +1 range
-  const sentimentScore =
-    totalCount > 0 ? (posCount - negCount) / totalCount : 0;
+  const sentimentScore = totalCount > 0 ? (posCount - negCount) / totalCount : 0;
 
   // Classify overall sentiment
   let classification: 'POS' | 'NEG' | 'NEUT';
@@ -283,10 +268,8 @@ export async function analyzeSentiment(
  * @returns Array of article sentiments
  */
 export async function analyzeSentimentBatch(
-  articles: { text: string; hash: string }[]
+  articles: { text: string; hash: string }[],
 ): Promise<ArticleSentiment[]> {
   // Process all articles in parallel
-  return Promise.all(
-    articles.map((article) => analyzeSentiment(article.text, article.hash))
-  );
+  return Promise.all(articles.map((article) => analyzeSentiment(article.text, article.hash)));
 }

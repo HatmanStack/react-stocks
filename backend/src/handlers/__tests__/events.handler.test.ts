@@ -141,7 +141,8 @@ describe('Event Classification Handler', () => {
     it('should classify single M&A article', async () => {
       const article: NewsArticle = {
         title: 'Microsoft Acquires AI Startup',
-        description: 'Microsoft announced acquisition of AI company for $2B in cash deal. The acquisition agreement was signed.',
+        description:
+          'Microsoft announced acquisition of AI company for $2B in cash deal. The acquisition agreement was signed.',
         url: 'https://example.com/article2',
         date: '2025-01-15',
       };

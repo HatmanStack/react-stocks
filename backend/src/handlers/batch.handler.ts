@@ -4,7 +4,11 @@ import { logError } from '../utils/error.util';
 import { logMetrics, MetricUnit } from '../utils/metrics.util';
 import { handleNewsWithCache } from './news.handler';
 import { getSentimentResults } from './sentiment.handler';
-import { batchNewsRequestSchema, batchSentimentRequestSchema, parseBody } from '../utils/schemas.util';
+import {
+  batchNewsRequestSchema,
+  batchSentimentRequestSchema,
+  parseBody,
+} from '../utils/schemas.util';
 import type { FinnhubNewsArticle } from '../types/finnhub.types';
 
 interface BatchNewsResponse {
@@ -34,7 +38,7 @@ interface BatchSentimentResponse {
  * Accepts multiple tickers and returns aggregated news data
  */
 export async function handleBatchNewsRequest(
-  event: APIGatewayProxyEventV2
+  event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayResponse> {
   const requestId = event.requestContext.requestId;
   const startTime = Date.now();
@@ -63,7 +67,7 @@ export async function handleBatchNewsRequest(
 
     // Process tickers in parallel
     const results = await Promise.allSettled(
-      tickers.map(ticker => handleNewsWithCache(ticker.toUpperCase(), from, to, apiKey))
+      tickers.map((ticker) => handleNewsWithCache(ticker.toUpperCase(), from, to, apiKey)),
     );
 
     // Build response
@@ -86,7 +90,8 @@ export async function handleBatchNewsRequest(
         response._meta.cached[ticker] = result.value.cached;
         response._meta.successCount++;
       } else {
-        const errorMessage = result.reason instanceof Error ? result.reason.message : 'Unknown error';
+        const errorMessage =
+          result.reason instanceof Error ? result.reason.message : 'Unknown error';
         response.errors[ticker] = errorMessage;
         response._meta.errorCount++;
         logError('BatchNewsHandler', result.reason, { requestId, ticker });
@@ -104,24 +109,19 @@ export async function handleBatchNewsRequest(
       ],
       {
         Endpoint: 'batch/news',
-      }
+      },
     );
 
     const { data, errors, _meta } = response;
 
-    const apiResponse = successResponse(
-      data,
-      200,
-      {
-        errors,
-        _meta
-      }
-    );
+    const apiResponse = successResponse(data, 200, {
+      errors,
+      _meta,
+    });
 
     apiResponse.headers['X-Batch-Limit'] = '10';
 
     return apiResponse;
-
   } catch (error) {
     logError('BatchNewsHandler', error, { requestId });
     return errorResponse('Internal server error', 500);
@@ -133,7 +133,7 @@ export async function handleBatchNewsRequest(
  * Accepts multiple tickers and returns aggregated sentiment data
  */
 export async function handleBatchSentimentRequest(
-  event: APIGatewayProxyEventV2
+  event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayResponse> {
   const requestId = event.requestContext.requestId;
   const startTime = Date.now();
@@ -150,17 +150,13 @@ export async function handleBatchSentimentRequest(
     // Process tickers in parallel
     const results = await Promise.allSettled(
       tickers.map(async (ticker) => {
-        const result = await getSentimentResults(
-          ticker.toUpperCase(),
-          startDate,
-          endDate
-        );
+        const result = await getSentimentResults(ticker.toUpperCase(), startDate, endDate);
 
         return {
           data: result.dailySentiment,
-          cached: result.cached
+          cached: result.cached,
         };
-      })
+      }),
     );
 
     // Build response
@@ -182,7 +178,8 @@ export async function handleBatchSentimentRequest(
         response._meta.cached[ticker] = result.value.cached;
         response._meta.successCount++;
       } else {
-        const errorMessage = result.reason instanceof Error ? result.reason.message : 'Unknown error';
+        const errorMessage =
+          result.reason instanceof Error ? result.reason.message : 'Unknown error';
         response.errors[ticker] = errorMessage;
         response._meta.errorCount++;
         logError('BatchSentimentHandler', result.reason, { requestId, ticker });
@@ -200,24 +197,19 @@ export async function handleBatchSentimentRequest(
       ],
       {
         Endpoint: 'batch/sentiment',
-      }
+      },
     );
 
     const { data, errors, _meta } = response;
 
-    const apiResponse = successResponse(
-      data,
-      200,
-      {
-        errors,
-        _meta
-      }
-    );
+    const apiResponse = successResponse(data, 200, {
+      errors,
+      _meta,
+    });
 
     apiResponse.headers['X-Batch-Limit'] = '10';
 
     return apiResponse;
-
   } catch (error) {
     logError('BatchSentimentHandler', error, { requestId });
     return errorResponse('Internal server error', 500);

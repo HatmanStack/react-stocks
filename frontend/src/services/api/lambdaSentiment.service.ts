@@ -143,9 +143,7 @@ export interface SentimentResultsResponse {
  */
 function createBackendClient(): AxiosInstance {
   if (!Environment.BACKEND_URL) {
-    throw new Error(
-      'Backend URL not configured. Set EXPO_PUBLIC_BACKEND_URL in .env file.'
-    );
+    throw new Error('Backend URL not configured. Set EXPO_PUBLIC_BACKEND_URL in .env file.');
   }
 
   return axios.create({
@@ -164,24 +162,21 @@ function createBackendClient(): AxiosInstance {
  * @throws Error if request fails
  */
 export async function triggerSentimentAnalysis(
-  request: SentimentJobRequest
+  request: SentimentJobRequest,
 ): Promise<SentimentJobResponse> {
   const client = createBackendClient();
 
   try {
     console.log(
-      `[LambdaSentiment] Triggering sentiment analysis for ${request.ticker} from ${request.startDate} to ${request.endDate}`
+      `[LambdaSentiment] Triggering sentiment analysis for ${request.ticker} from ${request.startDate} to ${request.endDate}`,
     );
 
-    const response = await client.post<{ data: SentimentJobResponse }>(
-      '/sentiment',
-      request
-    );
+    const response = await client.post<{ data: SentimentJobResponse }>('/sentiment', request);
 
     const result = response.data.data;
 
     console.log(
-      `[LambdaSentiment] Sentiment job ${result.jobId} created with status: ${result.status}`
+      `[LambdaSentiment] Sentiment job ${result.jobId} created with status: ${result.status}`,
     );
 
     return result;
@@ -219,7 +214,7 @@ export async function triggerSentimentAnalysis(
       // Network or CORS error
       if (!status) {
         throw new Error(
-          `Network error: ${error.message}. Check your internet connection and CORS configuration.`
+          `Network error: ${error.message}. Check your internet connection and CORS configuration.`,
         );
       }
     }
@@ -235,17 +230,13 @@ export async function triggerSentimentAnalysis(
  * @returns Job status with details
  * @throws Error if job not found or request fails
  */
-export async function getSentimentJobStatus(
-  jobId: string
-): Promise<SentimentJobStatus> {
+export async function getSentimentJobStatus(jobId: string): Promise<SentimentJobStatus> {
   const client = createBackendClient();
 
   try {
     console.log(`[LambdaSentiment] Checking status for job ${jobId}`);
 
-    const response = await client.get<{ data: SentimentJobStatus }>(
-      `/sentiment/job/${jobId}`
-    );
+    const response = await client.get<{ data: SentimentJobStatus }>(`/sentiment/job/${jobId}`);
 
     const result = response.data.data;
 
@@ -288,15 +279,15 @@ export interface ArticleSentimentItem {
   url: string;
   publisher?: string;
   // Bag-of-words sentiment
-  positive: number;  // Count of positive words found
-  negative: number;  // Count of negative words found
-  sentiment: 'POS' | 'NEG' | 'NEUT';  // Classification based on word counts
-  sentimentNumber: number;  // Normalized score from -1 to +1
+  positive: number; // Count of positive words found
+  negative: number; // Count of negative words found
+  sentiment: 'POS' | 'NEG' | 'NEUT'; // Classification based on word counts
+  sentimentNumber: number; // Normalized score from -1 to +1
   // ML-based sentiment
-  eventType?: string;  // EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
-  aspectScore?: number;  // Aspect sentiment score (-1 to +1)
-  mlScore?: number;  // ML model score (-1 to +1)
-  signalScore?: number;  // Signal score (0 to 1) from metadata analysis
+  eventType?: string; // EARNINGS, M&A, GUIDANCE, ANALYST_RATING, PRODUCT_LAUNCH, GENERAL
+  aspectScore?: number; // Aspect sentiment score (-1 to +1)
+  mlScore?: number; // ML model score (-1 to +1)
+  signalScore?: number; // Signal score (0 to 1) from metadata analysis
 }
 
 /**
@@ -320,13 +311,13 @@ export interface ArticleSentimentResponse {
 export async function getArticleSentiment(
   ticker: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<ArticleSentimentResponse> {
   const client = createBackendClient();
 
   try {
     console.log(
-      `[LambdaSentiment] Fetching article sentiment for ${ticker} from ${startDate} to ${endDate}`
+      `[LambdaSentiment] Fetching article sentiment for ${ticker} from ${startDate} to ${endDate}`,
     );
 
     const response = await client.get<{ data: ArticleSentimentResponse }>('/sentiment/articles', {
@@ -336,7 +327,7 @@ export async function getArticleSentiment(
     const result = response.data.data;
 
     console.log(
-      `[LambdaSentiment] Fetched ${result.articles.length} article sentiment records for ${ticker}`
+      `[LambdaSentiment] Fetched ${result.articles.length} article sentiment records for ${ticker}`,
     );
 
     return result;
@@ -381,14 +372,12 @@ export async function getArticleSentiment(
 export async function fetchLambdaNews(
   ticker: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<{ cached: boolean; newArticles: number; cachedArticles: number }> {
   const client = createBackendClient();
 
   try {
-    console.log(
-      `[LambdaSentiment] Fetching news for ${ticker} from ${startDate} to ${endDate}`
-    );
+    console.log(`[LambdaSentiment] Fetching news for ${ticker} from ${startDate} to ${endDate}`);
 
     const response = await client.get<{
       data: unknown[];
@@ -400,7 +389,7 @@ export async function fetchLambdaNews(
     const meta = response.data._meta;
 
     console.log(
-      `[LambdaSentiment] Fetched news for ${ticker}: ${meta.newArticles} new, ${meta.cachedArticles} cached`
+      `[LambdaSentiment] Fetched news for ${ticker}: ${meta.newArticles} new, ${meta.cachedArticles} cached`,
     );
 
     return {
@@ -448,13 +437,13 @@ export async function fetchLambdaNews(
 export async function getSentimentResults(
   ticker: string,
   startDate: string,
-  endDate: string
+  endDate: string,
 ): Promise<SentimentResultsResponse> {
   const client = createBackendClient();
 
   try {
     console.log(
-      `[LambdaSentiment] Fetching sentiment results for ${ticker} from ${startDate} to ${endDate}`
+      `[LambdaSentiment] Fetching sentiment results for ${ticker} from ${startDate} to ${endDate}`,
     );
 
     const response = await client.get<{ data: SentimentResultsResponse }>('/sentiment', {
@@ -464,7 +453,7 @@ export async function getSentimentResults(
     const result = response.data.data;
 
     console.log(
-      `[LambdaSentiment] Fetched ${result.dailySentiment.length} daily sentiment records for ${ticker}`
+      `[LambdaSentiment] Fetched ${result.dailySentiment.length} daily sentiment records for ${ticker}`,
     );
 
     return result;

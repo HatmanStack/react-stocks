@@ -11,7 +11,14 @@ import { EVENT_KEYWORDS, getAllPrimaryKeywords } from '../keywords';
 describe('Event Keywords', () => {
   describe('Keyword Set Completeness', () => {
     it('should have keywords for all event types', () => {
-      const eventTypes = ['EARNINGS', 'M&A', 'PRODUCT_LAUNCH', 'ANALYST_RATING', 'GUIDANCE', 'GENERAL'];
+      const eventTypes = [
+        'EARNINGS',
+        'M&A',
+        'PRODUCT_LAUNCH',
+        'ANALYST_RATING',
+        'GUIDANCE',
+        'GENERAL',
+      ];
 
       for (const eventType of eventTypes) {
         const keywords = EVENT_KEYWORDS[eventType as keyof typeof EVENT_KEYWORDS];

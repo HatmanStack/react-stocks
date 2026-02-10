@@ -23,11 +23,6 @@ export type JobStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
  * const jobId = generateJobId('AAPL', '2025-01-01', '2025-01-30');
  * // Returns: 'AAPL_2025-01-01_2025-01-30'
  */
-export function generateJobId(
-  ticker: string,
-  startDate: string,
-  endDate: string
-): string {
+export function generateJobId(ticker: string, startDate: string, endDate: string): string {
   return `${ticker.toUpperCase()}_${startDate}_${endDate}`;
 }
-

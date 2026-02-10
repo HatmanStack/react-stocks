@@ -7,16 +7,8 @@
  * Note: This table has NO TTL (persistent ML training data).
  */
 
-import {
-  getItem,
-  putItem,
-  queryItems,
-} from '../utils/dynamodb.util.js';
-import {
-  makeDailyPK,
-  makeDateSK,
-  SortKeyPrefix,
-} from '../types/dynamodb.types.js';
+import { getItem, putItem, queryItems } from '../utils/dynamodb.util.js';
+import { makeDailyPK, makeDateSK, SortKeyPrefix } from '../types/dynamodb.types.js';
 import type { DailySentimentItem } from '../types/dynamodb.types.js';
 import type { DailySentimentAggregateItem } from '../types/dynamodb.types.js';
 import { logger } from '../utils/logger.util.js';
@@ -37,7 +29,10 @@ export async function putDailyAggregate(item: DailySentimentAggregateItem): Prom
 /**
  * Get daily sentiment aggregate for a specific date
  */
-export async function getDailyAggregate(ticker: string, date: string): Promise<DailySentimentAggregateItem | null> {
+export async function getDailyAggregate(
+  ticker: string,
+  date: string,
+): Promise<DailySentimentAggregateItem | null> {
   try {
     const pk = makeDailyPK(ticker);
     const sk = makeDateSK(date);
@@ -59,7 +54,9 @@ export async function getDailyAggregate(ticker: string, date: string): Promise<D
  * Get latest daily sentiment aggregate for a ticker
  * Used to fetch the latest prediction
  */
-export async function getLatestDailyAggregate(ticker: string): Promise<DailySentimentAggregateItem | null> {
+export async function getLatestDailyAggregate(
+  ticker: string,
+): Promise<DailySentimentAggregateItem | null> {
   try {
     const pk = makeDailyPK(ticker);
 

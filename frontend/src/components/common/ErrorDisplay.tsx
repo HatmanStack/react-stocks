@@ -13,9 +13,14 @@ interface ErrorDisplayProps {
   title?: string;
 }
 
-export function ErrorDisplay({ error, onRetry, title = 'Something went wrong' }: ErrorDisplayProps) {
+export function ErrorDisplay({
+  error,
+  onRetry,
+  title = 'Something went wrong',
+}: ErrorDisplayProps) {
   const theme = useTheme();
-  const errorMessage = typeof error === 'string' ? error : error?.message || 'An unknown error occurred';
+  const errorMessage =
+    typeof error === 'string' ? error : error?.message || 'An unknown error occurred';
 
   return (
     <View style={styles.container}>

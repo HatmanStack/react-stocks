@@ -9,7 +9,8 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 
 // Declare mock functions
-const mockRunPredictionPipeline = jest.fn<() => Promise<Array<{ horizon: number; direction: string; probability: number }>>>();
+const mockRunPredictionPipeline =
+  jest.fn<() => Promise<Array<{ horizon: number; direction: string; probability: number }>>>();
 const mockPutDailyAggregate = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
 const mockGetDailyAggregate = jest.fn<() => Promise<null>>().mockResolvedValue(null);
 
@@ -31,7 +32,9 @@ const { predictionHandler } = await import('../prediction.handler.js');
 /**
  * Helper to create mock API Gateway event
  */
-function createAPIGatewayEvent(overrides: Partial<APIGatewayProxyEventV2> = {}): APIGatewayProxyEventV2 {
+function createAPIGatewayEvent(
+  overrides: Partial<APIGatewayProxyEventV2> = {},
+): APIGatewayProxyEventV2 {
   return {
     body: null,
     headers: {},
@@ -43,7 +46,13 @@ function createAPIGatewayEvent(overrides: Partial<APIGatewayProxyEventV2> = {}):
       apiId: 'test-api',
       domainName: 'test.execute-api.us-east-1.amazonaws.com',
       domainPrefix: 'test',
-      http: { method: 'GET', path: '/test', protocol: 'HTTP/1.1', sourceIp: '127.0.0.1', userAgent: 'test' },
+      http: {
+        method: 'GET',
+        path: '/test',
+        protocol: 'HTTP/1.1',
+        sourceIp: '127.0.0.1',
+        userAgent: 'test',
+      },
       requestId: 'test-request-id',
       routeKey: 'GET /test',
       stage: '$default',
@@ -123,7 +132,9 @@ describe('Prediction Handler', () => {
 
   describe('Error Handling', () => {
     it('should return 400 for Insufficient error message', async () => {
-      mockRunPredictionPipeline.mockRejectedValue(new Error('Insufficient data: need at least 30 days'));
+      mockRunPredictionPipeline.mockRejectedValue(
+        new Error('Insufficient data: need at least 30 days'),
+      );
 
       const event = createAPIGatewayEvent({
         body: JSON.stringify({ ticker: 'AAPL', days: 90 }),
@@ -148,6 +159,26 @@ describe('Prediction Handler', () => {
       expect(response.statusCode).toBe(500);
       const body = JSON.parse(response.body);
       expect(body.error).toBe('Internal server error');
+    });
+
+    it('should return 400 for malformed JSON body', async () => {
+      const event = createAPIGatewayEvent({
+        body: 'not json at all',
+      });
+
+      const response = await predictionHandler(event);
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('should return 400 for missing body on API Gateway POST', async () => {
+      const event = createAPIGatewayEvent({
+        body: undefined as unknown as string,
+      });
+
+      const response = await predictionHandler(event);
+
+      expect(response.statusCode).toBe(400);
     });
   });
 });

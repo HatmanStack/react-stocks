@@ -107,10 +107,9 @@ export async function recordFailure(
 
   if (newFailures >= failureThreshold) {
     circuitOpenUntil = Date.now() + cooldownMs;
-    logger.warn(
-      `Circuit OPEN after ${failureThreshold} failures, cooldown ${cooldownMs}ms`,
-      { serviceName },
-    );
+    logger.warn(`Circuit OPEN after ${failureThreshold} failures, cooldown ${cooldownMs}ms`, {
+      serviceName,
+    });
   }
 
   await updateCircuitState(newFailures, circuitOpenUntil, 'failure', serviceName);

@@ -40,7 +40,6 @@ export interface PredictionInput {
    * Defaults to 0 in the feature matrix.
    */
   mlScore?: (number | null)[];
-
 }
 
 /**

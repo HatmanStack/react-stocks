@@ -39,8 +39,22 @@ describe('useSymbolSearch', () => {
 
   it('returns local results when found', async () => {
     const localSymbols = [
-      { ticker: 'AAPL', name: 'Apple Inc', exchangeCode: 'NASDAQ', startDate: '', endDate: '', longDescription: '' },
-      { ticker: 'AMZN', name: 'Amazon.com Inc', exchangeCode: 'NASDAQ', startDate: '', endDate: '', longDescription: '' },
+      {
+        ticker: 'AAPL',
+        name: 'Apple Inc',
+        exchangeCode: 'NASDAQ',
+        startDate: '',
+        endDate: '',
+        longDescription: '',
+      },
+      {
+        ticker: 'AMZN',
+        name: 'Amazon.com Inc',
+        exchangeCode: 'NASDAQ',
+        startDate: '',
+        endDate: '',
+        longDescription: '',
+      },
     ];
     SymbolRepository.findAll.mockResolvedValue(localSymbols);
 
@@ -54,9 +68,7 @@ describe('useSymbolSearch', () => {
 
   it('falls back to API search when no local results', async () => {
     SymbolRepository.findAll.mockResolvedValue([]);
-    const apiResults = [
-      { ticker: 'TSLA', name: 'Tesla Inc' },
-    ];
+    const apiResults = [{ ticker: 'TSLA', name: 'Tesla Inc' }];
     searchTickers.mockResolvedValue(apiResults);
 
     const { result } = renderHook(() => useSymbolSearch('TSLA'), { wrapper: createWrapper() });
@@ -65,7 +77,14 @@ describe('useSymbolSearch', () => {
 
     expect(searchTickers).toHaveBeenCalledWith('TSLA');
     expect(result.current.data).toEqual([
-      { ticker: 'TSLA', name: 'Tesla Inc', exchangeCode: '', startDate: '', endDate: '', longDescription: '' },
+      {
+        ticker: 'TSLA',
+        name: 'Tesla Inc',
+        exchangeCode: '',
+        startDate: '',
+        endDate: '',
+        longDescription: '',
+      },
     ]);
   });
 
@@ -147,9 +166,30 @@ describe('useAllSymbols', () => {
 
   it('returns all cached symbols', async () => {
     const allSymbols = [
-      { ticker: 'AAPL', name: 'Apple Inc', exchangeCode: 'NASDAQ', startDate: '', endDate: '', longDescription: '' },
-      { ticker: 'GOOGL', name: 'Alphabet Inc', exchangeCode: 'NASDAQ', startDate: '', endDate: '', longDescription: '' },
-      { ticker: 'MSFT', name: 'Microsoft Corp', exchangeCode: 'NASDAQ', startDate: '', endDate: '', longDescription: '' },
+      {
+        ticker: 'AAPL',
+        name: 'Apple Inc',
+        exchangeCode: 'NASDAQ',
+        startDate: '',
+        endDate: '',
+        longDescription: '',
+      },
+      {
+        ticker: 'GOOGL',
+        name: 'Alphabet Inc',
+        exchangeCode: 'NASDAQ',
+        startDate: '',
+        endDate: '',
+        longDescription: '',
+      },
+      {
+        ticker: 'MSFT',
+        name: 'Microsoft Corp',
+        exchangeCode: 'NASDAQ',
+        startDate: '',
+        endDate: '',
+        longDescription: '',
+      },
     ];
     SymbolRepository.findAll.mockResolvedValue(allSymbols);
 

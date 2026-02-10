@@ -4,7 +4,11 @@
 
 import type { TiingoStockPrice, TiingoSymbolMetadata } from '../api/tiingo.types';
 
-function generateMockPrices(ticker: string, startDate: string, endDate: string): TiingoStockPrice[] {
+function generateMockPrices(
+  ticker: string,
+  startDate: string,
+  endDate: string,
+): TiingoStockPrice[] {
   const prices: TiingoStockPrice[] = [];
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -40,7 +44,7 @@ function generateMockPrices(ticker: string, startDate: string, endDate: string):
 export async function fetchStockPrices(
   ticker: string,
   startDate: string,
-  endDate?: string
+  endDate?: string,
 ): Promise<TiingoStockPrice[]> {
   await new Promise((resolve) => setTimeout(resolve, 300));
   const end = endDate || new Date().toISOString().substring(0, 10);
@@ -51,9 +55,7 @@ export async function fetchStockPrices(
  * Mock implementation of fetchSymbolMetadata
  * Returns predefined metadata for common tickers
  */
-export async function fetchSymbolMetadata(
-  ticker: string
-): Promise<TiingoSymbolMetadata> {
+export async function fetchSymbolMetadata(ticker: string): Promise<TiingoSymbolMetadata> {
   // Simulate network delay
   await new Promise((resolve) => setTimeout(resolve, 200));
 
@@ -65,7 +67,8 @@ export async function fetchSymbolMetadata(
       exchangeCode: 'NASDAQ',
       startDate: '1980-12-12',
       endDate: '2025-12-31',
-      description: 'Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.',
+      description:
+        'Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.',
     },
     GOOGL: {
       ticker: 'GOOGL',
@@ -73,7 +76,8 @@ export async function fetchSymbolMetadata(
       exchangeCode: 'NASDAQ',
       startDate: '2004-08-19',
       endDate: '2025-12-31',
-      description: 'Alphabet Inc. offers various products and platforms in the United States, Europe, the Middle East, Africa, the Asia-Pacific, Canada, and Latin America.',
+      description:
+        'Alphabet Inc. offers various products and platforms in the United States, Europe, the Middle East, Africa, the Asia-Pacific, Canada, and Latin America.',
     },
     MSFT: {
       ticker: 'MSFT',
@@ -81,7 +85,8 @@ export async function fetchSymbolMetadata(
       exchangeCode: 'NASDAQ',
       startDate: '1986-03-13',
       endDate: '2025-12-31',
-      description: 'Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide.',
+      description:
+        'Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide.',
     },
     TSLA: {
       ticker: 'TSLA',
@@ -89,7 +94,8 @@ export async function fetchSymbolMetadata(
       exchangeCode: 'NASDAQ',
       startDate: '2010-06-29',
       endDate: '2025-12-31',
-      description: 'Tesla, Inc. designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems.',
+      description:
+        'Tesla, Inc. designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems.',
     },
     AMZN: {
       ticker: 'AMZN',
@@ -97,7 +103,8 @@ export async function fetchSymbolMetadata(
       exchangeCode: 'NASDAQ',
       startDate: '1997-05-15',
       endDate: '2025-12-31',
-      description: 'Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions in North America and internationally.',
+      description:
+        'Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions in North America and internationally.',
     },
   };
 

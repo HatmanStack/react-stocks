@@ -34,7 +34,7 @@ export function classifySentiment(score: number): 'POS' | 'NEG' | 'NEUT' {
 export function transformLambdaToLocal(
   dailySentiment: DailySentiment[],
   ticker: string,
-  predictions?: Predictions
+  predictions?: Predictions,
 ): CombinedWordDetails[] {
   const sorted = [...dailySentiment].sort((a, b) => a.date.localeCompare(b.date));
   const latestDate = sorted.length > 0 ? sorted[sorted.length - 1].date : '';
@@ -100,7 +100,7 @@ export function transformArticleToLocal(
     mlScore?: number;
     signalScore?: number;
   },
-  index: number
+  index: number,
 ): WordCountDetails {
   // Safely parse hex hash to number
   // Use max 8 chars to stay within Number.MAX_SAFE_INTEGER

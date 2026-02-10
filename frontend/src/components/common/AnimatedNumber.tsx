@@ -7,11 +7,7 @@
 
 import React, { useEffect } from 'react';
 import { TextProps } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedProps,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedProps, withSpring } from 'react-native-reanimated';
 import { MonoText } from './MonoText';
 
 const AnimatedMonoText = Animated.createAnimatedComponent(MonoText);

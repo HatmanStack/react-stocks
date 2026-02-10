@@ -27,7 +27,9 @@ jest.mock('@/ml/prediction/prediction.service', () => ({
 }));
 
 const StockRepo = jest.requireMock('@/database/repositories/stock.repository');
-const { getStockPredictions, parsePredictionResponse } = jest.requireMock('@/ml/prediction/prediction.service');
+const { getStockPredictions, parsePredictionResponse } = jest.requireMock(
+  '@/ml/prediction/prediction.service',
+);
 
 function makeSentimentData(count: number): CombinedWordDetails[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -83,10 +85,16 @@ describe('browserPredictions', () => {
     StockRepo.findByTickerAndDateRange.mockResolvedValue(stockData);
 
     getStockPredictions.mockResolvedValue({
-      next: '0.4200', week: '0.5500', month: null, ticker: 'AAPL',
+      next: '0.4200',
+      week: '0.5500',
+      month: null,
+      ticker: 'AAPL',
     });
     parsePredictionResponse.mockReturnValue({
-      nextDay: 0.42, twoWeeks: 0.55, oneMonth: null, ticker: 'AAPL',
+      nextDay: 0.42,
+      twoWeeks: 0.55,
+      oneMonth: null,
+      ticker: 'AAPL',
     });
 
     const sentimentData = makeSentimentData(50);
@@ -108,7 +116,12 @@ describe('browserPredictions', () => {
 
     StockRepo.findByTickerAndDateRange.mockResolvedValue(makeStockData(50));
     getStockPredictions.mockResolvedValue({ next: '0.5', week: null, month: null, ticker: 'AAPL' });
-    parsePredictionResponse.mockReturnValue({ nextDay: 0.5, twoWeeks: null, oneMonth: null, ticker: 'AAPL' });
+    parsePredictionResponse.mockReturnValue({
+      nextDay: 0.5,
+      twoWeeks: null,
+      oneMonth: null,
+      ticker: 'AAPL',
+    });
 
     const result = await generateBrowserPredictions('AAPL', makeSentimentData(50), 60);
 
@@ -130,7 +143,12 @@ describe('browserPredictions', () => {
     StockRepo.findByTickerAndDateRange.mockResolvedValue(stockData);
 
     getStockPredictions.mockResolvedValue({ next: '0.5', week: null, month: null, ticker: 'AAPL' });
-    parsePredictionResponse.mockReturnValue({ nextDay: 0.5, twoWeeks: null, oneMonth: null, ticker: 'AAPL' });
+    parsePredictionResponse.mockReturnValue({
+      nextDay: 0.5,
+      twoWeeks: null,
+      oneMonth: null,
+      ticker: 'AAPL',
+    });
 
     const sentimentData = makeSentimentData(50);
     // Set first record to have EARNINGS as dominant

@@ -19,7 +19,12 @@ interface SearchResultItemProps {
   subtitle?: string;
 }
 
-export function SearchResultItem({ symbol, onPress, disabled = false, subtitle }: SearchResultItemProps) {
+export function SearchResultItem({
+  symbol,
+  onPress,
+  disabled = false,
+  subtitle,
+}: SearchResultItemProps) {
   const theme = useAppTheme();
   const { cardSpacing, cardPadding, fontSize } = useLayoutDensity();
 
@@ -38,75 +43,77 @@ export function SearchResultItem({ symbol, onPress, disabled = false, subtitle }
       accessibilityHint="Double tap to view stock details"
       accessibilityRole="button"
     >
-      <View style={{ padding: cardPadding * 0.8 }}> {/* Reduced padding for compact display */}
-          <View style={styles.container}>
-            <View style={styles.leftContent}>
-              <View style={styles.tickerRow}>
-                <Text
-                  style={[
-                    styles.ticker,
-                    {
-                      color: theme.colors.primary,
-                      fontSize: fontSize.title - 1, // Slightly smaller than before
-                    },
-                    disabled && { color: theme.colors.onSurfaceVariant },
-                  ]}
-                  allowFontScaling={true}
-                >
-                  {symbol.ticker}
-                </Text>
-                <Ionicons
-                  name={disabled ? 'checkmark-circle' : 'chevron-forward'}
-                  size={20} // Reduced from 24
-                  color={disabled ? theme.colors.positive : theme.colors.onSurfaceVariant}
-                  accessible={false}
-                />
-              </View>
+      <View style={{ padding: cardPadding * 0.8 }}>
+        {' '}
+        {/* Reduced padding for compact display */}
+        <View style={styles.container}>
+          <View style={styles.leftContent}>
+            <View style={styles.tickerRow}>
               <Text
                 style={[
-                  styles.name,
+                  styles.ticker,
                   {
-                    color: theme.colors.onSurface,
-                    fontSize: fontSize.subtitle - 1, // Reduced font size
+                    color: theme.colors.primary,
+                    fontSize: fontSize.title - 1, // Slightly smaller than before
                   },
                   disabled && { color: theme.colors.onSurfaceVariant },
                 ]}
-                numberOfLines={1}
                 allowFontScaling={true}
               >
-                {symbol.name}
+                {symbol.ticker}
               </Text>
-              {subtitle ? (
-                <Text
-                  style={[
-                    styles.subtitle,
-                    {
-                      color: theme.colors.positive,
-                      fontSize: fontSize.caption,
-                    },
-                  ]}
-                  allowFontScaling={true}
-                >
-                  {subtitle}
-                </Text>
-              ) : symbol.exchangeCode ? (
-                <Text
-                  style={[
-                    styles.exchange,
-                    {
-                      color: theme.colors.onSurfaceVariant,
-                      fontSize: fontSize.caption,
-                    },
-                  ]}
-                  allowFontScaling={true}
-                >
-                  {symbol.exchangeCode}
-                </Text>
-              ) : null}
+              <Ionicons
+                name={disabled ? 'checkmark-circle' : 'chevron-forward'}
+                size={20} // Reduced from 24
+                color={disabled ? theme.colors.positive : theme.colors.onSurfaceVariant}
+                accessible={false}
+              />
             </View>
+            <Text
+              style={[
+                styles.name,
+                {
+                  color: theme.colors.onSurface,
+                  fontSize: fontSize.subtitle - 1, // Reduced font size
+                },
+                disabled && { color: theme.colors.onSurfaceVariant },
+              ]}
+              numberOfLines={1}
+              allowFontScaling={true}
+            >
+              {symbol.name}
+            </Text>
+            {subtitle ? (
+              <Text
+                style={[
+                  styles.subtitle,
+                  {
+                    color: theme.colors.positive,
+                    fontSize: fontSize.caption,
+                  },
+                ]}
+                allowFontScaling={true}
+              >
+                {subtitle}
+              </Text>
+            ) : symbol.exchangeCode ? (
+              <Text
+                style={[
+                  styles.exchange,
+                  {
+                    color: theme.colors.onSurfaceVariant,
+                    fontSize: fontSize.caption,
+                  },
+                ]}
+                allowFontScaling={true}
+              >
+                {symbol.exchangeCode}
+              </Text>
+            ) : null}
           </View>
         </View>
-      </AnimatedCard>
+      </View>
+    </AnimatedCard>
   );
 }
 

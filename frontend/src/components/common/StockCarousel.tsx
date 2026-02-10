@@ -70,26 +70,11 @@ function CarouselCard({ item, index, scrollX, onPress }: CarouselCardProps) {
   ];
 
   const animatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      scrollX.value,
-      inputRange,
-      [0.85, 1, 0.85],
-      Extrapolation.CLAMP
-    );
+    const scale = interpolate(scrollX.value, inputRange, [0.85, 1, 0.85], Extrapolation.CLAMP);
 
-    const rotateY = interpolate(
-      scrollX.value,
-      inputRange,
-      [15, 0, -15],
-      Extrapolation.CLAMP
-    );
+    const rotateY = interpolate(scrollX.value, inputRange, [15, 0, -15], Extrapolation.CLAMP);
 
-    const opacity = interpolate(
-      scrollX.value,
-      inputRange,
-      [0.6, 1, 0.6],
-      Extrapolation.CLAMP
-    );
+    const opacity = interpolate(scrollX.value, inputRange, [0.6, 1, 0.6], Extrapolation.CLAMP);
 
     const pressScale = interpolate(pressed.value, [0, 1], [1, 0.95]);
 
@@ -162,22 +147,14 @@ function CarouselCard({ item, index, scrollX, onPress }: CarouselCardProps) {
           )}
 
           {item.value && (
-            <Text
-              variant="headlineMedium"
-              style={[styles.cardValue, { color: getValueColor() }]}
-            >
+            <Text variant="headlineMedium" style={[styles.cardValue, { color: getValueColor() }]}>
               {item.value}
             </Text>
           )}
         </View>
 
         {/* Decorative gradient overlay */}
-        <View
-          style={[
-            styles.gradientOverlay,
-            { backgroundColor: `${theme.colors.primary}08` },
-          ]}
-        />
+        <View style={[styles.gradientOverlay, { backgroundColor: `${theme.colors.primary}08` }]} />
       </Animated.View>
     </Pressable>
   );
@@ -192,7 +169,7 @@ export function StockCarousel({ items, title, onItemPress }: StockCarouselProps)
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       scrollX.value = event.nativeEvent.contentOffset.x;
     },
-    [scrollX]
+    [scrollX],
   );
 
   const handleItemPress = useCallback(
@@ -200,7 +177,7 @@ export function StockCarousel({ items, title, onItemPress }: StockCarouselProps)
       item.onPress?.();
       onItemPress?.(item);
     },
-    [onItemPress]
+    [onItemPress],
   );
 
   if (items.length === 0) {
@@ -264,19 +241,9 @@ function PaginationDot({ index, scrollX }: PaginationDotProps) {
       (index + 1) * SNAP_INTERVAL,
     ];
 
-    const width = interpolate(
-      scrollX.value,
-      inputRange,
-      [8, 24, 8],
-      Extrapolation.CLAMP
-    );
+    const width = interpolate(scrollX.value, inputRange, [8, 24, 8], Extrapolation.CLAMP);
 
-    const opacity = interpolate(
-      scrollX.value,
-      inputRange,
-      [0.4, 1, 0.4],
-      Extrapolation.CLAMP
-    );
+    const opacity = interpolate(scrollX.value, inputRange, [0.4, 1, 0.4], Extrapolation.CLAMP);
 
     return {
       width,
@@ -285,13 +252,7 @@ function PaginationDot({ index, scrollX }: PaginationDotProps) {
   });
 
   return (
-    <Animated.View
-      style={[
-        styles.dot,
-        { backgroundColor: theme.colors.primary },
-        animatedStyle,
-      ]}
-    />
+    <Animated.View style={[styles.dot, { backgroundColor: theme.colors.primary }, animatedStyle]} />
   );
 }
 
