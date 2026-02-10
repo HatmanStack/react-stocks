@@ -8,6 +8,7 @@
  */
 
 import { detectAspect } from '../ml/aspects/detector';
+import { logger } from '../utils/logger.util.js';
 import {
   AspectType,
   ASPECT_WEIGHTS,
@@ -122,7 +123,7 @@ export async function analyzeAspects(
 
   // Handle no aspects detected
   if (detectedAspects.length === 0) {
-    console.warn('[AspectAnalysis] No aspects detected in article:', article.headline);
+    logger.warn('No aspects detected in article', { headline: article.headline });
     return {
       overallScore: 0,
       breakdown: {},

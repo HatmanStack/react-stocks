@@ -9,6 +9,7 @@
  * 5. Aggregate daily sentiment scores
  */
 
+import { logger } from '../utils/logger.util.js';
 import * as NewsCacheRepository from '../repositories/newsCache.repository.js';
 import * as SentimentCacheRepository from '../repositories/sentimentCache.repository.js';
 import { analyzeSentimentBatch, analyzeSentiment } from '../ml/sentiment/analyzer.js';
@@ -169,7 +170,7 @@ export async function processSentimentForTicker(
       processingTimeMs: Date.now() - startTime,
     };
   } catch (error) {
-    console.error('[SentimentProcessingService] Error processing sentiment:', error, {
+    logger.error('Error processing sentiment', error, {
       ticker,
       startDate,
       endDate,
@@ -243,10 +244,9 @@ async function analyzeArticles(
           eventType: classification.eventType,
         };
       } catch (error) {
-        console.error('[SentimentProcessingService] Event classification failed:', {
+        logger.error('Event classification failed', error, {
           ticker,
           articleHash: item.articleHash,
-          error: error instanceof Error ? error.message : String(error),
         });
         // Default to GENERAL on classification failure
         return {
@@ -270,7 +270,7 @@ async function analyzeArticles(
   eventTypeMap.forEach((eventType) => {
     eventTypeCounts[eventType] = (eventTypeCounts[eventType] || 0) + 1;
   });
-  console.log('[SentimentProcessingService] Event type distribution:', {
+  logger.info('Event type distribution', {
     ticker,
     totalArticles: articles.length,
     eventTypes: eventTypeCounts,
@@ -293,7 +293,7 @@ async function analyzeArticles(
     }
   });
 
-  console.log('[SentimentProcessingService] Signal scores calculated:', {
+  logger.info('Signal scores calculated', {
     ticker,
     totalArticles: articles.length,
     avgSignalScore: signalScoreMap.size > 0
@@ -322,10 +322,9 @@ async function analyzeArticles(
           aspectBreakdown: analysisResult.breakdown,
         };
       } catch (error) {
-        console.error('[SentimentProcessingService] Aspect analysis failed:', {
+        logger.error('Aspect analysis failed', error, {
           ticker,
           articleHash: item.articleHash,
-          error: error instanceof Error ? error.message : String(error),
         });
         // Default to neutral aspect score on failure
         return {
@@ -352,7 +351,7 @@ async function analyzeArticles(
   const avgAspectAnalysisTime = aspectAnalysisDuration / articles.length;
 
   // Log performance metrics
-  console.log('[SentimentProcessingService] Aspect analysis performance:', {
+  logger.info('Aspect analysis performance', {
     ticker,
     totalArticles: articles.length,
     totalTimeMs: aspectAnalysisDuration,
@@ -361,7 +360,7 @@ async function analyzeArticles(
 
   // Log warning if aspect analysis is slow
   if (avgAspectAnalysisTime > 30) {
-    console.warn('[SentimentProcessingService] Aspect analysis slow:', {
+    logger.warn('Aspect analysis slow', {
       ticker,
       avgTimePerArticleMs: avgAspectAnalysisTime.toFixed(2),
       threshold: 30,
@@ -385,10 +384,9 @@ async function analyzeArticles(
             mlScore: score, // null if service failed
           };
         } catch (error) {
-          console.error('[SentimentProcessingService] MlSentiment analysis failed:', {
+          logger.error('MlSentiment analysis failed', error, {
             ticker,
             articleHash: item.articleHash,
-            error: error instanceof Error ? error.message : String(error),
           });
           return {
             articleHash: item.articleHash,
@@ -419,7 +417,7 @@ async function analyzeArticles(
   ).length;
 
   // Log MlSentiment performance metrics
-  console.log('[SentimentProcessingService] MlSentiment analysis performance:', {
+  logger.info('MlSentiment analysis performance', {
     ticker,
     totalArticles: articles.length,
     materialEvents: materialEventCount,
@@ -435,7 +433,7 @@ async function analyzeArticles(
   ).length;
   const mlSentimentFailureCount = materialEventCount - mlSentimentSuccessCount;
   if (mlSentimentFailureCount > 0) {
-    console.warn('[SentimentProcessingService] MlSentiment failures:', {
+    logger.warn('MlSentiment failures', {
       ticker,
       materialEvents: materialEventCount,
       successful: mlSentimentSuccessCount,
@@ -488,17 +486,16 @@ async function analyzeArticles(
       return cacheItems;
     } catch (error) {
       if (attempt === 1) {
-        console.warn('[SentimentProcessingService] Batch analysis failed, retrying...', {
+        logger.warn('Batch analysis failed, retrying', {
           ticker,
           articleCount: articles.length,
           error: error instanceof Error ? error.message : String(error),
         });
         // Will retry
       } else {
-        console.error('[SentimentProcessingService] Batch analysis failed after retry, switching to per-article analysis', {
+        logger.error('Batch analysis failed after retry, switching to per-article analysis', error, {
           ticker,
           articleCount: articles.length,
-          error: error instanceof Error ? error.message : String(error),
         });
         // Fall through to per-article analysis
       }
@@ -545,16 +542,15 @@ async function analyzeArticles(
       successfulItems.push(result.value);
     } else {
       failedHashes.push(articlesForAnalysis[index].hash);
-      console.error('[SentimentProcessingService] Failed to analyze article:', {
+      logger.error('Failed to analyze article', result.reason, {
         ticker,
         articleHash: articlesForAnalysis[index].hash,
-        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
       });
     }
   });
 
   if (failedHashes.length > 0) {
-    console.warn('[SentimentProcessingService] Partial success in article analysis', {
+    logger.warn('Partial success in article analysis', {
       ticker,
       totalArticles: articles.length,
       successful: successfulItems.length,

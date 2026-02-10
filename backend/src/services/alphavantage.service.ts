@@ -12,6 +12,7 @@ import {
   FINNHUB_COOLDOWN_MS,
   CIRCUIT_SERVICE_ALPHAVANTAGE,
 } from '../constants/ml.constants.js';
+import { logger } from '../utils/logger.util.js';
 
 const ALPHA_VANTAGE_BASE_URL = 'https://www.alphavantage.co/query';
 const ALPHA_VANTAGE_TIMEOUT = 15000; // 15 seconds (larger response)
@@ -136,11 +137,11 @@ export async function fetchAlphaVantageNews(
   // Circuit breaker: fail-fast if Alpha Vantage is rate-limited or down
   const cbState = await CircuitBreakerRepo.getCircuitState(CIRCUIT_SERVICE_ALPHAVANTAGE);
   if (cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD && Date.now() < cbState.circuitOpenUntil) {
-    console.warn(`[AlphaVantageService] Circuit open, skipping API call`);
+    logger.warn('Circuit open, skipping API call');
     return [];
   }
 
-  console.log(`[AlphaVantageService] Fetching news for ${ticker} from ${from} to ${to}`);
+  logger.info(`Fetching news for ${ticker} from ${from} to ${to}`);
 
   const params = new URLSearchParams({
     function: 'NEWS_SENTIMENT',
@@ -165,17 +166,17 @@ export async function fetchAlphaVantageNews(
 
     // Check for API errors
     if (data.Note) {
-      console.warn(`[AlphaVantageService] Rate limit warning: ${data.Note}`);
+      logger.warn(`Rate limit warning: ${data.Note}`);
       throw new APIError('Alpha Vantage rate limit exceeded', 429);
     }
 
     if (data.Information) {
-      console.error(`[AlphaVantageService] API error: ${data.Information}`);
+      logger.error(`API error: ${data.Information}`);
       throw new APIError(data.Information, 401);
     }
 
     if (!data.feed || data.feed.length === 0) {
-      console.log(`[AlphaVantageService] No news found for ${ticker}`);
+      logger.info(`No news found for ${ticker}`);
       return [];
     }
 
@@ -193,8 +194,8 @@ export async function fetchAlphaVantageNews(
       data.feed.map((item) => parseAlphaVantageDate(item.time_published))
     ).size;
 
-    console.log(
-      `[AlphaVantageService] Fetched ${articles.length} articles for ${ticker} spanning ${uniqueDays} days`
+    logger.info(
+      `Fetched ${articles.length} articles for ${ticker} spanning ${uniqueDays} days`
     );
 
     await CircuitBreakerRepo.recordSuccess(CIRCUIT_SERVICE_ALPHAVANTAGE);
@@ -209,7 +210,7 @@ export async function fetchAlphaVantageNews(
     if (error instanceof APIError) {
       throw error;
     }
-    console.error(`[AlphaVantageService] Error fetching news:`, error);
+    logger.error('Error fetching news', error);
     throw new APIError('Failed to fetch news from Alpha Vantage', 500);
   }
 }

@@ -1,5 +1,6 @@
 import { ModelTrainingConfig, TrainingMetrics, DailyFeatures, PredictionResult } from '../types/prediction.types';
 import { Scaler, normalize_features } from './preprocessing';
+import { logger } from '../utils/logger.util.js';
 
 /**
  * Sigmoid activation function
@@ -143,7 +144,7 @@ export async function trainModel(
     // Holdout validation: reject models that perform worse than random
     const MIN_ACCEPTABLE_ACCURACY = 0.45;
     if (finalAccuracy < MIN_ACCEPTABLE_ACCURACY) {
-        console.warn(`[MLModel] Model accuracy ${finalAccuracy.toFixed(4)} below threshold ${MIN_ACCEPTABLE_ACCURACY}, predictions may be unreliable`);
+        logger.warn(`Model accuracy ${finalAccuracy.toFixed(4)} below threshold ${MIN_ACCEPTABLE_ACCURACY}, predictions may be unreliable`);
     }
 
     return {

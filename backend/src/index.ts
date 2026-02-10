@@ -5,7 +5,7 @@
 
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { errorResponse, type APIGatewayResponse } from './utils/response.util';
-import { logError, getStatusCodeFromError, getErrorMessage } from './utils/error.util';
+import { logError, getStatusCodeFromError, sanitizeErrorMessage } from './utils/error.util';
 import { logLambdaStartStatus, logRequestMetrics } from './utils/metrics.util';
 import { logger, runWithContext, createRequestContext } from './utils/logger.util';
 
@@ -162,7 +162,7 @@ export async function handler(
       logError('Lambda', error);
 
       const statusCode = getStatusCodeFromError(error);
-      const message = getErrorMessage(error);
+      const message = sanitizeErrorMessage(error, statusCode);
 
       logRequestMetrics(path, statusCode, Date.now() - startTime);
       return errorResponse(message, statusCode);

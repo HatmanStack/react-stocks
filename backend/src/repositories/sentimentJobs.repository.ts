@@ -18,6 +18,7 @@ import {
 import type { SentimentJobItem } from '../types/dynamodb.types.js';
 import { calculateTTL } from '../utils/cache.util.js';
 import type { JobStatus } from '../utils/job.util.js';
+import { logger } from '../utils/logger.util.js';
 
 /**
  * Sentiment job interface (external format)
@@ -57,7 +58,7 @@ export async function getJob(jobId: string): Promise<SentimentJob | null> {
 
     return transformToExternal(item);
   } catch (error) {
-    console.error('[SentimentJobsRepository] Error getting job:', error, { jobId });
+    logger.error('Error getting job', error, { jobId });
     throw error;
   }
 }
@@ -86,14 +87,14 @@ export async function createJob(job: Omit<SentimentJob, 'ttl'>): Promise<void> {
     if (existingJob) {
       // If job is already COMPLETED, return without error (idempotent)
       if (existingJob.status === 'COMPLETED') {
-        console.log('[SentimentJobsRepository] Job already completed (idempotent):', {
+        logger.info('Job already completed (idempotent)', {
           jobId: job.jobId,
         });
         return;
       }
 
       // If job exists but not completed, log and return
-      console.log('[SentimentJobsRepository] Job already exists:', {
+      logger.info('Job already exists', {
         jobId: job.jobId,
         status: existingJob.status,
       });
@@ -103,7 +104,7 @@ export async function createJob(job: Omit<SentimentJob, 'ttl'>): Promise<void> {
     const cacheItem = transformToInternal(job);
     await putItem(cacheItem);
   } catch (error) {
-    console.error('[SentimentJobsRepository] Error creating job:', error, {
+    logger.error('Error creating job', error, {
       jobId: job.jobId,
     });
     throw error;
@@ -146,7 +147,7 @@ export async function updateJobStatus(
 
     await updateItem(pk, sk, updateData);
   } catch (error) {
-    console.error('[SentimentJobsRepository] Error updating job status:', error, {
+    logger.error('Error updating job status', error, {
       jobId,
       status,
     });

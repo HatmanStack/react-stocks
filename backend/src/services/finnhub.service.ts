@@ -11,6 +11,7 @@ import {
   FINNHUB_COOLDOWN_MS,
   CIRCUIT_SERVICE_FINNHUB,
 } from '../constants/ml.constants.js';
+import { logger } from '../utils/logger.util.js';
 
 // Finnhub API configuration
 const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
@@ -71,7 +72,7 @@ async function retryWithBackoff<T>(
 
       // Exponential backoff: 2s, 4s, 8s
       const delay = Math.pow(2, i + 1) * 1000;
-      console.log(`[FinnhubService] Retry ${i + 1}/${retries} after ${delay}ms...`);
+      logger.info(`Retry ${i + 1}/${retries} after ${delay}ms...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
@@ -97,12 +98,12 @@ export async function fetchCompanyNews(
   // Circuit breaker: fail-fast if Finnhub is rate-limited or down
   const cbState = await CircuitBreakerRepo.getCircuitState(CIRCUIT_SERVICE_FINNHUB);
   if (cbState.consecutiveFailures >= FINNHUB_FAILURE_THRESHOLD && Date.now() < cbState.circuitOpenUntil) {
-    console.warn(`[FinnhubService] Circuit open for ${CIRCUIT_SERVICE_FINNHUB}, skipping API call`);
+    logger.warn(`Circuit open for ${CIRCUIT_SERVICE_FINNHUB}, skipping API call`);
     return [];
   }
 
   const fetchFn = async () => {
-    console.log(`[FinnhubService] Fetching news for ${ticker} from ${from} to ${to}`);
+    logger.info(`Fetching news for ${ticker} from ${from} to ${to}`);
 
     const params = new URLSearchParams({
       symbol: ticker,
@@ -117,7 +118,7 @@ export async function fetchCompanyNews(
       const status = response.status;
 
       if (status === 404) {
-        console.log(`[FinnhubService] No news found for ${ticker}`);
+        logger.info(`No news found for ${ticker}`);
         return [];
       }
 
@@ -133,7 +134,7 @@ export async function fetchCompanyNews(
     }
 
     const data = await response.json() as FinnhubNewsArticle[];
-    console.log(`[FinnhubService] Fetched ${data.length} news articles for ${ticker}`);
+    logger.info(`Fetched ${data.length} news articles for ${ticker}`);
     await CircuitBreakerRepo.recordSuccess(CIRCUIT_SERVICE_FINNHUB);
     return data;
   };

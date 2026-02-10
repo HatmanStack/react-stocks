@@ -114,7 +114,7 @@ export function useSymbolSearch(
         }));
 
         // Cache results in local DB (async, don't block)
-        Promise.all(
+        void Promise.all(
           symbolDetailsList.map((symbol) => SymbolRepository.insert(symbol))
         ).catch((err) => console.warn('[useSymbolSearch] Failed to cache results:', err));
 

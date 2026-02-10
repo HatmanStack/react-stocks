@@ -18,6 +18,7 @@ import {
   isValidText,
 } from '../ml/events/matcher.js';
 import { logMetric, logMetrics, MetricUnit } from '../utils/metrics.util.js';
+import { logger } from '../utils/logger.util.js';
 import {
   HEADLINE_WEIGHT,
   SUMMARY_WEIGHT,
@@ -107,13 +108,13 @@ function logMetricsSummary(): void {
     }
   });
 
-  console.log('[EventClassificationService] Metrics summary:', {
+  logger.info('Metrics summary', {
     totalProcessed: metrics.totalProcessed,
     avgConfidence: avgConfidence.toFixed(3),
     avgDuration: `${avgDuration.toFixed(2)}ms`,
     multiEventConflicts: metrics.multiEventConflicts,
     lowConfidenceCount: metrics.lowConfidenceCount,
-    eventTypeCounts: metrics.eventTypeCounts,
+    eventTypeCounts: metrics.eventTypeCounts as unknown as Record<string, unknown>,
   });
 }
 
@@ -152,7 +153,7 @@ export async function classifyEvent(
 
     // Validate text
     if (!isValidText(combinedText)) {
-      console.warn('[EventClassificationService] Invalid article text:', {
+      logger.warn('Invalid article text', {
         title: article.title?.substring(0, 50),
       });
 
@@ -174,7 +175,7 @@ export async function classifyEvent(
     trackClassificationMetrics(result, scores, duration);
 
     // Log classification for monitoring
-    console.log('[EventClassificationService] Classified article:', {
+    logger.info('Classified article', {
       title: article.title?.substring(0, 50),
       eventType: result.eventType,
       confidence: result.confidence.toFixed(2),
@@ -188,7 +189,7 @@ export async function classifyEvent(
 
     return result;
   } catch (error) {
-    console.error('[EventClassificationService] Error classifying event:', error, {
+    logger.error('Error classifying event', error, {
       title: article.title,
     });
 
@@ -398,7 +399,7 @@ function resolveEventType(
       return currentPriority > highestPriority ? current : highest;
     });
 
-    console.log('[EventClassificationService] Multi-event conflict resolved by priority:', {
+    logger.info('Multi-event conflict resolved by priority', {
       candidates: sortedCandidates.map((c) => `${c.eventType}:${c.score.toFixed(2)}`).join(', '),
       selected: highestPriorityEvent.eventType,
     });

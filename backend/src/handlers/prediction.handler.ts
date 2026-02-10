@@ -5,6 +5,7 @@ import { runPredictionPipeline } from '../services/pipeline';
 import { putDailyAggregate, getDailyAggregate } from '../repositories/dailySentimentAggregate.repository';
 import { DailySentimentAggregateItem } from '../types/dynamodb.types';
 import { predictionRequestSchema, parseBody, formatZodError } from '../utils/schemas.util';
+import { logger } from '../utils/logger.util.js';
 
 /** Direct Lambda invocation payload (not from API Gateway) */
 interface DirectInvocationEvent {
@@ -25,7 +26,7 @@ function isDirectInvocation(event: unknown): event is DirectInvocationEvent {
 export async function predictionHandler(
     event: APIGatewayProxyEventV2 | DirectInvocationEvent
 ): Promise<APIGatewayResponse> {
-    console.log('[PredictionHandler] Request received. Event type:', typeof event);
+    logger.info('Request received', { eventType: typeof event });
 
     try {
         // Parse and validate request using Zod
@@ -34,7 +35,7 @@ export async function predictionHandler(
 
         // Case 1: Direct Lambda Invocation (event is the payload)
         if (isDirectInvocation(event)) {
-            console.log('[PredictionHandler] Direct Lambda invocation detected');
+            logger.info('Direct Lambda invocation detected');
             const parsed = predictionRequestSchema.safeParse({
                 ticker: event.ticker,
                 days: event.days
@@ -144,10 +145,10 @@ export async function predictionHandler(
              };
 
              await putDailyAggregate(aggregateItem);
-             console.log('[PredictionHandler] Saved prediction to DynamoDB:', { ticker, date: today });
+             logger.info('Saved prediction to DynamoDB', { ticker, date: today });
 
         } catch (dbError) {
-            console.error('[PredictionHandler] Failed to save prediction to DynamoDB:', dbError);
+            logger.error('Failed to save prediction to DynamoDB', dbError);
             // We don't fail the request, just log error
         }
 
@@ -157,7 +158,7 @@ export async function predictionHandler(
             body: JSON.stringify(response)
         };
     } catch (error: unknown) {
-        console.error('[PredictionHandler] Error:', error);
+        logger.error('Prediction error', error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
         // Handle known errors

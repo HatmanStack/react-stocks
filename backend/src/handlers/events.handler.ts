@@ -11,6 +11,7 @@ import type { NewsArticle } from '../repositories/newsCache.repository.js';
 import type { EventClassificationResult } from '../types/event.types.js';
 import { successResponse, errorResponse, type APIGatewayResponse } from '../utils/response.util.js';
 import { eventClassificationRequestSchema, parseBody } from '../utils/schemas.util.js';
+import { logger } from '../utils/logger.util.js';
 
 /**
  * Response body interface
@@ -52,9 +53,8 @@ export async function handleEventClassification(
           articleUrl: article.url,
         };
       } catch (error) {
-        console.error('[EventsHandler] Classification error:', {
+        logger.error('Classification error', error, {
           articleUrl: article.url,
-          error: error instanceof Error ? error.message : String(error),
         });
 
         // Return GENERAL classification for failed articles
@@ -72,7 +72,7 @@ export async function handleEventClassification(
     const processingTimeMs = Date.now() - startTime;
 
     // Log summary
-    console.log('[EventsHandler] Batch classification complete:', {
+    logger.info('Batch classification complete', {
       articleCount: articles.length,
       processingTimeMs,
       eventTypeDistribution: classifications.reduce((acc, c) => {
@@ -88,7 +88,7 @@ export async function handleEventClassification(
 
     return successResponse(response);
   } catch (error) {
-    console.error('[EventsHandler] Unexpected error:', error);
+    logger.error('Unexpected error', error);
     return errorResponse('Internal server error', 500);
   }
 }

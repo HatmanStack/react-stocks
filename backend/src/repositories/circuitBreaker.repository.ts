@@ -10,6 +10,7 @@
 import { getItem, putItem } from '../utils/dynamodb.util.js';
 import { makeCircuitPK, makeStateSK } from '../types/dynamodb.types.js';
 import type { CircuitBreakerItem } from '../types/dynamodb.types.js';
+import { logger } from '../utils/logger.util.js';
 
 /** Default service name — preserved for backward compatibility */
 const DEFAULT_SERVICE = 'mlsentiment';
@@ -106,8 +107,9 @@ export async function recordFailure(
 
   if (newFailures >= failureThreshold) {
     circuitOpenUntil = Date.now() + cooldownMs;
-    console.warn(
-      `[CircuitBreaker:${serviceName}] Circuit OPEN after ${failureThreshold} failures, cooldown ${cooldownMs}ms`,
+    logger.warn(
+      `Circuit OPEN after ${failureThreshold} failures, cooldown ${cooldownMs}ms`,
+      { serviceName },
     );
   }
 

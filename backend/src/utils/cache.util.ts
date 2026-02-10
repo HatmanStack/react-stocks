@@ -11,6 +11,7 @@ import {
   TTL_JOB_DAYS,
   TTL_DEFAULT_DAYS,
 } from '../constants/cache.constants.js';
+import { logger } from './logger.util.js';
 
 /**
  * Calculate TTL (Time To Live) for DynamoDB items
@@ -66,7 +67,7 @@ export function calculateTTLByDataType(
       }
       return calculateTTL(TTL_STOCK_CURRENT_DAYS);
     } catch {
-      console.warn('Invalid date passed to calculateTTLByDataType:', date);
+      logger.warn('Invalid date passed to calculateTTLByDataType', { date });
       return calculateTTL(TTL_DEFAULT_DAYS);
     }
   }

@@ -19,6 +19,8 @@ import { aggregateDailySentiment } from '../utils/sentiment.util.js';
 import { logMlSentimentCacheHitRate } from '../utils/metrics.util.js';
 import { validateDateFormat, validateTicker } from '../utils/validation.util.js';
 import { sentimentRequestSchema, parseBody } from '../utils/schemas.util.js';
+import { hasStatusCode, sanitizeErrorMessage, logError } from '../utils/error.util.js';
+import { logger } from '../utils/logger.util.js';
 import type { DailySentiment } from '../types/sentiment.types.js';
 
 /**
@@ -105,14 +107,12 @@ export async function handleSentimentRequest(
       throw processingError; // Re-throw to be caught by outer catch
     }
   } catch (error) {
-    console.error('[SentimentHandler] Error processing sentiment request:', error, {
+    logError('SentimentHandler', error, {
       requestId: event.requestContext.requestId,
     });
 
-    return errorResponse(
-      error instanceof Error ? error.message : 'Internal server error',
-      500
-    );
+    const statusCode = hasStatusCode(error) ? error.statusCode : 500;
+    return errorResponse(sanitizeErrorMessage(error, statusCode), statusCode);
   }
 }
 
@@ -157,14 +157,12 @@ export async function handleSentimentJobStatusRequest(
       error: job.error,
     });
   } catch (error) {
-    console.error('[SentimentHandler] Error getting job status:', error, {
+    logError('SentimentHandler', error, {
       requestId: event.requestContext.requestId,
     });
 
-    return errorResponse(
-      error instanceof Error ? error.message : 'Internal server error',
-      500
-    );
+    const statusCode = hasStatusCode(error) ? error.statusCode : 500;
+    return errorResponse(sanitizeErrorMessage(error, statusCode), statusCode);
   }
 }
 
@@ -187,14 +185,14 @@ export async function getSentimentResults(
     oneMonth?: { direction: 'up' | 'down'; probability: number };
   };
 }> {
-  console.log('[SentimentHandler] getSentimentResults called:', { ticker, startDate, endDate });
+  logger.info('getSentimentResults called', { ticker, startDate, endDate });
 
   // Fetch all sentiments for ticker
   const allSentiments = await SentimentCacheRepository.querySentimentsByTicker(ticker);
-  console.log('[SentimentHandler] Fetched sentiments:', { ticker, count: allSentiments.length });
+  logger.info('Fetched sentiments', { ticker, count: allSentiments.length });
 
   if (allSentiments.length === 0) {
-    console.log('[SentimentHandler] No sentiments found, returning empty');
+    logger.info('No sentiments found, returning empty');
     logMlSentimentCacheHitRate(ticker, 0, 1); // 1 miss
     return {
       ticker: ticker.toUpperCase(),
@@ -209,7 +207,7 @@ export async function getSentimentResults(
 
   // Fetch all news articles to get dates
   const allArticles = await NewsCacheRepository.queryArticlesByTicker(ticker);
-  console.log('[SentimentHandler] Fetched articles:', { ticker, count: allArticles.length });
+  logger.info('Fetched articles', { ticker, count: allArticles.length });
 
   // Filter articles by date range if provided
   const articlesInRange = allArticles.filter((article) => {
@@ -217,11 +215,11 @@ export async function getSentimentResults(
     if (endDate && article.article.date > endDate) return false;
     return true;
   });
-  console.log('[SentimentHandler] Articles in range:', { ticker, count: articlesInRange.length, startDate, endDate });
+  logger.info('Articles in range', { ticker, count: articlesInRange.length, startDate, endDate });
 
   // Aggregate daily sentiment using shared utility
   const dailySentiment = aggregateDailySentiment(allSentiments, articlesInRange);
-  console.log('[SentimentHandler] Aggregated daily sentiment:', { ticker, days: dailySentiment.length });
+  logger.info('Aggregated daily sentiment', { ticker, days: dailySentiment.length });
 
   // Fetch latest prediction (if available)
   let predictions = undefined;
@@ -250,7 +248,7 @@ export async function getSentimentResults(
           };
       }
   } catch (predError) {
-      console.error('[SentimentHandler] Error fetching predictions:', predError);
+      logger.error('Error fetching predictions', predError);
       // Continue without predictions
   }
 
@@ -326,7 +324,7 @@ export async function handleArticleSentimentRequest(
       return errorResponse('Query parameter "endDate" must be in YYYY-MM-DD format', 400);
     }
 
-    console.log('[SentimentHandler] handleArticleSentimentRequest:', { ticker, startDate, endDate });
+    logger.info('handleArticleSentimentRequest', { ticker, startDate, endDate });
 
     // Fetch all sentiments and articles for ticker
     const [allSentiments, allArticles] = await Promise.all([
@@ -334,7 +332,7 @@ export async function handleArticleSentimentRequest(
       NewsCacheRepository.queryArticlesByTicker(ticker),
     ]);
 
-    console.log('[SentimentHandler] Fetched:', { sentiments: allSentiments.length, articles: allArticles.length });
+    logger.info('Fetched sentiments and articles', { sentiments: allSentiments.length, articles: allArticles.length });
 
     // Create a map of articleHash -> article for quick lookup
     const articleMap = new Map(allArticles.map(a => [a.articleHash, a]));
@@ -377,7 +375,7 @@ export async function handleArticleSentimentRequest(
       .filter((a): a is NonNullable<typeof a> => a !== null)
       .sort((a, b) => b.date.localeCompare(a.date)) as ArticleSentimentItem[]; // Sort by date descending
 
-    console.log('[SentimentHandler] Returning articles:', { count: articles.length });
+    logger.info('Returning articles', { count: articles.length });
 
     return successResponse({
       ticker: ticker.toUpperCase(),
@@ -386,14 +384,12 @@ export async function handleArticleSentimentRequest(
       articles,
     });
   } catch (error) {
-    console.error('[SentimentHandler] Error getting article sentiment:', error, {
+    logError('SentimentHandler', error, {
       requestId: event.requestContext.requestId,
     });
 
-    return errorResponse(
-      error instanceof Error ? error.message : 'Internal server error',
-      500
-    );
+    const statusCode = hasStatusCode(error) ? error.statusCode : 500;
+    return errorResponse(sanitizeErrorMessage(error, statusCode), statusCode);
   }
 }
 
@@ -444,13 +440,11 @@ export async function handleSentimentResultsRequest(
 
     return successResponse(result);
   } catch (error) {
-    console.error('[SentimentHandler] Error getting sentiment results:', error, {
+    logError('SentimentHandler', error, {
       requestId: event.requestContext.requestId,
     });
 
-    return errorResponse(
-      error instanceof Error ? error.message : 'Internal server error',
-      500
-    );
+    const statusCode = hasStatusCode(error) ? error.statusCode : 500;
+    return errorResponse(sanitizeErrorMessage(error, statusCode), statusCode);
   }
 }

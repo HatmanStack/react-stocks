@@ -7,6 +7,7 @@
  * 3. Alpha Vantage fallback for historical data
  */
 
+import { logger } from '../utils/logger.util.js';
 import { transformFinnhubToCache, transformCacheToFinnhub } from '../utils/cacheTransform.util';
 import { generateArticleHash } from '../utils/hash.util';
 import { fetchCompanyNews } from './finnhub.service';
@@ -54,7 +55,7 @@ async function filterNewArticles(
   }));
 
   if (skipCacheCheck) {
-    console.log(`[NewsCache] Skipping cache check for fresh stock ${ticker} (${articlesWithHashes.length} articles)`);
+    logger.info(`Skipping cache check for fresh stock ${ticker}`, { articleCount: articlesWithHashes.length });
     return { newArticles: articlesWithHashes, duplicateCount: 0 };
   }
 
@@ -88,7 +89,7 @@ export async function fetchNewsWithCache(
       return item.article.date >= from && item.article.date <= to;
     });
 
-    console.log(`[NewsCache] Found ${cachedInRange.length} cached articles for ${ticker} (${from} to ${to})`);
+    logger.info(`Found ${cachedInRange.length} cached articles for ${ticker}`, { from, to });
 
     // Calculate date range coverage
     const fromDate = new Date(from);
@@ -98,7 +99,7 @@ export async function fetchNewsWithCache(
     const daysWithArticles = new Set(cachedInRange.map(item => item.article.date)).size;
     const coverageRatio = daysWithArticles / totalDays;
 
-    console.log(`[NewsCache] Coverage: ${daysWithArticles}/${totalDays} days (${(coverageRatio * 100).toFixed(1)}%)`);
+    logger.info(`Coverage: ${daysWithArticles}/${totalDays} days`, { coveragePercent: (coverageRatio * 100).toFixed(1) });
 
     // Tier 2: Adaptive coverage threshold
     let hasGoodCoverage: boolean;
@@ -117,7 +118,7 @@ export async function fetchNewsWithCache(
     }
 
     if (hasGoodCoverage) {
-      console.log(`[NewsCache] Cache hit for ${ticker}: ${cachedInRange.length} articles with ${(coverageRatio * 100).toFixed(1)}% coverage`);
+      logger.info(`Cache hit for ${ticker}`, { articleCount: cachedInRange.length, coveragePercent: (coverageRatio * 100).toFixed(1) });
 
       logMetrics(
         [
@@ -141,7 +142,7 @@ export async function fetchNewsWithCache(
     }
 
     // Tier 3: Cache miss — fetch from Finnhub
-    console.log(`[NewsCache] Cache miss for ${ticker}: fetching from API`);
+    logger.info(`Cache miss for ${ticker}, fetching from API`);
     let apiCallCount = 1;
     let apiArticles = await fetchCompanyNews(ticker, from, to, apiKey);
     let newsSource: 'finnhub' | 'alphavantage' = 'finnhub';
@@ -153,13 +154,13 @@ export async function fetchNewsWithCache(
       })
     ).size;
 
-    console.log(`[NewsCache] Finnhub returned ${apiArticles.length} articles spanning ${finnhubUniqueDays} days`);
+    logger.info(`Finnhub returned ${apiArticles.length} articles`, { uniqueDays: finnhubUniqueDays });
 
     const totalCachedDays = new Set(cachedItems.map(item => item.article.date)).size;
     const needsHistoricalData = totalCachedDays < MIN_DAYS_FOR_PREDICTIONS && finnhubUniqueDays < MIN_DAYS_FOR_PREDICTIONS;
 
     if (needsHistoricalData && alphaVantageKey) {
-      console.log(`[NewsCache] Insufficient historical data (cache: ${totalCachedDays} days, Finnhub: ${finnhubUniqueDays} days)`);
+      logger.info('Insufficient historical data', { cacheDays: totalCachedDays, finnhubDays: finnhubUniqueDays });
 
       try {
         const today = new Date();
@@ -177,7 +178,7 @@ export async function fetchNewsWithCache(
           })
         ).size;
 
-        console.log(`[NewsCache] Alpha Vantage returned ${alphaArticles.length} articles spanning ${alphaUniqueDays} days`);
+        logger.info(`Alpha Vantage returned ${alphaArticles.length} articles`, { uniqueDays: alphaUniqueDays });
 
         if (alphaArticles.length > 0) {
           try {
@@ -186,7 +187,7 @@ export async function fetchNewsWithCache(
             );
             await batchPutArticles(cacheItems);
           } catch (cacheError) {
-            console.error('[NewsCache] Failed to cache Alpha Vantage articles:', cacheError);
+            logger.error('Failed to cache Alpha Vantage articles', cacheError);
           }
 
           const alphaInRange = alphaArticles.filter((a) => {
@@ -204,10 +205,10 @@ export async function fetchNewsWithCache(
           }
         }
       } catch (alphaError) {
-        console.warn(`[NewsCache] Alpha Vantage fallback failed:`, alphaError);
+        logger.warn('Alpha Vantage fallback failed', { error: alphaError instanceof Error ? alphaError.message : String(alphaError) });
       }
     } else if (alphaVantageKey && totalCachedDays >= MIN_DAYS_FOR_PREDICTIONS) {
-      console.log(`[NewsCache] Sufficient historical data in cache (${totalCachedDays} days), skipping Alpha Vantage`);
+      logger.info('Sufficient historical data in cache, skipping Alpha Vantage', { cacheDays: totalCachedDays });
     }
 
     // Filter and cache new articles
@@ -230,7 +231,7 @@ export async function fetchNewsWithCache(
         );
         await batchPutArticles(cacheItems);
       } catch (cacheError) {
-        console.error('[NewsCache] Failed to cache news articles:', cacheError);
+        logger.error('Failed to cache news articles', cacheError);
       }
     }
 
@@ -242,7 +243,7 @@ export async function fetchNewsWithCache(
       source: newsSource,
     };
   } catch (error) {
-    console.warn('[NewsCache] Cache check failed, falling back to API:', error);
+    logger.warn('Cache check failed, falling back to API', { error: error instanceof Error ? error.message : String(error) });
 
     const apiArticles = await fetchCompanyNews(ticker, from, to, apiKey);
 

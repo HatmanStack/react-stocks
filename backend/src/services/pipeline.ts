@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger.util.js';
 import { fetchHistoricalData } from './dataFetcher';
 import { aggregate_daily_features } from './featureEngineering';
 import { prepare_training_data, create_scaler, normalize_features, Scaler } from './preprocessing';
@@ -30,18 +31,18 @@ async function getCachedModel(ticker: string): Promise<{
         const ageHours = (Date.now() - trainedAt) / (1000 * 60 * 60);
 
         if (ageHours > MODEL_CACHE_TTL_HOURS) {
-            console.log(`[Pipeline] Cached model for ${ticker} is stale (${ageHours.toFixed(1)}h old), retraining`);
+            logger.info(`Cached model for ${ticker} is stale, retraining`, { ageHours: ageHours.toFixed(1) });
             return null;
         }
 
-        console.log(`[Pipeline] Using cached model for ${ticker} (${ageHours.toFixed(1)}h old, accuracy: ${item.accuracy.toFixed(4)})`);
+        logger.info(`Using cached model for ${ticker}`, { ageHours: ageHours.toFixed(1), accuracy: item.accuracy.toFixed(4) });
         return {
             model: { weights: item.weights, bias: item.bias },
             scaler: { mean: item.scalerMean, std: item.scalerStd },
             accuracy: item.accuracy,
         };
     } catch (error) {
-        console.warn(`[Pipeline] Failed to read model cache for ${ticker}:`, error);
+        logger.warn(`Failed to read model cache for ${ticker}`, { error: error instanceof Error ? error.message : String(error) });
         return null;
     }
 }
@@ -78,9 +79,9 @@ async function cacheModel(
         };
 
         await putItem(item);
-        console.log(`[Pipeline] Cached model for ${ticker} (${sampleCount} samples, accuracy: ${accuracy.toFixed(4)})`);
+        logger.info(`Cached model for ${ticker}`, { sampleCount, accuracy: accuracy.toFixed(4) });
     } catch (error) {
-        console.warn(`[Pipeline] Failed to cache model for ${ticker}:`, error);
+        logger.warn(`Failed to cache model for ${ticker}`, { error: error instanceof Error ? error.message : String(error) });
     }
 }
 
@@ -93,18 +94,18 @@ async function cacheModel(
  * @returns List of predictions for 1, 14, 30 days.
  */
 export async function runPredictionPipeline(ticker: string, days: number = 90): Promise<PredictionResult[]> {
-    console.log(`[Pipeline] Starting prediction pipeline for ${ticker} with ${days} days history...`);
+    logger.info(`Starting prediction pipeline for ${ticker}`, { days });
 
     // 1. Fetch Data
     const historicalData = await fetchHistoricalData(ticker, days);
-    console.log(`[Pipeline] Fetched ${historicalData.prices.length} price records and ${historicalData.sentiment.length} articles.`);
+    logger.info('Fetched historical data', { priceRecords: historicalData.prices.length, articles: historicalData.sentiment.length });
 
     // 2. Feature Engineering
     const dailyFeatures = aggregate_daily_features(historicalData.prices, historicalData.sentiment, ticker);
-    console.log(`[Pipeline] Aggregated ${dailyFeatures.length} daily feature records.`);
+    logger.info('Aggregated daily feature records', { count: dailyFeatures.length });
 
     if (dailyFeatures.length === 0) {
-        console.warn(`[Pipeline] No daily features available for ${ticker}. Returning empty predictions.`);
+        logger.warn(`No daily features available for ${ticker}, returning empty predictions`);
         return [];
     }
 
@@ -117,7 +118,7 @@ export async function runPredictionPipeline(ticker: string, days: number = 90): 
 
     // 4. Preprocessing (Training Data)
     const { X, y } = prepare_training_data(dailyFeatures);
-    console.log(`[Pipeline] Prepared training data: ${X.length} samples.`);
+    logger.info('Prepared training data', { samples: X.length });
 
     // 5. Normalization
     const scaler = create_scaler(X);
@@ -132,7 +133,7 @@ export async function runPredictionPipeline(ticker: string, days: number = 90): 
         validationSplit: MODEL_CONFIG.validationSplit
     });
     const model = trainingResult.model;
-    console.log(`[Pipeline] Model trained. Accuracy: ${trainingResult.metrics.accuracy.toFixed(4)}, Loss: ${trainingResult.metrics.loss.toFixed(4)}`);
+    logger.info('Model trained', { accuracy: trainingResult.metrics.accuracy.toFixed(4), loss: trainingResult.metrics.loss.toFixed(4) });
 
     // 7. Walk-forward cross-validation to assess generalization
     const cvResult = await walkForwardValidate(X_norm, y, {
@@ -143,7 +144,7 @@ export async function runPredictionPipeline(ticker: string, days: number = 90): 
         validationSplit: MODEL_CONFIG.validationSplit,
     });
     if (cvResult) {
-        console.log(`[Pipeline] Walk-forward CV: mean accuracy ${cvResult.meanAccuracy.toFixed(4)} across ${cvResult.foldScores.length} folds`);
+        logger.info('Walk-forward CV complete', { meanAccuracy: cvResult.meanAccuracy.toFixed(4), folds: cvResult.foldScores.length });
     }
 
     // 8. Cache trained model for future requests (skip if accuracy is too low)
@@ -151,13 +152,13 @@ export async function runPredictionPipeline(ticker: string, days: number = 90): 
     if (effectiveAccuracy >= 0.45) {
         await cacheModel(ticker, model, scaler, X.length, trainingResult.metrics.accuracy);
     } else {
-        console.warn(`[Pipeline] CV accuracy ${effectiveAccuracy.toFixed(4)} too low to cache for ${ticker}`);
+        logger.warn(`CV accuracy too low to cache for ${ticker}`, { accuracy: effectiveAccuracy.toFixed(4) });
     }
 
     // 9. Prediction Generation
     const latestFeatures = dailyFeatures[dailyFeatures.length - 1];
     const predictions = generate_predictions(model, scaler, latestFeatures);
-    console.log(`[Pipeline] Generated ${predictions.length} predictions.`);
+    logger.info('Generated predictions', { count: predictions.length });
 
     return predictions;
 }

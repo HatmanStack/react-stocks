@@ -24,6 +24,7 @@ import {
 import type { SentimentCacheItem as SingleTableSentimentItem } from '../types/dynamodb.types.js';
 import type { SentimentCacheItem } from '../types/sentiment.types.js';
 import { calculateTTLByDataType } from '../utils/cache.util.js';
+import { logger } from '../utils/logger.util.js';
 
 // Re-export types for convenience
 export type { SentimentCacheItem, SentimentData } from '../types/sentiment.types.js';
@@ -54,7 +55,7 @@ export async function getSentiment(
 
     return transformToExternal(item);
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error getting sentiment:', error, {
+    logger.error('Error getting sentiment', error, {
       ticker,
       articleHash,
     });
@@ -94,13 +95,13 @@ export async function putSentiment(
     );
 
     if (!wasCreated) {
-      console.log('[SentimentCacheRepository] Sentiment already exists (duplicate prevented):', {
+      logger.info('Sentiment already exists (duplicate prevented)', {
         ticker: item.ticker,
         articleHash: item.articleHash,
       });
     }
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error putting sentiment:', error, {
+    logger.error('Error putting sentiment', error, {
       ticker: item.ticker,
       articleHash: item.articleHash,
     });
@@ -136,7 +137,7 @@ export async function batchPutSentiments(
       await batchPutItemsSingleTable(batch);
     }
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error batch putting sentiments:', error, {
+    logger.error('Error batch putting sentiments', error, {
       itemCount: items.length,
     });
     throw error;
@@ -164,7 +165,7 @@ export async function querySentimentsByTicker(
 
     return items.map(transformToExternal);
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error querying sentiments by ticker:', error, {
+    logger.error('Error querying sentiments by ticker', error, {
       ticker,
     });
     throw error;
@@ -190,7 +191,7 @@ export async function existsInCache(
     const sentiment = await getSentiment(ticker, articleHash);
     return sentiment !== null;
   } catch (error) {
-    console.error('[SentimentCacheRepository] Error checking if sentiment exists:', error, {
+    logger.error('Error checking if sentiment exists', error, {
       ticker,
       articleHash,
     });
@@ -226,7 +227,7 @@ export async function batchCheckExistence(
       results.push(...batchResults);
     } catch (error) {
       // Log but continue with other batches - partial results are better than total failure
-      console.warn(`[SentimentCacheRepository] Batch ${Math.floor(i / batchSize) + 1} failed, continuing:`, error);
+      logger.warn(`Batch ${Math.floor(i / batchSize) + 1} failed, continuing`, { error: String(error) });
     }
   }
 

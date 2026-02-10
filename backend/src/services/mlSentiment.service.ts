@@ -9,6 +9,7 @@
  * See Phase 0 ADR-004 for design rationale.
  */
 
+import { logger } from '../utils/logger.util.js';
 import { logMlSentimentCall, logMlSentimentFallback } from '../utils/metrics.util.js';
 import {
   ML_TIMEOUT_MS,
@@ -151,28 +152,26 @@ export async function getMlSentiment(
   // Validate configuration (read at runtime for testability)
   const apiUrl = getApiUrl();
   if (!apiUrl) {
-    console.warn(
-      '[MlSentimentService] ML_SENTIMENT_API_URL/DISTILFINBERT_API_URL not configured, skipping ML analysis'
-    );
+    logger.warn('ML_SENTIMENT_API_URL/DISTILFINBERT_API_URL not configured, skipping ML analysis');
     return null;
   }
 
   // Circuit breaker: fail-fast if service is down
   if (await isCircuitOpen()) {
-    console.warn('[MlSentimentService] Circuit open, skipping ML analysis');
+    logger.warn('Circuit open, skipping ML analysis');
     return null;
   }
 
   // Validate input
   if (!text || !text.trim()) {
-    console.warn('[MlSentimentService] Empty text provided, skipping analysis');
+    logger.warn('Empty text provided, skipping analysis');
     return null;
   }
 
   // Truncate very long texts (API has max length)
   let processedText = text;
   if (text.length > ML_MAX_TEXT_LENGTH) {
-    console.warn('[MlSentimentService] Text truncated', {
+    logger.warn('Text truncated', {
       originalLength: text.length,
       truncatedLength: ML_MAX_TEXT_LENGTH,
     });
@@ -183,7 +182,7 @@ export async function getMlSentiment(
   for (let attempt = 1; attempt <= ML_MAX_RETRIES; attempt++) {
     const startTime = Date.now();
     try {
-      console.log('[MlSentimentService] Calling MlSentiment API', {
+      logger.info('Calling MlSentiment API', {
         attempt,
         textLength: processedText.length,
         url: apiUrl,
@@ -204,7 +203,7 @@ export async function getMlSentiment(
         const isLastAttempt = attempt === ML_MAX_RETRIES;
         const canRetry = shouldRetry(null, response.status);
 
-        console.error('[MlSentimentService] HTTP request failed', {
+        logger.error('HTTP request failed', undefined, {
           attempt,
           isLastAttempt,
           canRetry,
@@ -228,20 +227,20 @@ export async function getMlSentiment(
 
       // Validate response structure
       if (!data || typeof data.sentiment !== 'number') {
-        console.error('[MlSentimentService] Invalid response format', { data });
+        logger.error('Invalid response format', undefined, { data: data as unknown as Record<string, unknown> });
         throw new Error('Invalid response format from MlSentiment API');
       }
 
       // Validate sentiment score range
       const rawScore = data.sentiment;
       if (rawScore < -1 || rawScore > 1) {
-        console.error('[MlSentimentService] Sentiment score out of range', {
+        logger.error('Sentiment score out of range', undefined, {
           score: rawScore,
         });
         throw new Error(`Invalid sentiment score: ${rawScore}`);
       }
 
-      console.log('[MlSentimentService] Analysis successful', {
+      logger.info('Analysis successful', {
         score: rawScore,
         label: data.label,
       });
@@ -255,24 +254,21 @@ export async function getMlSentiment(
       const isLastAttempt = attempt === ML_MAX_RETRIES;
       const canRetry = shouldRetry(error);
 
-      console.error('[MlSentimentService] Request error', {
+      logger.error('Request error', error, {
         attempt,
         isLastAttempt,
         canRetry,
-        error: error instanceof Error ? error.message : String(error),
       });
 
       if (isLastAttempt || !canRetry) {
-        console.warn(
-          '[MlSentimentService] All retries exhausted or non-retryable error, using fallback'
-        );
+        logger.warn('All retries exhausted or non-retryable error, using fallback');
         await recordFailure();
         logMlSentimentFallback('UNKNOWN', 1, 1, error instanceof Error ? error.message : 'Unknown error');
         return null;
       }
 
       const delay = ML_INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
-      console.log('[MlSentimentService] Retrying after delay', {
+      logger.info('Retrying after delay', {
         attempt,
         delayMs: delay,
       });
@@ -312,9 +308,7 @@ export async function getMlSentimentHealth(): Promise<{
 
     return await response.json() as { status: string; model_loaded: boolean };
   } catch (error) {
-    console.error('[MlSentimentService] Health check failed', {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    logger.error('Health check failed', error);
     return null;
   }
 }

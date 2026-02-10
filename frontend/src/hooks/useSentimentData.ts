@@ -71,11 +71,16 @@ export function useSentimentData(
           latestRecord.updateDate = formatDateForDB(new Date());
 
           // Persist predictions (async, non-blocking)
-          CombinedWordRepository.upsert(latestRecord)
-            .catch(err => console.warn('[useSentimentData] Failed to store predictions:', err));
-
-          updatePredictions(ticker, predictions)
-            .catch(err => console.warn('[useSentimentData] Failed to update portfolio:', err));
+          void Promise.allSettled([
+            CombinedWordRepository.upsert(latestRecord),
+            updatePredictions(ticker, predictions),
+          ]).then(results => {
+            for (const r of results) {
+              if (r.status === 'rejected') {
+                console.warn('[useSentimentData] Background write failed:', r.reason);
+              }
+            }
+          });
         }
       }
 

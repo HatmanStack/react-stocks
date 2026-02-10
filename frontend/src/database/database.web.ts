@@ -190,23 +190,21 @@ class WebDatabase {
       // Use requestIdleCallback if available, otherwise fallback to immediate save
       if ('requestIdleCallback' in window) {
         requestIdleCallback(() => {
-          localStorage.setItem(this.storageKey, dataString);
-          console.log(`[WebDB] ✓ Saved ${sizeKB} KB (idle callback)`);
+          try {
+            localStorage.setItem(this.storageKey, dataString);
+            console.log(`[WebDB] Saved ${sizeKB} KB (idle callback)`);
+          } catch (cbError) {
+            this.handleSaveError(cbError);
+          }
           this.pendingSave = false;
         }, { timeout: 1000 }); // Force save after 1s if browser is busy
       } else {
         localStorage.setItem(this.storageKey, dataString);
-        console.log(`[WebDB] ✓ Saved ${sizeKB} KB`);
+        console.log(`[WebDB] Saved ${sizeKB} KB`);
         this.pendingSave = false;
       }
     } catch (error) {
-      console.error('[WebDB] Failed to save data:', error);
-      console.error('[WebDB] Error details:', {
-        name: (error as Error).name,
-        message: (error as Error).message,
-        dataSize: JSON.stringify(this.data).length,
-        storageKey: this.storageKey
-      });
+      this.handleSaveError(error);
       this.pendingSave = false;
     }
   }
@@ -222,17 +220,49 @@ class WebDatabase {
 
       // Immediately save to localStorage (synchronous)
       localStorage.setItem(this.storageKey, dataString);
-      console.log(`[WebDB] ✓ Saved ${sizeKB} KB (sync)`);
+      console.log(`[WebDB] Saved ${sizeKB} KB (sync)`);
       this.pendingSave = false;
     } catch (error) {
-      console.error('[WebDB] Failed to save data (sync):', error);
-      console.error('[WebDB] Error details:', {
-        name: (error as Error).name,
-        message: (error as Error).message,
-        dataSize: JSON.stringify(this.data).length,
-        storageKey: this.storageKey
-      });
+      this.handleSaveError(error);
       this.pendingSave = false;
+    }
+  }
+
+  /**
+   * Handle save errors with QuotaExceededError eviction + retry
+   */
+  private handleSaveError(error: unknown): void {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      console.warn('[WebDB] Storage quota exceeded, evicting oldest data');
+      this.evictOldestData();
+      try {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+      } catch {
+        console.error('[WebDB] Save failed even after eviction');
+      }
+    } else {
+      console.error('[WebDB] Failed to save data:', error);
+    }
+  }
+
+  /**
+   * Evict oldest 25% of entries from growth-prone collections
+   * to free up localStorage space when quota is exceeded
+   */
+  private evictOldestData(): void {
+    const collections = ['stocks', 'news', 'sentiment', 'articleSentiment'] as const;
+
+    for (const collection of collections) {
+      const collectionData = this.data[collection] as Record<string, { date: string }[]>;
+      for (const ticker of Object.keys(collectionData)) {
+        const entries = collectionData[ticker];
+        if (entries.length <= 4) continue;
+
+        // Sort by date ascending, remove oldest 25%
+        entries.sort((a, b) => a.date.localeCompare(b.date));
+        const removeCount = Math.ceil(entries.length * 0.25);
+        entries.splice(0, removeCount);
+      }
     }
   }
 

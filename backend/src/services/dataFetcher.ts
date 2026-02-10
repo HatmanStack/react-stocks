@@ -1,6 +1,7 @@
 import { DynamoDBClientWrapper } from './dynamodb.client';
 import { StockPrice, ArticleSentiment, HistoricalData } from '../types/prediction.types';
 import { StockHistoricalDataItem, ArticleAnalysisDataItem } from '../types/dynamodb.types';
+import { logger } from '../utils/logger.util.js';
 
 const dynamoDB = new DynamoDBClientWrapper();
 
@@ -36,7 +37,7 @@ export async function fetchPriceData(ticker: string, startDate: string, endDate:
       volume: item.volume,
     })).sort((a, b) => a.date.localeCompare(b.date));
   } catch (error) {
-    console.error(`[DataFetcher] Error fetching price data for ${ticker}:`, error);
+    logger.error(`Error fetching price data for ${ticker}`, error);
     throw error;
   }
 }
@@ -61,7 +62,7 @@ export async function fetchSentimentData(ticker: string, startDate: string, endD
       materialityScore: item.materialityScore !== undefined ? item.materialityScore : null,
     }));
   } catch (error) {
-    console.error(`[DataFetcher] Error fetching sentiment data for ${ticker}:`, error);
+    logger.error(`Error fetching sentiment data for ${ticker}`, error);
     throw error;
   }
 }
@@ -97,7 +98,7 @@ export async function fetchHistoricalData(ticker: string, days: number): Promise
       sentiment
     };
   } catch (error) {
-    console.error(`[DataFetcher] Error fetching historical data for ${ticker}:`, error);
+    logger.error(`Error fetching historical data for ${ticker}`, error);
     throw error;
   }
 }
