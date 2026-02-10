@@ -15,7 +15,7 @@ lint:
 localstack:
 	docker compose up -d
 	@echo "Waiting for LocalStack..."
-	@timeout 30 bash -c 'until curl -s http://localhost:4566/_localstack/health | grep -q running; do sleep 1; done'
+	@timeout 60 bash -c 'until curl -s http://localhost:4566/_localstack/health | grep -qE "\"(running|available)\""; do sleep 1; done'
 	@echo "LocalStack ready at http://localhost:4566"
 
 localstack-stop:
