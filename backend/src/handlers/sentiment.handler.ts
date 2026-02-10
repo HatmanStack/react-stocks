@@ -97,14 +97,15 @@ export async function handleSentimentRequest(
         completedAt: Date.now(),
       });
     } catch (processingError) {
-      // Mark job as failed
+      // Persist failure state in DynamoDB before re-throwing to the outer
+      // catch, which converts the error into an HTTP response.
       const errorMessage =
         processingError instanceof Error
           ? processingError.message
           : 'Unknown error during sentiment processing';
       await SentimentJobsRepository.markJobFailed(jobId, errorMessage);
 
-      throw processingError; // Re-throw to be caught by outer catch
+      throw processingError;
     }
   } catch (error) {
     logError('SentimentHandler', error, {

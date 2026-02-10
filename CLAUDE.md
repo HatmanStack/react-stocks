@@ -30,6 +30,13 @@ npm run test:integration         # Integration tests
 npm run deploy                   # Deploy via SAM
 npm run logs                     # View Lambda logs
 npm run warm-cache               # Pre-populate DynamoDB cache
+
+# Local development (Docker required)
+make localstack                  # Start LocalStack DynamoDB
+make localstack-stop             # Stop LocalStack
+make test-e2e                    # Run E2E tests against LocalStack
+make setup                       # npm install --legacy-peer-deps
+make test                        # Full check (lint + tests)
 ```
 
 ### Running Single Tests
@@ -121,8 +128,11 @@ Both share API Gateway and some DynamoDB tables.
 
 - **Frontend tests**: Jest + React Native Testing Library, mocks in `frontend/__mocks__/`
 - **Backend tests**: Jest with ESM support (`--experimental-vm-modules`)
+- **Backend E2E tests**: Real DynamoDB via LocalStack (`make localstack && make test-e2e`)
 - **Python tests**: pytest in `backend/python_tests/`
 - **Coverage thresholds**: Frontend 30%, Backend 70%
+- **Pre-commit hooks**: Husky runs Prettier (TS/JSON/MD) and ruff (Python) via lint-staged
+- **Commit messages**: Enforced conventional commits via commitlint
 
 ## Environment Variables
 
