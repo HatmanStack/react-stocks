@@ -13,6 +13,8 @@ A cross-platform application that lets you monitor real-time stock prices, analy
 
 ---
 
+** THIS REPO IS IN ACTIVE DEVELOPMENT AND WILL CHANGE OFTEN **
+
 </div>
 
 ## ✨ Features
