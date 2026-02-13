@@ -51,7 +51,7 @@ export async function getCircuitState(serviceName: string = DEFAULT_SERVICE): Pr
  * @param event - Whether this update is recording a success or failure
  * @param serviceName - Identifier for the external service
  */
-export async function updateCircuitState(
+async function updateCircuitState(
   consecutiveFailures: number,
   circuitOpenUntil: number,
   event: 'success' | 'failure',

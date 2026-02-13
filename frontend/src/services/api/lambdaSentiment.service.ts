@@ -167,37 +167,13 @@ export async function triggerSentimentAnalysis(
   const client = createBackendClient();
 
   try {
-    console.log(
-      `[LambdaSentiment] Triggering sentiment analysis for ${request.ticker} from ${request.startDate} to ${request.endDate}`,
-    );
-
     const response = await client.post<{ data: SentimentJobResponse }>('/sentiment', request);
 
-    const result = response.data.data;
-
-    console.log(
-      `[LambdaSentiment] Sentiment job ${result.jobId} created with status: ${result.status}`,
-    );
-
-    return result;
+    return response.data.data;
   } catch (error) {
     if (isAxiosError(error)) {
       const status = error.response?.status;
       const errorData = error.response?.data as { error?: string };
-
-      // Log detailed error info for debugging
-      console.error('[LambdaSentiment] Axios error details:', {
-        message: error.message,
-        code: error.code,
-        status: status,
-        statusText: error.response?.statusText,
-        data: errorData,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          baseURL: error.config?.baseURL,
-        },
-      });
 
       if (status === 400) {
         throw new Error(errorData?.error || 'Invalid request parameters');
@@ -234,15 +210,9 @@ export async function getSentimentJobStatus(jobId: string): Promise<SentimentJob
   const client = createBackendClient();
 
   try {
-    console.log(`[LambdaSentiment] Checking status for job ${jobId}`);
-
     const response = await client.get<{ data: SentimentJobStatus }>(`/sentiment/job/${jobId}`);
 
-    const result = response.data.data;
-
-    console.log(`[LambdaSentiment] Job ${jobId} status: ${result.status}`);
-
-    return result;
+    return response.data.data;
   } catch (error) {
     if (isAxiosError(error)) {
       const status = error.response?.status;
@@ -316,21 +286,11 @@ export async function getArticleSentiment(
   const client = createBackendClient();
 
   try {
-    console.log(
-      `[LambdaSentiment] Fetching article sentiment for ${ticker} from ${startDate} to ${endDate}`,
-    );
-
     const response = await client.get<{ data: ArticleSentimentResponse }>('/sentiment/articles', {
       params: { ticker, startDate, endDate },
     });
 
-    const result = response.data.data;
-
-    console.log(
-      `[LambdaSentiment] Fetched ${result.articles.length} article sentiment records for ${ticker}`,
-    );
-
-    return result;
+    return response.data.data;
   } catch (error) {
     if (isAxiosError(error)) {
       const status = error.response?.status;
@@ -377,8 +337,6 @@ export async function fetchLambdaNews(
   const client = createBackendClient();
 
   try {
-    console.log(`[LambdaSentiment] Fetching news for ${ticker} from ${startDate} to ${endDate}`);
-
     const response = await client.get<{
       data: unknown[];
       _meta: { cached: boolean; newArticles: number; cachedArticles: number };
@@ -387,10 +345,6 @@ export async function fetchLambdaNews(
     });
 
     const meta = response.data._meta;
-
-    console.log(
-      `[LambdaSentiment] Fetched news for ${ticker}: ${meta.newArticles} new, ${meta.cachedArticles} cached`,
-    );
 
     return {
       cached: meta.cached,
@@ -401,12 +355,6 @@ export async function fetchLambdaNews(
     if (isAxiosError(error)) {
       const status = error.response?.status;
       const errorData = error.response?.data as { error?: string };
-
-      console.error('[LambdaSentiment] News fetch error:', {
-        status,
-        error: errorData?.error,
-        message: error.message,
-      });
 
       if (status === 400) {
         throw new Error(errorData?.error || 'Invalid request parameters');
@@ -442,21 +390,11 @@ export async function getSentimentResults(
   const client = createBackendClient();
 
   try {
-    console.log(
-      `[LambdaSentiment] Fetching sentiment results for ${ticker} from ${startDate} to ${endDate}`,
-    );
-
     const response = await client.get<{ data: SentimentResultsResponse }>('/sentiment', {
       params: { ticker, startDate, endDate },
     });
 
-    const result = response.data.data;
-
-    console.log(
-      `[LambdaSentiment] Fetched ${result.dailySentiment.length} daily sentiment records for ${ticker}`,
-    );
-
-    return result;
+    return response.data.data;
   } catch (error) {
     if (isAxiosError(error)) {
       const status = error.response?.status;

@@ -13,7 +13,7 @@ import { z } from 'zod';
  * - Only letters, numbers, dots, and hyphens (BRK.A, BF-B)
  * - Automatically transforms to uppercase
  */
-export const tickerSchema = z
+const tickerSchema = z
   .string()
   .min(1, 'Ticker is required')
   .max(10, 'Ticker must be at most 10 characters')
@@ -24,7 +24,7 @@ export const tickerSchema = z
  * Date schema (YYYY-MM-DD format)
  * - Validates format and ensures it's a real calendar date
  */
-export const dateSchema = z
+const dateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
   .refine(
@@ -73,7 +73,7 @@ export const predictionRequestSchema = z.object({
  * Batch request schema (for news and sentiment)
  * - tickers: Array of 1-10 stock symbols
  */
-export const batchTickersSchema = z
+const batchTickersSchema = z
   .array(tickerSchema)
   .min(1, 'At least one ticker is required')
   .max(10, 'Maximum 10 tickers per batch');

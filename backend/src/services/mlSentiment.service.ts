@@ -284,36 +284,3 @@ export async function getMlSentiment(text: string): Promise<number | null> {
 
   return null;
 }
-
-/**
- * Get MlSentiment service health status
- */
-export async function getMlSentimentHealth(): Promise<{
-  status: string;
-  model_loaded: boolean;
-} | null> {
-  const apiUrl = getApiUrl();
-  if (!apiUrl) {
-    return null;
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    const response = await fetch(`${apiUrl}/health`, {
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as { status: string; model_loaded: boolean };
-  } catch (error) {
-    logger.error('Health check failed', error);
-    return null;
-  }
-}

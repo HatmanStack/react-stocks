@@ -78,7 +78,7 @@ export type EventKeywords = Record<EventType, EventKeywordSet>;
  * These events trigger MlSentiment sentiment analysis and aspect analysis.
  * Other events (PRODUCT_LAUNCH, GENERAL) use bag-of-words only.
  */
-export const MATERIAL_EVENTS: EventType[] = ['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING'];
+const MATERIAL_EVENTS: EventType[] = ['EARNINGS', 'M&A', 'GUIDANCE', 'ANALYST_RATING'];
 
 /**
  * Check if an event type is material (requires sophisticated analysis)

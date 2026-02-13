@@ -9,13 +9,13 @@ import type { Ticker } from '../types/branded.types.js';
 export type { Ticker, DateString } from '../types/branded.types.js';
 
 /** General ticker pattern: letters, numbers, dots, hyphens (BRK.A, BF-B) */
-export const TICKER_REGEX = /^[A-Z0-9.-]+$/;
+const TICKER_REGEX = /^[A-Z0-9.-]+$/;
 
 /** Strict ticker pattern: letters and numbers only (Finnhub compatibility) */
-export const TICKER_REGEX_STRICT = /^[A-Z0-9]+$/;
+const TICKER_REGEX_STRICT = /^[A-Z0-9]+$/;
 
 /** Date format: YYYY-MM-DD */
-export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Validate and normalize a ticker symbol.
@@ -50,20 +50,4 @@ export function validateDateFormat(raw: unknown): raw is string {
     date.getMonth() === month - 1 &&
     date.getDate() === day
   );
-}
-
-/**
- * Validate that a date range is logically valid (start <= end).
- * Assumes both dates have been validated with validateDateFormat.
- * @returns Error message or null if valid
- */
-export function validateDateRange(start: string, end: string): string | null {
-  // Parse dates for proper comparison
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-
-  if (startDate.getTime() > endDate.getTime()) {
-    return `Invalid date range: startDate (${start}) must be before endDate (${end})`;
-  }
-  return null;
 }

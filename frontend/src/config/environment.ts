@@ -68,23 +68,3 @@ export function validateEnvironment(): void {
     throw new Error(errorMessage);
   }
 }
-
-/**
- * Log environment configuration status
- * Useful for debugging and verifying feature flag states
- */
-export function logEnvironmentStatus(): void {
-  console.log('[Environment] Configuration:');
-  console.log(`  - BACKEND_URL: ${Environment.BACKEND_URL || '❌ NOT SET'}`);
-  console.log(`  - USE_BROWSER_SENTIMENT: ${Environment.USE_BROWSER_SENTIMENT}`);
-  console.log(`  - USE_BROWSER_PREDICTION: ${Environment.USE_BROWSER_PREDICTION}`);
-  console.log(`  - USE_LAMBDA_SENTIMENT: ${Environment.USE_LAMBDA_SENTIMENT}`);
-}
-
-/**
- * Get environment configuration as object
- * Useful for debugging
- */
-export function getEnvironmentConfig(): Record<string, string | boolean | undefined> {
-  return { ...Environment };
-}

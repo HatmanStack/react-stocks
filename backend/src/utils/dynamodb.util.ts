@@ -12,7 +12,6 @@ import {
   GetCommand,
   PutCommand,
   QueryCommand,
-  DeleteCommand,
   UpdateCommand,
   BatchGetCommand,
   BatchWriteCommand,
@@ -21,15 +20,11 @@ import type {
   GetCommandInput,
   PutCommandInput,
   QueryCommandInput,
-  DeleteCommandInput,
   UpdateCommandInput,
   BatchGetCommandInput,
   BatchWriteCommandInput,
 } from '@aws-sdk/lib-dynamodb';
 import { logger } from './logger.util.js';
-
-/** Default timeout for DynamoDB operations (5 seconds) */
-const DYNAMODB_TIMEOUT_MS = 5000;
 
 // Initialize DynamoDB client (reused across Lambda invocations)
 const client = new DynamoDBClient({
@@ -38,7 +33,7 @@ const client = new DynamoDBClient({
 });
 
 // Create document client with marshalling options
-export const dynamoDb = DynamoDBDocumentClient.from(client, {
+const dynamoDb = DynamoDBDocumentClient.from(client, {
   marshallOptions: {
     removeUndefinedValues: true,
     convertEmptyValues: false,
@@ -47,9 +42,6 @@ export const dynamoDb = DynamoDBDocumentClient.from(client, {
     wrapNumbers: false,
   },
 });
-
-// Alias for backward compatibility
-export const docClient = dynamoDb;
 
 // ============================================================
 // Single-Table Design Helpers
@@ -60,7 +52,7 @@ export const docClient = dynamoDb;
  *
  * Uses DYNAMODB_TABLE_NAME env var, falling back to stack-based naming.
  */
-export function getTableName(): string {
+function getTableName(): string {
   const tableName = process.env.DYNAMODB_TABLE_NAME;
   if (!tableName) {
     throw new Error('DYNAMODB_TABLE_NAME environment variable not set');
@@ -180,18 +172,6 @@ export async function queryItems<T>(
   } while (exclusiveStartKey);
 
   return allItems;
-}
-
-/**
- * Delete a single item
- */
-export async function deleteItem(pk: string, sk: string): Promise<void> {
-  const params: DeleteCommandInput = {
-    TableName: getTableName(),
-    Key: { pk, sk },
-  };
-
-  await dynamoDb.send(new DeleteCommand(params));
 }
 
 /**
@@ -390,126 +370,4 @@ export async function updateItem(
   };
 
   await dynamoDb.send(new UpdateCommand(params));
-}
-
-/**
- * Execute an operation with a timeout
- *
- * Wraps any async operation with a timeout to prevent Lambda from hanging
- * on unresponsive DynamoDB calls.
- *
- * @param operation - Async function to execute
- * @param timeoutMs - Timeout in milliseconds (default: 5000)
- * @param operationName - Name for error messages
- * @returns Result of the operation
- * @throws Error if operation times out
- *
- * @example
- * const result = await withTimeout(
- *   () => dynamoDb.send(new GetCommand(params)),
- *   3000,
- *   'GetItem'
- * );
- */
-export async function withTimeout<T>(
-  operation: () => Promise<T>,
-  timeoutMs: number = DYNAMODB_TIMEOUT_MS,
-  operationName: string = 'DynamoDB',
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout>;
-
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      reject(new Error(`${operationName} operation timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-  });
-
-  try {
-    const result = await Promise.race([operation(), timeoutPromise]);
-    clearTimeout(timeoutId!);
-    return result;
-  } catch (error) {
-    clearTimeout(timeoutId!);
-    throw error;
-  }
-}
-
-/**
- * Retry a function with exponential backoff
- * Useful for handling throttling errors from DynamoDB
- *
- * @param fn - Async function to retry
- * @param maxRetries - Maximum number of retry attempts (default: 3)
- * @param baseDelayMs - Base delay in milliseconds (default: 100)
- * @returns Result of the function
- *
- * @example
- * const result = await withRetry(
- *   async () => await dynamoDb.send(new GetItemCommand(params)),
- *   3
- * );
- */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  baseDelayMs: number = 100,
-): Promise<T> {
-  let lastError: Error | undefined;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error as Error;
-
-      // Check if error is retryable
-      const errorName = (error as { name?: string }).name || '';
-      const isRetryable =
-        errorName === 'ProvisionedThroughputExceededException' ||
-        errorName === 'RequestLimitExceeded' ||
-        errorName === 'ThrottlingException' ||
-        errorName === 'InternalServerError';
-
-      if (!isRetryable || attempt === maxRetries) {
-        throw error;
-      }
-
-      // Exponential backoff: 100ms, 200ms, 400ms, 800ms...
-      const delayMs = baseDelayMs * Math.pow(2, attempt);
-      logger.warn(
-        `Retry attempt ${attempt + 1}/${maxRetries} after ${delayMs}ms due to ${errorName}`,
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-  }
-
-  throw lastError;
-}
-
-/**
- * Execute DynamoDB operation with both timeout and retry protection
- *
- * Combines withTimeout and withRetry for robust DynamoDB operations.
- *
- * @param operation - Async function to execute
- * @param operationName - Name for logging/error messages
- * @param options - Timeout and retry options
- * @returns Result of the operation
- *
- * @example
- * const result = await withProtection(
- *   () => dynamoDb.send(new GetCommand(params)),
- *   'GetItem',
- *   { timeoutMs: 3000, maxRetries: 2 }
- * );
- */
-export async function withProtection<T>(
-  operation: () => Promise<T>,
-  operationName: string = 'DynamoDB',
-  options?: { timeoutMs?: number; maxRetries?: number; baseDelayMs?: number },
-): Promise<T> {
-  const { timeoutMs = DYNAMODB_TIMEOUT_MS, maxRetries = 3, baseDelayMs = 100 } = options || {};
-
-  return withRetry(() => withTimeout(operation, timeoutMs, operationName), maxRetries, baseDelayMs);
 }

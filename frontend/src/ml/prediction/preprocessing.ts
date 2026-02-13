@@ -37,7 +37,7 @@ const EVENT_IMPACT: Record<string, number> = {
  * @param eventTypes - Array of event type strings
  * @returns Array of impact scores (0-1)
  */
-export function encodeEventImpact(eventTypes: EventType[]): number[] {
+function encodeEventImpact(eventTypes: EventType[]): number[] {
   return eventTypes.map((eventType) => {
     const normalized = eventType ?? 'GENERAL';
     return EVENT_IMPACT[normalized] ?? 0.0;

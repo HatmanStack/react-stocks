@@ -12,7 +12,7 @@ import { typography } from './typography';
  * Spacing scale (in pixels)
  * Based on 8px grid system
  */
-export const spacing = {
+const spacing = {
   xs: 4,
   sm: 8,
   md: 16,
@@ -24,7 +24,7 @@ export const spacing = {
 /**
  * Border radius scale
  */
-export const borderRadius = {
+const borderRadius = {
   sm: 4,
   md: 8,
   lg: 12,
@@ -35,7 +35,7 @@ export const borderRadius = {
 /**
  * Shadows
  */
-export const shadows = {
+const shadows = {
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

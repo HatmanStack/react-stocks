@@ -14,7 +14,6 @@ from utils.error import APIError
 # Lazy imports for heavy libraries (yfinance, pandas)
 # These are only imported when needed to reduce cold start time for search
 _yf = None
-_pd = None
 
 
 def _get_yfinance():
@@ -22,17 +21,10 @@ def _get_yfinance():
     global _yf
     if _yf is None:
         import yfinance as yf
+
         _yf = yf
     return _yf
 
-
-def _get_pandas():
-    """Lazy import pandas to reduce cold start time."""
-    global _pd
-    if _pd is None:
-        import pandas as pd
-        _pd = pd
-    return _pd
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -53,7 +45,11 @@ def retry_with_backoff(func):
                 return func(*args, **kwargs)
             except APIError as e:
                 # Don't retry client errors (4xx except 429)
-                if e.status_code and 400 <= e.status_code < 500 and e.status_code != 429:
+                if (
+                    e.status_code
+                    and 400 <= e.status_code < 500
+                    and e.status_code != 429
+                ):
                     raise
                 last_error = e
             except Exception as e:
@@ -61,7 +57,9 @@ def retry_with_backoff(func):
 
             if attempt < MAX_RETRIES:
                 delay = BACKOFF_BASE ** (attempt + 1)
-                logger.info(f"[YFinanceService] Retry {attempt + 1}/{MAX_RETRIES} after {delay}s...")
+                logger.info(
+                    f"[YFinanceService] Retry {attempt + 1}/{MAX_RETRIES} after {delay}s..."
+                )
                 time.sleep(delay)
 
         raise last_error if last_error else APIError("Unknown error", 500)
@@ -92,7 +90,9 @@ def fetch_stock_prices(
     Raises:
         APIError: If ticker not found or request fails
     """
-    logger.info(f"[YFinanceService] Fetching prices for {ticker} from {start_date} to {end_date or 'today'}")
+    logger.info(
+        f"[YFinanceService] Fetching prices for {ticker} from {start_date} to {end_date or 'today'}"
+    )
 
     try:
         yf = _get_yfinance()
@@ -188,7 +188,9 @@ def search_tickers(query: str) -> list[dict[str, Any]]:
         }
         headers = {"User-Agent": "Mozilla/5.0"}
 
-        response = requests.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
+        response = requests.get(
+            url, params=params, headers=headers, timeout=REQUEST_TIMEOUT
+        )
         response.raise_for_status()
 
         data = response.json()

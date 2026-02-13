@@ -66,34 +66,6 @@ export function TimeRangeSelector({ selectedRange, onRangeChange }: TimeRangeSel
 }
 
 /**
- * Calculate the number of days for a given time range
- */
-export function getTimeRangeDays(range: TimeRange): number {
-  const now = new Date();
-
-  switch (range) {
-    case '1M':
-      return 30;
-    case '3M':
-      return 90;
-    case '6M':
-      return 180;
-    case 'YTD': {
-      const startOfYear = new Date(now.getFullYear(), 0, 1);
-      return Math.ceil((now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
-    }
-    case '1Y':
-      return 365;
-    case '2Y':
-      return 730;
-    case '5Y':
-      return 1825;
-    default:
-      return 30;
-  }
-}
-
-/**
  * Get the start date for a given time range
  * Returns a Date object representing the start of the range
  */

@@ -7,6 +7,7 @@ import React from 'react';
 import { View, StyleSheet, Linking } from 'react-native';
 import { Card, Text, Chip } from 'react-native-paper';
 import { useAppTheme } from '@/hooks/useAppTheme';
+import { useToast } from '@/components/common';
 import type { WordCountDetails } from '@/types/database.types';
 import { formatShortDate } from '@/utils/date/dateUtils';
 
@@ -28,6 +29,7 @@ const NEGATIVE_THRESHOLD = -0.1;
 
 export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item }) => {
   const theme = useAppTheme();
+  const toast = useToast();
 
   // Check if we have scores (only show aspect if non-zero)
   const hasAspectScore =
@@ -60,8 +62,9 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
     if (item.url) {
       try {
         await Linking.openURL(item.url);
-      } catch (error) {
-        console.warn('Failed to open URL:', item.url, error);
+      } catch (err) {
+        console.error('[SingleWordItem] Failed to open URL:', err);
+        toast.show({ message: 'Unable to open link', variant: 'error' });
       }
     }
   };

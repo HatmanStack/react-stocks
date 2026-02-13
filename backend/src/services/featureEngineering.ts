@@ -7,7 +7,7 @@ import { StockPrice, ArticleSentiment, DailyFeatures } from '../types/prediction
  * @param weights List of weights corresponding to values.
  * @returns Weighted average, or 0 if total weight is 0.
  */
-export function compute_materiality_weighted_avg(values: number[], weights: number[]): number {
+function compute_materiality_weighted_avg(values: number[], weights: number[]): number {
   if (values.length !== weights.length) {
     throw new Error('Values and weights arrays must have the same length.');
   }
@@ -30,7 +30,7 @@ export function compute_materiality_weighted_avg(values: number[], weights: numb
  * @param articles List of articles for a specific day.
  * @returns Object containing weighted sums for each event type.
  */
-export function compute_event_one_hot_weighted(articles: ArticleSentiment[]): {
+function compute_event_one_hot_weighted(articles: ArticleSentiment[]): {
   event_earnings: number;
   event_ma: number;
   event_guidance: number;
@@ -69,7 +69,7 @@ export function compute_event_one_hot_weighted(articles: ArticleSentiment[]): {
  * @param threshold Percentage threshold (e.g., 0.01 for 1%).
  * @returns 1 (up), 0 (down), or null (if within threshold/noise).
  */
-export function generate_label(
+function generate_label(
   previousClose: number,
   currentClose: number,
   threshold: number = 0.01,

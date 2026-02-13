@@ -48,7 +48,6 @@ export function useSentimentData(ticker: string, options: UseSentimentDataOption
       const sentimentData = await fetchCombinedSentiment(ticker, startDate, endDate, days);
 
       if (sentimentData.length === 0) {
-        console.log(`[useSentimentData] No sentiment data for ${ticker}`);
         return sentimentData;
       }
 
@@ -77,7 +76,7 @@ export function useSentimentData(ticker: string, options: UseSentimentDataOption
           ]).then((results) => {
             for (const r of results) {
               if (r.status === 'rejected') {
-                console.warn('[useSentimentData] Background write failed:', r.reason);
+                console.error('[useSentimentData] Background write failed:', r.reason);
               }
             }
           });

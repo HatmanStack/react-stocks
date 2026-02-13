@@ -68,24 +68,3 @@ export function countSentimentWords(text: string): WordCounts {
     negative,
   };
 }
-
-/**
- * Analyze text and return word counts with cleaned text
- * @param text - Raw article text
- * @returns Word counts and processed text
- */
-export function analyzeSentimentWords(text: string): {
-  counts: WordCounts;
-  cleanedText: string;
-} {
-  // Remove numbers and percentages (matches Android preprocessing)
-  const cleanedText = text.replace(/-*\+*\d*\.?\d*%/g, '');
-
-  // Count words
-  const counts = countSentimentWords(cleanedText);
-
-  return {
-    counts,
-    cleanedText,
-  };
-}

@@ -71,8 +71,6 @@ export function useSymbolSearch(query: string, options: UseSymbolSearchOptions =
   return useQuery({
     queryKey: ['symbolSearch', normalizedQuery],
     queryFn: async (): Promise<SymbolDetails[]> => {
-      console.log(`[useSymbolSearch] Searching for: ${normalizedQuery}`);
-
       // Search local database first for exact or partial matches
       const allSymbols = await SymbolRepository.findAll();
       const localResults = allSymbols.filter(
@@ -82,24 +80,19 @@ export function useSymbolSearch(query: string, options: UseSymbolSearchOptions =
       );
 
       if (localResults.length > 0) {
-        console.log(`[useSymbolSearch] Found ${localResults.length} local results`);
         return localResults;
       }
 
       // No local results - use Tiingo search to find matching tickers
-      console.log(`[useSymbolSearch] No local results, using Tiingo search for ${normalizedQuery}`);
-
       try {
         const searchResults = await searchTickers(normalizedQuery);
 
         if (searchResults.length === 0) {
-          console.log(`[useSymbolSearch] No results found for ${normalizedQuery}`);
           return [];
         }
 
         // Use search results directly (no extra metadata fetches needed)
         const topResults = searchResults.slice(0, 10);
-        console.log(`[useSymbolSearch] Found ${topResults.length} results`);
 
         const symbolDetailsList: SymbolDetails[] = topResults.map((result) => ({
           ticker: result.ticker,
@@ -112,12 +105,14 @@ export function useSymbolSearch(query: string, options: UseSymbolSearchOptions =
 
         // Cache results in local DB (async, don't block)
         void Promise.all(symbolDetailsList.map((symbol) => SymbolRepository.insert(symbol))).catch(
-          (err) => console.warn('[useSymbolSearch] Failed to cache results:', err),
+          () => {
+            // Cache write failed silently
+          },
         );
 
         return symbolDetailsList;
-      } catch (error) {
-        console.warn(`[useSymbolSearch] Search failed for ${normalizedQuery}:`, error);
+      } catch (err) {
+        console.error('[useSymbolSearch] searchTickers failed:', err);
         return [];
       }
     },
@@ -154,8 +149,6 @@ export function useSymbolDetails(ticker: string) {
   return useQuery({
     queryKey: ['symbolDetails', ticker],
     queryFn: async (): Promise<SymbolDetails | null> => {
-      console.log(`[useSymbolDetails] Fetching details for ${ticker}`);
-
       // Try local database first
       let symbol = await SymbolRepository.findByTicker(ticker);
 
@@ -164,7 +157,6 @@ export function useSymbolDetails(ticker: string) {
       }
 
       // Not in database - fetch from API
-      console.log(`[useSymbolDetails] ${ticker} not in database, fetching from API`);
 
       try {
         const metadata = await fetchSymbolMetadata(ticker);
@@ -219,7 +211,6 @@ export function useAllSymbols() {
   return useQuery({
     queryKey: ['allSymbols'],
     queryFn: async (): Promise<SymbolDetails[]> => {
-      console.log('[useAllSymbols] Fetching all cached symbols');
       return await SymbolRepository.findAll();
     },
     staleTime: 1000 * 60 * 30, // 30 minutes

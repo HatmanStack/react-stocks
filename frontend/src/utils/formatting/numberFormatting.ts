@@ -24,19 +24,3 @@ export function formatVolume(volume: number | null | undefined): string {
   if (volume >= 1_000) return `${(volume / 1_000).toFixed(1)}K`;
   return volume.toString();
 }
-
-export function formatMarketCap(value: number): string {
-  if (value >= 1_000_000_000_000) return `$${(value / 1_000_000_000_000).toFixed(2)}T`;
-  if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B`;
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
-  return `$${value.toFixed(0)}`;
-}
-
-export function roundToDecimals(value: number, decimals: number): number {
-  const multiplier = Math.pow(10, decimals);
-  return Math.round(value * multiplier) / multiplier;
-}
-
-export function formatWithCommas(value: number): string {
-  return value.toLocaleString('en-US');
-}

@@ -31,8 +31,6 @@ logger = get_structured_logger(__name__)
 TABLE_NAME = os.environ.get("DYNAMODB_TABLE_NAME")
 if not TABLE_NAME:
     raise RuntimeError("DYNAMODB_TABLE_NAME environment variable not set")
-BATCH_SIZE = 25  # DynamoDB batch limit
-
 # TTL configuration (in seconds)
 TTL_HISTORICAL = 90 * 24 * 60 * 60  # 90 days for historical data
 TTL_CURRENT = 1 * 24 * 60 * 60  # 1 day for current data

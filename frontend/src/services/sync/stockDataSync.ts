@@ -28,10 +28,6 @@ export async function syncStockData(
   minRequired?: number,
 ): Promise<number> {
   try {
-    console.log(
-      `[StockDataSync] Syncing stock data for ${ticker} from ${startDate} to ${endDate}${minRequired ? ` (minRequired: ${minRequired})` : ''}`,
-    );
-
     // Check if data already exists for this range
     const existingData = await StockRepository.findByTickerAndDateRange(ticker, startDate, endDate);
 
@@ -44,21 +40,13 @@ export async function syncStockData(
     const expectedMinRecords = minRequired ?? defaultMin;
 
     if (existingData.length >= expectedMinRecords) {
-      console.log(
-        `[StockDataSync] Found ${existingData.length} existing records for ${ticker} (min: ${expectedMinRecords}), skipping fetch`,
-      );
       return 0;
     }
-
-    console.log(
-      `[StockDataSync] Found ${existingData.length} records but need ${expectedMinRecords}, fetching more for ${ticker}`,
-    );
 
     // Fetch stock prices from Tiingo
     const tiingoData = await fetchStockPrices(ticker, startDate, endDate);
 
     if (tiingoData.length === 0) {
-      console.warn(`[StockDataSync] No stock data found for ${ticker}`);
       return 0;
     }
 
@@ -69,8 +57,6 @@ export async function syncStockData(
 
     await StockRepository.insertMany(stockDetails);
 
-    console.log(`[StockDataSync] Inserted ${stockDetails.length} stock records for ${ticker}`);
-
     // Fetch and store symbol metadata if not exists
     const symbolExists = await SymbolRepository.existsByTicker(ticker);
 
@@ -79,8 +65,6 @@ export async function syncStockData(
         const metadata = await fetchSymbolMetadata(ticker);
         const symbolDetails = transformTiingoToSymbolDetails(metadata);
         await SymbolRepository.insert(symbolDetails);
-
-        console.log(`[StockDataSync] Inserted symbol metadata for ${ticker}`);
       } catch (error) {
         console.error(`[StockDataSync] Failed to fetch symbol metadata for ${ticker}:`, error);
         // Continue even if metadata fetch fails

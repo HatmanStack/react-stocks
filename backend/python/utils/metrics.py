@@ -148,7 +148,11 @@ def log_request_metrics(
     success = 200 <= status_code < 400
 
     metrics: list[dict[str, Any]] = [
-        {"name": "RequestDuration", "value": duration_ms, "unit": MetricUnit.MILLISECONDS},
+        {
+            "name": "RequestDuration",
+            "value": duration_ms,
+            "unit": MetricUnit.MILLISECONDS,
+        },
         {"name": "RequestCount", "value": 1, "unit": MetricUnit.COUNT},
     ]
 
@@ -162,72 +166,6 @@ def log_request_metrics(
         {
             "Endpoint": endpoint,
             "StatusCode": str(status_code),
-            "Cached": "true" if cached else "false",
-        },
-    )
-
-
-def log_dynamodb_metrics(
-    operation: str,
-    table_name: str,
-    duration_ms: float,
-    success: bool,
-    item_count: int | None = None,
-) -> None:
-    """
-    Log DynamoDB operation metrics.
-
-    Args:
-        operation: DynamoDB operation type (GetItem, PutItem, Query, etc.)
-        table_name: Table name (or entity type for single-table design)
-        duration_ms: Operation duration in milliseconds
-        success: Whether operation succeeded
-        item_count: Number of items affected (optional)
-    """
-    metrics: list[dict[str, Any]] = [
-        {"name": "DynamoDBDuration", "value": duration_ms, "unit": MetricUnit.MILLISECONDS},
-        {"name": "DynamoDBOperations", "value": 1, "unit": MetricUnit.COUNT},
-    ]
-
-    if item_count is not None:
-        metrics.append({"name": "DynamoDBItemCount", "value": item_count, "unit": MetricUnit.COUNT})
-
-    if not success:
-        metrics.append({"name": "DynamoDBErrors", "value": 1, "unit": MetricUnit.COUNT})
-
-    log_metrics(
-        metrics,
-        {
-            "Operation": operation,
-            "Table": table_name,
-            "Success": "true" if success else "false",
-        },
-    )
-
-
-def log_yfinance_metrics(
-    ticker: str,
-    duration_ms: float,
-    success: bool,
-    cached: bool = False,
-) -> None:
-    """
-    Log yfinance API call metrics.
-
-    Args:
-        ticker: Stock ticker symbol
-        duration_ms: API call duration in milliseconds
-        success: Whether call succeeded
-        cached: Whether result was from cache
-    """
-    log_metrics(
-        [
-            {"name": "YfinanceCalls", "value": 1, "unit": MetricUnit.COUNT},
-            {"name": "YfinanceDuration", "value": duration_ms, "unit": MetricUnit.MILLISECONDS},
-        ],
-        {
-            "Ticker": ticker,
-            "Success": "true" if success else "false",
             "Cached": "true" if cached else "false",
         },
     )

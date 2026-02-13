@@ -3,7 +3,7 @@
  * Mirrors Android Room database schema
  */
 
-export const CREATE_STOCK_DETAILS_TABLE = `
+const CREATE_STOCK_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS stock_details (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     hash INTEGER NOT NULL,
@@ -29,7 +29,7 @@ export const CREATE_STOCK_DETAILS_TABLE = `
   );
 `;
 
-export const CREATE_SYMBOL_DETAILS_TABLE = `
+const CREATE_SYMBOL_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS symbol_details (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     longDescription TEXT,
@@ -41,7 +41,7 @@ export const CREATE_SYMBOL_DETAILS_TABLE = `
   );
 `;
 
-export const CREATE_NEWS_DETAILS_TABLE = `
+const CREATE_NEWS_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS news_details (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
@@ -56,7 +56,7 @@ export const CREATE_NEWS_DETAILS_TABLE = `
   );
 `;
 
-export const CREATE_WORD_COUNT_DETAILS_TABLE = `
+const CREATE_WORD_COUNT_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS word_count_details (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
@@ -78,7 +78,7 @@ export const CREATE_WORD_COUNT_DETAILS_TABLE = `
   );
 `;
 
-export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
+const CREATE_COMBINED_WORD_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS combined_word_count_details (
     ticker TEXT NOT NULL,
     date TEXT NOT NULL,
@@ -105,98 +105,7 @@ export const CREATE_COMBINED_WORD_DETAILS_TABLE = `
   );
 `;
 
-/**
- * Migration: Add Phase 5 multi-signal columns to existing tables
- *
- * ⚠️ WARNING: These raw SQL constants are NOT safe to execute directly!
- * SQLite does not support "ADD COLUMN IF NOT EXISTS". Executing these
- * migrations multiple times will fail with "duplicate column" errors.
- *
- * ACTUAL MIGRATIONS: See database.ts runMigrations() function, which wraps
- * each ALTER TABLE in a columnExists() check for safe re-execution.
- *
- * These constants are kept for documentation purposes only.
- *
- * @see src/database/database.ts:runMigrations for actual implementation
- */
-export const MIGRATE_PHASE_5_COLUMNS = `
-  -- Add eventCounts column (JSON string)
-  ALTER TABLE combined_word_count_details ADD COLUMN eventCounts TEXT;
-
-  -- Add avgAspectScore column (nullable)
-  ALTER TABLE combined_word_count_details ADD COLUMN avgAspectScore REAL;
-
-  -- Add avgMlScore column (nullable)
-  ALTER TABLE combined_word_count_details ADD COLUMN avgMlScore REAL;
-
-  -- Add avgSignalScore column (nullable)
-  ALTER TABLE combined_word_count_details ADD COLUMN avgSignalScore REAL;
-
-  -- Add materialEventCount column (defaults to 0)
-  ALTER TABLE combined_word_count_details ADD COLUMN materialEventCount INTEGER DEFAULT 0;
-`;
-
-/**
- * Migration: Add Phase 1 prediction fields for direction and probability
- *
- * ⚠️ WARNING: These raw SQL constants are NOT safe to execute directly!
- * SQLite does not support "ADD COLUMN IF NOT EXISTS". Executing these
- * migrations multiple times will fail with "duplicate column" errors.
- *
- * ACTUAL MIGRATIONS: See database.ts runMigrations() function, which wraps
- * each ALTER TABLE in a columnExists() check for safe re-execution.
- *
- * These constants are kept for documentation purposes only.
- *
- * @see src/database/database.ts:runMigrations for actual implementation
- */
-export const MIGRATE_PREDICTION_FORMAT_FIELDS = `
-  -- Add structured prediction fields to combined_word_count_details
-  ALTER TABLE combined_word_count_details ADD COLUMN nextDayDirection TEXT;
-  ALTER TABLE combined_word_count_details ADD COLUMN nextDayProbability REAL;
-  ALTER TABLE combined_word_count_details ADD COLUMN twoWeekDirection TEXT;
-  ALTER TABLE combined_word_count_details ADD COLUMN twoWeekProbability REAL;
-  ALTER TABLE combined_word_count_details ADD COLUMN oneMonthDirection TEXT;
-  ALTER TABLE combined_word_count_details ADD COLUMN oneMonthProbability REAL;
-
-  -- Add structured prediction fields to portfolio_details
-  ALTER TABLE portfolio_details ADD COLUMN nextDayDirection TEXT;
-  ALTER TABLE portfolio_details ADD COLUMN nextDayProbability REAL;
-  ALTER TABLE portfolio_details ADD COLUMN twoWeekDirection TEXT;
-  ALTER TABLE portfolio_details ADD COLUMN twoWeekProbability REAL;
-  ALTER TABLE portfolio_details ADD COLUMN oneMonthDirection TEXT;
-  ALTER TABLE portfolio_details ADD COLUMN oneMonthProbability REAL;
-`;
-
-/**
- * Migration: Add Phase 1 multi-signal fields to word_count_details
- *
- * ⚠️ WARNING: These raw SQL constants are NOT safe to execute directly!
- * SQLite does not support "ADD COLUMN IF NOT EXISTS". Executing these
- * migrations multiple times will fail with "duplicate column" errors.
- *
- * ACTUAL MIGRATIONS: See database.ts runMigrations() function, which wraps
- * each ALTER TABLE in a columnExists() check for safe re-execution.
- *
- * These constants are kept for documentation purposes only.
- *
- * @see src/database/database.ts:runMigrations for actual implementation
- */
-export const MIGRATE_PHASE_1_WORD_COUNT_FIELDS = `
-  -- Add eventType column (nullable)
-  ALTER TABLE word_count_details ADD COLUMN eventType TEXT;
-
-  -- Add aspectScore column (nullable)
-  ALTER TABLE word_count_details ADD COLUMN aspectScore REAL;
-
-  -- Add mlScore column (nullable)
-  ALTER TABLE word_count_details ADD COLUMN mlScore REAL;
-
-  -- Add materialityScore column (nullable)
-  ALTER TABLE word_count_details ADD COLUMN materialityScore REAL;
-`;
-
-export const CREATE_PORTFOLIO_DETAILS_TABLE = `
+const CREATE_PORTFOLIO_DETAILS_TABLE = `
   CREATE TABLE IF NOT EXISTS portfolio_details (
     ticker TEXT PRIMARY KEY NOT NULL,
     next TEXT,

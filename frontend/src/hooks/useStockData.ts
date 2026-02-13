@@ -76,10 +76,6 @@ export function useStockData(ticker: string, options: UseStockDataOptions = {}) 
   return useQuery({
     queryKey: ['stockData', ticker, startDate, endDate],
     queryFn: async (): Promise<StockDetails[]> => {
-      console.log(
-        `[useStockData] Fetching stock data for ${ticker} from ${startDate} to ${endDate}`,
-      );
-
       // Try to get from database first
       let data = await StockRepository.findByTickerAndDateRange(ticker, startDate, endDate);
 
@@ -88,16 +84,12 @@ export function useStockData(ticker: string, options: UseStockDataOptions = {}) 
       const needsSync = data.length === 0 || data.length < expectedMinRecords;
 
       if (needsSync) {
-        console.log(
-          `[useStockData] Insufficient data (${data.length}/${expectedMinRecords} min), triggering sync for ${ticker}`,
-        );
         await syncStockData(ticker, startDate, endDate);
 
         // Fetch again after sync
         data = await StockRepository.findByTickerAndDateRange(ticker, startDate, endDate);
       }
 
-      console.log(`[useStockData] Retrieved ${data.length} stock records for ${ticker}`);
       return data;
     },
     enabled: enabled && !!ticker, // Only run if ticker is provided and enabled
@@ -132,7 +124,6 @@ export function useLatestStockPrice(ticker: string) {
 
       // If no data exists, trigger sync for last 7 days
       if (!latest) {
-        console.log(`[useLatestStockPrice] No data found for ${ticker}, syncing last 7 days`);
         const endDate = formatDateForDB(new Date());
         const startDate = formatDateForDB(subDays(new Date(), 7));
         await syncStockData(ticker, startDate, endDate);

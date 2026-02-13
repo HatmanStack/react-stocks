@@ -57,19 +57,6 @@ export function getStatusCodeFromError(error: unknown): number {
 }
 
 /**
- * Extract error message from unknown error
- * @param error - Error object
- * @returns Error message string
- */
-export function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return String(error);
-}
-
-/**
  * Type guard for errors with a statusCode property.
  * Replaces unsafe `(error as any).statusCode` casts.
  */

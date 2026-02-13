@@ -1,3 +1,4 @@
+# ruff: noqa: F821
 # Vulture whitelist - items that appear unused but are actually entry points or fixtures
 
 # Lambda handler entry points (called by AWS, appear unused locally)
@@ -11,6 +12,11 @@ context  # Lambda context parameter (required but often unused)
 
 # Classmethod first parameter
 cls  # @classmethod decorator requires cls parameter
+
+# Logger class API methods (called dynamically, appear unused to vulture)
+format  # StructuredLogFormatter.format override
+debug  # StructuredLogger.debug
+warn  # StructuredLogger.warn
 
 # FastAPI route handlers (decorated with @app.get/post, appear unused to vulture)
 analyze_text_sentiment  # backend/services/ml/app.py

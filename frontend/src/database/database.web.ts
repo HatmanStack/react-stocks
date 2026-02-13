@@ -183,9 +183,6 @@ class WebDatabase {
   private performSave(): void {
     try {
       const dataString = JSON.stringify(this.data);
-      const sizeKB = (dataString.length / 1024).toFixed(1);
-
-      console.log(`[WebDB] Saving ${sizeKB} KB to localStorage...`);
 
       // Use requestIdleCallback if available, otherwise fallback to immediate save
       if ('requestIdleCallback' in window) {
@@ -193,7 +190,6 @@ class WebDatabase {
           () => {
             try {
               localStorage.setItem(this.storageKey, dataString);
-              console.log(`[WebDB] Saved ${sizeKB} KB (idle callback)`);
             } catch (cbError) {
               this.handleSaveError(cbError);
             }
@@ -203,7 +199,6 @@ class WebDatabase {
         ); // Force save after 1s if browser is busy
       } else {
         localStorage.setItem(this.storageKey, dataString);
-        console.log(`[WebDB] Saved ${sizeKB} KB`);
         this.pendingSave = false;
       }
     } catch (error) {
@@ -219,11 +214,9 @@ class WebDatabase {
   private performSaveSync(): void {
     try {
       const dataString = JSON.stringify(this.data);
-      const sizeKB = (dataString.length / 1024).toFixed(1);
 
       // Immediately save to localStorage (synchronous)
       localStorage.setItem(this.storageKey, dataString);
-      console.log(`[WebDB] Saved ${sizeKB} KB (sync)`);
       this.pendingSave = false;
     } catch (error) {
       this.handleSaveError(error);
@@ -236,7 +229,6 @@ class WebDatabase {
    */
   private handleSaveError(error: unknown): void {
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-      console.warn('[WebDB] Storage quota exceeded, evicting oldest data');
       this.evictOldestData();
       try {
         localStorage.setItem(this.storageKey, JSON.stringify(this.data));
@@ -285,12 +277,10 @@ class WebDatabase {
     const sqlLower = sql.toLowerCase().trim();
 
     if (sqlLower.startsWith('insert into symbol_details')) {
-      console.log('[WebDB] Inserting symbol:', params?.[4]); // ticker is 5th param
       return this.insertSymbol(params || []);
     } else if (sqlLower.startsWith('insert into stock_details')) {
       return this.insertStock(params || []);
     } else if (sqlLower.startsWith('insert into news_details')) {
-      console.log('[WebDB] Inserting news:', params?.[0]); // ticker
       return this.insertNews(params || []);
     } else if (sqlLower.startsWith('insert or replace into combined_word_count_details')) {
       return this.upsertCombinedSentiment(params || []);
@@ -302,8 +292,6 @@ class WebDatabase {
       return this.insertPortfolio(params || []);
     } else if (sqlLower.includes('delete from portfolio')) {
       return this.deleteFromPortfolio(params || []);
-    } else {
-      console.warn('[WebDB] Unhandled SQL:', sqlLower.substring(0, 50));
     }
 
     return { changes: 0 };
@@ -324,8 +312,6 @@ class WebDatabase {
       return this.getArticleSentiment(params || []);
     } else if (sqlLower.includes('from portfolio_details')) {
       return this.getPortfolio(params || []);
-    } else {
-      console.warn('[WebDB] Unhandled SELECT SQL:', sqlLower.substring(0, 80));
     }
 
     return [];
@@ -355,19 +341,16 @@ class WebDatabase {
     // Handle common DDL patterns
     if (sqlLower.startsWith('pragma')) {
       // PRAGMA statements are no-ops in web implementation
-      console.log('[WebDB] PRAGMA (no-op):', sql.substring(0, 50));
       return;
     }
 
     if (sqlLower.startsWith('create table') || sqlLower.startsWith('create index')) {
       // Table/index creation is implicit in our JSON structure
-      console.log('[WebDB] CREATE (no-op):', sql.substring(0, 50));
       return;
     }
 
     if (sqlLower.startsWith('alter table')) {
       // Schema changes handled by JSON structure evolution
-      console.log('[WebDB] ALTER TABLE (no-op):', sql.substring(0, 50));
       return;
     }
 
@@ -376,7 +359,6 @@ class WebDatabase {
       const match = sql.match(/drop table if exists (\w+)/i) || sql.match(/drop table (\w+)/i);
       if (match) {
         const tableName = match[1];
-        console.log(`[WebDB] DROP TABLE: ${tableName}`);
         // Map table names to data structure keys
         if (tableName === 'symbol_details') this.data.symbols = {};
         else if (tableName === 'stock_details') this.data.stocks = {};
@@ -388,8 +370,6 @@ class WebDatabase {
       }
       return;
     }
-
-    console.warn('[WebDB] Unhandled execAsync SQL:', sql.substring(0, 80));
   }
 
   // Symbol operations
@@ -534,9 +514,6 @@ class WebDatabase {
   private getNews(params: any[]): any[] {
     const ticker = params[0];
 
-    console.log(`[WebDB] getNews called with params:`, params);
-    console.log(`[WebDB] Available tickers in news:`, Object.keys(this.data.news));
-
     let news = this.data.news[ticker] || [];
 
     // If date range params provided, filter by articleDate
@@ -545,22 +522,6 @@ class WebDatabase {
       const endDate = params[2];
       news = news.filter(
         (article) => article.articleDate >= startDate && article.articleDate <= endDate,
-      );
-      console.log(
-        `[WebDB] Getting news for ${ticker} from ${startDate} to ${endDate}: ${news.length} articles`,
-      );
-    } else {
-      console.log(`[WebDB] Getting all news for ${ticker}: ${news.length} articles`);
-    }
-
-    if (news.length > 0) {
-      console.log(
-        `[WebDB] Sample articles:`,
-        news.slice(0, 2).map((a) => ({
-          ticker: a.ticker,
-          date: a.articleDate,
-          title: a.title?.substring(0, 40),
-        })),
       );
     }
 
@@ -655,10 +616,6 @@ class WebDatabase {
       sentiment = sentiment.filter((record) => record.date >= startDate && record.date <= endDate);
     }
 
-    console.log(
-      `[WebDB] Getting daily aggregate sentiment for ${ticker}: ${sentiment.length} records`,
-    );
-
     return sentiment;
   }
 
@@ -740,8 +697,6 @@ class WebDatabase {
       oneMonthProbability,
     ] = params;
 
-    console.log(`[WebDB] Inserting portfolio: ${ticker}, name: ${name}`);
-
     const record: any = {
       ticker,
       next: next || '0',
@@ -798,7 +753,6 @@ export async function initializeDatabase(): Promise<void> {
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
       if (webDatabase) {
-        console.log('[WebDB] Page unload - flushing pending saves');
         webDatabase.flushSave();
       }
     });
@@ -806,7 +760,6 @@ export async function initializeDatabase(): Promise<void> {
     // Also flush on visibility change (tab switching)
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && webDatabase) {
-        console.log('[WebDB] Tab hidden - flushing pending saves');
         webDatabase.flushSave();
       }
     });

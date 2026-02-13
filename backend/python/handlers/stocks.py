@@ -3,7 +3,7 @@ Stocks endpoint handler with DynamoDB caching.
 Handles GET /stocks requests for prices and metadata.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from services.yfinance_service import fetch_stock_prices, fetch_symbol_metadata
@@ -15,22 +15,6 @@ from utils.validation import TICKER_PATTERN, DATE_PATTERN
 from utils.logger import get_structured_logger
 
 logger = get_structured_logger(__name__)
-
-
-def generate_date_range(start_date: str, end_date: str) -> list[str]:
-    """Generate list of dates between start and end (inclusive)."""
-    dates = []
-    start = datetime.strptime(start_date, "%Y-%m-%d")
-    end = datetime.strptime(end_date, "%Y-%m-%d")
-
-    if start > end:
-        return []
-
-    current = start
-    while current <= end:
-        dates.append(current.strftime("%Y-%m-%d"))
-        current = current + timedelta(days=1)
-    return dates
 
 
 def handle_prices_request(
@@ -61,11 +45,15 @@ def handle_prices_request(
         calendar_days = (end - start).days + 1
         expected_trading_days = max(1, int(calendar_days * 5 / 7))
 
-        cache_hit_rate = len(cached_data) / expected_trading_days if expected_trading_days > 0 else 0
+        cache_hit_rate = (
+            len(cached_data) / expected_trading_days if expected_trading_days > 0 else 0
+        )
 
         # If cache hit rate >80%, use cached data
         if cache_hit_rate > 0.8 and cached_data:
-            logger.info(f"[StocksHandler] Cache hit for {ticker}: {cache_hit_rate * 100:.1f}%")
+            logger.info(
+                f"[StocksHandler] Cache hit for {ticker}: {cache_hit_rate * 100:.1f}%"
+            )
 
             # Transform cached data to Tiingo format
             data = []
@@ -73,7 +61,10 @@ def handle_prices_request(
                 price_data = item.get("priceData", {})
                 record = {
                     "date": f"{item['date']}T00:00:00.000Z",
-                    **{k: float(v) if hasattr(v, '__float__') else v for k, v in price_data.items()}
+                    **{
+                        k: float(v) if hasattr(v, "__float__") else v
+                        for k, v in price_data.items()
+                    },
                 }
                 data.append(record)
 
@@ -84,7 +75,9 @@ def handle_prices_request(
             }
 
         # Cache miss - fetch from yfinance
-        logger.info(f"[StocksHandler] Cache miss for {ticker}: {cache_hit_rate * 100:.1f}% - fetching from API")
+        logger.info(
+            f"[StocksHandler] Cache miss for {ticker}: {cache_hit_rate * 100:.1f}% - fetching from API"
+        )
 
         df = fetch_stock_prices(ticker, start_date, effective_end_date)
         data = transform_history_to_tiingo(df, ticker)
@@ -95,26 +88,30 @@ def handle_prices_request(
                 cache_items = []
                 for record in data:
                     date_str = record["date"][:10]  # Extract YYYY-MM-DD
-                    cache_items.append({
-                        "ticker": ticker,
-                        "date": date_str,
-                        "priceData": {
-                            "open": record["open"],
-                            "high": record["high"],
-                            "low": record["low"],
-                            "close": record["close"],
-                            "volume": record["volume"],
-                            "adjOpen": record["adjOpen"],
-                            "adjHigh": record["adjHigh"],
-                            "adjLow": record["adjLow"],
-                            "adjClose": record["adjClose"],
-                            "adjVolume": record["adjVolume"],
-                            "divCash": record["divCash"],
-                            "splitFactor": record["splitFactor"],
-                        },
-                    })
+                    cache_items.append(
+                        {
+                            "ticker": ticker,
+                            "date": date_str,
+                            "priceData": {
+                                "open": record["open"],
+                                "high": record["high"],
+                                "low": record["low"],
+                                "close": record["close"],
+                                "volume": record["volume"],
+                                "adjOpen": record["adjOpen"],
+                                "adjHigh": record["adjHigh"],
+                                "adjLow": record["adjLow"],
+                                "adjClose": record["adjClose"],
+                                "adjVolume": record["adjVolume"],
+                                "divCash": record["divCash"],
+                                "splitFactor": record["splitFactor"],
+                            },
+                        }
+                    )
                 batch_put_stocks(cache_items)
-                logger.info(f"[StocksHandler] Cached {len(cache_items)} price records for {ticker}")
+                logger.info(
+                    f"[StocksHandler] Cached {len(cache_items)} price records for {ticker}"
+                )
             except Exception as e:
                 logger.error(f"[StocksHandler] Failed to cache stock prices: {e}")
 
@@ -189,13 +186,19 @@ def handle_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
         # Validate dates for prices request
         if request_type == "prices":
             if not start_date:
-                return error_response("Missing required parameter for prices: startDate", 400)
+                return error_response(
+                    "Missing required parameter for prices: startDate", 400
+                )
 
             if not DATE_PATTERN.match(start_date):
-                return error_response("Invalid startDate format. Must be YYYY-MM-DD.", 400)
+                return error_response(
+                    "Invalid startDate format. Must be YYYY-MM-DD.", 400
+                )
 
             if end_date and not DATE_PATTERN.match(end_date):
-                return error_response("Invalid endDate format. Must be YYYY-MM-DD.", 400)
+                return error_response(
+                    "Invalid endDate format. Must be YYYY-MM-DD.", 400
+                )
 
             # Validate date range
             if start_date and end_date:

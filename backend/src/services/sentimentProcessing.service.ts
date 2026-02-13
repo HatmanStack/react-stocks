@@ -21,7 +21,8 @@ import { calculateSignalScoresBatch, type ArticleMetadata } from './signalScore.
 import { isMaterialEvent } from '../types/event.types.js';
 import type { EventType } from '../types/event.types.js';
 import type { AspectBreakdown } from '../types/aspect.types.js';
-import type { NewsCacheItem, SentimentCacheItem } from '../repositories/index.js';
+import type { NewsCacheItem } from '../repositories/newsCache.repository.js';
+import type { SentimentCacheItem } from '../repositories/sentimentCache.repository.js';
 
 /**
  * Result of sentiment processing operation

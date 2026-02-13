@@ -27,7 +27,7 @@ export interface LogisticRegressionModel {
  * @param labels Array of binary labels (0 or 1).
  * @returns Object mapping class indices to weights.
  */
-export function calculateClassWeights(labels: number[]): { 0: number; 1: number } {
+function calculateClassWeights(labels: number[]): { 0: number; 1: number } {
   const total = labels.length;
   const count0 = labels.filter((l) => l === 0).length;
   const count1 = labels.filter((l) => l === 1).length;

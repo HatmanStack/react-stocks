@@ -31,13 +31,8 @@ export async function generateBrowserPredictions(
   sentimentData: CombinedWordDetails[],
   days: number,
 ): Promise<Predictions | null> {
-  console.log(`[Predictions] Starting for ${ticker} (${sentimentData.length} sentiment days)`);
-
   try {
     if (sentimentData.length < MIN_SENTIMENT_DATA) {
-      console.log(
-        `[Predictions] Insufficient sentiment: ${sentimentData.length}/${MIN_SENTIMENT_DATA}`,
-      );
       return null;
     }
 
@@ -50,8 +45,8 @@ export async function generateBrowserPredictions(
 
     try {
       await syncStockData(ticker, stockStartStr, stockEndStr, MIN_STOCK_DATA);
-    } catch (syncError) {
-      console.warn(`[Predictions] Stock sync failed, using local data:`, syncError);
+    } catch {
+      // Stock sync failed, using local data
     }
 
     const stockData = await StockRepository.findByTickerAndDateRange(
@@ -61,7 +56,6 @@ export async function generateBrowserPredictions(
     );
 
     if (stockData.length < MIN_STOCK_DATA) {
-      console.log(`[Predictions] Insufficient stock data: ${stockData.length}/${MIN_STOCK_DATA}`);
       return null;
     }
 
@@ -105,7 +99,6 @@ export async function generateBrowserPredictions(
     }
 
     if (trimmedStocks.length < MIN_STOCK_DATA) {
-      console.log(`[Predictions] After alignment: ${trimmedStocks.length}/${MIN_STOCK_DATA}`);
       return null;
     }
 
@@ -143,11 +136,6 @@ export async function generateBrowserPredictions(
       mlScores.push(day.avgMlScore ?? null);
     }
 
-    const sentimentAvailability = mlScores.filter((s) => s !== null).length / mlScores.length;
-    console.log(
-      `[Predictions] Features: ${closePrices.length} days, sentiment availability: ${(sentimentAvailability * 100).toFixed(1)}%`,
-    );
-
     // Run logistic regression ensemble
     const response = await getStockPredictions(
       ticker,
@@ -180,7 +168,6 @@ export async function generateBrowserPredictions(
       oneMonth: toPrediction(parsed.oneMonth),
     };
 
-    console.log(`[Predictions] Generated for ${ticker}:`, predictions);
     return predictions;
   } catch (error) {
     console.error(`[Predictions] Failed for ${ticker}:`, error);

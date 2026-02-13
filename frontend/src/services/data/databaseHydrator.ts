@@ -27,12 +27,12 @@ export function hydrateCombinedWordData(records: CombinedWordDetails[]): void {
         }
       }
       if (failCount > 0) {
-        console.warn(`[Hydrator] Combined partial: ${successCount} succeeded, ${failCount} failed`);
-      } else {
-        console.log(`[Hydrator] Combined: ${successCount} records upserted`);
+        console.error(
+          `[Hydrator] Combined partial: ${successCount} succeeded, ${failCount} failed`,
+        );
       }
-    } catch (err) {
-      console.warn('[Hydrator] Combined hydration failed:', err);
+    } catch {
+      // Combined hydration failed silently
     }
   })();
 }
@@ -61,14 +61,12 @@ export function hydrateArticleData(records: WordCountDetails[]): void {
         }
       }
       if (failCount > 0) {
-        console.warn(
+        console.error(
           `[Hydrator] Articles partial: ${insertCount} inserted, ${skipCount} skipped, ${failCount} failed`,
         );
-      } else {
-        console.log(`[Hydrator] Articles: ${insertCount} inserted, ${skipCount} skipped`);
       }
-    } catch (err) {
-      console.warn('[Hydrator] Article hydration failed:', err);
+    } catch {
+      // Article hydration failed silently
     }
   })();
 }
