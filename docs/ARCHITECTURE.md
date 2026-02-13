@@ -4,7 +4,7 @@
 
 Browser-based ensemble prediction model fed by a three-signal sentiment pipeline.
 
-```
+```text
 Backend (Lambda)                          Frontend (Browser)
 ┌──────────────────────────┐              ┌─────────────────────────────┐
 │ Article Processing:      │              │ useSentimentData()          │
@@ -76,13 +76,13 @@ Post-processing applied to raw softmax output:
 1. **Neutral dampening**: If `neut_prob >= 0.003`, reduce directional score by `min((neut - 0.003) * 200, 0.9)`
 2. **Temperature scaling**: `tanh(arctanh(dampened) / 3.0)` — spreads compressed scores for better nuance
 
-File: `backend/services/ml/model_onnx.py`
+File: `backend/services/ml/model_onnx.py` (separate from `backend/python/` — standalone ML service)
 
 ### Signal Score (Reliability Weight)
 
 Not a prediction feature. Used to weight article contributions during daily aggregation.
 
-```
+```text
 signalScore = publisher(50%) + headline(30%) + depth(20%)
 ```
 
@@ -147,7 +147,7 @@ File: `frontend/src/ml/prediction/preprocessing.ts`
 
 Binary labels based on trend-relative performance, not raw direction:
 
-```
+```text
 For each day i (starting from TREND_WINDOW=20):
   expectedReturn = avgDailyReturn(trailing 20 days) * horizon
   actualReturn = (close[i+horizon] - close[i]) / close[i]
@@ -174,7 +174,7 @@ File: `frontend/src/ml/prediction/model.ts`
 
 ### Ensemble Blend (NEXT Horizon)
 
-```
+```text
 prediction = fullModel * sentimentAvailability + priceModel * (1 - sentimentAvailability)
 ```
 
@@ -200,7 +200,7 @@ File: `frontend/src/ml/prediction/prediction.service.ts`
 
 ## File Map
 
-```
+```text
 frontend/src/
 ├── hooks/useSentimentData.ts          # Data gathering, alignment, prediction trigger
 ├── ml/prediction/
@@ -224,6 +224,6 @@ backend/src/
 ├── utils/sentiment.util.ts            # Daily aggregation (signal-weighted)
 └── ml/sentiment/analyzer.ts           # AFINN + financial lexicon (server-side)
 
-backend/python/services/ml/
+backend/services/ml/
 └── model_onnx.py                      # DistilRoBERTa inference + calibration
 ```

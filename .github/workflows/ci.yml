@@ -110,6 +110,20 @@ jobs:
       - name: Lint Python
         run: ruff check backend/services/ml backend/scripts
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint markdown
+        uses: DavidAnson/markdownlint-cli2-action@v19
+        with:
+          globs: '*.md docs/*.md .github/**/*.md'
+      - name: Check links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: '--no-progress *.md docs/*.md'
+          fail: true
+
   code-hygiene:
     runs-on: ubuntu-latest
     steps:
@@ -169,6 +183,7 @@ jobs:
         python-stocks-lint,
         python-stocks-tests,
         ml-service-lint,
+        docs,
         code-hygiene,
         e2e-tests,
       ]
@@ -183,6 +198,7 @@ jobs:
              [[ "${{ needs.python-stocks-lint.result }}" != "success" ]] || \
              [[ "${{ needs.python-stocks-tests.result }}" != "success" ]] || \
              [[ "${{ needs.ml-service-lint.result }}" != "success" ]] || \
+             [[ "${{ needs.docs.result }}" != "success" ]] || \
              [[ "${{ needs.code-hygiene.result }}" != "success" ]] || \
              [[ "${{ needs.e2e-tests.result }}" != "success" ]]; then
             echo "One or more checks failed"

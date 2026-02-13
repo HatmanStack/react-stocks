@@ -64,5 +64,6 @@
     "jest-expo": "^54.0.13",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "license": "Apache-2.0"
 }
