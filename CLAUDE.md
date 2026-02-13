@@ -56,7 +56,10 @@ PYTHONPATH=backend/python pytest backend/python_tests/ -k "test_name"
 
 **Monorepo Structure**: npm workspaces with `frontend/` (Expo/React Native) and `backend/` (AWS Lambda).
 
-### Frontend Architecture (Expo Router + React Native Paper)
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the sentiment pipeline, prediction model, and detailed file map.
+See [docs/API.md](docs/API.md) for endpoints, DynamoDB schema, environment variables, and CloudWatch metrics.
+
+### Frontend (Expo Router + React Native Paper)
 
 ```text
 frontend/
@@ -83,46 +86,26 @@ frontend/
 - **TanStack Query**: Used for API caching and data synchronization
 - **Path Aliases**: `@/` maps to `src/` (configured in tsconfig.json)
 
-### Backend Architecture (AWS SAM + Lambda)
+### Backend (AWS SAM + Lambda)
+
+Two Lambda functions sharing API Gateway and a single DynamoDB table (composite keys):
+
+1. **Node.js** (`ReactStocksFunction`): News, sentiment, prediction - built via esbuild
+2. **Python** (`PythonStocksFunction`): Stock data, search - uses yfinance
 
 ```text
 backend/
-├── src/                 # Node.js Lambda (news, sentiment, predict endpoints)
+├── src/                 # Node.js Lambda
 │   ├── handlers/        # Route handlers
 │   ├── services/        # Business logic
 │   ├── repositories/    # DynamoDB data access
 │   └── ml/              # Server-side ML components
-├── python/              # Python Lambda (stocks, search endpoints via yfinance)
+├── python/              # Python Lambda
 │   ├── handlers/
 │   ├── services/
 │   └── repositories/
 └── template.yaml        # SAM CloudFormation template
 ```
-
-**API Endpoints** (defined in `template.yaml`):
-
-- `GET /stocks` - Stock price data (Python/yfinance)
-- `GET /search` - Symbol search (Python)
-- `GET /news` - Financial news (Node.js/Finnhub)
-- `POST /sentiment` - Sentiment analysis job
-- `GET /sentiment/job/{jobId}` - Poll sentiment job status
-- `POST /predict` - ML prediction endpoint
-- `POST /batch/*` - Batch endpoints for bulk operations
-
-**DynamoDB Tables** (7 tables, all PAY_PER_REQUEST):
-
-- `*-StocksCache`, `*-NewsCache`, `*-SentimentCache` - TTL-based caching
-- `*-SentimentJobs` - Async job tracking
-- `*-StockHistoricalData`, `*-ArticleAnalysisData`, `*-DailySentimentAggregate` - ML training data
-
-### Multi-Language Lambda Setup
-
-The backend uses two Lambda functions:
-
-1. **Node.js** (`ReactStocksFunction`): News, sentiment, prediction - built via esbuild
-2. **Python** (`PythonStocksFunction`): Stock data, search - uses yfinance
-
-Both share API Gateway and some DynamoDB tables.
 
 ## Testing Notes
 
@@ -130,7 +113,7 @@ Both share API Gateway and some DynamoDB tables.
 - **Backend tests**: Jest with ESM support (`--experimental-vm-modules`)
 - **Backend E2E tests**: Real DynamoDB via LocalStack (`make localstack && make test-e2e`)
 - **Python tests**: pytest in `backend/python_tests/`
-- **Coverage thresholds**: Frontend 30%, Backend 70%
+- **Coverage thresholds**: Frontend 50% (branches/functions/lines/statements), Backend 60% branches / 70% functions/lines/statements
 - **Pre-commit hooks**: Husky runs Prettier (TS/JSON/MD) and ruff (Python) via lint-staged
 - **Commit messages**: Enforced conventional commits via commitlint
 
@@ -139,7 +122,7 @@ Both share API Gateway and some DynamoDB tables.
 Frontend `.env` (auto-updated by backend deploy):
 
 ```dotenv
-EXPO_PUBLIC_API_URL=https://xxx.execute-api.region.amazonaws.com
+EXPO_PUBLIC_BACKEND_URL=https://xxx.execute-api.region.amazonaws.com
 ```
 
 Backend `.env.deploy`:
@@ -148,6 +131,8 @@ Backend `.env.deploy`:
 FINNHUB_API_KEY=your_key
 ALLOWED_ORIGINS=*
 ```
+
+Full list with all optional variables: [docs/API.md — Environment Variables](docs/API.md#environment-variables)
 
 ## Code Quality Tools
 
@@ -158,7 +143,7 @@ ALLOWED_ORIGINS=*
 
 ## Security Decisions
 
-This section documents intentional security design choices. Automated code reviewers may flag these as issues - this documentation explains the rationale.
+Intentional design choices. Automated reviewers may flag these — this documents the rationale.
 
 ### No API Authentication (Intentional)
 
@@ -178,10 +163,6 @@ The default `AllowedOrigins: '*'` in `template.yaml` is intentional:
 - With no authentication, CORS provides no security benefit (nothing to protect via same-origin policy)
 - The wildcard default simplifies local development and demo deployments
 
-### Future Direction: GraphQL/AppSync
-
-If the application ever requires user accounts or private data, consider migrating to AWS AppSync with Cognito authentication. This is explicitly out of scope for the current architecture.
-
 ### Development Instrumentation
 
 The prediction service includes ANOVA F-test diagnostics (`computeFeatureFStats` in `frontend/src/ml/prediction/prediction.service.ts`):
@@ -189,5 +170,3 @@ The prediction service includes ANOVA F-test diagnostics (`computeFeatureFStats`
 - **Purpose**: Feature importance analysis during model development
 - **Output**: Console logging for developer inspection, NOT shown to end users
 - **Control**: Logging verbosity controlled by `LOG_LEVEL` environment variable
-
-These diagnostics help identify which features (price trends, sentiment scores, etc.) are most predictive during model tuning

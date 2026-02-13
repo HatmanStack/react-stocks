@@ -31,7 +31,7 @@ All endpoints served via API Gateway v2 (HTTP API). Base URL stored in `frontend
 
 ### Sentiment Job Flow
 
-```
+```text
 1. POST /sentiment {ticker, startDate, endDate}
    → Returns {jobId, status: "PENDING"}
 
@@ -104,20 +104,34 @@ Table name: `${StackName}-Table`
 
 ## Monitoring
 
-CloudWatch metrics under `ReactStocks` namespace:
+CloudWatch metrics under `ReactStocks` namespace. Emitted via EMF from both Node.js and Python Lambdas.
 
-| Metric            | Dimensions       | Unit         |
-| ----------------- | ---------------- | ------------ |
-| LambdaColdStart   | Endpoint         | Count        |
-| LambdaWarmStart   | Endpoint         | Count        |
-| DynamoDBCacheHit  | Endpoint, Ticker | Count        |
-| DynamoDBCacheMiss | Endpoint, Ticker | Count        |
-| RequestDuration   | Endpoint         | Milliseconds |
+### Request Metrics
 
-CloudWatch Logs Insights query for cache hit rate:
+| Metric          | Unit         | Dimensions                   |
+| --------------- | ------------ | ---------------------------- |
+| RequestDuration | Milliseconds | Endpoint, StatusCode, Cached |
+| RequestCount    | Count        | Endpoint, StatusCode, Cached |
+| RequestSuccess  | Count        | Endpoint, StatusCode, Cached |
+| RequestError    | Count        | Endpoint, StatusCode, Cached |
 
-```
-fields @timestamp, @message
-| filter @message like /CacheHit|CacheMiss/
-| stats count() as total, sum(CacheHit) as hits by bin(1h)
-```
+### Lambda Lifecycle
+
+| Metric          | Unit  | Dimensions |
+| --------------- | ----- | ---------- |
+| LambdaColdStart | Count | Endpoint   |
+| LambdaWarmStart | Count | Endpoint   |
+
+### ML Sentiment Service (Node.js only)
+
+| Metric                  | Unit         | Dimensions                         |
+| ----------------------- | ------------ | ---------------------------------- |
+| MlSentimentCalls        | Count        | Ticker, Success, CacheHit, Service |
+| MlSentimentDuration     | Milliseconds | Ticker, Success, CacheHit, Service |
+| MlSentimentCacheHits    | Count        | Ticker, Service                    |
+| MlSentimentCacheMisses  | Count        | Ticker, Service                    |
+| MlSentimentCacheHitRate | Percent      | Ticker, Service                    |
+| MlSentimentFallbacks    | Count        | Ticker, Service, FallbackReason    |
+| MlSentimentFallbackRate | Percent      | Ticker, Service, FallbackReason    |
+
+Source: `backend/src/utils/metrics.util.ts`, `backend/python/utils/metrics.py`
