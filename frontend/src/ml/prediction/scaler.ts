@@ -32,13 +32,13 @@ export class StandardScaler {
     }
 
     const nSamples = X.length;
-    const nFeatures = X[0].length;
+    const nFeatures = X[0]!.length;
 
     // Validate all rows have same number of features
     for (let i = 1; i < nSamples; i++) {
-      if (X[i].length !== nFeatures) {
+      if (X[i]!.length !== nFeatures) {
         throw new Error(
-          `StandardScaler: Inconsistent feature count at row ${i}. Expected ${nFeatures}, got ${X[i].length}`,
+          `StandardScaler: Inconsistent feature count at row ${i}. Expected ${nFeatures}, got ${X[i]!.length}`,
         );
       }
     }
@@ -51,7 +51,7 @@ export class StandardScaler {
       // Calculate mean
       let sum = 0;
       for (let i = 0; i < nSamples; i++) {
-        const value = X[i][j];
+        const value = X[i]![j]!;
         if (!isFinite(value)) {
           throw new Error(`StandardScaler: Non-finite value at row ${i}, column ${j}: ${value}`);
         }
@@ -63,7 +63,7 @@ export class StandardScaler {
       // CRITICAL: Divide by n (population), NOT n-1 (sample)
       let sumSquaredDiff = 0;
       for (let i = 0; i < nSamples; i++) {
-        const diff = X[i][j] - this.mean[j];
+        const diff = X[i]![j]! - this.mean[j]!;
         sumSquaredDiff += diff * diff;
       }
       const variance = sumSquaredDiff / nSamples; // Population variance
@@ -87,7 +87,7 @@ export class StandardScaler {
     }
 
     const nSamples = X.length;
-    const nFeatures = X[0].length;
+    const nFeatures = X[0]!.length;
 
     if (nFeatures !== this.mean.length) {
       throw new Error(
@@ -101,7 +101,7 @@ export class StandardScaler {
       scaled[i] = new Array(nFeatures);
 
       for (let j = 0; j < nFeatures; j++) {
-        const value = X[i][j];
+        const value = X[i]![j]!;
 
         if (!isFinite(value)) {
           throw new Error(`StandardScaler: Non-finite value at row ${i}, column ${j}: ${value}`);
@@ -109,9 +109,9 @@ export class StandardScaler {
 
         // Handle constant features (std = 0)
         if (this.std[j] === 0) {
-          scaled[i][j] = 0.0;
+          scaled[i]![j] = 0.0;
         } else {
-          scaled[i][j] = (value - this.mean[j]) / this.std[j];
+          scaled[i]![j] = (value - this.mean[j]!) / this.std[j]!;
         }
       }
     }
@@ -146,7 +146,7 @@ export class StandardScaler {
     }
 
     const nSamples = X.length;
-    const nFeatures = X[0].length;
+    const nFeatures = X[0]!.length;
 
     if (nFeatures !== this.mean.length) {
       throw new Error(
@@ -161,7 +161,7 @@ export class StandardScaler {
 
       for (let j = 0; j < nFeatures; j++) {
         // Inverse: x = z * std + mean
-        original[i][j] = X[i][j] * this.std[j] + this.mean[j];
+        original[i]![j] = X[i]![j]! * this.std[j]! + this.mean[j]!;
       }
     }
 
@@ -195,13 +195,13 @@ export function calculateMean(X: FeatureMatrix, featureIndex?: number): number {
   }
 
   const nSamples = X.length;
-  const nFeatures = X[0].length;
+  const nFeatures = X[0]!.length;
 
   if (featureIndex !== undefined) {
     // Mean of specific feature
     let sum = 0;
     for (let i = 0; i < nSamples; i++) {
-      sum += X[i][featureIndex];
+      sum += X[i]![featureIndex]!;
     }
     return sum / nSamples;
   } else {
@@ -210,7 +210,7 @@ export function calculateMean(X: FeatureMatrix, featureIndex?: number): number {
     let count = 0;
     for (let i = 0; i < nSamples; i++) {
       for (let j = 0; j < nFeatures; j++) {
-        sum += X[i][j];
+        sum += X[i]![j]!;
         count++;
       }
     }
@@ -228,13 +228,13 @@ export function calculateStd(X: FeatureMatrix, featureIndex?: number): number {
 
   const mean = calculateMean(X, featureIndex);
   const nSamples = X.length;
-  const nFeatures = X[0].length;
+  const nFeatures = X[0]!.length;
 
   if (featureIndex !== undefined) {
     // Std of specific feature
     let sumSquaredDiff = 0;
     for (let i = 0; i < nSamples; i++) {
-      const diff = X[i][featureIndex] - mean;
+      const diff = X[i]![featureIndex]! - mean;
       sumSquaredDiff += diff * diff;
     }
     return Math.sqrt(sumSquaredDiff / nSamples); // Population std
@@ -244,7 +244,7 @@ export function calculateStd(X: FeatureMatrix, featureIndex?: number): number {
     let count = 0;
     for (let i = 0; i < nSamples; i++) {
       for (let j = 0; j < nFeatures; j++) {
-        const diff = X[i][j] - mean;
+        const diff = X[i]![j]! - mean;
         sumSquaredDiff += diff * diff;
         count++;
       }

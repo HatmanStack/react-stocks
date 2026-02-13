@@ -9,10 +9,11 @@ from datetime import datetime
 from typing import Any
 
 from handlers.stocks import handle_prices_request
-from utils.response import error_response, get_cors_headers as base_get_cors_headers
 from utils.error import APIError
-from utils.validation import TICKER_PATTERN, DATE_PATTERN
 from utils.logger import get_structured_logger
+from utils.response import error_response
+from utils.response import get_cors_headers as base_get_cors_headers
+from utils.validation import DATE_PATTERN, TICKER_PATTERN
 
 logger = get_structured_logger(__name__)
 
@@ -88,7 +89,8 @@ def handle_batch_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
             ticker = ticker.upper()
             if not TICKER_PATTERN.match(ticker):
                 return error_response(
-                    f"Invalid ticker format: {ticker}. Must contain only letters, numbers, dots, and hyphens.",
+                    f"Invalid ticker format: {ticker}."
+                    " Must contain only letters, numbers, dots, and hyphens.",
                     400,
                 )
             normalized_tickers.append(ticker)
@@ -131,8 +133,7 @@ def handle_batch_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
 
         with ThreadPoolExecutor(max_workers=min(len(normalized_tickers), 5)) as executor:
             futures = {
-                executor.submit(fetch_ticker, ticker): ticker
-                for ticker in normalized_tickers
+                executor.submit(fetch_ticker, ticker): ticker for ticker in normalized_tickers
             }
 
             for future in as_completed(futures):
@@ -155,9 +156,7 @@ def handle_batch_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
             },
         }
 
-        logger.info(
-            f"[BatchHandler] Completed batch: {len(results)} success, {len(errors)} errors"
-        )
+        logger.info(f"[BatchHandler] Completed batch: {len(results)} success, {len(errors)} errors")
 
         return {
             "statusCode": 200,

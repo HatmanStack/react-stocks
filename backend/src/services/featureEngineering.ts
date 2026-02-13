@@ -17,8 +17,8 @@ function compute_materiality_weighted_avg(values: number[], weights: number[]): 
   let totalWeight = 0;
 
   for (let i = 0; i < values.length; i++) {
-    weightedSum += values[i] * weights[i];
-    totalWeight += weights[i];
+    weightedSum += values[i]! * weights[i]!;
+    totalWeight += weights[i]!;
   }
 
   if (totalWeight === 0) return 0;
@@ -110,7 +110,7 @@ export function aggregate_daily_features(
     if (!articlesByDate[article.date]) {
       articlesByDate[article.date] = [];
     }
-    articlesByDate[article.date].push(article);
+    articlesByDate[article.date]!.push(article);
   }
 
   // 2. Map daily features
@@ -118,6 +118,7 @@ export function aggregate_daily_features(
 
   for (let i = 0; i < priceData.length; i++) {
     const price = priceData[i];
+    if (!price) continue;
     const date = price.date;
     const articles = articlesByDate[date] || [];
 
@@ -154,7 +155,9 @@ export function aggregate_daily_features(
     // Assumption: priceData is sorted by date ascending (ensured by fetchPriceData).
     if (i > 0) {
       const previousPrice = priceData[i - 1];
-      label = generate_label(previousPrice.close, price.close);
+      if (previousPrice) {
+        label = generate_label(previousPrice.close, price.close);
+      }
     }
 
     // Label is nullable: null for current day (no future data) and noise-threshold days.

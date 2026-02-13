@@ -178,8 +178,8 @@ export async function fetchNewsWithCache(
         const today = new Date();
         const lookbackDate = new Date(today);
         lookbackDate.setDate(lookbackDate.getDate() - ALPHA_VANTAGE_LOOKBACK_DAYS);
-        const alphaFrom = lookbackDate.toISOString().split('T')[0];
-        const alphaTo = today.toISOString().split('T')[0];
+        const alphaFrom = lookbackDate.toISOString().split('T')[0]!;
+        const alphaTo = today.toISOString().split('T')[0]!;
 
         apiCallCount++;
         const alphaArticles = await fetchAlphaVantageNews(
@@ -210,7 +210,7 @@ export async function fetchNewsWithCache(
           }
 
           const alphaInRange = alphaArticles.filter((a) => {
-            const date = new Date(a.datetime * 1000).toISOString().split('T')[0];
+            const date = new Date(a.datetime * 1000).toISOString().split('T')[0]!;
             return date >= from && date <= to;
           });
 

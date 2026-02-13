@@ -70,7 +70,7 @@ export async function getLatestDailyAggregate(
       return null;
     }
 
-    return transformToExternal(items[0]);
+    return transformToExternal(items[0]!);
   } catch (error) {
     logger.error('Error getting latest item', error);
     throw error;

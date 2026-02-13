@@ -51,7 +51,7 @@ function computeFeatureFStats(
   featureNames: readonly string[],
 ): { name: string; F: number; pValue: number }[] {
   const n = y.length;
-  const nFeatures = X[0].length;
+  const nFeatures = X[0]!.length;
   const results: { name: string; F: number; pValue: number }[] = [];
 
   for (let j = 0; j < nFeatures; j++) {
@@ -59,14 +59,14 @@ function computeFeatureFStats(
     const class0: number[] = [];
     const class1: number[] = [];
     for (let i = 0; i < n; i++) {
-      if (y[i] === 0) class0.push(X[i][j]);
-      else class1.push(X[i][j]);
+      if (y[i] === 0) class0.push(X[i]![j]!);
+      else class1.push(X[i]![j]!);
     }
 
     const n0 = class0.length;
     const n1 = class1.length;
     if (n0 === 0 || n1 === 0) {
-      results.push({ name: featureNames[j], F: 0, pValue: 1 });
+      results.push({ name: featureNames[j]!, F: 0, pValue: 1 });
       continue;
     }
 
@@ -99,7 +99,7 @@ function computeFeatureFStats(
       pValue = fDistPValue(F, dfBetween, dfWithin);
     }
 
-    results.push({ name: featureNames[j], F, pValue });
+    results.push({ name: featureNames[j]!, F, pValue });
   }
 
   return results.sort((a, b) => b.F - a.F); // Sort by F descending
@@ -171,8 +171,8 @@ function lnGamma(z: number): number {
     return Math.log(Math.PI / Math.sin(Math.PI * z)) - lnGamma(1 - z);
   }
   z -= 1;
-  let x = c[0];
-  for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
+  let x = c[0]!;
+  for (let i = 1; i < g + 2; i++) x += c[i]! / (z + i);
   const t = z + g + 0.5;
   return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
 }
@@ -274,7 +274,7 @@ export async function getStockPredictions(
     );
 
     // Sentiment availability is feature index 6 in full matrix (same for all rows)
-    const sentimentAvailability = fullFeatures.length > 0 ? fullFeatures[0][6] : 0;
+    const sentimentAvailability = fullFeatures.length > 0 ? (fullFeatures[0]![6] ?? 0) : 0;
     console.log(
       `[PredictionService] Ensemble weights: full=${sentimentAvailability.toFixed(3)}, price=${(1 - sentimentAvailability).toFixed(3)}`,
     );
@@ -301,9 +301,9 @@ export async function getStockPredictions(
         X_price = [];
         y = [];
         for (let i = 0; i < allLabels.length; i += horizon) {
-          X_full.push(allFullFeatures[i]);
-          X_price.push(allPriceFeatures[i]);
-          y.push(allLabels[i]);
+          X_full.push(allFullFeatures[i]!);
+          X_price.push(allPriceFeatures[i]!);
+          y.push(allLabels[i]!);
         }
 
         if (y.length < MIN_INDEPENDENT_SAMPLES) {
@@ -438,8 +438,8 @@ export async function getStockPredictions(
         } else {
           fullModel.fitCV(X_full_scaled, y, k, trainOptions);
         }
-        const X_full_recent = fullScaler.transform([fullFeatures[fullFeatures.length - 1]]);
-        const fullPred = fullModel.predictProba(X_full_recent)[0][1];
+        const X_full_recent = fullScaler.transform([fullFeatures[fullFeatures.length - 1]!]);
+        const fullPred = fullModel.predictProba(X_full_recent)[0]![1]!;
 
         const priceScaler = new StandardScaler();
         const X_price_scaled = priceScaler.fitTransform(X_price);
@@ -449,8 +449,8 @@ export async function getStockPredictions(
         } else {
           priceModel.fitCV(X_price_scaled, y, k, trainOptions);
         }
-        const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
-        const pricePred = priceModel.predictProba(X_price_recent)[0][1];
+        const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]!]);
+        const pricePred = priceModel.predictProba(X_price_recent)[0]![1]!;
 
         // Blend ensemble or use price-only based on holdout validation
         const mergedPred = useEnsemble
@@ -474,8 +474,8 @@ export async function getStockPredictions(
         } else {
           priceModel.fitCV(X_price_scaled, y, k, trainOptions);
         }
-        const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]]);
-        const pricePred = priceModel.predictProba(X_price_recent)[0][1];
+        const X_price_recent = priceScaler.transform([priceFeatures[priceFeatures.length - 1]!]);
+        const pricePred = priceModel.predictProba(X_price_recent)[0]![1]!;
         predictions[name] = pricePred;
 
         console.log(

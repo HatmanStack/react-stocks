@@ -113,7 +113,7 @@ export function transformFinnhubToNewsDetails(
   ticker: string,
 ): NewsDetails {
   // Convert UNIX timestamp to YYYY-MM-DD format
-  const date = new Date(article.datetime * 1000).toISOString().split('T')[0];
+  const date = new Date(article.datetime * 1000).toISOString().split('T')[0]!;
 
   return {
     date,

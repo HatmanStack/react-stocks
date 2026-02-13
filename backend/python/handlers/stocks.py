@@ -6,13 +6,13 @@ Handles GET /stocks requests for prices and metadata.
 from datetime import datetime
 from typing import Any
 
+from repositories.stocks_cache import batch_put_stocks, query_stocks_by_date_range
 from services.yfinance_service import fetch_stock_prices, fetch_symbol_metadata
-from repositories.stocks_cache import query_stocks_by_date_range, batch_put_stocks
-from utils.transform import transform_history_to_tiingo, transform_info_to_metadata
-from utils.response import success_response, error_response
 from utils.error import APIError
-from utils.validation import TICKER_PATTERN, DATE_PATTERN
 from utils.logger import get_structured_logger
+from utils.response import error_response, success_response
+from utils.transform import transform_history_to_tiingo, transform_info_to_metadata
+from utils.validation import DATE_PATTERN, TICKER_PATTERN
 
 logger = get_structured_logger(__name__)
 
@@ -51,9 +51,7 @@ def handle_prices_request(
 
         # If cache hit rate >80%, use cached data
         if cache_hit_rate > 0.8 and cached_data:
-            logger.info(
-                f"[StocksHandler] Cache hit for {ticker}: {cache_hit_rate * 100:.1f}%"
-            )
+            logger.info(f"[StocksHandler] Cache hit for {ticker}: {cache_hit_rate * 100:.1f}%")
 
             # Transform cached data to Tiingo format
             data = []
@@ -62,8 +60,7 @@ def handle_prices_request(
                 record = {
                     "date": f"{item['date']}T00:00:00.000Z",
                     **{
-                        k: float(v) if hasattr(v, "__float__") else v
-                        for k, v in price_data.items()
+                        k: float(v) if hasattr(v, "__float__") else v for k, v in price_data.items()
                     },
                 }
                 data.append(record)
@@ -76,7 +73,8 @@ def handle_prices_request(
 
         # Cache miss - fetch from yfinance
         logger.info(
-            f"[StocksHandler] Cache miss for {ticker}: {cache_hit_rate * 100:.1f}% - fetching from API"
+            f"[StocksHandler] Cache miss for {ticker}:"
+            f" {cache_hit_rate * 100:.1f}% - fetching from API"
         )
 
         df = fetch_stock_prices(ticker, start_date, effective_end_date)
@@ -109,9 +107,7 @@ def handle_prices_request(
                         }
                     )
                 batch_put_stocks(cache_items)
-                logger.info(
-                    f"[StocksHandler] Cached {len(cache_items)} price records for {ticker}"
-                )
+                logger.info(f"[StocksHandler] Cached {len(cache_items)} price records for {ticker}")
             except Exception as e:
                 logger.error(f"[StocksHandler] Failed to cache stock prices: {e}")
 
@@ -186,19 +182,13 @@ def handle_stocks_request(event: dict[str, Any]) -> dict[str, Any]:
         # Validate dates for prices request
         if request_type == "prices":
             if not start_date:
-                return error_response(
-                    "Missing required parameter for prices: startDate", 400
-                )
+                return error_response("Missing required parameter for prices: startDate", 400)
 
             if not DATE_PATTERN.match(start_date):
-                return error_response(
-                    "Invalid startDate format. Must be YYYY-MM-DD.", 400
-                )
+                return error_response("Invalid startDate format. Must be YYYY-MM-DD.", 400)
 
             if end_date and not DATE_PATTERN.match(end_date):
-                return error_response(
-                    "Invalid endDate format. Must be YYYY-MM-DD.", 400
-                )
+                return error_response("Invalid endDate format. Must be YYYY-MM-DD.", 400)
 
             # Validate date range
             if start_date and end_date:

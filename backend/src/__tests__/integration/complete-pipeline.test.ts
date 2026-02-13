@@ -160,7 +160,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
 
       expect(dailySentiment).toHaveLength(1);
 
-      const day = dailySentiment[0];
+      const day = dailySentiment[0]!;
 
       // Verify event distribution
       expect(day.eventCounts).toEqual({
@@ -222,7 +222,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
 
       expect(dailySentiment).toHaveLength(1);
 
-      const day = dailySentiment[0];
+      const day = dailySentiment[0]!;
 
       // Verify defaults
       expect(day.eventCounts.GENERAL).toBe(2); // Defaults to GENERAL
@@ -383,7 +383,7 @@ describe('Complete Sentiment Pipeline Integration', () => {
       const dailySentiment = aggregateDailySentiment(sentiments, articles);
 
       // Zero aspect scores should be excluded from average
-      expect(dailySentiment[0].avgAspectScore).toBeUndefined();
+      expect(dailySentiment[0]!.avgAspectScore).toBeUndefined();
     });
 
     it('should handle mixed material and non-material events', () => {
@@ -426,8 +426,8 @@ describe('Complete Sentiment Pipeline Integration', () => {
       const dailySentiment = aggregateDailySentiment(sentiments, articles);
 
       // Should only average MlSentiment scores from material events
-      expect(dailySentiment[0].avgMlScore).toBeCloseTo(0.7, 2); // Only one score
-      expect(dailySentiment[0].materialEventCount).toBe(1);
+      expect(dailySentiment[0]!.avgMlScore).toBeCloseTo(0.7, 2); // Only one score
+      expect(dailySentiment[0]!.materialEventCount).toBe(1);
     });
 
     it('should handle extreme sentiment scores', () => {

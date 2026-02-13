@@ -71,6 +71,10 @@ export async function generateBrowserPredictions(
     const firstSentimentDate = sentimentDates[0];
     const lastSentimentDate = sentimentDates[sentimentDates.length - 1];
 
+    if (!firstSentimentDate || !lastSentimentDate) {
+      return null;
+    }
+
     // Interpolate sentiment for each trading day
     const trimmedStocks: typeof sortedStocks = [];
     const trimmedSentiment: typeof sortedSentiment = [];
@@ -86,8 +90,9 @@ export async function generateBrowserPredictions(
           sentiment = sentimentByDate.get(lastSentimentDate);
         } else {
           const priorDates = sentimentDates.filter((d) => d <= tradingDay);
-          if (priorDates.length > 0) {
-            sentiment = sentimentByDate.get(priorDates[priorDates.length - 1]);
+          const lastPriorDate = priorDates[priorDates.length - 1];
+          if (lastPriorDate) {
+            sentiment = sentimentByDate.get(lastPriorDate);
           }
         }
       }

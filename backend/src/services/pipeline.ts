@@ -136,7 +136,7 @@ export async function runPredictionPipeline(
   // 3. Try cached model first
   const cached = await getCachedModel(ticker);
   if (cached) {
-    const latestFeatures = dailyFeatures[dailyFeatures.length - 1];
+    const latestFeatures = dailyFeatures[dailyFeatures.length - 1]!;
     return generate_predictions(cached.model, cached.scaler, latestFeatures);
   }
 
@@ -188,7 +188,7 @@ export async function runPredictionPipeline(
   }
 
   // 9. Prediction Generation
-  const latestFeatures = dailyFeatures[dailyFeatures.length - 1];
+  const latestFeatures = dailyFeatures[dailyFeatures.length - 1]!;
   const predictions = generate_predictions(model, scaler, latestFeatures);
   logger.info('Generated predictions', { count: predictions.length });
 

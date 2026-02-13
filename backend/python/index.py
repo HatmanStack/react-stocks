@@ -6,7 +6,11 @@ Routes requests to appropriate handlers based on path and method.
 import time
 from typing import Any
 
-from utils.logger import get_structured_logger, set_request_context, clear_request_context
+from utils.logger import (
+    clear_request_context,
+    get_structured_logger,
+    set_request_context,
+)
 from utils.metrics import log_lambda_start_status, log_request_metrics
 
 logger = get_structured_logger(__name__)
@@ -29,9 +33,9 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     global _is_first_invocation
 
     # Import handlers here to avoid circular imports and improve cold start
-    from handlers.stocks import handle_stocks_request
-    from handlers.search import handle_search_request
     from handlers.batch import handle_batch_stocks_request
+    from handlers.search import handle_search_request
+    from handlers.stocks import handle_stocks_request
     from utils.response import error_response
 
     # Extract path and method from event

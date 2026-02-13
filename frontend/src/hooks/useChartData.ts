@@ -56,8 +56,13 @@ export function calculatePriceChange(data: ChartDataPoint[]): PriceChange {
     return { isPositive: false, percentage: 0 };
   }
 
-  const firstPrice = data[0].y;
-  const lastPrice = data[data.length - 1].y;
+  const firstItem = data[0];
+  const lastItem = data[data.length - 1];
+  if (!firstItem || !lastItem) {
+    return { isPositive: false, percentage: 0 };
+  }
+  const firstPrice = firstItem.y;
+  const lastPrice = lastItem.y;
 
   // Guard against division by zero
   if (firstPrice === 0) {

@@ -78,7 +78,8 @@ export async function existsByHash(hash: number): Promise<boolean> {
   try {
     // Using getAllAsync instead of getFirstAsync
     const results = await db.getAllAsync<{ count: number }>(sql, [hash]);
-    return results.length > 0 && results[0].count > 0;
+    const first = results[0];
+    return first !== undefined && first.count > 0;
   } catch (error) {
     console.error('[WordCountRepository] Error checking existence by hash:', error);
     return false;

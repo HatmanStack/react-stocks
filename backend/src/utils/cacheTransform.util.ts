@@ -21,7 +21,7 @@ export function transformFinnhubToCache(
   precomputedHash?: string,
 ): Omit<NewsCacheItem, 'ttl'> {
   // Convert Unix timestamp to ISO date string
-  const date = new Date(finnhubArticle.datetime * 1000).toISOString().split('T')[0];
+  const date = new Date(finnhubArticle.datetime * 1000).toISOString().split('T')[0]!;
 
   return {
     ticker,

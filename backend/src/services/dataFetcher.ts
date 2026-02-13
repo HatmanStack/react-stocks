@@ -14,7 +14,7 @@ function calculateStartDate(days: number): string {
   const date = new Date();
   // Use UTC methods to avoid timezone-dependent off-by-one errors
   date.setUTCDate(date.getUTCDate() - days);
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split('T')[0]!;
 }
 
 /**
@@ -89,7 +89,7 @@ export async function fetchHistoricalData(ticker: string, days: number): Promise
     throw new Error('Insufficient data requested: Minimum 30 days required.');
   }
 
-  const endDate = new Date().toISOString().split('T')[0];
+  const endDate = new Date().toISOString().split('T')[0]!;
   const startDate = calculateStartDate(days);
 
   try {

@@ -54,14 +54,14 @@ export function kFoldSplit(nSamples: number, k: number): CVFold[] {
  * Extract subset of data by indices
  */
 function selectByIndices(X: FeatureMatrix, indices: number[]): FeatureMatrix {
-  return indices.map((i) => X[i]);
+  return indices.map((i) => X[i]!);
 }
 
 /**
  * Extract subset of labels by indices
  */
 function selectLabelsByIndices(y: Labels, indices: number[]): Labels {
-  return indices.map((i) => y[i]);
+  return indices.map((i) => y[i]!);
 }
 
 /**
@@ -82,7 +82,7 @@ export function crossValidate(X: FeatureMatrix, y: Labels, k: number): CVResults
   const scores: number[] = [];
 
   for (let i = 0; i < folds.length; i++) {
-    const { trainIndices, testIndices } = folds[i];
+    const { trainIndices, testIndices } = folds[i]!;
 
     // Extract train and test data
     const X_train = selectByIndices(X, trainIndices);

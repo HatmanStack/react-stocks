@@ -29,7 +29,9 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
     if (data.length === 0) return { chartData: [], dates: [] };
 
     // Check if data is StockDetails format
-    const isStockDetails = 'close' in data[0];
+    const firstItem = data[0];
+    if (!firstItem) return { chartData: [], dates: [] };
+    const isStockDetails = 'close' in firstItem;
 
     if (isStockDetails) {
       // Transform data and derive both chartData and dates from the same transformed result
@@ -58,6 +60,9 @@ const PriceChartComponent = ({ data, width: customWidth, height = 220 }: PriceCh
 
     const firstPrice = chartData[0];
     const lastPrice = chartData[chartData.length - 1];
+    if (firstPrice === undefined || lastPrice === undefined) {
+      return { isPositive: false, percentage: 0 };
+    }
 
     // Guard against division by zero (consistent with calculatePriceChange)
     if (firstPrice === 0) {

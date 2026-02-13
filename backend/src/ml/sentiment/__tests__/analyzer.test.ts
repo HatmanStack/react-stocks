@@ -228,9 +228,9 @@ describe('analyzeSentimentBatch', () => {
     const results = await analyzeSentimentBatch(articles);
 
     expect(results).toHaveLength(3);
-    expect(results[0].articleHash).toBe('hash-1');
-    expect(results[1].articleHash).toBe('hash-2');
-    expect(results[2].articleHash).toBe('hash-3');
+    expect(results[0]!.articleHash).toBe('hash-1');
+    expect(results[1]!.articleHash).toBe('hash-2');
+    expect(results[2]!.articleHash).toBe('hash-3');
   });
 
   it('should return results in same order as input', async () => {

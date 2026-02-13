@@ -45,11 +45,7 @@ def retry_with_backoff(func):
                 return func(*args, **kwargs)
             except APIError as e:
                 # Don't retry client errors (4xx except 429)
-                if (
-                    e.status_code
-                    and 400 <= e.status_code < 500
-                    and e.status_code != 429
-                ):
+                if e.status_code and 400 <= e.status_code < 500 and e.status_code != 429:
                     raise
                 last_error = e
             except Exception as e:
@@ -110,7 +106,7 @@ def fetch_stock_prices(
         raise
     except Exception as e:
         logger.error(f"[YFinanceService] Error fetching prices for {ticker}: {e}")
-        raise APIError(f"Failed to fetch stock prices: {e}", 500)
+        raise APIError(f"Failed to fetch stock prices: {e}", 500) from e
 
 
 @retry_with_backoff
@@ -151,7 +147,7 @@ def fetch_symbol_metadata(ticker: str) -> dict[str, Any]:
         raise
     except Exception as e:
         logger.error(f"[YFinanceService] Error fetching metadata for {ticker}: {e}")
-        raise APIError(f"Failed to fetch metadata: {e}", 500)
+        raise APIError(f"Failed to fetch metadata: {e}", 500) from e
 
 
 @retry_with_backoff
@@ -188,9 +184,7 @@ def search_tickers(query: str) -> list[dict[str, Any]]:
         }
         headers = {"User-Agent": "Mozilla/5.0"}
 
-        response = requests.get(
-            url, params=params, headers=headers, timeout=REQUEST_TIMEOUT
-        )
+        response = requests.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
 
         data = response.json()
@@ -204,10 +198,10 @@ def search_tickers(query: str) -> list[dict[str, Any]]:
             logger.info(f"[YFinanceService] No results found for query: {query}")
             return []
         logger.error(f"[YFinanceService] HTTP error searching for {query}: {e}")
-        raise APIError(f"Search failed: {e}", e.response.status_code)
-    except requests.exceptions.Timeout:
+        raise APIError(f"Search failed: {e}", e.response.status_code) from e
+    except requests.exceptions.Timeout as e:
         logger.error(f"[YFinanceService] Timeout searching for {query}")
-        raise APIError("Search request timed out", 504)
+        raise APIError("Search request timed out", 504) from e
     except Exception as e:
         logger.error(f"[YFinanceService] Error searching for {query}: {e}")
-        raise APIError(f"Search failed: {e}", 500)
+        raise APIError(f"Search failed: {e}", 500) from e

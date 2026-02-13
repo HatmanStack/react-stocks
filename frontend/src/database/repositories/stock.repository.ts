@@ -152,7 +152,8 @@ export async function countByTicker(ticker: string): Promise<number> {
   try {
     // Using getAllAsync instead of getFirstAsync
     const results = await db.getAllAsync<{ count: number }>(sql, [ticker]);
-    return results.length > 0 ? results[0].count : 0;
+    const first = results[0];
+    return first ? first.count : 0;
   } catch (error) {
     logger.error('[StockRepository] Error counting by ticker:', error);
     return 0;
@@ -176,7 +177,7 @@ export async function findLatestByTicker(ticker: string): Promise<StockDetails |
   try {
     // Using getAllAsync instead of getFirstAsync
     const results = await db.getAllAsync<StockDetails>(sql, [ticker]);
-    return results.length > 0 ? results[0] : null;
+    return results[0] ?? null;
   } catch (error) {
     logger.error('[StockRepository] Error finding latest by ticker:', error);
     return null;

@@ -126,7 +126,7 @@ export function useCurrentSentiment(ticker: string) {
     queryFn: async (): Promise<CombinedWordDetails | null> => {
       const allSentiment = await CombinedWordRepository.findByTicker(ticker);
       if (allSentiment.length === 0) return null;
-      return allSentiment.sort((a, b) => b.date.localeCompare(a.date))[0];
+      return allSentiment.sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
     },
     enabled: !!ticker,
   });

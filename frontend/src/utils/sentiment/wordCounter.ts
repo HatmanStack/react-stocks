@@ -44,13 +44,13 @@ export function countSentimentWords(text: string): WordCounts {
     }
 
     // Get first letter
-    const firstLetter = cleanedWord[0];
+    const firstLetter = cleanedWord[0]!;
 
     // Only reload word lists when letter changes (optimization)
     if (firstLetter !== currentLetter) {
       currentLetter = firstLetter;
-      positiveWords = vocabulary.positive[firstLetter] || [];
-      negativeWords = vocabulary.negative[firstLetter] || [];
+      positiveWords = vocabulary.positive[firstLetter] ?? [];
+      negativeWords = vocabulary.negative[firstLetter] ?? [];
     }
 
     // Check if word is in positive or negative lists

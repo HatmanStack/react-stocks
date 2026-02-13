@@ -166,8 +166,8 @@ describe('NewsCacheRepository', () => {
       const result = await queryArticlesByTicker('AAPL');
 
       expect(result).toHaveLength(2);
-      expect(result[0].articleHash).toBe('hash1');
-      expect(result[1].articleHash).toBe('hash2');
+      expect(result[0]!.articleHash).toBe('hash1');
+      expect(result[1]!.articleHash).toBe('hash2');
     });
   });
 

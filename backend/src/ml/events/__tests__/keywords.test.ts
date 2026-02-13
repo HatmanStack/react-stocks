@@ -63,8 +63,8 @@ describe('Event Keywords', () => {
           const type1 = eventTypes[i];
           const type2 = eventTypes[j];
 
-          const keywords1 = new Set(primaryKeywords.get(type1) || []);
-          const keywords2 = new Set(primaryKeywords.get(type2) || []);
+          const keywords1 = new Set(primaryKeywords.get(type1!) || []);
+          const keywords2 = new Set(primaryKeywords.get(type2!) || []);
 
           const overlap = [...keywords1].filter((k) => keywords2.has(k));
 

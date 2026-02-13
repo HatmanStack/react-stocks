@@ -9,11 +9,11 @@ See: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/CloudWatch_E
 
 import json
 import time
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class MetricUnit(str, Enum):
+class MetricUnit(StrEnum):
     """Metric units supported by CloudWatch (pruned to used values)."""
 
     MILLISECONDS = "Milliseconds"
@@ -38,10 +38,12 @@ def log_metric(
         name: Metric name (e.g., 'CacheHitRate')
         value: Metric value (e.g., 95.5)
         unit: Metric unit (e.g., MetricUnit.PERCENT)
-        dimensions: Key-value pairs for filtering (e.g., {'Endpoint': 'stocks', 'Ticker': 'AAPL'})
+        dimensions: Key-value pairs for filtering
+            (e.g., {'Endpoint': 'stocks', 'Ticker': 'AAPL'})
 
     Example:
-        log_metric('CacheHitRate', 95.5, MetricUnit.PERCENT, {'Endpoint': 'stocks', 'Ticker': 'AAPL'})
+        >>> log_metric('CacheHitRate', 95.5, MetricUnit.PERCENT,
+        ...            {'Endpoint': 'stocks', 'Ticker': 'AAPL'})
     """
     dimensions = dimensions or {}
     timestamp = int(time.time() * 1000)

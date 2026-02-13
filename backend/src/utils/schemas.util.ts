@@ -29,7 +29,10 @@ const dateSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format')
   .refine(
     (s) => {
-      const [year, month, day] = s.split('-').map(Number);
+      const parts = s.split('-').map(Number);
+      const year = parts[0]!;
+      const month = parts[1]!;
+      const day = parts[2]!;
       const date = new Date(year, month - 1, day);
       return (
         !isNaN(date.getTime()) &&

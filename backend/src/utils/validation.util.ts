@@ -40,7 +40,10 @@ export function validateDateFormat(raw: unknown): raw is string {
   }
 
   // Parse components and verify the date is valid
-  const [year, month, day] = raw.split('-').map(Number);
+  const parts = raw.split('-').map(Number);
+  const year = parts[0]!;
+  const month = parts[1]!;
+  const day = parts[2]!;
   const date = new Date(year, month - 1, day); // month is 0-indexed
 
   // Check if Date auto-corrected (e.g., Feb 31 -> Mar 3)

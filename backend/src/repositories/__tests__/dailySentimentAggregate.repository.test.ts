@@ -174,8 +174,8 @@ describe('DailySentimentAggregateRepository', () => {
       const result = await queryByTickerAndDateRange('AAPL', '2025-01-01', '2025-01-31');
 
       expect(result).toHaveLength(2);
-      expect(result[0].date).toBe('2025-01-15');
-      expect(result[1].date).toBe('2025-01-16');
+      expect(result[0]!.date).toBe('2025-01-15');
+      expect(result[1]!.date).toBe('2025-01-16');
     });
   });
 });

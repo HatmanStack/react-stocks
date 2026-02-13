@@ -85,13 +85,13 @@ describe('Sentiment Utility Functions', () => {
       const result = aggregateDailySentiment(sentiments, articles);
 
       expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
+      expect(result[0]!).toMatchObject({
         date: '2025-01-15',
         positiveCount: 15, // 10 + 5
         negativeCount: 10, // 2 + 8
         sentimentScore: expect.any(Number),
       });
-      expect(result[0].sentimentScore).toBeCloseTo(0.2, 2); // (15-10)/25 = 0.2
+      expect(result[0]!.sentimentScore).toBeCloseTo(0.2, 2); // (15-10)/25 = 0.2
     });
 
     it('should aggregate event counts correctly', () => {
@@ -147,7 +147,7 @@ describe('Sentiment Utility Functions', () => {
       const result = aggregateDailySentiment(sentiments, articles);
 
       expect(result).toHaveLength(1);
-      expect(result[0].eventCounts).toEqual({
+      expect(result[0]!.eventCounts).toEqual({
         EARNINGS: 2,
         'M&A': 1,
         GUIDANCE: 0,
@@ -202,8 +202,8 @@ describe('Sentiment Utility Functions', () => {
       const result = aggregateDailySentiment(sentiments, articles);
 
       expect(result).toHaveLength(1);
-      expect(result[0].avgAspectScore).toBeDefined();
-      expect(result[0].avgAspectScore).toBeCloseTo(0.1, 2); // (0.5 + -0.3) / 2 = 0.1
+      expect(result[0]!.avgAspectScore).toBeDefined();
+      expect(result[0]!.avgAspectScore).toBeCloseTo(0.1, 2); // (0.5 + -0.3) / 2 = 0.1
     });
 
     it('should calculate average MlSentiment scores', () => {
@@ -251,9 +251,9 @@ describe('Sentiment Utility Functions', () => {
       const result = aggregateDailySentiment(sentiments, articles);
 
       expect(result).toHaveLength(1);
-      expect(result[0].avgMlScore).toBeDefined();
-      expect(result[0].avgMlScore).toBeCloseTo(0.1, 2); // (0.8 + -0.6) / 2 = 0.1
-      expect(result[0].materialEventCount).toBe(2); // 2 articles with MlSentiment scores
+      expect(result[0]!.avgMlScore).toBeDefined();
+      expect(result[0]!.avgMlScore).toBeCloseTo(0.1, 2); // (0.8 + -0.6) / 2 = 0.1
+      expect(result[0]!.materialEventCount).toBe(2); // 2 articles with MlSentiment scores
     });
 
     it('should handle multiple dates correctly', () => {
@@ -310,10 +310,10 @@ describe('Sentiment Utility Functions', () => {
       const result = aggregateDailySentiment(sentiments, articles);
 
       expect(result).toHaveLength(2);
-      expect(result[0].date).toBe('2025-01-15');
-      expect(result[1].date).toBe('2025-01-16');
-      expect(result[0].eventCounts.EARNINGS).toBe(1);
-      expect(result[1].eventCounts['M&A']).toBe(1);
+      expect(result[0]!.date).toBe('2025-01-15');
+      expect(result[1]!.date).toBe('2025-01-16');
+      expect(result[0]!.eventCounts.EARNINGS).toBe(1);
+      expect(result[1]!.eventCounts['M&A']).toBe(1);
     });
 
     it('should return empty array when no articles match', () => {
@@ -371,7 +371,7 @@ describe('Sentiment Utility Functions', () => {
       const result = aggregateDailySentiment(sentiments, articles);
 
       expect(result).toHaveLength(1);
-      expect(result[0].avgAspectScore).toBeUndefined(); // No valid aspect scores
+      expect(result[0]!.avgAspectScore).toBeUndefined(); // No valid aspect scores
     });
   });
 });

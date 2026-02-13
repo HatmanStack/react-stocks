@@ -44,7 +44,7 @@ function calculateClassWeights(labels: number[]): { 0: number; 1: number } {
 function predict(features: number[], model: LogisticRegressionModel): number {
   let z = model.bias;
   for (let i = 0; i < features.length; i++) {
-    z += features[i] * model.weights[i];
+    z += features[i]! * model.weights[i]!;
   }
   return sigmoid(z);
 }
@@ -72,11 +72,12 @@ export async function trainModel(
 ): Promise<{ model: LogisticRegressionModel; metrics: TrainingMetrics }> {
   const numSamples = X.length;
 
-  if (numSamples === 0 || !X[0]) {
+  const firstRow = X[0];
+  if (numSamples === 0 || !firstRow) {
     throw new Error('Empty feature matrix provided');
   }
 
-  const numFeatures = X[0].length;
+  const numFeatures = firstRow.length;
 
   if (numSamples < 10) {
     throw new Error('Insufficient training data: At least 10 samples required.');
@@ -94,8 +95,10 @@ export async function trainModel(
 
   // Check for NaN
   for (let i = 0; i < numSamples; i++) {
+    const row = X[i];
+    if (!row) continue;
     for (let j = 0; j < numFeatures; j++) {
-      if (Number.isNaN(X[i][j])) {
+      if (Number.isNaN(row[j])) {
         throw new Error('Invalid feature data contains NaN');
       }
     }
@@ -126,8 +129,9 @@ export async function trainModel(
     let biasGradient = 0;
 
     for (let i = 0; i < numSamples; i++) {
-      const yPred = predict(X[i], { weights, bias });
-      const yTrue = y[i];
+      const Xi = X[i]!;
+      const yTrue = y[i]!;
+      const yPred = predict(Xi, { weights, bias });
       const sampleWeight = classWeights[yTrue as 0 | 1];
 
       // Loss
@@ -140,14 +144,14 @@ export async function trainModel(
       // Gradient: dL/dw = (yPred - yTrue) * x * sampleWeight
       const error = (yPred - yTrue) * sampleWeight;
       for (let j = 0; j < numFeatures; j++) {
-        weightGradients[j] += error * X[i][j];
+        weightGradients[j] = weightGradients[j]! + error * Xi[j]!;
       }
       biasGradient += error;
     }
 
     // Update weights
     for (let j = 0; j < numFeatures; j++) {
-      weights[j] -= learningRate * (weightGradients[j] / numSamples);
+      weights[j] = weights[j]! - learningRate * (weightGradients[j]! / numSamples);
     }
     bias -= learningRate * (biasGradient / numSamples);
 
@@ -212,9 +216,10 @@ export async function walkForwardValidate(
       // Evaluate on test set
       let correct = 0;
       for (let i = 0; i < X_test.length; i++) {
+        const testRow = X_test[i]!;
         let z = result.model.bias;
         for (let j = 0; j < result.model.weights.length; j++) {
-          z += X_test[i][j] * result.model.weights[j];
+          z += testRow[j]! * result.model.weights[j]!;
         }
         const pred = sigmoid(z) >= 0.5 ? 1 : 0;
         if (pred === y_test[i]) correct++;
@@ -266,7 +271,7 @@ export function generate_predictions(
 
   for (const horizon of horizons) {
     const rawFeatures = [...baseFeatures, horizon];
-    const normalizedFeatures = normalize_features([rawFeatures], scaler)[0];
+    const normalizedFeatures = normalize_features([rawFeatures], scaler)[0]!;
 
     const probValue = predict(normalizedFeatures, model);
 

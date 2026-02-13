@@ -46,8 +46,8 @@ describe('Aspect Detection Engine', () => {
       const mentions = detectAspectMentions(sentences, 'REVENUE');
 
       expect(mentions.length).toBeGreaterThan(0);
-      expect(mentions[0].matchedKeyword).toBe('revenue');
-      expect(mentions[1].matchedKeyword).toBe('sales');
+      expect(mentions[0]!.matchedKeyword).toBe('revenue');
+      expect(mentions[1]!.matchedKeyword).toBe('sales');
     });
 
     it('should find multi-word keywords', () => {
@@ -209,10 +209,10 @@ describe('Aspect Detection Engine', () => {
       const results = detectAspect(text, 'REVENUE');
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].aspect).toBe('REVENUE');
-      expect(results[0].score).toBeGreaterThan(0.5);
-      expect(results[0].confidence).toBeGreaterThan(0.5);
-      expect(results[0].text).toContain('revenue');
+      expect(results[0]!.aspect).toBe('REVENUE');
+      expect(results[0]!.score).toBeGreaterThan(0.5);
+      expect(results[0]!.confidence).toBeGreaterThan(0.5);
+      expect(results[0]!.text).toContain('revenue');
     });
 
     it('should detect earnings aspect in article', () => {
@@ -220,7 +220,7 @@ describe('Aspect Detection Engine', () => {
       const results = detectAspect(text, 'EARNINGS');
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].score).toBeLessThan(0); // Negative
+      expect(results[0]!.score).toBeLessThan(0); // Negative
     });
 
     it('should detect guidance aspect in article', () => {
@@ -228,7 +228,7 @@ describe('Aspect Detection Engine', () => {
       const results = detectAspect(text, 'GUIDANCE');
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].score).toBeGreaterThan(0); // Positive
+      expect(results[0]!.score).toBeGreaterThan(0); // Positive
     });
 
     it('should detect margins aspect in article', () => {
@@ -236,7 +236,7 @@ describe('Aspect Detection Engine', () => {
       const results = detectAspect(text, 'MARGINS');
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].score).toBeLessThanOrEqual(0); // Negative or neutral
+      expect(results[0]!.score).toBeLessThanOrEqual(0); // Negative or neutral
     });
 
     it('should detect growth aspect in article', () => {
@@ -244,7 +244,7 @@ describe('Aspect Detection Engine', () => {
       const results = detectAspect(text, 'GROWTH');
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].score).toBeGreaterThan(0); // Positive
+      expect(results[0]!.score).toBeGreaterThan(0); // Positive
     });
 
     it('should detect debt aspect in article', () => {
@@ -252,7 +252,7 @@ describe('Aspect Detection Engine', () => {
       const results = detectAspect(text, 'DEBT');
 
       expect(results.length).toBeGreaterThan(0);
-      expect(results[0].score).toBeGreaterThan(0); // Reduced debt is positive
+      expect(results[0]!.score).toBeGreaterThan(0); // Reduced debt is positive
     });
 
     it('should return empty array when aspect not present', () => {
