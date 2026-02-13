@@ -73,50 +73,6 @@ export async function insert(symbol: Omit<SymbolDetails, 'id'>): Promise<number>
 }
 
 /**
- * Update a symbol record
- * @param ticker - Stock ticker symbol
- * @param symbol - Updated symbol details
- */
-export async function update(ticker: string, symbol: Omit<SymbolDetails, 'id'>): Promise<void> {
-  const db = await getDatabase();
-  const sql = `
-    UPDATE ${TABLE_NAMES.SYMBOL_DETAILS}
-    SET longDescription = ?, exchangeCode = ?, name = ?, startDate = ?, endDate = ?
-    WHERE ticker = ?
-  `;
-
-  try {
-    await db.runAsync(sql, [
-      symbol.longDescription,
-      symbol.exchangeCode,
-      symbol.name,
-      symbol.startDate,
-      symbol.endDate,
-      ticker,
-    ]);
-  } catch (error) {
-    console.error('[SymbolRepository] Error updating symbol:', error);
-    throw new Error(`Failed to update symbol for ticker ${ticker}: ${error}`);
-  }
-}
-
-/**
- * Delete a symbol record by ticker
- * @param ticker - Stock ticker symbol
- */
-export async function deleteByTicker(ticker: string): Promise<void> {
-  const db = await getDatabase();
-  const sql = `DELETE FROM ${TABLE_NAMES.SYMBOL_DETAILS} WHERE ticker = ?`;
-
-  try {
-    await db.runAsync(sql, [ticker]);
-  } catch (error) {
-    console.error('[SymbolRepository] Error deleting symbol:', error);
-    throw new Error(`Failed to delete symbol for ticker ${ticker}: ${error}`);
-  }
-}
-
-/**
  * Check if a symbol exists by ticker
  * @param ticker - Stock ticker symbol
  * @returns true if symbol exists

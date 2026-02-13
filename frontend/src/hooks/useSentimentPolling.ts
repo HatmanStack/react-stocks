@@ -155,7 +155,6 @@ export function useSentimentPolling(
 
         // Job completed successfully
         if (status.status === 'COMPLETED') {
-          console.log(`[useSentimentPolling] Job ${currentJobId} completed`);
           cancelPolling();
 
           // Fetch results
@@ -171,8 +170,6 @@ export function useSentimentPolling(
         // Job failed
         if (status.status === 'FAILED') {
           const failureError = new Error(status.error || 'Sentiment analysis failed');
-          console.error(`[useSentimentPolling] Job ${currentJobId} failed:`, failureError);
-
           cancelPolling();
           setError(failureError);
           onError?.(failureError);
@@ -185,8 +182,6 @@ export function useSentimentPolling(
           const timeoutError = new Error(
             `Sentiment analysis timed out after ${maxAttempts} attempts (${(maxAttempts * pollInterval) / 1000}s)`,
           );
-          console.error(`[useSentimentPolling] Job ${currentJobId} timed out`);
-
           cancelPolling();
           setError(timeoutError);
           onError?.(timeoutError);
@@ -219,11 +214,9 @@ export function useSentimentPolling(
   const startPolling = useCallback(
     (currentJobId: string) => {
       if (!enabled) {
-        console.log('[useSentimentPolling] Polling disabled, skipping');
         return;
       }
 
-      console.log(`[useSentimentPolling] Starting polling for job ${currentJobId}`);
       setIsPolling(true);
       attemptCountRef.current = 0;
 
@@ -238,10 +231,6 @@ export function useSentimentPolling(
    */
   const triggerAnalysis = useCallback(async () => {
     try {
-      console.log(
-        `[useSentimentPolling] Triggering analysis for ${ticker} from ${startDate} to ${endDate}`,
-      );
-
       setError(null);
       setSentimentData(null);
 
@@ -266,7 +255,6 @@ export function useSentimentPolling(
 
       // If already completed (cached), fetch results immediately
       if (response.status === 'COMPLETED') {
-        console.log(`[useSentimentPolling] Job ${response.jobId} already completed (cached)`);
         const results = await getSentimentResults(ticker, startDate, endDate);
 
         if (!isMountedRef.current) return;

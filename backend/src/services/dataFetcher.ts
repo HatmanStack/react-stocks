@@ -24,7 +24,7 @@ function calculateStartDate(days: number): string {
  * @param endDate End date in ISO 8601 format (YYYY-MM-DD).
  * @returns List of StockPrice objects.
  */
-export async function fetchPriceData(
+async function fetchPriceData(
   ticker: string,
   startDate: string,
   endDate: string,
@@ -55,7 +55,7 @@ export async function fetchPriceData(
  * @param endDate End date in ISO 8601 format (YYYY-MM-DD).
  * @returns List of ArticleSentiment objects.
  */
-export async function fetchSentimentData(
+async function fetchSentimentData(
   ticker: string,
   startDate: string,
   endDate: string,

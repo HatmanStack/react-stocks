@@ -110,6 +110,25 @@ jobs:
       - name: Lint Python
         run: ruff check backend/services/ml backend/scripts
 
+  code-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: npm ci
+      - name: TypeScript dead code check (knip)
+        run: npx knip --exclude unlisted,binaries,types
+      - name: Python dead code check (vulture)
+        run: |
+          pip install vulture
+          vulture backend/python/ backend/vulture_whitelist.py --min-confidence 80
+
   e2e-tests:
     runs-on: ubuntu-latest
     services:
@@ -150,6 +169,7 @@ jobs:
         python-stocks-lint,
         python-stocks-tests,
         ml-service-lint,
+        code-hygiene,
         e2e-tests,
       ]
     if: always()
@@ -163,6 +183,7 @@ jobs:
              [[ "${{ needs.python-stocks-lint.result }}" != "success" ]] || \
              [[ "${{ needs.python-stocks-tests.result }}" != "success" ]] || \
              [[ "${{ needs.ml-service-lint.result }}" != "success" ]] || \
+             [[ "${{ needs.code-hygiene.result }}" != "success" ]] || \
              [[ "${{ needs.e2e-tests.result }}" != "success" ]]; then
             echo "One or more checks failed"
             exit 1

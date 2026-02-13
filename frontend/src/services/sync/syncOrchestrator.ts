@@ -77,10 +77,6 @@ async function performLocalSentimentAnalysis(
 
     result.sentimentAnalyses = totalAnalyses;
     result.daysProcessed = dates.length;
-
-    console.log(
-      `[SyncOrchestrator] Local sentiment sync complete: ${result.sentimentAnalyses} analyses across ${result.daysProcessed} days`,
-    );
   } catch (error) {
     const errorMsg = `Local sentiment sync failed: ${error}`;
     console.error(`[SyncOrchestrator] ${errorMsg}`);
@@ -110,8 +106,6 @@ export async function syncAllData(
   let stockSyncFailed = false;
 
   try {
-    console.log(`[SyncOrchestrator] Starting full sync for ${ticker} (${days} days)`);
-
     // Calculate date range
     const endDate = formatDateForDB(new Date());
     const startDate = formatDateForDB(subDays(new Date(), days));
@@ -126,7 +120,6 @@ export async function syncAllData(
 
     try {
       result.stockRecords = await syncStockData(ticker, startDate, endDate);
-      console.log(`[SyncOrchestrator] Stock sync complete: ${result.stockRecords} records`);
     } catch (error) {
       stockSyncFailed = true;
       const errorMsg = `Stock sync failed: ${error}`;
@@ -166,14 +159,8 @@ export async function syncAllData(
         });
 
         try {
-          const newsResult = await fetchLambdaNews(ticker, startDate, endDate);
-          console.log(
-            `[SyncOrchestrator] News fetch complete: ${newsResult.newArticles} new, ${newsResult.cachedArticles} cached`,
-          );
+          await fetchLambdaNews(ticker, startDate, endDate);
         } catch (newsError) {
-          console.warn(
-            `[SyncOrchestrator] News fetch failed (sentiment may be empty): ${newsError}`,
-          );
           result.errors.push(`News fetch failed: ${newsError}`);
           // Continue anyway - sentiment will just return empty results
         }
@@ -193,13 +180,8 @@ export async function syncAllData(
           total: 3,
           message: `Sentiment analysis started (Job: ${response.jobId.substring(0, 20)}...)`,
         });
-
-        console.log(
-          `[SyncOrchestrator] Lambda sentiment analysis triggered: Job ID ${response.jobId}, Status: ${response.status}`,
-        );
       } catch (error) {
         const errorMsg = `Lambda sentiment trigger failed: ${error}`;
-        console.warn(`[SyncOrchestrator] ${errorMsg}, falling back to local analysis`);
         result.errors.push(errorMsg);
 
         // Fallback to local sentiment analysis
@@ -207,7 +189,6 @@ export async function syncAllData(
       }
     } else {
       // Use local sentiment analysis
-      console.log('[SyncOrchestrator] Using local sentiment analysis');
       await performLocalSentimentAnalysis(ticker, startDate, endDate, result, onProgress);
     }
 
@@ -219,59 +200,10 @@ export async function syncAllData(
       message: `Sync complete for ${ticker}`,
     });
 
-    console.log(
-      `[SyncOrchestrator] Full sync complete for ${ticker}:`,
-      JSON.stringify(result, null, 2),
-    );
-
     return result;
   } catch (error) {
     console.error(`[SyncOrchestrator] Fatal error during sync for ${ticker}:`, error);
     result.errors.push(`Fatal sync error: ${error}`);
     throw new Error(`Sync failed for ${ticker}: ${error}`);
   }
-}
-
-/**
- * Sync multiple tickers sequentially
- * @param tickers - Array of ticker symbols
- * @param days - Number of days to sync for each ticker
- * @param onProgress - Optional progress callback
- * @returns Map of ticker to sync result
- */
-export async function syncMultipleTickers(
-  tickers: string[],
-  days: number = 30,
-  onProgress?: SyncProgressCallback,
-): Promise<Map<string, SyncResult>> {
-  const results = new Map<string, SyncResult>();
-
-  console.log(`[SyncOrchestrator] Syncing ${tickers.length} tickers: ${tickers.join(', ')}`);
-
-  for (let i = 0; i < tickers.length; i++) {
-    const ticker = tickers[i];
-
-    try {
-      onProgress?.({
-        step: 'ticker',
-        progress: i,
-        total: tickers.length,
-        message: `Syncing ${ticker} (${i + 1}/${tickers.length})...`,
-      });
-
-      const result = await syncAllData(ticker, days, onProgress);
-      results.set(ticker, result);
-    } catch (error) {
-      console.error(`[SyncOrchestrator] Failed to sync ${ticker}:`, error);
-      results.set(ticker, {
-        ticker,
-        stockRecords: 0,
-        sentimentAnalyses: 0,
-        daysProcessed: 0,
-        errors: [`Failed to sync: ${error}`],
-      });
-    }
-  }
-
-  return results;
 }

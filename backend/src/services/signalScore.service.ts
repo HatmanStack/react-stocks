@@ -115,7 +115,7 @@ export interface SignalBreakdown {
 /**
  * Get publisher authority score
  */
-export function getPublisherScore(publisher?: string): number {
+function getPublisherScore(publisher?: string): number {
   if (!publisher) return DEFAULT_PUBLISHER_SCORE;
 
   // Try exact match first
@@ -151,7 +151,7 @@ export function getPublisherScore(publisher?: string): number {
  * - Ends with question mark (speculative)
  * - Very short (<20 chars) or very long (>150 chars)
  */
-export function getHeadlineScore(title: string): number {
+function getHeadlineScore(title: string): number {
   if (!title) return 0.3;
 
   let score = 0.5; // Base score
@@ -189,7 +189,7 @@ export function getHeadlineScore(title: string): number {
  * Longer, more detailed articles tend to be more reliable analysis.
  * Short or missing descriptions indicate wire reposts or low-effort content.
  */
-export function getDepthScore(body?: string): number {
+function getDepthScore(body?: string): number {
   if (!body) return 0.2;
 
   const length = body.length;
@@ -207,7 +207,7 @@ export function getDepthScore(body?: string): number {
  * @param article - Article metadata (publisher, title, body)
  * @returns Signal score (0-1) and breakdown
  */
-export function calculateSignalScore(article: ArticleMetadata): {
+function calculateSignalScore(article: ArticleMetadata): {
   score: number;
   breakdown: SignalBreakdown;
 } {

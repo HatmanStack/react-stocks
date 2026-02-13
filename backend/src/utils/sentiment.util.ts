@@ -6,7 +6,8 @@
  * Used across handlers and services for consistency.
  */
 
-import type { SentimentCacheItem, NewsCacheItem } from '../repositories/index.js';
+import type { NewsCacheItem } from '../repositories/newsCache.repository.js';
+import type { SentimentCacheItem } from '../repositories/sentimentCache.repository.js';
 import type { DailySentiment } from '../types/sentiment.types.js';
 import type { EventType } from '../types/event.types.js';
 

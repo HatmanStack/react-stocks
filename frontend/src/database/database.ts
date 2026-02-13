@@ -18,8 +18,6 @@ let isInitialized = false;
  */
 export async function initializeDatabase(): Promise<void> {
   try {
-    console.log(`[Database] Initializing database: ${DB_NAME}`);
-
     // Open or create the database
     database = await SQLite.openDatabaseAsync(DB_NAME);
 
@@ -27,23 +25,17 @@ export async function initializeDatabase(): Promise<void> {
     const tablesExist = await checkTablesExist();
 
     if (!tablesExist) {
-      console.log('[Database] Tables do not exist, creating schema...');
       await createTables();
-    } else {
-      console.log('[Database] Tables already exist');
     }
 
     // Check version and run migrations if needed
     const currentVersion = await getDatabaseVersion();
     if (currentVersion < DB_VERSION) {
-      console.log(`[Database] Running migrations: version ${currentVersion} -> ${DB_VERSION}`);
       await runMigrations(currentVersion);
       await database.execAsync(`PRAGMA user_version = ${DB_VERSION}`);
-      console.log(`[Database] Migrations complete`);
     }
 
     isInitialized = true;
-    console.log('[Database] Initialization complete');
   } catch (error) {
     console.error('[Database] Initialization failed:', error);
     throw new Error(`Database initialization failed: ${error}`);
@@ -78,15 +70,11 @@ async function createTables(): Promise<void> {
   try {
     // Create all tables
     for (const tableSQL of ALL_TABLES) {
-      console.log('[Database] Creating table...');
       await database.execAsync(tableSQL);
     }
 
     // Create indexes
-    console.log('[Database] Creating indexes...');
     await database.execAsync(CREATE_INDEXES);
-
-    console.log('[Database] All tables and indexes created successfully');
   } catch (error) {
     console.error('[Database] Error creating tables:', error);
     throw new Error(`Failed to create tables: ${error}`);
@@ -145,49 +133,38 @@ async function runMigrations(fromVersion: number): Promise<void> {
   try {
     // Migration from version 1 to 2: Add Phase 5 three-signal sentiment columns
     if (fromVersion < 2) {
-      console.log('[Database] Migrating to version 2: Adding three-signal sentiment columns');
-
       const tableName = 'combined_word_count_details';
 
       // Add eventCounts column if it doesn't exist
       if (!(await columnExists(tableName, 'eventCounts'))) {
-        console.log('[Database] Adding eventCounts column');
         await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN eventCounts TEXT`);
       }
 
       // Add avgAspectScore column if it doesn't exist
       if (!(await columnExists(tableName, 'avgAspectScore'))) {
-        console.log('[Database] Adding avgAspectScore column');
         await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgAspectScore REAL`);
       }
 
       // Add avgMlScore column if it doesn't exist
       if (!(await columnExists(tableName, 'avgMlScore'))) {
-        console.log('[Database] Adding avgMlScore column');
         await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgMlScore REAL`);
       }
 
       // Add avgSignalScore column if it doesn't exist
       if (!(await columnExists(tableName, 'avgSignalScore'))) {
-        console.log('[Database] Adding avgSignalScore column');
         await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN avgSignalScore REAL`);
       }
 
       // Add materialEventCount column if it doesn't exist
       if (!(await columnExists(tableName, 'materialEventCount'))) {
-        console.log('[Database] Adding materialEventCount column');
         await database.execAsync(
           `ALTER TABLE ${tableName} ADD COLUMN materialEventCount INTEGER DEFAULT 0`,
         );
       }
-
-      console.log('[Database] Migration to version 2 complete');
     }
 
     // Migration from version 2 to 3: Add Phase 1 prediction fields
     if (fromVersion < 3) {
-      console.log('[Database] Migrating to version 3: Adding prediction fields');
-
       const tables = ['combined_word_count_details', 'portfolio_details'];
       const newColumns = [
         { name: 'nextDayDirection', type: 'TEXT' },
@@ -201,19 +178,14 @@ async function runMigrations(fromVersion: number): Promise<void> {
       for (const tableName of tables) {
         for (const col of newColumns) {
           if (!(await columnExists(tableName, col.name))) {
-            console.log(`[Database] Adding ${col.name} column to ${tableName}`);
             await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN ${col.name} ${col.type}`);
           }
         }
       }
-
-      console.log('[Database] Migration to version 3 complete');
     }
 
     // Migration from version 3 to 4: Add Phase 1 word_count multi-signal fields
     if (fromVersion < 4) {
-      console.log('[Database] Migrating to version 4: Adding word_count multi-signal fields');
-
       const tableName = 'word_count_details';
       const newColumns = [
         { name: 'eventType', type: 'TEXT' },
@@ -224,12 +196,9 @@ async function runMigrations(fromVersion: number): Promise<void> {
 
       for (const col of newColumns) {
         if (!(await columnExists(tableName, col.name))) {
-          console.log(`[Database] Adding ${col.name} column to ${tableName}`);
           await database.execAsync(`ALTER TABLE ${tableName} ADD COLUMN ${col.name} ${col.type}`);
         }
       }
-
-      console.log('[Database] Migration to version 4 complete');
     }
   } catch (error) {
     console.error('[Database] Migration failed:', error);
@@ -285,23 +254,18 @@ export async function resetDatabase(): Promise<void> {
   }
 
   try {
-    console.log('[Database] Resetting database...');
-
     if (!database) {
       database = await SQLite.openDatabaseAsync(DB_NAME);
     }
 
     // Drop all tables
     await database.execAsync(DROP_ALL_TABLES);
-    console.log('[Database] All tables dropped');
 
     // Recreate tables
     await createTables();
 
     // Reset version
     await setDatabaseVersion(DB_VERSION);
-
-    console.log('[Database] Database reset complete');
   } catch (error) {
     console.error('[Database] Error resetting database:', error);
     throw new Error(`Failed to reset database: ${error}`);
@@ -318,7 +282,6 @@ export async function closeDatabase(): Promise<void> {
       await database.closeAsync();
       database = null;
       isInitialized = false;
-      console.log('[Database] Database connection closed');
     } catch (error) {
       console.error('[Database] Error closing database:', error);
       throw new Error(`Failed to close database: ${error}`);

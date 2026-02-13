@@ -12,7 +12,7 @@
 /**
  * Entity type prefixes for partition keys
  */
-export const EntityPrefix = {
+const EntityPrefix = {
   STOCK: 'STOCK', // Stock price cache
   NEWS: 'NEWS', // News article cache
   SENTIMENT: 'SENT', // Sentiment analysis cache
@@ -22,8 +22,6 @@ export const EntityPrefix = {
   DAILY: 'DAILY', // Daily sentiment aggregate
   CIRCUIT: 'CIRCUIT', // Circuit breaker state
 } as const;
-
-export type EntityPrefixType = (typeof EntityPrefix)[keyof typeof EntityPrefix];
 
 /**
  * Sort key prefixes
@@ -253,10 +251,6 @@ export type TableItem =
 // Key Construction Helper Functions
 // ============================================================
 
-export function makeStockPK(ticker: string): string {
-  return `${EntityPrefix.STOCK}#${ticker.toUpperCase()}`;
-}
-
 export function makeDateSK(date: string): string {
   return `${SortKeyPrefix.DATE}#${date}`;
 }
@@ -287,10 +281,6 @@ export function makeHistoricalPK(ticker: string): string {
 
 export function makeArticlePK(ticker: string): string {
   return `${EntityPrefix.ARTICLE}#${ticker.toUpperCase()}`;
-}
-
-export function makeArticleSK(hash: string, date: string): string {
-  return `${SortKeyPrefix.HASH}#${hash}#${SortKeyPrefix.DATE}#${date}`;
 }
 
 export function makeDailyPK(ticker: string): string {

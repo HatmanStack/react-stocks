@@ -31,7 +31,7 @@ interface ClassificationMetrics {
   lowConfidenceCount: number;
 }
 
-let metrics: ClassificationMetrics = {
+const metrics: ClassificationMetrics = {
   totalProcessed: 0,
   eventTypeCounts: {
     EARNINGS: 0,
@@ -46,27 +46,6 @@ let metrics: ClassificationMetrics = {
   multiEventConflicts: 0,
   lowConfidenceCount: 0,
 };
-
-/**
- * Reset metrics (for testing or periodic resets)
- */
-export function resetMetrics(): void {
-  metrics = {
-    totalProcessed: 0,
-    eventTypeCounts: {
-      EARNINGS: 0,
-      'M&A': 0,
-      PRODUCT_LAUNCH: 0,
-      ANALYST_RATING: 0,
-      GUIDANCE: 0,
-      GENERAL: 0,
-    },
-    confidenceSum: 0,
-    durationSum: 0,
-    multiEventConflicts: 0,
-    lowConfidenceCount: 0,
-  };
-}
 
 /**
  * Log metrics summary to CloudWatch

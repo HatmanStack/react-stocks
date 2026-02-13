@@ -68,7 +68,7 @@ function shouldLog(level: LogLevel): boolean {
 /**
  * Get current request context from AsyncLocalStorage
  */
-export function getRequestContext(): RequestContext | undefined {
+function getRequestContext(): RequestContext | undefined {
   return requestContextStorage.getStore();
 }
 
@@ -179,7 +179,7 @@ export const logger = {
  * Extract X-Ray trace ID from Lambda environment
  * @returns X-Ray trace ID or undefined
  */
-export function getXRayTraceId(): string | undefined {
+function getXRayTraceId(): string | undefined {
   const traceHeader = process.env._X_AMZN_TRACE_ID;
   if (!traceHeader) return undefined;
 

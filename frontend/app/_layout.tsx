@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Slot } from 'expo-router';
 import Head from 'expo-router/head';
 import { PaperProvider, Portal } from 'react-native-paper';
@@ -53,39 +53,15 @@ export default function RootLayout() {
 
   useEffect(() => {
     async function initialize() {
-      const startTime = performance.now();
-      console.log('[App] Starting initialization...');
-
       try {
         // Validate environment configuration
-        const envStart = performance.now();
-        const { validateEnvironment, logEnvironmentStatus } =
-          await import('../src/config/environment');
+        const { validateEnvironment } = await import('../src/config/environment');
         validateEnvironment();
-        logEnvironmentStatus();
-        console.log(
-          `[App] Environment config loaded in ${(performance.now() - envStart).toFixed(0)}ms`,
-        );
-
-        // Log feature flags for debugging
-        const flagsStart = performance.now();
-        const { logFeatureFlags } = await import('../src/config/features');
-        logFeatureFlags();
-        console.log(
-          `[App] Feature flags loaded in ${(performance.now() - flagsStart).toFixed(0)}ms`,
-        );
 
         // Initialize database - platform-specific implementation
-        const dbStart = performance.now();
         const { initializeDatabase } = await import('../src/database');
         await initializeDatabase();
-        console.log(
-          `[App] Database initialized in ${(performance.now() - dbStart).toFixed(0)}ms (${Platform.OS})`,
-        );
 
-        console.log(
-          `[App] Total initialization time: ${(performance.now() - startTime).toFixed(0)}ms`,
-        );
         setIsReady(true);
       } catch (error) {
         console.error('[App] Initialization error:', error);
@@ -95,8 +71,7 @@ export default function RootLayout() {
           throw error; // Halt initialization for config errors
         }
 
-        // For non-critical errors (DB init, etc.), log and continue
-        console.warn('[App] Non-critical initialization error - continuing...');
+        // For non-critical errors (DB init, etc.), continue
         setIsReady(true);
       }
     }

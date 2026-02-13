@@ -74,8 +74,6 @@ export async function syncSentimentData(ticker: string, date: string): Promise<n
       articlesToAnalyze.push({ article, hash, hashString, text });
     }
 
-    console.log(`[SentimentDataSync] Analyzing ${articlesToAnalyze.length} articles in parallel`);
-
     // Analyze all articles in parallel
     const analysisPromises = articlesToAnalyze.map(async ({ article, hash, hashString, text }) => {
       let counts: { positive: number; negative: number };
@@ -130,8 +128,6 @@ export async function syncSentimentData(ticker: string, date: string): Promise<n
       analyzedCount++;
     }
 
-    console.log(`[SentimentDataSync] Analyzed ${analyzedCount} articles for ${ticker} on ${date}`);
-
     // Aggregate into CombinedWordDetails
     if (wordCounts.length > 0) {
       await aggregateSentiment(ticker, date, wordCounts);
@@ -181,10 +177,6 @@ async function aggregateSentiment(
 
   // Upsert (insert or update)
   await CombinedWordRepository.upsert(combinedDetails);
-
-  console.log(
-    `[SentimentDataSync] Aggregated sentiment for ${ticker} on ${date}: ${dominantSentiment} (score: ${avgScore.toFixed(2)})`,
-  );
 }
 
 /**
@@ -249,8 +241,6 @@ export async function updatePredictions(
         }),
       });
     }
-
-    console.log(`[SentimentDataSync] Updated predictions for ${ticker}`);
   } catch (error) {
     console.error(`[SentimentDataSync] Failed to update predictions for ${ticker}:`, error);
     // Don't throw, just log. Prediction update failure shouldn't fail the whole sync.

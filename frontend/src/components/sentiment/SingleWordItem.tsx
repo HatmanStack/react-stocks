@@ -60,8 +60,8 @@ export const SingleWordItem: React.FC<SingleWordItemProps> = React.memo(({ item 
     if (item.url) {
       try {
         await Linking.openURL(item.url);
-      } catch (error) {
-        console.warn('Failed to open URL:', item.url, error);
+      } catch {
+        // Failed to open URL
       }
     }
   };

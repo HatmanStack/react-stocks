@@ -28,15 +28,6 @@ export const FeatureFlags = {
 };
 
 /**
- * Log feature flag status (useful for debugging)
- */
-export function logFeatureFlags(): void {
-  console.log('[FeatureFlags] Configuration:');
-  console.log(`  - USE_BROWSER_SENTIMENT: ${FeatureFlags.USE_BROWSER_SENTIMENT}`);
-  console.log(`  - USE_BROWSER_PREDICTION: ${FeatureFlags.USE_BROWSER_PREDICTION}`);
-}
-
-/**
  * Get all feature flags as an object
  */
 export function getAllFeatureFlags(): Record<string, boolean> {

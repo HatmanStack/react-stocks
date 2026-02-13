@@ -8,7 +8,7 @@
  * Features: auto-dismiss, swipe-to-dismiss, stacking
  */
 
-import React, { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
+import React, { createContext, useCallback, useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/hooks/useAppTheme';
@@ -47,15 +47,6 @@ interface ToastContextType {
 }
 
 const ToastContext = createContext<ToastContextType | null>(null);
-
-// Hook to use toast
-export function useToast(): ToastContextType {
-  const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
-  return context;
-}
 
 // Individual toast component
 interface ToastItemProps {

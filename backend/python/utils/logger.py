@@ -41,11 +41,6 @@ def set_request_context(
         _request_method.set(method)
 
 
-def get_correlation_id() -> str | None:
-    """Get current correlation ID from context."""
-    return _correlation_id.get()
-
-
 def clear_request_context() -> None:
     """Clear request context (call at end of request)."""
     _correlation_id.set(None)
@@ -108,8 +103,12 @@ class StructuredLogFormatter(logging.Formatter):
 
         # Add exception info if present
         if record.exc_info:
-            log_entry["errorName"] = record.exc_info[0].__name__ if record.exc_info[0] else None
-            log_entry["errorMessage"] = str(record.exc_info[1]) if record.exc_info[1] else None
+            log_entry["errorName"] = (
+                record.exc_info[0].__name__ if record.exc_info[0] else None
+            )
+            log_entry["errorMessage"] = (
+                str(record.exc_info[1]) if record.exc_info[1] else None
+            )
             log_entry["errorStack"] = self.formatException(record.exc_info)
 
         # Add extra fields from record

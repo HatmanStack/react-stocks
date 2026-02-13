@@ -43,18 +43,11 @@ export async function fetchCombinedSentiment(
   const quality = validateCombinedData(localData, days);
 
   if (quality.isAcceptable) {
-    console.log(
-      `[SentimentFetcher] Using ${localData.length} local records for ${ticker} (coverage: ${(quality.coverageRatio * 100).toFixed(0)}%)`,
-    );
     return localData;
   }
 
   // Step 2: Fall back to backend API
   if (Environment.USE_LAMBDA_SENTIMENT) {
-    console.log(
-      `[SentimentFetcher] Local insufficient: ${quality.reasons.join(', ')}. Fetching backend.`,
-    );
-
     try {
       // Trigger news + sentiment pipeline with polling
       try {
@@ -81,28 +74,20 @@ export async function fetchCombinedSentiment(
             }
           }
         }
-      } catch (newsErr) {
-        console.warn(`[SentimentFetcher] News/sentiment trigger failed: ${newsErr}`);
+      } catch {
+        // News/sentiment trigger failed, continue to fetch results
       }
 
       const lambdaResults = await getSentimentResults(ticker, startDate, endDate);
 
       if (lambdaResults.dailySentiment.length > 0) {
-        console.log(
-          `[SentimentFetcher] Backend returned ${lambdaResults.dailySentiment.length} records`,
-        );
         const transformed = transformLambdaToLocal(lambdaResults.dailySentiment, ticker);
         hydrateCombinedWordData(transformed);
         return transformed;
       }
-    } catch (error) {
-      console.warn('[SentimentFetcher] Backend unavailable:', error);
+    } catch {
       if (localData.length > 0) return localData;
     }
-  } else {
-    console.log(
-      `[SentimentFetcher] No backend configured, using ${localData.length} local records`,
-    );
   }
 
   return localData;
@@ -124,36 +109,25 @@ export async function fetchArticleSentiment(
   const quality = validateArticleData(localData, days);
 
   if (quality.isAcceptable) {
-    console.log(
-      `[SentimentFetcher] Using ${localData.length} local articles for ${ticker} (coverage: ${(quality.coverageRatio * 100).toFixed(0)}%)`,
-    );
     return localData;
   }
 
   // Step 2: Fall back to backend API
   if (Environment.USE_LAMBDA_SENTIMENT) {
-    console.log(
-      `[SentimentFetcher] Articles insufficient: ${quality.reasons.join(', ')}. Fetching backend.`,
-    );
-
     try {
       const lambdaResults = await getArticleSentiment(ticker, startDate, endDate);
 
       if (lambdaResults.articles.length > 0) {
-        console.log(
-          `[SentimentFetcher] Backend returned ${lambdaResults.articles.length} articles`,
-        );
         const transformed = lambdaResults.articles.map((article, index) =>
           transformArticleToLocal(article, index),
         );
         hydrateArticleData(transformed);
         return transformed;
       }
-    } catch (error) {
-      console.warn('[SentimentFetcher] Backend unavailable:', error);
+    } catch {
+      // Backend unavailable, using local data
     }
   }
 
-  console.log(`[SentimentFetcher] Returning ${localData.length} local articles for ${ticker}`);
   return localData;
 }
