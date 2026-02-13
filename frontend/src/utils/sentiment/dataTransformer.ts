@@ -37,7 +37,8 @@ export function transformLambdaToLocal(
   predictions?: Predictions,
 ): CombinedWordDetails[] {
   const sorted = [...dailySentiment].sort((a, b) => a.date.localeCompare(b.date));
-  const latestDate = sorted.length > 0 ? sorted[sorted.length - 1].date : '';
+  const lastItem = sorted[sorted.length - 1];
+  const latestDate = lastItem ? lastItem.date : '';
 
   return sorted.map((day) => {
     const isLatest = day.date === latestDate;

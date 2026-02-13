@@ -195,13 +195,13 @@ export async function updatePredictions(
   try {
     // Update CombinedWordDetails (Sentiment Tab)
     // We update the most recent record or today's record
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]!;
 
     // Fetch latest combined record to update
     const latest = await CombinedWordRepository.findByTickerAndDateRange(ticker, today, today);
 
     if (latest && latest.length > 0) {
-      const record = latest[0];
+      const record = latest[0]!;
       const updatedRecord: CombinedWordDetails = {
         ...record,
         ...(predictions.nextDay && {

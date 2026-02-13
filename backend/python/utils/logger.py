@@ -10,9 +10,8 @@ import logging
 import os
 import sys
 from contextvars import ContextVar
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-
 
 # Context variable for correlation ID propagation
 _correlation_id: ContextVar[str | None] = ContextVar("correlation_id", default=None)
@@ -76,7 +75,7 @@ class StructuredLogFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         log_entry: dict[str, Any] = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "level": record.levelname.lower(),
             "message": record.getMessage(),
             "logger": record.name,
@@ -103,12 +102,8 @@ class StructuredLogFormatter(logging.Formatter):
 
         # Add exception info if present
         if record.exc_info:
-            log_entry["errorName"] = (
-                record.exc_info[0].__name__ if record.exc_info[0] else None
-            )
-            log_entry["errorMessage"] = (
-                str(record.exc_info[1]) if record.exc_info[1] else None
-            )
+            log_entry["errorName"] = record.exc_info[0].__name__ if record.exc_info[0] else None
+            log_entry["errorMessage"] = str(record.exc_info[1]) if record.exc_info[1] else None
             log_entry["errorStack"] = self.formatException(record.exc_info)
 
         # Add extra fields from record

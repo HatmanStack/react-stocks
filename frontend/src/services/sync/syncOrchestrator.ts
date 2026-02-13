@@ -52,7 +52,7 @@ async function performLocalSentimentAnalysis(
     let totalAnalyses = 0;
 
     for (let i = 0; i < dates.length; i++) {
-      const date = dates[i];
+      const date = dates[i]!;
 
       try {
         const analyzed = await syncSentimentData(ticker, date);

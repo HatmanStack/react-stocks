@@ -73,7 +73,7 @@ export class LogisticRegression {
     }
 
     const nSamples = X.length;
-    const nFeatures = X[0].length;
+    const nFeatures = X[0]!.length;
 
     // Compute effective sample weights (combines sample weights and class weights)
     const weights = this.computeEffectiveWeights(y, sampleWeights, classWeight);
@@ -107,7 +107,7 @@ export class LogisticRegression {
       for (let i = 0; i < nSamples; i++) {
         let z = this.bias;
         for (let j = 0; j < nFeatures; j++) {
-          z += this.weights[j] * X[i][j];
+          z += this.weights[j]! * X[i]![j]!;
         }
         predictions[i] = sigmoid(z);
       }
@@ -118,11 +118,11 @@ export class LogisticRegression {
       let totalWeight = 0;
 
       for (let i = 0; i < nSamples; i++) {
-        const w = normalizedWeights[i];
-        const error = predictions[i] - y[i];
+        const w = normalizedWeights[i]!;
+        const error = predictions[i] - y[i]!;
         biasGradient += w * error;
         for (let j = 0; j < nFeatures; j++) {
-          weightGradients[j] += w * error * X[i][j];
+          weightGradients[j] += w * error * X[i]![j]!;
         }
         totalWeight += w;
       }
@@ -130,7 +130,7 @@ export class LogisticRegression {
       // Average gradients (by total weight) and add L2 regularization
       biasGradient /= totalWeight;
       for (let j = 0; j < nFeatures; j++) {
-        weightGradients[j] = weightGradients[j] / totalWeight + alpha * this.weights[j];
+        weightGradients[j] = weightGradients[j]! / totalWeight + alpha * this.weights[j]!;
       }
 
       // Update weights and bias using selected optimizer
@@ -146,35 +146,35 @@ export class LogisticRegression {
 
         // Update weights with Adam
         for (let j = 0; j < nFeatures; j++) {
-          this.mWeights[j] = beta1 * this.mWeights[j] + (1 - beta1) * weightGradients[j];
+          this.mWeights[j] = beta1 * this.mWeights[j]! + (1 - beta1) * weightGradients[j]!;
           this.vWeights[j] =
-            beta2 * this.vWeights[j] + (1 - beta2) * weightGradients[j] * weightGradients[j];
-          const mHat = this.mWeights[j] / (1 - Math.pow(beta1, this.t));
-          const vHat = this.vWeights[j] / (1 - Math.pow(beta2, this.t));
-          this.weights[j] -= (learningRate * mHat) / (Math.sqrt(vHat) + epsilon);
+            beta2 * this.vWeights[j]! + (1 - beta2) * weightGradients[j]! * weightGradients[j]!;
+          const mHat = this.mWeights[j]! / (1 - Math.pow(beta1, this.t));
+          const vHat = this.vWeights[j]! / (1 - Math.pow(beta2, this.t));
+          this.weights[j] = this.weights[j]! - (learningRate * mHat) / (Math.sqrt(vHat) + epsilon);
         }
       } else {
         // Standard SGD update
         this.bias -= learningRate * biasGradient;
         for (let j = 0; j < nFeatures; j++) {
-          this.weights[j] -= learningRate * weightGradients[j];
+          this.weights[j] = this.weights[j]! - learningRate * weightGradients[j]!;
         }
       }
 
       // Compute weighted loss for convergence check
       let loss = 0;
       for (let i = 0; i < nSamples; i++) {
-        const p = predictions[i];
-        const w = normalizedWeights[i];
+        const p = predictions[i]!;
+        const w = normalizedWeights[i]!;
         // Weighted binary cross-entropy loss
-        loss -= w * (y[i] * Math.log(p + 1e-15) + (1 - y[i]) * Math.log(1 - p + 1e-15));
+        loss -= w * (y[i]! * Math.log(p + 1e-15) + (1 - y[i]!) * Math.log(1 - p + 1e-15));
       }
       loss /= totalWeight;
 
       // Add L2 regularization to loss
       let l2Penalty = 0;
       for (let j = 0; j < nFeatures; j++) {
-        l2Penalty += this.weights[j] * this.weights[j];
+        l2Penalty += this.weights[j]! * this.weights[j]!;
       }
       loss += (alpha / 2) * l2Penalty;
 
@@ -220,7 +220,7 @@ export class LogisticRegression {
         );
       }
       for (let i = 0; i < nSamples; i++) {
-        weights[i] *= sampleWeights[i];
+        weights[i] = weights[i]! * sampleWeights[i]!;
       }
     }
 
@@ -243,9 +243,10 @@ export class LogisticRegression {
       }
 
       for (let i = 0; i < nSamples; i++) {
-        const label = y[i];
-        if (classWeightMap[label] !== undefined) {
-          weights[i] *= classWeightMap[label];
+        const label = y[i]!;
+        const cw = classWeightMap[label];
+        if (cw !== undefined) {
+          weights[i] = weights[i]! * cw;
         }
       }
     }
@@ -263,7 +264,7 @@ export class LogisticRegression {
     this.checkFitted();
 
     const probabilities = this.predictProba(X);
-    return probabilities.map((probs) => (probs[1] >= 0.5 ? 1 : 0));
+    return probabilities.map((probs) => (probs[1]! >= 0.5 ? 1 : 0));
   }
 
   /**
@@ -283,15 +284,16 @@ export class LogisticRegression {
     const probabilities: number[][] = [];
 
     for (let i = 0; i < X.length; i++) {
-      if (X[i].length !== nFeatures) {
+      const row = X[i]!;
+      if (row.length !== nFeatures) {
         throw new Error(
-          `LogisticRegression: Feature count mismatch. Expected ${nFeatures}, got ${X[i].length}`,
+          `LogisticRegression: Feature count mismatch. Expected ${nFeatures}, got ${row.length}`,
         );
       }
 
       let z = this.bias;
       for (let j = 0; j < nFeatures; j++) {
-        z += this.weights![j] * X[i][j];
+        z += this.weights![j]! * row[j]!;
       }
 
       const prob1 = sigmoid(z);
@@ -342,7 +344,7 @@ export class LogisticRegression {
     const predictions = this.predict(X);
     let correct = 0;
     for (let i = 0; i < y.length; i++) {
-      if (predictions[i] === y[i]) {
+      if (predictions[i] === y[i]!) {
         correct++;
       }
     }

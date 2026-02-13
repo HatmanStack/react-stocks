@@ -163,7 +163,7 @@ describe('SentimentCacheRepository', () => {
       const result = await querySentimentsByTicker('AAPL');
 
       expect(result).toHaveLength(1);
-      expect(result[0].articleHash).toBe('hash1');
+      expect(result[0]!.articleHash).toBe('hash1');
     });
   });
 

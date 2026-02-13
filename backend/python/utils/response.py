@@ -1,8 +1,8 @@
 """Response utilities for Lambda handlers."""
 
 import json
-from typing import Any
 import os
+from typing import Any
 
 
 def get_cors_headers() -> dict[str, str]:

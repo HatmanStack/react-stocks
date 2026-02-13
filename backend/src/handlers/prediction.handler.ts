@@ -125,7 +125,7 @@ export async function predictionHandler(
 
     // Persist prediction to DailySentimentAggregate table
     // Use read-merge-write to preserve other fields (eventCounts, avg scores, etc.)
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]!;
 
     try {
       // Read existing aggregate item if it exists

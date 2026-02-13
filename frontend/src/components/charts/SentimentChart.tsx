@@ -70,7 +70,9 @@ const SentimentChartComponent = ({
   const dates = useMemo(() => {
     if (data.length === 0) return [];
 
-    const isCombinedWordDetails = 'sentimentNumber' in data[0];
+    const firstItem = data[0];
+    if (!firstItem) return [];
+    const isCombinedWordDetails = 'sentimentNumber' in firstItem;
     if (isCombinedWordDetails) {
       return (data as CombinedWordDetails[]).map((d) => d.date).sort();
     }
@@ -82,7 +84,9 @@ const SentimentChartComponent = ({
   const chartSeries = useMemo(() => {
     if (data.length === 0) return { series: [], hasAspect: false, hasML: false };
 
-    const isCombinedWordDetails = 'sentimentNumber' in data[0];
+    const firstItem = data[0];
+    if (!firstItem) return { series: [], hasAspect: false, hasML: false };
+    const isCombinedWordDetails = 'sentimentNumber' in firstItem;
 
     if (!isCombinedWordDetails) {
       // Simple format - only legacy sentiment
@@ -231,7 +235,7 @@ const SentimentChartComponent = ({
         <Line
           x1={x(0)}
           y1={y(0)}
-          x2={x(chartSeries.series[0]?.data.length - 1 || 0)}
+          x2={x((chartSeries.series[0]?.data.length ?? 1) - 1)}
           y2={y(0)}
           stroke={theme.colors.outline}
           strokeWidth={1}
@@ -242,7 +246,8 @@ const SentimentChartComponent = ({
     );
   };
 
-  if (chartSeries.series.length === 0 || chartSeries.series[0].data.length === 0) {
+  const primarySeries = chartSeries.series[0];
+  if (chartSeries.series.length === 0 || !primarySeries || primarySeries.data.length === 0) {
     return (
       <View
         style={{ flex: 1, minHeight: height, justifyContent: 'center', alignItems: 'center' }}
@@ -274,7 +279,7 @@ const SentimentChartComponent = ({
       <View style={{ height, flexDirection: 'row' }}>
         {/* Y-Axis */}
         <YAxis
-          data={chartSeries.series[0].data}
+          data={primarySeries.data}
           contentInset={{ top: 20, bottom: 20 }}
           svg={{
             fill: theme.colors.onSurfaceVariant,
@@ -291,13 +296,13 @@ const SentimentChartComponent = ({
         <View style={{ flex: 1, marginLeft: 8 }}>
           <LineChart
             style={{ flex: 1 }}
-            data={chartSeries.series[0].data}
+            data={primarySeries.data}
             contentInset={{ top: 20, bottom: 20 }}
             curve={shape.curveNatural}
             svg={{
-              stroke: chartSeries.series[0].color,
+              stroke: primarySeries.color,
               strokeWidth: 2,
-              strokeOpacity: chartSeries.series[0].visible ? 1 : 0,
+              strokeOpacity: primarySeries.visible ? 1 : 0,
             }}
             yMin={-1}
             yMax={1}
@@ -335,7 +340,7 @@ const SentimentChartComponent = ({
 
       {/* X-Axis with evenly distributed ticks */}
       <XAxis
-        data={chartSeries.series[0].data}
+        data={primarySeries.data}
         formatLabel={formatXAxis}
         contentInset={{ left: 48, right: 30 }}
         svg={{

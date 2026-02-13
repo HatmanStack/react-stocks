@@ -343,15 +343,16 @@ function resolveEventType(
   if (candidateEvents.length > 1) {
     // Check if scores are close (within 0.1)
     const sortedCandidates = candidateEvents.sort((a, b) => b.score - a.score);
-    const topScore = sortedCandidates[0].score;
+    const topCandidate = sortedCandidates[0]!;
+    const topScore = topCandidate.score;
     const secondScore = sortedCandidates[1]?.score || 0;
 
     if (topScore - secondScore > 0.1) {
       // Clear winner
       return {
-        eventType: sortedCandidates[0].eventType,
+        eventType: topCandidate.eventType,
         confidence: topScore,
-        matchedKeywords: Array.from(scores[sortedCandidates[0].eventType].matchedKeywords),
+        matchedKeywords: Array.from(scores[topCandidate.eventType].matchedKeywords),
       };
     }
 

@@ -109,6 +109,7 @@ export async function analyzeAspects(
       // Use the first (most prominent) detection
       // Could also average multiple detections, but first is usually headline
       const detection = results[0];
+      if (!detection) continue;
 
       detectedAspects.push({
         aspect: detection.aspect,

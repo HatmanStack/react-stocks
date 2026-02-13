@@ -540,10 +540,11 @@ async function analyzeArticles(
     if (result.status === 'fulfilled') {
       successfulItems.push(result.value);
     } else {
-      failedHashes.push(articlesForAnalysis[index].hash);
+      const failedArticle = articlesForAnalysis[index]!;
+      failedHashes.push(failedArticle.hash);
       logger.error('Failed to analyze article', result.reason, {
         ticker,
-        articleHash: articlesForAnalysis[index].hash,
+        articleHash: failedArticle.hash,
       });
     }
   });

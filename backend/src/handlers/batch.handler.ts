@@ -60,10 +60,10 @@ export async function handleBatchNewsRequest(
     }
 
     // Calculate dates (last 7 days by default for news)
-    const to = new Date().toISOString().split('T')[0];
+    const to = new Date().toISOString().split('T')[0]!;
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - 7);
-    const from = fromDate.toISOString().split('T')[0];
+    const from = fromDate.toISOString().split('T')[0]!;
 
     // Process tickers in parallel
     const results = await Promise.allSettled(
@@ -83,7 +83,9 @@ export async function handleBatchNewsRequest(
     };
 
     results.forEach((result, idx) => {
-      const ticker = tickers[idx].toUpperCase();
+      const rawTicker = tickers[idx];
+      if (!rawTicker) return;
+      const ticker = rawTicker.toUpperCase();
       if (result.status === 'fulfilled') {
         // Apply limit per ticker
         response.data[ticker] = result.value.data.slice(0, limit);
@@ -172,7 +174,9 @@ export async function handleBatchSentimentRequest(
     };
 
     results.forEach((result, idx) => {
-      const ticker = tickers[idx].toUpperCase();
+      const rawTicker = tickers[idx];
+      if (!rawTicker) return;
+      const ticker = rawTicker.toUpperCase();
       if (result.status === 'fulfilled') {
         response.data[ticker] = result.value.data;
         response._meta.cached[ticker] = result.value.cached;

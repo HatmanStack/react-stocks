@@ -6,11 +6,11 @@ Handles GET /search requests for ticker search.
 from typing import Any
 
 from services.yfinance_service import search_tickers
-from utils.transform import transform_search_to_tiingo
-from utils.response import success_response, error_response
 from utils.error import APIError
-from utils.validation import MAX_QUERY_LENGTH
 from utils.logger import get_structured_logger
+from utils.response import error_response, success_response
+from utils.transform import transform_search_to_tiingo
+from utils.validation import MAX_QUERY_LENGTH
 
 logger = get_structured_logger(__name__)
 

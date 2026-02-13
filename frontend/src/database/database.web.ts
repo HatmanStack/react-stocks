@@ -251,7 +251,7 @@ class WebDatabase {
       const collectionData = this.data[collection] as Record<string, { date: string }[]>;
       for (const ticker of Object.keys(collectionData)) {
         const entries = collectionData[ticker];
-        if (entries.length <= 4) continue;
+        if (!entries || entries.length <= 4) continue;
 
         // Sort by date ascending, remove oldest 25%
         entries.sort((a, b) => a.date.localeCompare(b.date));

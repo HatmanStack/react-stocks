@@ -62,13 +62,13 @@ function calculatePriceRatios(close: number[]): {
 
   for (let i = 0; i < n; i++) {
     // 1-day ratio: close[i] / close[i-1], or 1.0 if i=0
-    ratio1d.push(i > 0 ? close[i] / close[i - 1] : 1.0);
+    ratio1d.push(i > 0 ? close[i]! / close[i - 1]! : 1.0);
 
     // 5-day ratio: close[i] / close[i-5], or 1.0 if i<5
-    ratio5d.push(i >= 5 ? close[i] / close[i - 5] : 1.0);
+    ratio5d.push(i >= 5 ? close[i]! / close[i - 5]! : 1.0);
 
     // 10-day ratio: close[i] / close[i-10], or 1.0 if i<10
-    ratio10d.push(i >= 10 ? close[i] / close[i - 10] : 1.0);
+    ratio10d.push(i >= 10 ? close[i]! / close[i - 10]! : 1.0);
   }
 
   return { ratio1d, ratio5d, ratio10d };
@@ -94,7 +94,7 @@ function calculateVolatility(close: number[], window: number = 10): number[] {
       const returns: number[] = [];
       for (let j = i - window + 1; j <= i; j++) {
         if (j > 0) {
-          returns.push((close[j] - close[j - 1]) / close[j - 1]);
+          returns.push((close[j]! - close[j - 1]!) / close[j - 1]!);
         }
       }
 
@@ -175,14 +175,14 @@ export function buildFeatureMatrix(input: PredictionInput): FeatureMatrix {
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
     features[i] = [
-      ratio5d[i], // price ratio 5-day
-      ratio10d[i], // price ratio 10-day
-      volume[i], // volume
-      eventImpact[i], // event impact score (0-1)
-      aspectScores[i], // aspect score
-      mlScores[i], // ML score
+      ratio5d[i]!, // price ratio 5-day
+      ratio10d[i]!, // price ratio 10-day
+      volume[i]!, // volume
+      eventImpact[i]!, // event impact score (0-1)
+      aspectScores[i]!, // aspect score
+      mlScores[i]!, // ML score
       sentimentAvailability, // sentiment data availability (0-1)
-      volatility[i], // volatility
+      volatility[i]!, // volatility
     ];
   }
 
@@ -217,7 +217,7 @@ export function buildPriceOnlyFeatureMatrix(input: PredictionInput): FeatureMatr
 
   const features: FeatureMatrix = new Array(n);
   for (let i = 0; i < n; i++) {
-    features[i] = [ratio5d[i], ratio10d[i], volume[i], vol[i]];
+    features[i] = [ratio5d[i]!, ratio10d[i]!, volume[i]!, vol[i]!];
   }
 
   return features;
@@ -255,7 +255,7 @@ export function createLabels(close: number[], horizon: number): Labels {
     // Calculate rolling mean daily return over the trailing window
     let sumDailyReturns = 0;
     for (let j = i - TREND_WINDOW + 1; j <= i; j++) {
-      sumDailyReturns += (close[j] - close[j - 1]) / close[j - 1];
+      sumDailyReturns += (close[j]! - close[j - 1]!) / close[j - 1]!;
     }
     const meanDailyReturn = sumDailyReturns / TREND_WINDOW;
 
@@ -263,7 +263,7 @@ export function createLabels(close: number[], horizon: number): Labels {
     const expectedReturn = meanDailyReturn * horizon;
 
     // Actual return over the horizon
-    const actualReturn = (close[i + horizon] - close[i]) / close[i];
+    const actualReturn = (close[i + horizon]! - close[i]!) / close[i]!;
 
     // Label: 1 if underperformed trend, 0 if outperformed or matched
     const label = actualReturn < expectedReturn ? 1 : 0;
@@ -327,17 +327,17 @@ export function validateFeatureMatrix(X: FeatureMatrix): void {
     throw new Error('Preprocessing: Feature matrix cannot be empty');
   }
 
-  const nFeatures = X[0].length;
+  const nFeatures = X[0]!.length;
   if (nFeatures !== FEATURE_COUNT) {
     throw new Error(`Preprocessing: Expected ${FEATURE_COUNT} features, got ${nFeatures}`);
   }
 
   // Check all rows have same number of features
   for (let i = 1; i < X.length; i++) {
-    if (X[i].length !== nFeatures) {
+    if (X[i]!.length !== nFeatures) {
       throw new Error(
         `Preprocessing: Inconsistent feature count at row ${i}. ` +
-          `Expected ${nFeatures}, got ${X[i].length}`,
+          `Expected ${nFeatures}, got ${X[i]!.length}`,
       );
     }
   }
@@ -345,8 +345,8 @@ export function validateFeatureMatrix(X: FeatureMatrix): void {
   // Check for non-finite values
   for (let i = 0; i < X.length; i++) {
     for (let j = 0; j < nFeatures; j++) {
-      if (!isFinite(X[i][j])) {
-        throw new Error(`Preprocessing: Non-finite value at row ${i}, column ${j}: ${X[i][j]}`);
+      if (!isFinite(X[i]![j]!)) {
+        throw new Error(`Preprocessing: Non-finite value at row ${i}, column ${j}: ${X[i]![j]}`);
       }
     }
   }
@@ -364,9 +364,10 @@ export function validateLabels(y: Labels): void {
   }
 
   for (let i = 0; i < y.length; i++) {
-    if (y[i] !== 0 && y[i] !== 1) {
+    const label = y[i];
+    if (label !== 0 && label !== 1) {
       throw new Error(
-        `Preprocessing: Invalid label at index ${i}. ` + `Expected 0 or 1, got ${y[i]}`,
+        `Preprocessing: Invalid label at index ${i}. ` + `Expected 0 or 1, got ${label}`,
       );
     }
   }
