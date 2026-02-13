@@ -127,7 +127,7 @@ jobs:
       - name: Python dead code check (vulture)
         run: |
           pip install vulture
-          vulture backend/python/ backend/vulture_whitelist.py --min-confidence 80
+          vulture backend/python/ backend/services/ml/ backend/vulture_whitelist.py --min-confidence 80
 
   e2e-tests:
     runs-on: ubuntu-latest

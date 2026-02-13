@@ -111,7 +111,8 @@ export function useSymbolSearch(query: string, options: UseSymbolSearchOptions =
         );
 
         return symbolDetailsList;
-      } catch {
+      } catch (err) {
+        console.error('[useSymbolSearch] searchTickers failed:', err);
         return [];
       }
     },

@@ -5,6 +5,7 @@
  * Handles quality validation, backend fallback, transformation, and hydration.
  */
 
+import { logger } from '@/utils/logger';
 import * as CombinedWordRepository from '@/database/repositories/combinedWord.repository';
 import * as WordCountRepository from '@/database/repositories/wordCount.repository';
 import {
@@ -74,8 +75,11 @@ export async function fetchCombinedSentiment(
             }
           }
         }
-      } catch {
-        // News/sentiment trigger failed, continue to fetch results
+      } catch (err) {
+        logger.warn(
+          '[SentimentFetcher] News/sentiment trigger failed, continuing to fetch results:',
+          err,
+        );
       }
 
       const lambdaResults = await getSentimentResults(ticker, startDate, endDate);
@@ -85,7 +89,8 @@ export async function fetchCombinedSentiment(
         hydrateCombinedWordData(transformed);
         return transformed;
       }
-    } catch {
+    } catch (err) {
+      logger.warn('[SentimentFetcher] Sentiment result fetch failed:', err);
       if (localData.length > 0) return localData;
     }
   }
@@ -124,8 +129,8 @@ export async function fetchArticleSentiment(
         hydrateArticleData(transformed);
         return transformed;
       }
-    } catch {
-      // Backend unavailable, using local data
+    } catch (err) {
+      logger.warn('[SentimentFetcher] Article fetch failed, using local data:', err);
     }
   }
 

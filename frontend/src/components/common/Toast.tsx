@@ -48,6 +48,14 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | null>(null);
 
+export function useToast(): ToastContextType {
+  const context = React.useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast must be used within a ToastProvider');
+  }
+  return context;
+}
+
 // Individual toast component
 interface ToastItemProps {
   config: ToastConfig;
