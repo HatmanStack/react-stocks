@@ -6,7 +6,6 @@
         "src/hooks/*.ts",
         "src/contexts/*.tsx",
         "src/database/database.ts",
-        "src/database/database.web.ts",
         "src/database/index.ts"
       ],
       "project": ["src/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
@@ -18,6 +17,6 @@
       "ignore": ["**/__tests__/**", "**/*.test.ts"]
     }
   },
-  "ignoreDependencies": ["babel-preset-expo"],
+  "ignoreDependencies": ["babel-preset-expo", "eslint-config-expo"],
   "ignoreExportsUsedInFile": true
 }
