@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useContentWidth } from '@/hooks/useContentWidth';
 import { AuraButton } from '@/components/common/AuraButton';
 
@@ -13,11 +14,14 @@ interface AddStockButtonProps {
 }
 
 export function AddStockButton({ onPress }: AddStockButtonProps) {
+  const insets = useSafeAreaInsets();
   const { contentWidth, screenWidth } = useContentWidth();
   const horizontalOffset = (screenWidth - contentWidth) / 2;
 
   return (
-    <View style={[styles.fabContainer, { right: horizontalOffset + 16 }]}>
+    <View
+      style={[styles.fabContainer, { right: horizontalOffset + 16, bottom: insets.bottom + 16 }]}
+    >
       <AuraButton label="Add Stock" onPress={onPress} icon="add" variant="primary" size="medium" />
     </View>
   );
@@ -26,6 +30,5 @@ export function AddStockButton({ onPress }: AddStockButtonProps) {
 const styles = StyleSheet.create({
   fabContainer: {
     position: 'absolute',
-    bottom: 16,
   },
 });

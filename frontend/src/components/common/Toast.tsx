@@ -8,7 +8,7 @@
  * Features: auto-dismiss, swipe-to-dismiss, stacking
  */
 
-import React, { createContext, useCallback, useState, useEffect, useRef } from 'react';
+import React, { createContext, useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@/hooks/useAppTheme';
@@ -277,8 +277,10 @@ export function ToastProvider({ children, maxToasts = 3 }: ToastProviderProps) {
     setToasts([]);
   }, []);
 
+  const contextValue = useMemo(() => ({ show, hide, hideAll }), [show, hide, hideAll]);
+
   return (
-    <ToastContext.Provider value={{ show, hide, hideAll }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       {/* Toast container - renders at top of screen */}
       <View style={styles.toastStack} pointerEvents="box-none">

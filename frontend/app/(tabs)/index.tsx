@@ -93,13 +93,16 @@ export default function SearchScreen() {
         });
 
         console.log(`[SearchScreen] Sync complete for ${symbol.ticker}`);
-        toast.show({ message: `Data synced for ${symbol.ticker}`, variant: 'success' });
 
         // Show message if sentiment is processing asynchronously
         if (syncResult.sentimentJobId) {
           console.log(
             `[SearchScreen] Sentiment analysis in progress: Job ${syncResult.sentimentJobId}`,
           );
+          toast.show({
+            message: `Stock data synced for ${symbol.ticker}. Sentiment analysis in progress...`,
+            variant: 'info',
+          });
           setSyncMessage(`Stock data synced. Sentiment analysis in progress...`);
 
           // Clear any existing timeout to prevent race conditions
@@ -114,6 +117,7 @@ export default function SearchScreen() {
             timeoutRef.current = null;
           }, 3000);
         } else {
+          toast.show({ message: `Data synced for ${symbol.ticker}`, variant: 'success' });
           setIsSyncing(false);
           setSyncMessage('');
         }

@@ -169,7 +169,10 @@ export function useSymbolDetails(ticker: string) {
           longDescription: metadata.description,
         };
 
-        await SymbolRepository.insert(symbolDetails);
+        // Fire-and-forget: persist fresh data but don't let DB errors discard it
+        void SymbolRepository.insert(symbolDetails).catch((err) => {
+          console.error(`[useSymbolDetails] Failed to cache ${ticker}:`, err);
+        });
 
         return symbolDetails as SymbolDetails;
       } catch (error) {

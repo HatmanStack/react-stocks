@@ -5,7 +5,7 @@
  * Integrates with MonoText for consistent monospaced display
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { TextProps } from 'react-native';
 import { useSharedValue, withSpring, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { MonoText } from './MonoText';
@@ -43,11 +43,19 @@ export function AnimatedNumber({
     });
   }, [value, animatedValue]);
 
+  const updateDisplay = useCallback(
+    (val: number) => {
+      setDisplayValue(formatter(val));
+    },
+    [formatter],
+  );
+
   useAnimatedReaction(
     () => animatedValue.value,
     (current) => {
-      runOnJS(setDisplayValue)(formatter(current));
+      runOnJS(updateDisplay)(current);
     },
+    [updateDisplay],
   );
 
   return (

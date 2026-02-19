@@ -250,7 +250,7 @@ export default function PriceScreen() {
               onRangeChange={handleRangeChange}
             />
             <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
-            <View style={{ paddingHorizontal: 12 }}>
+            <View style={styles.tableContainer}>
               <DataTable
                 data={sortedStockData}
                 columns={priceColumns}
@@ -360,5 +360,8 @@ const styles = StyleSheet.create({
     flex: 3,
     paddingLeft: 10,
     overflow: 'hidden',
+  },
+  tableContainer: {
+    paddingHorizontal: 12,
   },
 });
