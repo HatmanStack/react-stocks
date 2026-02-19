@@ -3,7 +3,7 @@
  */
 
 import React, { useMemo, useCallback } from 'react';
-import { View, StyleSheet, FlatList, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
 import { useStockDetail } from '@/contexts/StockDetailContext';
@@ -198,8 +198,6 @@ export default function PriceScreen() {
     );
   }
 
-  const renderItem = ({ item }: { item: StockDetails }) => <PriceListItem item={item} />;
-
   const keyExtractor = (item: StockDetails) => `${item.ticker}-${item.date}`;
 
   if (isDesktop) {
@@ -244,30 +242,25 @@ export default function PriceScreen() {
         edges={['bottom']}
       >
         <View style={[styles.centeredContent, { width: contentWidth }]}>
-          <FlatList
-            data={sortedStockData}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            ListHeaderComponent={() => (
-              <View>
-                <ChartSection
-                  data={sortedStockData}
-                  isLoading={isPriceLoading}
-                  selectedRange={selectedTimeRange}
-                  onRangeChange={handleRangeChange}
-                />
-                <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
-                <PriceListHeader />
-              </View>
-            )}
-            stickyHeaderIndices={[0]}
-            removeClippedSubviews={true}
-            maxToRenderPerBatch={15}
-            initialNumToRender={15}
-            windowSize={21}
-          />
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <ChartSection
+              data={sortedStockData}
+              isLoading={isPriceLoading}
+              selectedRange={selectedTimeRange}
+              onRangeChange={handleRangeChange}
+            />
+            <StockMetadataCard symbol={symbol || null} isLoading={isSymbolLoading} />
+            <View style={styles.tableContainer}>
+              <DataTable
+                data={sortedStockData}
+                columns={priceColumns}
+                keyExtractor={keyExtractor}
+                maxHeight={500}
+                showRowNumbers
+                animateRows
+              />
+            </View>
+          </ScrollView>
         </View>
       </SafeAreaView>
     );
@@ -367,5 +360,8 @@ const styles = StyleSheet.create({
     flex: 3,
     paddingLeft: 10,
     overflow: 'hidden',
+  },
+  tableContainer: {
+    paddingHorizontal: 12,
   },
 });

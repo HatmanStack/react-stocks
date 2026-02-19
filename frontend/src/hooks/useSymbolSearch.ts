@@ -149,19 +149,17 @@ export function useSymbolDetails(ticker: string) {
   return useQuery({
     queryKey: ['symbolDetails', ticker],
     queryFn: async (): Promise<SymbolDetails | null> => {
-      // Try local database first
-      let symbol = await SymbolRepository.findByTicker(ticker);
+      const cached = await SymbolRepository.findByTicker(ticker);
 
-      if (symbol) {
-        return symbol;
+      // Only return cached data if it's complete (has description and exchange)
+      if (cached && cached.longDescription && cached.exchangeCode) {
+        return cached;
       }
 
-      // Not in database - fetch from API
-
+      // Cached data missing or incomplete — fetch full metadata from API
       try {
         const metadata = await fetchSymbolMetadata(ticker);
 
-        // Store in database for future use
         const symbolDetails: Omit<SymbolDetails, 'id'> = {
           ticker: metadata.ticker,
           name: metadata.name,
@@ -171,12 +169,15 @@ export function useSymbolDetails(ticker: string) {
           longDescription: metadata.description,
         };
 
-        await SymbolRepository.insert(symbolDetails);
+        // Fire-and-forget: persist fresh data but don't let DB errors discard it
+        void SymbolRepository.insert(symbolDetails).catch((err) => {
+          console.error(`[useSymbolDetails] Failed to cache ${ticker}:`, err);
+        });
 
         return symbolDetails as SymbolDetails;
       } catch (error) {
         console.error(`[useSymbolDetails] Error fetching ${ticker}:`, error);
-        return null;
+        return cached || null;
       }
     },
     enabled: !!ticker,

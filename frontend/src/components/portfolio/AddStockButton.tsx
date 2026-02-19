@@ -4,35 +4,31 @@
  */
 
 import React from 'react';
-import { StyleSheet } from 'react-native';
-import { FAB, useTheme } from 'react-native-paper';
+import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useContentWidth } from '@/hooks/useContentWidth';
+import { AuraButton } from '@/components/common/AuraButton';
 
 interface AddStockButtonProps {
   onPress: () => void;
 }
 
 export function AddStockButton({ onPress }: AddStockButtonProps) {
-  const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { contentWidth, screenWidth } = useContentWidth();
   const horizontalOffset = (screenWidth - contentWidth) / 2;
 
   return (
-    <FAB
-      icon="plus"
-      label="Add Stock"
-      onPress={onPress}
-      style={[styles.fab, { backgroundColor: theme.colors.primary, right: horizontalOffset }]}
-      accessibilityLabel="Add stock to portfolio"
-      accessibilityHint="Opens search screen to select a stock to add to your portfolio"
-    />
+    <View
+      style={[styles.fabContainer, { right: horizontalOffset + 16, bottom: insets.bottom + 16 }]}
+    >
+      <AuraButton label="Add Stock" onPress={onPress} icon="add" variant="primary" size="medium" />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fab: {
+  fabContainer: {
     position: 'absolute',
-    margin: 16,
-    bottom: 0,
   },
 });

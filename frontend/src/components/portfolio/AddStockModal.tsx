@@ -12,6 +12,7 @@ import { ErrorDisplay } from '@/components/common/ErrorDisplay';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useSymbolSearch } from '@/hooks/useSymbolSearch';
 import { usePortfolio } from '@/hooks/usePortfolio';
+import { useToast } from '@/components/common';
 import { logger } from '@/utils/logger';
 import type { SymbolDetails } from '@/types/database.types';
 
@@ -24,6 +25,7 @@ export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
   const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const { addToPortfolio, isInPortfolio } = usePortfolio();
+  const toast = useToast();
 
   // Search for symbols
   const {
@@ -44,18 +46,21 @@ export function AddStockModal({ visible, onDismiss }: AddStockModalProps) {
     async (symbol: SymbolDetails) => {
       try {
         if (isInPortfolio(symbol.ticker)) {
+          toast.show({ message: `${symbol.ticker} is already in your portfolio`, variant: 'info' });
           setSearchQuery('');
           onDismiss();
           return;
         }
         await addToPortfolio(symbol.ticker);
+        toast.show({ message: `${symbol.ticker} added to portfolio`, variant: 'success' });
         setSearchQuery('');
         onDismiss();
       } catch (error) {
         logger.error('[AddStockModal] Error adding stock:', error);
+        toast.show({ message: 'Failed to add stock', variant: 'error' });
       }
     },
-    [addToPortfolio, isInPortfolio, onDismiss],
+    [addToPortfolio, isInPortfolio, onDismiss, toast],
   );
 
   const handleClose = useCallback(() => {

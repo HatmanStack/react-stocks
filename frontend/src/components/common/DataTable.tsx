@@ -212,6 +212,7 @@ export function DataTable<T>({
         renderItem={renderRow}
         keyExtractor={keyExtractor}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
         contentContainerStyle={styles.listContent}
       />
     </View>

@@ -5,12 +5,10 @@
  * Integrates with MonoText for consistent monospaced display
  */
 
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { TextProps } from 'react-native';
-import Animated, { useSharedValue, useAnimatedProps, withSpring } from 'react-native-reanimated';
+import { useSharedValue, withSpring, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { MonoText } from './MonoText';
-
-const AnimatedMonoText = Animated.createAnimatedComponent(MonoText);
 
 export interface AnimatedNumberProps extends Omit<TextProps, 'children'> {
   value: number;
@@ -34,6 +32,7 @@ export function AnimatedNumber({
   style,
   ...props
 }: AnimatedNumberProps) {
+  const [displayValue, setDisplayValue] = useState(formatter(value));
   const animatedValue = useSharedValue(value);
 
   useEffect(() => {
@@ -44,19 +43,24 @@ export function AnimatedNumber({
     });
   }, [value, animatedValue]);
 
-  const animatedProps = useAnimatedProps(() => {
-    const formattedValue = formatter(animatedValue.value);
-    return {
-      text: formattedValue,
-      // Reanimated's AnimatedProps type doesn't include 'text' for custom components.
-      // This is a known gap — the prop is correctly applied at runtime.
-    } as unknown as Record<string, unknown>;
-  });
+  const updateDisplay = useCallback(
+    (val: number) => {
+      setDisplayValue(formatter(val));
+    },
+    [formatter],
+  );
+
+  useAnimatedReaction(
+    () => animatedValue.value,
+    (current) => {
+      runOnJS(updateDisplay)(current);
+    },
+    [updateDisplay],
+  );
 
   return (
-    <AnimatedMonoText
+    <MonoText
       {...props}
-      animatedProps={animatedProps}
       variant={variant}
       positive={positive}
       negative={negative}
@@ -65,8 +69,7 @@ export function AnimatedNumber({
       accessibilityLiveRegion="polite"
       accessibilityLabel={formatter(value)}
     >
-      {/* Fallback text (won't be visible due to animatedProps) */}
-      {formatter(value)}
-    </AnimatedMonoText>
+      {displayValue}
+    </MonoText>
   );
 }
