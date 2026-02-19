@@ -21,6 +21,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { OfflineIndicator } from '@/components/common/OfflineIndicator';
 import { useSymbolSearch } from '@/hooks/useSymbolSearch';
 import { useStock } from '@/contexts/StockContext';
+import { useToast } from '@/components/common';
 import { syncAllData } from '@/services/sync/syncOrchestrator';
 import type { SymbolDetails } from '@/types/database.types';
 import { differenceInDays } from 'date-fns';
@@ -35,6 +36,7 @@ export default function SearchScreen() {
 
   const { setSelectedTicker, setDateRange, startDate, endDate } = useStock();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -91,6 +93,7 @@ export default function SearchScreen() {
         });
 
         console.log(`[SearchScreen] Sync complete for ${symbol.ticker}`);
+        toast.show({ message: `Data synced for ${symbol.ticker}`, variant: 'success' });
 
         // Show message if sentiment is processing asynchronously
         if (syncResult.sentimentJobId) {
@@ -129,10 +132,10 @@ export default function SearchScreen() {
         console.error('[SearchScreen] Error syncing data:', error);
         setIsSyncing(false);
         setSyncMessage('');
-        // Don't show error - sync failures are handled in individual screens
+        toast.show({ message: 'Failed to sync stock data', variant: 'error' });
       }
     },
-    [setSelectedTicker, startDate, endDate, queryClient],
+    [setSelectedTicker, startDate, endDate, queryClient, toast],
   );
 
   const renderSearchResult = useCallback(

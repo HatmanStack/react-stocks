@@ -21,6 +21,7 @@ import { OfflineIndicator } from '@/components/common/OfflineIndicator';
 import { StockCarousel, CarouselItem } from '@/components/common';
 import { usePortfolio } from '@/hooks/usePortfolio';
 import { useStock } from '@/contexts/StockContext';
+import { useToast } from '@/components/common';
 import { syncAllData } from '@/services/sync/syncOrchestrator';
 import { logger } from '@/utils/logger';
 import type { PortfolioDetails } from '@/types/database.types';
@@ -33,6 +34,7 @@ export default function PortfolioScreen() {
   const { contentWidth } = useContentWidth();
   const { portfolio, isLoading, error, refetch, removeFromPortfolio } = usePortfolio();
   const { setSelectedTicker, startDate, endDate } = useStock();
+  const toast = useToast();
 
   const handleStockPress = useCallback(
     (item: PortfolioDetails) => {
@@ -55,6 +57,7 @@ export default function PortfolioScreen() {
           onPress: async () => {
             try {
               await removeFromPortfolio(item.ticker);
+              toast.show({ message: `${item.ticker} removed from portfolio`, variant: 'info' });
             } catch (err) {
               logger.error('[PortfolioScreen] Error removing stock:', err);
               Alert.alert('Error', 'Failed to remove stock from portfolio');
@@ -63,7 +66,7 @@ export default function PortfolioScreen() {
         },
       ]);
     },
-    [removeFromPortfolio],
+    [removeFromPortfolio, toast],
   );
 
   const handleAddStock = useCallback(() => {
@@ -120,12 +123,13 @@ export default function PortfolioScreen() {
       }
 
       await refetch();
+      toast.show({ message: 'Portfolio refreshed', variant: 'success' });
       setRefreshing(false);
     } catch (err) {
       logger.error('[PortfolioScreen] Error during refresh:', err);
       setRefreshing(false);
     }
-  }, [portfolio, startDate, endDate, refetch]);
+  }, [portfolio, startDate, endDate, refetch, toast]);
 
   const renderPortfolioItem = useCallback(
     ({ item }: { item: PortfolioDetails }) => (
@@ -170,7 +174,7 @@ export default function PortfolioScreen() {
   );
 
   const renderListHeader = useCallback(() => {
-    if (carouselItems.length < 2) return null;
+    if (carouselItems.length < 1) return null;
     return (
       <StockCarousel
         title="Quick View"
